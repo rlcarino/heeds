@@ -795,9 +795,8 @@ contains
     integer, intent(in out) :: NumBlocks, NumSections
     type (TYPE_SECTION), intent(in out), dimension (0:) :: Section
     type (TYPE_BLOCK), dimension(0:), intent(in out) :: Block
-    integer :: crse, dept, idx
+    integer :: crse, idx
 
-    dept = Block(block_idx)%DeptIdx
     do idx=1,Block(block_idx)%NumClasses
       crse = Block(block_idx)%Subject(idx)
       if (crse<=0) cycle

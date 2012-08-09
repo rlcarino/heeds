@@ -34,8 +34,6 @@ module GRADES
 
     implicit none
 
-    integer, private :: i
-
     ! grade types
     character (len=10), dimension(0:3) :: txtGradeType = (/ &
         'APE       ', 'FINALGRADE', 'REMOVAL   ', 'COMPLETION' /)

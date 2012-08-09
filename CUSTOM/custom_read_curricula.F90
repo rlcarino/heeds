@@ -38,13 +38,11 @@
         character (len=MAX_LEN_COLLEGE_CODE) :: tCollege
         character (len=MAX_LEN_TEXT_SEMESTER) :: strTerm
         character (len=MAX_LEN_TEXT_YEAR) :: strYear
-        integer :: idxCURR, idxterm, idxCOLL, ptrS
+        integer :: idxCURR, idxterm, idxCOLL
         integer :: i, j, year, term
         character (len=MAX_LEN_SUBJECT_CODE) :: token
         character (len=MAX_LEN_FILE_PATH) :: currFile
         character (len=1) :: ch
-
-        ptrS = 0 ! substitutions
 
         fileName = trim(dirRAW)//trim(path)//'CURRICULA.CSV'
         open (unit=1, file=fileName, status='old', iostat=errNo)

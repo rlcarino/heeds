@@ -502,7 +502,7 @@ contains
         integer, intent (in) :: std
         logical, optional, intent (in) :: DoNotRename
 
-        integer :: i, j, k, cdx, tdx, ierr
+        integer :: i, j, k, tdx, ierr
 
         TCG = TYPE_STUDENT_RECORD (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, .false., SPACE, SPACE)
         lenTCG = 0
@@ -524,7 +524,6 @@ contains
         ! compute when grades were received relative to baseYear
         do tdx=1,lenTCG
             if (TCG(tdx)%Code/=2) cycle
-            cdx = TCG(tdx)%Subject
             if (TCG(tdx)%Year==0 .or. TCG(tdx)%Term==-1) then
                 TCG(tdx)%Year = baseYear
                 TCG(tdx)%Term = 0
@@ -562,12 +561,12 @@ contains
         logical, optional, intent (in) :: DoNotRename
         character (len=MAX_LEN_TEXT_YEAR) :: tYear
         character (len=MAX_LEN_TEXT_SEMESTER) :: tTerm
-        type (TYPE_CURRICULUM) :: tCheckList
+        !type (TYPE_CURRICULUM) :: tCheckList
         character (len=MAX_LEN_SUBJECT_CODE) :: tSubject, token
         character (len=MAX_LEN_CURRICULUM_CODE) :: stdCurriculum
         character (len=10) :: tSection
-        character (len=4) :: tGrade, tUnits
-        integer :: idxCURR, pocw
+        character (len=4) :: tGrade!, tUnits
+        integer :: idxCURR
         integer :: i, j, k, cdx, eof, gdx, tdx
         logical :: fileOK
 
@@ -576,7 +575,6 @@ contains
         if (StdNoYearLen<=0) StdNoYearLen = StdNoChars
         fileTCG = trim(dirRAW)//'checklists'//DIRSEP//Student(std)%StdNo(1:StdNoYearLen)//DIRSEP//Student(std)%StdNo
 
-        pocw = 0 ! no. of PlanOfStudy entries
         inquire (file=fileTCG, exist=fileOK)
         if (fileOK) then
             open(200, file=fileTCG, form='formatted', status='old')
@@ -640,7 +638,7 @@ contains
 
         ! parse TCG; assume initial good academic standing, copy TCG to Record()
         Student(std)%Record(1,0) = 0
-        tCheckList = Curriculum(idxCURR)
+        !tCheckList = Curriculum(idxCURR)
         loop_tcg: &
         do tdx=1,lenTCG
             line = TCG(tdx)%txtLine
@@ -667,7 +665,7 @@ contains
                     cycle loop_tcg
                 end if
                 tSection = adjustl(line(pos(5)+1:pos(6)-1))
-                tUnits = adjustl(line(pos(6)+1:pos(7)-1))
+                !tUnits = adjustl(line(pos(6)+1:pos(7)-1))
                 tGrade  = adjustl(line(pos(7)+1:pos(8)-1))
                 tYear = adjustl(line(pos(2)+1:pos(3)-1))
                 tTerm = adjustl(line(pos(3)+1:pos(4)-1))

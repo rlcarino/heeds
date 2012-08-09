@@ -187,14 +187,12 @@ contains
         character(len=MAX_LEN_XML_TAG) :: tag
         type(TYPE_CURRICULUM) :: tmpCurriculum
 
-        integer :: i, j, k, ptrS, idxterm, year, term
+        integer :: i, j, k, idxterm, year, term
         character (len=MAX_LEN_SUBJECT_CODE) :: token
         character (len=MAX_LEN_COLLEGE_CODE) :: tCollege
         character (len=MAX_LEN_TEXT_SEMESTER) :: strTerm
         character (len=MAX_LEN_TEXT_YEAR) :: strYear
         integer :: nLoad, loadArray(MAX_SUBJECTS_PER_TERM)
-
-        ptrS = 0 ! substitutions
 
         ! open file, return on any error
         fileName = trim(dirXML)//trim(path)//'CURRICULA.XML'
