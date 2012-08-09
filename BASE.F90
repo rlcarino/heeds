@@ -44,9 +44,9 @@ module BASE
     character(len=18), parameter :: CGI_PATH = '/cgi-bin/'//CGI_SCRIPT
 
     ! flags to control generation of log files, backups, etc
-    logical, parameter :: MANY_LOG_FILES = .false. ! a log file for every run?
-    logical, parameter :: DO_NOT_BACKUP = .true. ! create backups?
-    logical, parameter :: CHECK_PASSWORD = .false. ! check Registrar's password
+    logical, parameter :: MANY_LOG_FILES = .true. ! a log file for every run?
+    logical, parameter :: DO_NOT_BACKUP = .false. ! create backups?
+    logical, parameter :: CHECK_PASSWORD = .true. ! check Registrar's password
 
     ! directory separator; delete, directory, mkdir commands
 #if defined GNULINUX
