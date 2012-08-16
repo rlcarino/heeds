@@ -40,7 +40,7 @@
 #URLENCODE = -DDO_NOT_ENCODE
 
 OS = GNULINUX
-DESTDIR = /home/heeds_admin/HEEDS/bin
+DESTDIR = /home/heeds/HEEDS/bin
 EXT = GLNX
 DELCMD = rm -f
 URLENCODE = -DDO_NOT_ENCODE
