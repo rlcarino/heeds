@@ -65,10 +65,6 @@
             call index_to_delimiters('"', line, ndels, pos)
             !no,code,name,subject,year,address,age,sexmale,sexfemale,civilstatus,scholarship,units,new,old,transferee,info1,info2,info3,info4
             !1 2   3 4  5 6    7      8     9     10   11 12     13
-            !1,"211691","Galdonez, Jackilyn Abaya","BSHRTM",0,"Arcon, Tumauini, Isabela",18," ","F","S","Brotf",21.0," ","O"," ","Ilocano","Farmer","Ofw",""
-            !1 2      3 4                        5 6      7   8                        9   10 1112 13
-            !2,"290960","Pasion, Raymond S.","BSAE",0,"Cabugao, Echague, Isabela",19,"M"," ","S","Bromisc",18.0," ","O"," ","Ilocano","Security Guard","Dress Maker",""
-            !3,"290462","Reccion, Felmor Jr. T.","BSCRIM",0,"Culing Centro, Cabatuan, Isabela",20,"M"," ","S","Brotf",23.0," ","O"," ","Ilocano","Farmer","House Wife",""
 
             if (ndels<13) then
                 call file_log_message (line,'There must be at least 13 data items')

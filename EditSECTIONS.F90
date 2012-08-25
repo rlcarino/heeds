@@ -263,12 +263,11 @@ contains
             return
           end if
           header = trim(header)//' "'//trim(searchString)//'"'
-          select case (trim(UniversityCode))
-              case ('CSU-Andrews', 'ISU') ! Subjects administered by program
-                  tDepartment = tCollege
-                  targetDepartment = index_to_dept(tDepartment)
-              case default ! Subject administered by departments
-          end select
+#if defined CUSTOM
+          ! Subjects administered by program
+          tDepartment = tCollege
+          targetDepartment = index_to_dept(tDepartment)
+#endif
 
         case (fnTBARooms,fnNextTBARooms,fnTBATeachers,fnNextTBATeachers) ! TBA rooms, teachers
           header = 'Classes with TBA room/teacher'
@@ -279,13 +278,11 @@ contains
           end if
           targetCollege = index_to_college(tCollege)
           header = tCollege//header
-          select case (trim(UniversityCode))
-              case ('CSU-Andrews', 'ISU') ! Subjects administered by program
-                  tDepartment = tCollege
-                  targetDepartment = index_to_dept(tDepartment)
-              case default ! Subject administered by departments
-          end select
-
+#if defined CUSTOM
+          ! Subjects administered by program
+          tDepartment = tCollege
+          targetDepartment = index_to_dept(tDepartment)
+#endif
     end select
 
     if (present(mesg)) then
@@ -397,22 +394,22 @@ contains
 
     nclosed = 0
     ! make list of closed subjects here, starting at tArray(nsections+nopen+1)
-    select case (trim(UniversityCode))
-        case ('CSU-Andrews', 'ISU') ! Subjects administered by program
-            do cdx=1,NumSubjects+NumAdditionalSubjects
-                if (Offering(cdx)%NSections>0) cycle
-                if (.not. is_used_in_college_subject(targetCollege, cdx)) cycle
-                nclosed = nclosed+1
-                tArray(nsections+nopen+nclosed) = cdx
-            end do
-        case default ! Subject administered by departments
-            do cdx=1,NumSubjects+NumAdditionalSubjects
-                if (Offering(cdx)%NSections>0) cycle
-                if (Subject(cdx)%DeptIdx/=targetDepartment) cycle
-                nclosed = nclosed+1
-                tArray(nsections+nopen+nclosed) = cdx
-            end do
-    end select
+#if defined CUSTOM
+    ! Subjects administered by program
+    do cdx=1,NumSubjects+NumAdditionalSubjects
+        if (Offering(cdx)%NSections>0) cycle
+        if (.not. is_used_in_college_subject(targetCollege, cdx)) cycle
+        nclosed = nclosed+1
+        tArray(nsections+nopen+nclosed) = cdx
+    end do
+#else
+    do cdx=1,NumSubjects+NumAdditionalSubjects
+        if (Offering(cdx)%NSections>0) cycle
+        if (Subject(cdx)%DeptIdx/=targetDepartment) cycle
+        nclosed = nclosed+1
+        tArray(nsections+nopen+nclosed) = cdx
+    end do
+#endif
 
     ! offer to open sections
     if (nclosed>0 .and. (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==targetDepartment))) then
@@ -487,12 +484,12 @@ contains
       write(device,AFORMAT) endtd//endtr, &
           begintr//tdnbspendtd//'<td colspan="7">&nbsp;Pr. '//trim(text_prerequisite_of_subject(cdx,0))//endtd
 
-      select case (trim(UniversityCode))
-          case ('CSU-Andrews', 'ISU') ! Subjects administered by program
-            okToAdd = isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==targetDepartment)
-          case default ! Subject administered by departments
-            okToAdd = isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==Subject(cdx)%DeptIdx)
-      end select
+#if defined CUSTOM
+      ! Subjects administered by program
+      okToAdd = isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==targetDepartment)
+#else
+      okToAdd = isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==Subject(cdx)%DeptIdx)
+#endif
 
       if (okToAdd) then
           write(device,AFORMAT) begintd//'<small>', &
@@ -664,15 +661,16 @@ contains
           return
     end if
 
-    select case (trim(UniversityCode))
-        case ('CSU-Andrews', 'ISU') ! Subjects administered by program
-            call cgi_get_named_string(QUERY_STRING, 'A2', tDepartment, kdx)
-            targetDepartment = index_to_dept(tDepartment)
-            targetCollege = Department(targetDepartment)%CollegeIdx
-        case default ! Subject administered by departments
-            targetDepartment = Subject(crse)%DeptIdx
-            targetCollege = Department(targetDepartment)%CollegeIdx
-    end select
+#if defined CUSTOM
+    ! Subjects administered by program
+    call cgi_get_named_string(QUERY_STRING, 'A2', tDepartment, kdx)
+    targetDepartment = index_to_dept(tDepartment)
+    targetCollege = Department(targetDepartment)%CollegeIdx
+#else
+    ! Subject administered by departments
+    targetDepartment = Subject(crse)%DeptIdx
+    targetCollege = Department(targetDepartment)%CollegeIdx
+#endif
 
     dept = targetDepartment
     if (fnOFFSET==0) then

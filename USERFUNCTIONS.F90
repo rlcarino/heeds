@@ -304,12 +304,10 @@ contains
         ! any freshman INTAKE data?
         available(fnDemandFreshmen) = sum(NFintake)>0
 
-        ! university-specific settings
-        select case (trim(UniversityCode))
-            case ('CSU-Andrews', 'ISU') ! Subjects administered by program
-                available(fnStudentsByYear) = .false.
-            case default ! Subject administered by departments
-        end select
+        ! university-specific customizations
+#if defined CUSTOM
+        available(fnStudentsByYear) = .false.
+#endif
 
         return
     end subroutine set_feature_availability

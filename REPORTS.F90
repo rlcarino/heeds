@@ -607,14 +607,15 @@ contains
             !write(*,*) cdx, Subject(crse)%Name, Offering(crse)%Demand
             if (Offering(crse)%Demand == 0) cycle
 
-            if (idxDEPT/=0) then !
-                select case (trim(UniversityCode))
-                    case ('CSU-Andrews', 'ISU') ! Subjects administered by program
-                        idxCOLL = Department(idxDEPT)%CollegeIdx
-                        if (.not. is_used_in_college_subject(idxCOLL, crse) ) cycle
-                    case default ! Subject administered by departments
-                        if (Subject(crse)%DeptIdx/=idxDEPT) cycle
-                end select
+            if (idxDEPT/=0) then
+#if defined CUSTOM
+                ! Subjects administered by program
+                idxCOLL = Department(idxDEPT)%CollegeIdx
+                if (.not. is_used_in_college_subject(idxCOLL, crse) ) cycle
+#else
+                ! Subject administered by departments
+                if (Subject(crse)%DeptIdx/=idxDEPT) cycle
+#endif
             end if
             if (mod(nlines,20)==0) &
             write(device,AFORMAT) begintr//'<td width="15%"><i><p>Subject<br></p></i>'//endtd, & ! subject
@@ -643,15 +644,16 @@ contains
             write(device,AFORMAT) tdalignright//trim(itoa(Offering(crse)%NSections))//endtd, &
             tdalignright//trim(itoa(Offering(crse)%TotalSlots))//endtd
             ! total accom
-            select case (trim(UniversityCode))
-                case ('CSU-Andrews', 'ISU') ! Subjects administered by program
-                    write(device,AFORMAT) tdalignright//itoa(Offering(crse)%Accommodated)//endtd
-                case default ! Subject administered by departments
-                    write(device,AFORMAT) trim(cgi_make_href(fnScheduleOfClasses, targetUser, &
-                        itoa(Offering(crse)%Accommodated), &
-                        A1=Department(Subject(crse)%DeptIdx)%Code, &
-                        pre=tdalignright, post=endtd, anchor=tSubject))
-            end select
+#if defined CUSTOM
+            ! Subjects administered by program
+            write(device,AFORMAT) tdalignright//itoa(Offering(crse)%Accommodated)//endtd
+#else
+            ! Subject administered by departments
+            write(device,AFORMAT) trim(cgi_make_href(fnScheduleOfClasses, targetUser, &
+                itoa(Offering(crse)%Accommodated), &
+                A1=Department(Subject(crse)%DeptIdx)%Code, &
+                pre=tdalignright, post=endtd, anchor=tSubject))
+#endif
 
             ! open seats
             write(device,AFORMAT) tdalignright//trim(itoa(Offering(crse)%OpenSlots))//endtd//tdnbspendtd

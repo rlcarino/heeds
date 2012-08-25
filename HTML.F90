@@ -1018,29 +1018,26 @@ contains
 
         ! subject areas in college
         tLen = 0
-        select case (trim(UniversityCode))
-
-            case ('CSU-Andrews', 'ISU') ! Subjects administered by program
-                do cdx=1,NumSubjectAreas
-                    do ldx=1,NumCurricula
-                        if (Curriculum(ldx)%CollegeIdx/=coll) cycle
-                        if (is_used_in_curriculum_subject_area(Curriculum(ldx), trim(SubjectArea(cdx)%Code)//SPACE)) then
-                            tLen = tLen+1
-                            tArray(tLen) = cdx
-                            exit
-                        end if
-                    end do
-                end do
-
-            case default ! Subject administered by departments
-                do cdx=1,NumSubjectAreas
-                    if (SubjectArea(cdx)%CollegeIdx==coll) then
-                        tLen = tLen+1
-                        tArray(tLen) = cdx
-                    end if
-                end do
-
-        end select
+#if defined CUSTOM
+        ! Subjects administered by program
+        do cdx=1,NumSubjectAreas
+            do ldx=1,NumCurricula
+                if (Curriculum(ldx)%CollegeIdx/=coll) cycle
+                if (is_used_in_curriculum_subject_area(Curriculum(ldx), trim(SubjectArea(cdx)%Code)//SPACE)) then
+                    tLen = tLen+1
+                    tArray(tLen) = cdx
+                    exit
+                end if
+            end do
+        end do
+#else
+        do cdx=1,NumSubjectAreas
+            if (SubjectArea(cdx)%CollegeIdx==coll) then
+                tLen = tLen+1
+                tArray(tLen) = cdx
+            end if
+        end do
+#endif
 
         ! start of body
         write(device,AFORMAT) '<ul>'
@@ -1264,22 +1261,20 @@ contains
         do dept=2,NumDepartments
             if (Department(dept)%CollegeIdx/=coll) cycle
             n_count = 0
-            select case (trim(UniversityCode))
-
-                case ('CSU-Andrews', 'ISU') ! Subjects administered by program
-                    do crse=1,NumSubjects+NumAdditionalSubjects
-                        if (.not. is_used_in_college_subject(coll, crse)) cycle
-                        n_count = n_count+1
-                        exit
-                    end do
-
-                case default ! Subject administered by departments
-                    do crse=1,NumSubjects+NumAdditionalSubjects
-                        if (Subject(crse)%DeptIdx /= dept) cycle
-                        n_count = n_count+1
-                        exit
-                    end do
-            end select
+#if defined CUSTOM
+            ! Subjects administered by program
+            do crse=1,NumSubjects+NumAdditionalSubjects
+                if (.not. is_used_in_college_subject(coll, crse)) cycle
+                n_count = n_count+1
+                exit
+            end do
+#else
+            do crse=1,NumSubjects+NumAdditionalSubjects
+                if (Subject(crse)%DeptIdx /= dept) cycle
+                n_count = n_count+1
+                exit
+            end do
+#endif
             if (n_count==0) cycle
             tDepartment = Department(dept)%Code
             write(device,AFORMAT) trim(cgi_make_href(fn, targetUser, tDepartment, A1=tDepartment, post=nbsp))
@@ -1303,23 +1298,20 @@ contains
         do dept=2,NumDepartments
             if (Department(dept)%CollegeIdx /= coll) cycle
             n_count = 0
-            select case (trim(UniversityCode))
-
-                case ('CSU-Andrews', 'ISU') ! Subjects administered by program
-                    do crse=1,NumSubjects+NumAdditionalSubjects
-                        if (.not. is_used_in_college_subject(coll, crse)) cycle
-                        n_count = n_count+1
-                        exit
-                    end do
-
-                case default ! Subject administered by departments
-                    do crse=1,NumSubjects+NumAdditionalSubjects
-                        if (Subject(crse)%DeptIdx /= dept) cycle
-                        n_count = n_count+1
-                        exit
-                    end do
-            end select
-
+#if defined CUSTOM
+            ! Subjects administered by program
+            do crse=1,NumSubjects+NumAdditionalSubjects
+                if (.not. is_used_in_college_subject(coll, crse)) cycle
+                n_count = n_count+1
+                exit
+            end do
+#else
+            do crse=1,NumSubjects+NumAdditionalSubjects
+                if (Subject(crse)%DeptIdx /= dept) cycle
+                n_count = n_count+1
+                exit
+            end do
+#endif
             if (n_count==0) cycle
             tDepartment = Department(dept)%Code
             write(device,AFORMAT) trim(cgi_make_href(fnSubjectList, targetUser, tDepartment, A1=tDepartment, post=nbsp))
@@ -1349,22 +1341,20 @@ contains
         do dept=2,NumDepartments
             if (Department(dept)%CollegeIdx /= coll) cycle
             n_count = 0
-            select case (trim(UniversityCode))
-
-                case ('CSU-Andrews', 'ISU') ! Subjects administered by program
-                    do crse=1,NumSubjects+NumAdditionalSubjects
-                        if (.not. is_used_in_college_subject(coll, crse)) cycle
-                        n_count = n_count+1
-                        exit
-                    end do
-
-                case default ! Subject administered by departments
-                    do crse=1,NumSubjects+NumAdditionalSubjects
-                        if (Subject(crse)%DeptIdx /= dept) cycle
-                        n_count = n_count+1
-                        exit
-                    end do
-            end select
+#if defined CUSTOM
+            ! Subjects administered by program
+            do crse=1,NumSubjects+NumAdditionalSubjects
+                if (.not. is_used_in_college_subject(coll, crse)) cycle
+                n_count = n_count+1
+                exit
+            end do
+#else
+            do crse=1,NumSubjects+NumAdditionalSubjects
+                if (Subject(crse)%DeptIdx /= dept) cycle
+                n_count = n_count+1
+                exit
+            end do
+#endif
             if (n_count==0) cycle
             tDepartment = Department(dept)%Code
             write(device,AFORMAT) trim(cgi_make_href(OFFSET+fnScheduleOfClasses, targetUser, tDepartment, &

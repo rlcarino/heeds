@@ -206,20 +206,21 @@ contains
         type (TYPE_SECTION), intent(in), dimension (0:) :: Section
         integer :: sect, dept
         ScheduleCount(Term,:) = 0
-        select case (trim(UniversityCode))
-            case ('CSU-Andrews', 'ISU') ! Subjects administered by program
-                do sect=1,NumSections
-                    if (Section(sect)%SubjectIdx==0) cycle
-                    dept = Section(sect)%DeptIdx
-                    ScheduleCount(Term,dept) = max(atoi(Section(sect)%Code(2:)), ScheduleCount(Term,dept))
-                end do
-            case default ! Subject administered by departments
-                do sect=1,NumSections
-                    if (Section(sect)%SubjectIdx==0) cycle
-                    dept = Section(sect)%DeptIdx
-                    ScheduleCount(Term,dept) = ScheduleCount(Term,dept) + 1
-                end do
-        end select
+#if defined CUSTOM
+        ! Subjects administered by program
+        do sect=1,NumSections
+            if (Section(sect)%SubjectIdx==0) cycle
+            dept = Section(sect)%DeptIdx
+            ScheduleCount(Term,dept) = max(atoi(Section(sect)%Code(2:)), ScheduleCount(Term,dept))
+        end do
+#else
+        ! Subject administered by departments
+        do sect=1,NumSections
+            if (Section(sect)%SubjectIdx==0) cycle
+            dept = Section(sect)%DeptIdx
+            ScheduleCount(Term,dept) = ScheduleCount(Term,dept) + 1
+        end do
+#endif
         return
     end subroutine count_sections_by_dept
 

@@ -217,12 +217,10 @@ program MAIN
         call server_end(' Stopped')
     end if
 
-    select case (trim(UniversityCode))
-        case ('CSU-Andrews', 'ISU') ! Subjects administered by program
-              ! set term offered of a subject to when it is taken in curricula programs
-            call set_term_offered_accg_to_curricula()
-        case default ! Subject administered by departments
-    end select
+#if defined CUSTOM
+    ! set term offered of a subject to when it is taken in curricula programs
+    call set_term_offered_accg_to_curricula()
+#endif
 
     ! Synchronize pre-requisites of co-requisite subjects
     ! For example, CHEM 17.0 has MATH 11 or MATH 17, CHEM 17.1 has NONE. Set

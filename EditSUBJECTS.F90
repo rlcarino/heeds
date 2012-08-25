@@ -48,22 +48,22 @@ contains
         if (targetDepartment>0) then
             targetCollege = Department(targetDepartment)%CollegeIdx
             nSubjects = 0
-            select case (trim(UniversityCode))
-                case ('CSU-Andrews', 'ISU') ! Subjects administered by program
-                    do idx=1,NumSubjects+NumAdditionalSubjects
-                        if (is_used_in_college_subject(targetCollege, idx) ) then
-                            nSubjects = nSubjects+1
-                            tArray(nSubjects) = idx
-                        end if
-                    end do
-                case default ! Subject administered by departments
-                    do idx=1,NumSubjects+NumAdditionalSubjects
-                        if (Subject(idx)%DeptIdx == targetDepartment) then
-                            nSubjects = nSubjects+1
-                            tArray(nSubjects) = idx
-                        end if
-                    end do
-            end select
+#if defined CUSTOM
+            ! Subjects administered by program
+            do idx=1,NumSubjects+NumAdditionalSubjects
+                if (is_used_in_college_subject(targetCollege, idx) ) then
+                    nSubjects = nSubjects+1
+                    tArray(nSubjects) = idx
+                end if
+            end do
+#else
+            do idx=1,NumSubjects+NumAdditionalSubjects
+                if (Subject(idx)%DeptIdx == targetDepartment) then
+                    nSubjects = nSubjects+1
+                    tArray(nSubjects) = idx
+                end if
+            end do
+#endif
             call html_write_header(device, 'Subjects in '//Department(targetDepartment)%Name)
         else ! try subject area
             if (ierr/=0 .or. tDepartment==SPACE) then

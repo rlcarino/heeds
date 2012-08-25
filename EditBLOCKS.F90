@@ -77,14 +77,16 @@ contains
 
     targetCollege = Curriculum(Block(targetBlock)%CurriculumIdx)%CollegeIdx
     targetDepartment = Block(targetBlock)%DeptIdx
-    select case (trim(UniversityCode))
-        case ('CSU-Andrews', 'ISU') ! Subjects administered by program
-            allowed_to_edit = isRoleAdmin .or. & ! USER is the ADMINISTRATOR
+
+#if defined CUSTOM
+    ! Subjects administered by program
+    allowed_to_edit = isRoleAdmin .or. & ! USER is the ADMINISTRATOR
             (isRoleChair .and. targetCollege==CollegeIdxUser ) ! USER is Dean, and College is the same as that of the Block
-        case default ! Subject administered by departments
-            allowed_to_edit = isRoleAdmin .or. & ! USER is the ADMINISTRATOR
+#else
+    ! Subject administered by departments
+    allowed_to_edit = isRoleAdmin .or. & ! USER is the ADMINISTRATOR
             (isRoleChair .and. targetDepartment==DeptIdxUser) ! USER is Chair, and Department is the same as that of the Block
-    end select
+#endif
 
     mesg = SPACE
     updates = .false.
@@ -704,14 +706,15 @@ contains
 
     targetCollege = Curriculum(targetCurriculum)%CollegeIdx
 
-    select case (trim(UniversityCode))
-        case ('CSU-Andrews', 'ISU') ! Subjects administered by program
-            tDepartment = College(targetCollege)%Code
-            targetDepartment = index_to_dept(tDepartment)
-        case default ! Subject administered by departments
-            targetDepartment = DeptIdxUser
-            tDepartment =  Department(targetDepartment)%Code
-    end select
+#if defined CUSTOM
+    ! Subjects administered by program
+    tDepartment = College(targetCollege)%Code
+    targetDepartment = index_to_dept(tDepartment)
+#else
+    ! Subject administered by departments
+    targetDepartment = DeptIdxUser
+    tDepartment =  Department(targetDepartment)%Code
+#endif
 
     do Year=YearFirst,YearLast
 

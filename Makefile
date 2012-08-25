@@ -57,7 +57,7 @@ DEBUG =
 # Fortran compiler and flags
 #---------------------------------------------------------------
 FFLAGS = -ffree-form -fbounds-check
-OPTIONS = $(DEBUG) $(URLENCODE) -D$(OS) -I$(RAWDATA)
+OPTIONS = $(DEBUG) $(URLENCODE) -D$(OS) -I$(RAWDATA) -D$(RAWDATA)
 
 FC = gfortran -Wunused $(FFLAGS) $(OPTIONS) 
 #FC = g95 -Wunused-vars -ftrace=frame -ftrace=full $(FFLAGS) $(OPTIONS) 
