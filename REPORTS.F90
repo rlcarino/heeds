@@ -595,7 +595,10 @@ contains
     subroutine enlistment_write_summary(device, Offering, idxDEPT, maxSubjects)
         integer, intent (in) :: device, idxDEPT, maxSubjects
         type (TYPE_OFFERED_SUBJECTS), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS), intent (in) :: Offering
-        integer :: crse, cdx, nlines, nSubjects, idxCOLL
+        integer :: crse, cdx, nlines, nSubjects
+#if defined CUSTOM
+        integer :: idxCOLL
+#endif
         character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
         character (len=4) :: tNote
 

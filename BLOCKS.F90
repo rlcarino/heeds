@@ -175,6 +175,9 @@ contains
 
         integer :: blk, sect, i
 
+        ! training only?
+        if (noWrites) return
+
         ! generate file name
         if (iDept>0) then
             fileName = trim(dirXML)//trim(path)//'BLOCKS-'//trim(Department(iDept)%Code)//'.XML'

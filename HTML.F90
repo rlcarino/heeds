@@ -114,7 +114,7 @@ contains
                 write(device,AFORMAT) '<option value="'//trim(itoa(i))//'"> '//trim(UserList(i)%Name)
         end do
         write(device,AFORMAT) '</select>&nbsp;&nbsp; '
-        if (CHECK_PASSWORD) then
+        if (checkPassword) then
             write(device,AFORMAT) &
                 '<b>Password is : </b> <input type="password" name="P" value="">&nbsp;&nbsp;'
         end if
@@ -787,34 +787,13 @@ contains
 
         integer, intent(in) :: device
 
-!        integer :: gdx
-!
-!        if (isRoleAdmin) then
-!            write(device,AFORMAT) &
-!                '<b>Links to ''administrative'' college: '//trim(College(CollegeIdxUser)%Code)// &
-!                '</b> - '//trim(College(CollegeIdxUser)%Name)
-!            call html_college_info(device, CollegeIdxUser)
-!
-!            ! links to other colleges
-!            write(device,AFORMAT) '<b>Links to other colleges:</b>'
-!            do gdx = 1,NumColleges
-!                ! my college links already printed above?
-!                if (gdx==CollegeIdxUser) cycle
-!                ! fnCollegeLinks requested already printed above?
-!                if (REQUEST==fnCollegeLinks .and. gdx==targetCollege) cycle
-!                write(device,AFORMAT) trim(cgi_make_href(fnCollegeLinks, targetUser, College(gdx)%Code, &
-!                    A1=College(gdx)%Code, pre=nbsp))
-!            end do
-!        end if
-
         ! last piece of info on the page
         call date_and_time (date=currentDate,time=currentTime)
         write(device,AFORMAT) &
         '<small><i>Generated '//currentDate(1:4)//fslash//currentDate(5:6)//fslash//currentDate(7:8)// &
         dash//currentTime(1:2)//':'//currentTime(3:4)//'.'// &
-        nbsp//nbsp//' Please report errors to '//trim(UniversityCode)//space//trim(REGISTRAR)//'.'// &
-        nbsp//nbsp//CONTACT, &
-        nbsp//nbsp//' Or see <a target="0" href="http://code.google.com/p/heeds/">HEEDS on the web</a>.', &
+        nbsp//nbsp//' Please report errors to '//trim(UniversityCode)//space//trim(REGISTRAR)//'.'// & ! nbsp//nbsp//CONTACT, &
+        nbsp//nbsp//' <a target="0" href="http://code.google.com/p/heeds/">HEEDS on the Web</a>.', &
         '</i></small>', &
         '</body></html>'
 
@@ -1095,7 +1074,7 @@ contains
 
         end if
 
-        n_count = 0
+        n_count = 0 ! any students?
         do std=1,NumStudents
             if (Curriculum(Student(std)%CurriculumIdx)%CollegeIdx /= coll) cycle
             n_count = n_count+1
@@ -1118,8 +1097,8 @@ contains
                     end do
                     if (n_count > 0) then
                         write(device,AFORMAT) trim(cgi_make_href(fnStudentsByName, targetUser, ch, &
-                        A1=tCollege, A2=ch, &
-                        post='('//trim(itoa(n_count))//')&nbsp;'))
+                            A1=tCollege, A2=ch, &
+                            post='('//trim(itoa(n_count))//')&nbsp;'))
                     !else
                     !  write(device,AFORMAT) ch//nbsp
                     end if
@@ -1161,52 +1140,60 @@ contains
                     end do
                     if (n_count > 0) then
                         write(device,AFORMAT) trim(cgi_make_href(fnStudentsByProgram, targetUser, CurrProgCode(cdx), &
-                        A1=CurrProgCode(cdx), &
-                        post='('//trim(itoa(n_count))//')&nbsp;'))
+                            A1=CurrProgCode(cdx), &
+                            post='('//trim(itoa(n_count))//')&nbsp;'))
                         do ldx=cdx+1,NumCurricula
                             if (CurrProgCode(ldx) == CurrProgCode(cdx)) done(ldx) = .true.
                         end do
                     end if
                 end do
                 write(device,AFORMAT) trim(cgi_make_href(fnStudentsDistribution, targetUser, 'Distribution among curricula', &
-                A1=tCollege))
+                    A1=tCollege))
                 write(device,AFORMAT) '</li>'
             end if
             write(device,AFORMAT) '</ul><hr></li>'
         end if
 
+        ! any curricular programs
+        n_count = 0
+        do cdx=1,NumCurricula
+            if (Curriculum(cdx)%CollegeIdx /= coll) cycle
+            n_count = n_count+1
+            exit
+        end do
         if (available(fnCurriculumList)) then
-            write(device,AFORMAT) '<li><b>Curricular programs</b> : &nbsp;'
-            done = .false.
-            do cdx=1,NumCurricula
-                if (Curriculum(cdx)%CollegeIdx /= coll) cycle
-                if (done(cdx)) cycle
-                write(device,AFORMAT) trim(cgi_make_href(fnCurriculumList, targetUser, CurrProgCode(cdx), &
-                A1=CurrProgCode(cdx), &
-                post=nbsp))
-                do ldx=cdx+1,NumCurricula
-                    if (CurrProgCode(ldx) == CurrProgCode(cdx)) done(ldx) = .true.
+            if (n_count>0) then
+                write(device,AFORMAT) '<li><b>Curricular programs</b> : &nbsp;'
+                done = .false.
+                do cdx=1,NumCurricula
+                    if (Curriculum(cdx)%CollegeIdx /= coll) cycle
+                    if (done(cdx)) cycle
+                    write(device,AFORMAT) trim(cgi_make_href(fnCurriculumList, targetUser, CurrProgCode(cdx), &
+                        A1=CurrProgCode(cdx), post=nbsp))
+                    do ldx=cdx+1,NumCurricula
+                        if (CurrProgCode(ldx) == CurrProgCode(cdx)) done(ldx) = .true.
+                    end do
                 end do
-            end do
-            write(device,AFORMAT) '</li><hr>'
+                write(device,AFORMAT) '</li><hr>'
+            end if
         end if
 
         ! subjects
         call links_to_subjects(device, coll, tLen, tArray(1))
      
         ! CURRENT SEMESTER
-        write(device,AFORMAT) '<hr>', &
-        '<li><b>'//trim(txtSemester(currentTerm+3)//' Semester, SY '//trim(itoa(currentYear))//dash// &
-        trim(itoa(currentYear+1))//' '//txtPeriod(Period))//'</b><ul>'
+        write(device,AFORMAT) &
+            '<li><b>'//trim(txtSemester(currentTerm+3)//' Semester, SY '//trim(itoa(currentYear))//dash// &
+            trim(itoa(currentYear+1))//' '//txtPeriod(Period))//'</b><ul>'
 
         ! blocks
-        call links_to_blocks(device, 0, coll)
+        if (n_count>0) call links_to_blocks(device, 0, coll)
 
         ! classes
         call links_to_sections(device, 0, coll, tLen, tArray(1))
 
         ! enlistment summary
-        call links_to_depts(device, coll, fnEnlistmentSummary, '<b>Summary of enlistment</b>')
+        if (tLen>0) call links_to_depts(device, coll, fnEnlistmentSummary, '<b>Summary of enlistment</b>')
 
         ! teachers
         call links_to_teachers(device, 0, coll)
@@ -1222,16 +1209,16 @@ contains
             '<li><b>'//green//trim(txtSemester(targetTerm+3))//' Semester, SY '// &
             trim(itoa(targetYear))//dash//itoa(targetYear+1)//black//'</b><ul>'
 
-            if (available(fnDemandFreshmen)) then
+            if (available(fnDemandFreshmen) .and. tLen>0 ) then
                 write(device,AFORMAT) trim(cgi_make_href(fnDemandFreshmen, targetUser, 'new freshmen', &
                     A1=tCollege, pre='<li><b>Demand for subjects by ', post='</b></li>'))
             end if
 
             ! demand for subjects
-            call links_to_depts(device, coll, fnDemandForSubjects, '<b>Demand for subjects</b>')
+            if (tLen>0) call links_to_depts(device, coll, fnDemandForSubjects, '<b>Demand for subjects</b>')
 
             ! blocks
-            call links_to_blocks(device, fnNextOFFSET, coll)
+            if (n_count>0) call links_to_blocks(device, fnNextOFFSET, coll)
 
             ! classes
             call links_to_sections(device, fnNextOFFSET, coll, tLen, tArray(1))
@@ -1292,7 +1279,7 @@ contains
         character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
 
-        if (.not. available(fnSubjectList)) return
+        if (.not. available(fnSubjectList) .or. numAreas==0) return
 
         write(device,AFORMAT) '<li><b>Subjects</b> in : '
         do dept=2,NumDepartments
@@ -1321,7 +1308,7 @@ contains
             tSubject = SubjectArea(AreaList(dept))%Code
             write(device,AFORMAT) trim(cgi_make_href(fnSubjectList, targetUser, tSubject, A1=tSubject, post=nbsp))
         end do
-        write(device,AFORMAT) '</li>'
+        write(device,AFORMAT) '</li><hr>'
         return
     end subroutine links_to_subjects
 
@@ -1334,7 +1321,7 @@ contains
         character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
 
-        if (.not. available(OFFSET+fnScheduleOfClasses)) return
+        if (.not. available(OFFSET+fnScheduleOfClasses) .or. numAreas==0) return
         tCollege = College(coll)%Code
 
         write(device,AFORMAT) '<li><b>Class schedules</b> in : '

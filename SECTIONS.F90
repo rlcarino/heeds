@@ -252,6 +252,9 @@ contains
         integer :: sdx, mdx, subj
         logical :: sameTeacher, sameRoom, sameTime
 
+        ! training only?
+        if (noWrites) return
+
         ! all sections, or only the sections for given department?
         if (iDept>0) then
             fileName = trim(dirXML)//trim(path)//'CLASSES-'//trim(Department(iDept)%Code)//'.XML'

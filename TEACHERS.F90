@@ -206,6 +206,9 @@ contains
         character(len=*), intent(in) :: path
         integer :: ldx
 
+        ! training only?
+        if (noWrites) return
+
         fileName = trim(dirXML)//trim(path)//'TEACHERS.XML'
         call xml_open_file(unitNum, XML_ROOT_TEACHERS, fileName, ldx)
 

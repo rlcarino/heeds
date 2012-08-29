@@ -103,6 +103,9 @@ contains
 
         integer :: std, sect, i, lenRecord, filter
 
+        ! training only?
+        if (noWrites) return
+
         if (present(curriculumFilter)) then
             filter = curriculumFilter
         else

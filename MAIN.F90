@@ -48,7 +48,7 @@ program MAIN
             'year      - the year when current Academic Year started', &
             'term      - 1=first sem, 2=second sem', &
             'period    - 1=enrollment period, 2=mid-term, 3=end-of-term (grades are available)', &
-            'action    - convert, checklists, advise, schedule, server'
+            'action    - convert, checklists, advise, schedule, server, training'
         stop
     end if
 
@@ -71,20 +71,34 @@ program MAIN
     call getarg(4, argString)
     Period = atoi(argString)
 
+    ! allow files to be rewritten
+    noWrites = .false.
+
     if (iTmp>4) then
         call getarg(5, argString)
         call upper_case(argString)
 
         select case (trim(argString))
+
             case ('CHECKLISTS')
+
             case ('ADVISE')
+
             case ('SCHEDULE')
+
             case ('SERVER')
+                noWrites = .false.
+                checkPassword = .true.
+
             case default
-                argString = 'CONVERT'
+                argString = 'TRAINING'
+                noWrites = .true.
+                checkPassword = .false.
         end select
     else
-        argString = 'CONVERT'
+        argString = 'TRAINING'
+        noWrites = .true.
+        checkPassword = .false.
     end if
 
     write(*,*) PROGNAME//VERSION//' started '//currentDate//dash//currentTime
@@ -322,13 +336,11 @@ program MAIN
 
     select case (trim(argString))
 
-        case ('CONVERT')
-
         case ('ADVISE')
 
         case ('SCHEDULE')
 
-        case ('SERVER')
+        case ('SERVER', 'TRAINING')
 
             call create_user_names()
             write(*,*)  NumUsers,  ' users'
@@ -356,8 +368,13 @@ program MAIN
             write(*,AFORMAT) 'The '//PROGNAME//' back-end program is ready.', &
                 'The CGI script is '//CGI_PATH, &
                 'Temporary HTML files will be in '//trim(dirTmp), &
-                'No. of predefined users is '//itoa(NumUsers), &
-                'The administrative password is '//itoa(adminPassword)
+                'No. of predefined users is '//itoa(NumUsers)
+
+            if (noWrites) then ! training mode
+                write(*,AFORMAT) ' ', PROGNAME//' is in training mode. Any made changes will be lost after the program exits.'
+            else ! server mode
+                write(*,AFORMAT) 'The administrative password is '//itoa(adminPassword)
+            end if
 
             ! start of server loop
             call server_start()

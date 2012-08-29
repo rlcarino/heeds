@@ -109,6 +109,9 @@ contains
 
         integer :: idx
 
+        ! training only?
+        if (noWrites) return
+
         ! generate file name
         idx = index(Student(std)%StdNo,dash)-1
         if (idx<2) idx = 2
@@ -163,6 +166,9 @@ contains
 
         integer :: crse_required, idx, k, l
         integer :: rank, Year, Term, idxCURR
+
+        ! training only?
+        if (noWrites) return
 
         ! generate file name
         idx = index(Student(std)%StdNo,dash)-1

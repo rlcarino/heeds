@@ -296,7 +296,7 @@ contains
                 return
             else
                 ! check password if REGISTRAR
-                if (isRoleAdmin .and. CHECK_PASSWORD) then
+                if (isRoleAdmin .and. checkPassword) then
                     call cgi_get_named_integer(QUERY_STRING, 'P', device, ierr)
                     if (device/=adminPassword) then
                         call html_login(fname, mesg='Password is incorrect.')

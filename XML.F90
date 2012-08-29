@@ -72,7 +72,7 @@ module XML
         indent5 = INDENT_INCR*6
     character(len=80)  :: indentation = ' '
 
-    logical            :: forReading = .true., QUIETLY = .true.
+    logical            :: forReading = .true., QUIETLY = .true., noWrites = .false.
 
 contains
 

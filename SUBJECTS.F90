@@ -132,6 +132,9 @@ contains
         integer :: subj, i, j
         character(len=255) :: mesg1, mesg2, mesg3, mesg4
 
+        ! training only?
+        if (noWrites) return
+
         fileName = trim(dirXML)//trim(path)//'SUBJECTS.XML'
         call xml_open_file(unitNo, XML_ROOT_SUBJECTS, fileName, i)
 
@@ -832,6 +835,9 @@ contains
         integer, intent (in), dimension(MAX_ALL_SUBJECTS,2,0:2) :: GrandTotal
 
         integer :: cdx
+
+        ! training only?
+        if (noWrites) return
 
         fileName = trim(dirXML)//trim(path)//'FAILRATES.XML'
         call xml_open_file(unitNo, XML_FAILRATES, fileName, cdx)

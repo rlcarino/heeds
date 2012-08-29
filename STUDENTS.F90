@@ -251,6 +251,9 @@ contains
 
         integer :: std, idx
 
+        ! training only?
+        if (noWrites) return
+
         ! generate file name
         if (iCurr>0) then
             fileName = trim(dirXML)//trim(path)//'STUDENTS-'//trim(CurrProgCode(iCurr))//'.XML'

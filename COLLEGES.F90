@@ -149,6 +149,9 @@ contains
 
         character(len=*), intent(in) :: path
 
+        ! training only?
+        if (noWrites) return
+
         fileName = trim(dirXML)//trim(path)//'UNIVERSITY.XML'
         call xml_open_file(unitNum, XML_ROOT_UNIVERSITY, fileName, eof)
 
@@ -290,6 +293,9 @@ contains
 
         character(len=*), intent(in) :: path
         integer :: ldx
+
+        ! training only?
+        if (noWrites) return
 
         fileName = trim(dirXML)//trim(path)//'COLLEGES.XML'
 

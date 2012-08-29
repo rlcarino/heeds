@@ -642,7 +642,9 @@ contains
     type (TYPE_OFFERED_SUBJECTS), intent(in out), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS) :: Offering
     character(len=MAX_LEN_SUBJECT_CODE) :: tSubject
     character(len=MAX_LEN_SECTION_CODE) :: tSection
+#if defined CUSTOM
     character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
+#endif
     integer :: crse, Term, kdx, dept
     character (len=127) :: mesg
 

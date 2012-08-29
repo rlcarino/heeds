@@ -136,6 +136,9 @@ contains
         character(len=*), intent(in) :: path
         integer :: ldx
 
+        ! training only?
+        if (noWrites) return
+
         fileName = trim(dirXML)//trim(path)//'DEPARTMENTS.XML'
         call xml_open_file(unitNum, XML_ROOT_DEPARTMENTS, fileName, ldx)
         write(unitNum,AFORMAT) &

@@ -43,10 +43,9 @@ module BASE
     character(len= 9), parameter :: CGI_SCRIPT = 'relay.php'
     character(len=18), parameter :: CGI_PATH = '/cgi-bin/'//CGI_SCRIPT
 
-    ! flags to control generation of log files, backups, etc
+    ! flags to control generation of log files, backups
     logical, parameter :: MANY_LOG_FILES = .true. ! a log file for every run?
     logical, parameter :: DO_NOT_BACKUP = .false. ! create backups?
-    logical, parameter :: CHECK_PASSWORD = .true. ! check Registrar's password
 
     ! directory separator; delete, directory, mkdir commands
 #if defined GNULINUX
@@ -73,6 +72,7 @@ module BASE
 
     integer :: stderr = 999 ! unit number of file for error messages
     integer :: adminPassword = 0 ! randomly generated password for REGISTRAR
+    logical :: checkPassword = .true. ! check the password
 
     ! Max length of file path+name
     integer, parameter :: MAX_LEN_FILE_PATH = 256

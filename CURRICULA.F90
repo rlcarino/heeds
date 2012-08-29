@@ -88,6 +88,9 @@ contains
         character(len=255) :: mesg
         character(len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
 
+        ! training only?
+        if (noWrites) return
+
         fileName = trim(dirXML)//trim(path)//'CURRICULA.XML'
         call xml_open_file(unitNo, XML_ROOT_CURRICULA, fileName, idx)
 
@@ -314,6 +317,9 @@ contains
         character(len=*), intent(in) :: path
         integer :: idx, tdx
         character(len=255) :: mesg
+
+        ! training only?
+        if (noWrites) return
 
         fileName = trim(dirXML)//trim(path)//'EQUIVALENCIES.XML'
         call xml_open_file(unitNo, XML_ROOT_EQUIVALENCIES, fileName, idx)
@@ -842,6 +848,9 @@ contains
 
         character(len=*), intent(in) :: path
         integer :: idxCURR
+
+        ! training only?
+        if (noWrites) return
 
         fileName = trim(dirXML)//trim(path)//'INTAKE.XML'
 
