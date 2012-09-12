@@ -146,7 +146,7 @@ contains
             end do
 
             write(device,AFORMAT) '<table border="0" width="50%">'//&
-              begintr//thalignleft//'Code'//endth//thaligncenter//'Area'//endth, &
+              begintr//thalignleft//'Code'//endth//thaligncenter//'Cluster'//endth, &
                        thaligncenter//'Capacity'//endth//&
                        thaligncenter//'Classes'//endth//thaligncenter//'Remark'//endth//endtr
    
