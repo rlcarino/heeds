@@ -223,12 +223,12 @@ contains
             TermQualifier = green//trim(txtSemester(targetTerm+3))//' Semester, SY '// &
                 trim(itoa(targetYear))//dash//itoa(targetYear+1)//black
             pathToSections = pathToTarget
-            pathToSectionUpdates = 'updates-to-classes'//pathToTarget
+            pathToSectionUpdates = 'updates-to-classes'//DIRSEP//pathToTarget
         else
             fnOFFSET = 0
             TermQualifier = SPACE
             pathToSections = pathToCurrent
-            pathToSectionUpdates = 'updates-to-classes'//pathToCurrent
+            pathToSectionUpdates = 'updates-to-classes'//DIRSEP//pathToCurrent
         end if
 
         targetStudent = 0
@@ -369,6 +369,10 @@ contains
             case (fnTeacherSchedule)
                 call teacher_schedule(device, NumCurrentSections, CurrentSection)
 
+            case (fnPrintableWorkload)
+                call teacher_schedule_printable(device, NumCurrentSections, CurrentSection, &
+                    NumCurrentBlocks, CurrentBlock)
+
             case (fnRoomList, fnRoomConflicts)
                 call room_list_all (device, NumCurrentSections, CurrentSection, REQUEST)
 
@@ -401,8 +405,8 @@ contains
 
             case (fnBlockSchedule, fnBlockDeleteName, fnBlockEditName, fnBlockCopy, fnBlockDeleteAll, &
                     fnBlockEditSection, fnBlockEditSubject)
-                call block_show_schedule(device, NumCurrentSections, CurrentSection, NumCurrentBlocks, CurrentBlock, &
-                    REQUEST)
+                call block_show_schedule(device, NumCurrentSections, CurrentSection, CurrentOffering, &
+                    NumCurrentBlocks, CurrentBlock, REQUEST)
 
             case (fnBlockNewSelect)
                 call block_select_curriculum_year(device, NumCurrentSections, CurrentSection, NumCurrentBlocks, CurrentBlock)
@@ -474,6 +478,10 @@ contains
             case (fnNextTeacherSchedule)
                 call teacher_schedule(device, NumNextSections, NextSection)
 
+            case (fnNextPrintableWorkload)
+                call teacher_schedule_printable(device, NumNextSections, NextSection, &
+                    NumNextBlocks, NextBlock)
+
             case (fnNextRoomList, fnNextRoomConflicts)
                 call room_list_all (device, NumNextSections, NextSection, REQUEST)
 
@@ -506,7 +514,7 @@ contains
 
             case (fnNextBlockSchedule, fnNextBlockDeleteName, fnNextBlockEditName, fnNextBlockCopy, &
                     fnNextBlockDeleteAll, fnNextBlockEditSection, fnNextBlockEditSubject)
-                call block_show_schedule(device, NumNextSections, NextSection, &
+                call block_show_schedule(device, NumNextSections, NextSection, NextOffering, &
                     NumNextBlocks, NextBlock, REQUEST)
 
             case (fnNextBlockNewSelect)

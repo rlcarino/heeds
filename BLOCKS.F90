@@ -264,7 +264,7 @@ contains
         noXML = mainEntries==0
         ! check for blocks edited by departments
         do ddx=2,NumDepartments-1
-            fileName = trim(dirXML)//trim(path)//'BLOCKS-'//trim(Department(ddx)%Code)//'.XML'
+            fileName = trim(dirXML)//'updates-to-classes'//DIRSEP//trim(path)//'BLOCKS-'//trim(Department(ddx)%Code)//'.XML'
             call xml_read_blocks(fileName, NumBlocks, Block, NumSections, Section, ierr, QUIETLY)
             partialEntries = NumBlocks-numEntries
             numEntries = NumBlocks

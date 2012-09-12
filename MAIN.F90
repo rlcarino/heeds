@@ -153,12 +153,15 @@ program MAIN
 
     ! directories for XML input/ouput data
     dirXML                 = dirHEEDS//'xml'//DIRSEP//trim(UniversityCode)//DIRSEP !//currentDate//dash//currentTime(:6)//DIRSEP
-    dirSUBSTITUTIONS          = trim(dirXML)//'substitutions'//DIRSEP ! directory for input/UNEDITED checklists from Registrar
+    dirSUBSTITUTIONS       = trim(dirXML)//'substitutions'//DIRSEP ! directory for input/UNEDITED checklists from Registrar
     dirTRANSCRIPTS         = trim(dirXML)//'transcripts'//DIRSEP ! directory for raw transcripts
     dirEditedCHECKLISTS    = trim(dirXML)//'edited-checklists'//DIRSEP ! for output/EDITED checklists from College Secretaries
-
     call system (mkdirCmd//trim(dirXML)//trim(pathToCurrent))
-    if (currentTerm/=targetTerm) call system (mkdirCmd//trim(dirXML)//trim(pathToTarget))
+    call system (mkdirCmd//trim(dirXML)//'updates-to-classes'//DIRSEP//trim(pathToCurrent))
+    if (currentTerm/=targetTerm) then
+        call system (mkdirCmd//trim(dirXML)//trim(pathToTarget))
+        call system (mkdirCmd//trim(dirXML)//'updates-to-classes'//DIRSEP//trim(pathToTarget))
+    end if
     call system (mkdirCmd//trim(dirSUBSTITUTIONS))
     call system (mkdirCmd//trim(dirTRANSCRIPTS))
     call system (mkdirCmd//trim(dirEditedCHECKLISTS))
@@ -166,7 +169,11 @@ program MAIN
     ! backup directories
     dataSource = trim(dirBak)//trim(UniversityCode)//DIRSEP ! //currentDate//dash//currentTime(:6)//DIRSEP
     call system (mkdirCmd//trim(dataSource)//trim(pathToCurrent) )
-    if (currentTerm/=targetTerm) call system (mkdirCmd//trim(dataSource)//trim(pathToTarget) )
+    call system (mkdirCmd//trim(dataSource)//'updates-to-classes'//DIRSEP//trim(pathToCurrent) )
+    if (currentTerm/=targetTerm) then
+        call system (mkdirCmd//trim(dataSource)//trim(pathToTarget) )
+        call system (mkdirCmd//trim(dataSource)//'updates-to-classes'//DIRSEP//trim(pathToTarget) )
+    end if
 
     ! delete lock files from requests received while application was not running
     call system(delCmd//trim(dirTmp)//'*.lock', errNo)

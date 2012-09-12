@@ -806,7 +806,7 @@ contains
             end if
     end if
     call xml_write_blocks(pathToSections, NumBlocks, Block,  Section, 0)
-    call xml_write_blocks(pathToSections, NumBlocks, Block,  Section, dept)
+    call xml_write_blocks(pathToSectionUpdates, NumBlocks, Block,  Section, dept)
     call xml_write_sections(pathToSections, NumSections, Section, 0)
     call xml_write_sections(pathToSectionUpdates, NumSections, Section, dept)
     

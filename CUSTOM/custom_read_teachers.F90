@@ -76,7 +76,7 @@
             !end if
             end do
 
-            !call upper_case(tTeacher)
+            call upper_case(tTeacher)
             j = index_to_teacher(tTeacher)
             if (j>0) cycle ! already encountered
             tDepartment = line(pos(6)+1:pos(7)-1)
@@ -84,7 +84,7 @@
             if (k==0) k = NumDepartments ! refers to REGISTRAR
 
             wrkTeacher%TeacherId = tTeacher
-            wrkTeacher%Name = trim(tTeacher)//' ('//line(pos(8)+1:pos(9)-1)//')'
+            wrkTeacher%Name = tTeacher
             wrkTeacher%DeptIdx = k
             wrkTeacher%MaxLoad = 21
             Department(k)%hasInfo = .true.

@@ -111,7 +111,7 @@ contains
                 call file_io_log('File not found: '//fileName, beQuiet)
             else ! open & look for rootName in file
                 open (unit=device, file=fileName, status='old', iostat=eof)
-                call file_io_log('Status='//trim(itoa(eof))//' in reading '//fileName)
+                call file_io_log('Status='//trim(itoa(eof))//' in reading '//fileName, beQuiet)
                 rootFound = .false.
                 do
                     read(device, AFORMAT, iostat=eof) xmlLine
@@ -123,7 +123,7 @@ contains
                 end do
                 if (.not. rootFound) then
                     errNo = 1
-                    call file_io_log('Not in file: <'//rootName//'>')
+                    call file_io_log('Not in file: <'//rootName//'>', beQuiet)
                 end if
             end if
         end if

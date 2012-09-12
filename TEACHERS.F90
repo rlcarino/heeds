@@ -38,18 +38,44 @@ module TEACHERS
     integer, parameter :: &
         MAX_ALL_TEACHERS = 2000, & ! maximum number of eachers
         MAX_LEN_TEACHER_CODE=20, & ! length of login name
-        MAX_LEN_TEACHER_NAME=40 ! length of Teacher name
+        MAX_LEN_TEACHER_NAME=40, & ! length of Teacher name
+        MAX_LEN_TEACHER_DEGREE=40, & ! length of string for Teacher degrees
+        MAX_LEN_ACADEMIC_RANK=19, & ! length of string for academic rank
+        MAX_LEN_STEP_IN_RANK=6 ! length of string for step in academic rank
 
     type :: TYPE_TEACHER
         character (len=MAX_LEN_TEACHER_CODE) :: TeacherId
         character (len=MAX_LEN_TEACHER_NAME) :: Name
-        integer :: DeptIdx, MaxLoad
+        integer :: DeptIdx, MaxLoad, Rank, Step
+        character (len=MAX_LEN_TEACHER_DEGREE) :: Bachelor, Master, Doctorate, Specialization
     end type TYPE_TEACHER
 
     integer :: NumTeachers, NumAdditionalTeachers
 
     type (TYPE_TEACHER), dimension(0:MAX_ALL_TEACHERS) :: Teacher
     integer, dimension(0:MAX_ALL_TEACHERS) :: TeacherRank
+
+    character (len=MAX_LEN_ACADEMIC_RANK), dimension(0:4) :: AcademicRank = (/ &
+        '(Specify Rank)     ', &
+        'Instructor         ', &
+        'Assistant Professor', &
+        'Associate Professor', &
+        'Professor          ' /)
+
+    character (len=MAX_LEN_STEP_IN_RANK), dimension(0:12) :: RankStep = (/ &
+        '(Step)', &
+        'I     ', &
+        'II    ', &
+        'III   ', &
+        'IV    ', &
+        'V     ', &
+        'VI    ', &
+        'VII   ', &
+        'VIII  ', &
+        'IX    ', &
+        'X     ', &
+        'XI    ', &
+        'XII   ' /)
 
     ! private tokens
     character (len=MAX_LEN_FILE_PATH), private :: fileName
@@ -93,23 +119,25 @@ contains
 
 
 
-    subroutine initialize_teacher (wrkTeacher, tCode, tName, iDept, iLoad)
+    subroutine initialize_teacher (wrkTeacher, tCode, tName, iDept, iLoad, iRank, iStep, &
+            tBachelor, tMaster, tDoctorate, tSpecialization)
 
         type(TYPE_TEACHER), intent (out) :: wrkTeacher
         character(len=*), intent (in), optional :: tCode, tName
-        integer, intent (in), optional :: iDept, iLoad
+        integer, intent (in), optional :: iDept, iLoad, iRank, iStep
+        character(len=*), intent (in), optional :: tBachelor, tMaster, tDoctorate, tSpecialization
 
         if (present(tCode)) then
-            wrkTeacher = TYPE_TEACHER(tCode, tName, iDept, iLoad)
+            wrkTeacher = TYPE_TEACHER(tCode, tName, iDept, iLoad, iRank, iStep, &
+                tBachelor, tMaster, tDoctorate, tSpecialization)
 
         else ! place teacher under REGISTRAR
-            wrkTeacher = TYPE_TEACHER(SPACE, SPACE, NumDepartments, 12)
+            wrkTeacher = TYPE_TEACHER(SPACE, SPACE, NumDepartments, 12, 0, 0, SPACE, SPACE, SPACE, SPACE)
 
         end if
 
         return
     end subroutine initialize_teacher
-
 
     function index_to_teacher (token)
 
@@ -220,6 +248,12 @@ contains
         '        Name - name of teacher', &
         '        Department - responsible department', &
         '        MaxLoad - maximum teaching load', &
+        '        Rank - academic rank', &
+        '        Step - step in academic rank', &
+        '        Bachelor - BSc degree', &
+        '        Master - MSc degree', &
+        '        Doctorate - PhD degree', &
+        '        Specialization - Area of specialization', &
         '    </comment>'
 
         do ldx = 1,NumTeachers+NumAdditionalTeachers
@@ -229,6 +263,18 @@ contains
             call xml_write_character(unitNum, indent1, 'Name', Teacher(ldx)%Name)
             call xml_write_character(unitNum, indent1, 'Department', Department(Teacher(ldx)%DeptIdx)%Code)
             call xml_write_integer(unitNum, indent1, 'MaxLoad', Teacher(ldx)%MaxLoad)
+            if (Teacher(ldx)%Rank>0) &
+                call xml_write_character(unitNum, indent1, 'Rank', AcademicRank(Teacher(ldx)%Rank))
+            if (Teacher(ldx)%Step>0) &
+                call xml_write_character(unitNum, indent1, 'Step', RankStep(Teacher(ldx)%Step))
+            if (Teacher(ldx)%Bachelor/=SPACE) &
+                call xml_write_character(unitNum, indent1, 'Bachelor', Teacher(ldx)%Bachelor)
+            if (Teacher(ldx)%Master/=SPACE) &
+                call xml_write_character(unitNum, indent1, 'Master', Teacher(ldx)%Master)
+            if (Teacher(ldx)%Doctorate/=SPACE)  &
+                call xml_write_character(unitNum, indent1, 'Doctorate', Teacher(ldx)%Doctorate)
+            if (Teacher(ldx)%Specialization/=SPACE)  &
+                call xml_write_character(unitNum, indent1, 'Specialization', Teacher(ldx)%Specialization)
             call xml_write_character(unitNum, indent0, '/Teacher')
 
         end do
@@ -244,11 +290,13 @@ contains
         character(len=*), intent(in) :: path
         integer, intent (out) :: errNo
 
-        integer :: j
+        integer :: i, j
         character(len=MAX_LEN_XML_LINE) :: value
         character(len=MAX_LEN_XML_TAG) :: tag
         type(TYPE_TEACHER) :: wrkTeacher
         character (len=MAX_LEN_DEPARTMENT_CODE) :: tDept
+        character (len=MAX_LEN_STEP_IN_RANK) :: tStep
+        character (len=MAX_LEN_ACADEMIC_RANK) :: tRank
 
         ! open file, return on any error
         fileName = trim(dirXML)//trim(path)//'TEACHERS.XML'
@@ -284,6 +332,38 @@ contains
 
                 case ('MaxLoad')
                     wrkTeacher%MaxLoad = atoi(value)
+
+                case ('Rank')
+                    tRank = adjustl(value)
+                    j = 0
+                    do i=1,4
+                        if (tRank/=AcademicRank(i)) cycle
+                        j = i
+                        exit
+                    end do
+                    wrkTeacher%Rank = j
+
+                case ('Step')
+                    tStep = adjustl(value)
+                    j = 0
+                    do i=1,12
+                        if (tStep/=RankStep(i)) cycle
+                        j = i
+                        exit
+                    end do
+                    wrkTeacher%Step = j
+
+                case ('Bachelor')
+                    wrkTeacher%Bachelor = adjustl(value)
+
+                case ('Master')
+                    wrkTeacher%Master = adjustl(value)
+
+                case ('Doctorate')
+                    wrkTeacher%Doctorate = adjustl(value)
+
+                case ('Specialization')
+                    wrkTeacher%Specialization = adjustl(value)
 
                 case ('/Teacher') ! add temporary teacher data to Teacher()
                     NumTeachers = NumTeachers + 1

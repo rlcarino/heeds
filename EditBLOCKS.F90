@@ -37,11 +37,12 @@ module EditBLOCKS
 contains
 
 
-  subroutine block_show_schedule(device, NumSections, Section, NumBlocks, Block, fn, given)
+  subroutine block_show_schedule(device, NumSections, Section, Offering, NumBlocks, Block, fn, given)
     integer, intent(in), optional :: given
     integer, intent (in) :: device, fn
     integer, intent (in out) :: NumBlocks, NumSections
     type (TYPE_SECTION), intent(in out), dimension (0:) :: Section
+    type (TYPE_OFFERED_SUBJECTS), intent(in out), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS) :: Offering
     type (TYPE_BLOCK), dimension(0:), intent(in out) :: Block
     integer :: tLen1, tLen2, fdx, mdx, ierr, blk, jdx, Term! idx, kdx
     integer ::  crse, sect, pos, n_opts, idx_opt, lect, repl, unassigned
@@ -49,7 +50,7 @@ contains
     character(len=MAX_LEN_CLASS_ID) :: tClassId, tAction
     character(len=MAX_LEN_BLOCK_CODE) :: tBlock, newBlock
     integer, dimension(60,6) :: TimeTable
-    logical :: conflicted, allowed_to_edit, updates
+    logical :: conflicted, allowed_to_edit, updateBLOCKS, updateCLASSES
     character (len=127) :: mesg
     character (len=1) :: ch
 
@@ -89,14 +90,15 @@ contains
 #endif
 
     mesg = SPACE
-    updates = .false.
+    updateBLOCKS = .false.
+    updateCLASSES = .false.
 
     select case (fn)
 
         case (fnBlockSchedule, fnNextBlockSchedule)
 
         case (fnBlockNewAdd, fnNextBlockNewAdd)
-                updates = .true.
+                updateBLOCKS = .true.
                 mesg = 'Added new block '//tBlock
 
         case (fnBlockEditSubject, fnNextBlockEditSubject)
@@ -121,6 +123,7 @@ contains
                                 sect = Block(targetBlock)%Section(fdx)
                                 if (sect>0) then ! clear block name
                                     Section(sect)%BlockID = SPACE
+                                    updateCLASSES = .true.
                                 end if
                                 Block(targetBlock)%Section(fdx) = 0
                                 mesg = ' : Removed '//trim(tSubject)//mesg
@@ -178,6 +181,7 @@ contains
                         Block(targetBlock)%Section(fdx) = NumSections
                         mesg = ' : Added '//trim(Section(NumSections)%ClassId)//mesg
                         tLen1 = tLen1+1
+                        updateCLASSES = .true.
                     else
                         mesg = ' : ERROR - NOT added '//trim(input_value)//mesg
                     end if
@@ -200,14 +204,17 @@ contains
                 end if
                 fdx = fdx+1
               end do
-              updates = .true.
+              updateBLOCKS = .true.
             end if
 
         case (fnBlockDeleteName, fnNextBlockDeleteName)
                 ! clear block names of assigned sections, if any
                 do fdx=1,Block(targetBlock)%NumClasses
                   sect = Block(targetBlock)%Section(fdx)
-                  if (sect>0) Section(sect)%BlockID = SPACE
+                  if (sect>0) then
+                    Section(sect)%BlockID = SPACE
+                    updateCLASSES = .true.
+                  end if
                 end do
                 ! delete block
                 do blk=targetBlock,NumBlocks
@@ -215,14 +222,31 @@ contains
                   Block(blk) = Block(blk+1)
                 end do
                 NumBlocks = NumBlocks-1
-                updates = .true.
+                updateBLOCKS = .true.
                 mesg ='Deleted block '//trim(tBlock)//', kept sections (if any)' 
 
         case (fnBlockDeleteAll, fnNextBlockDeleteAll)
                 ! delete sections
                 do fdx=1,Block(targetBlock)%NumClasses
                   sect = Block(targetBlock)%Section(fdx)
-                  if (sect>0) call initialize_section(Section(sect))
+                  if (sect>0) then
+                    crse = Block(targetBlock)%Subject(fdx)
+                    if (is_lecture_lab_subject(crse)) then ! count how many lab sections
+                          pos = index(Section(sect)%ClassId, dash)
+                          tClassId = Section(sect)%ClassId(:pos)
+                          tLen1 = 0
+                          do jdx=1,NumSections
+                              if (Section(jdx)%ClassId(:pos)==tClassId(:pos)) tLen1 = tLen1+1
+                          end do
+                          if (tLen1==1) then ! just this lab section; delete lecture section also
+                            tClassId = Section(sect)%ClassId(:pos-1)
+                            lect = index_to_section(tClassId, NumSections, Section)
+                            call initialize_section(Section(Lect))
+                          end if
+                    end if
+                    call initialize_section(Section(sect))
+                    updateCLASSES = .true.
+                  end if
                 end do
                 ! delete block
                 do blk=targetBlock,NumBlocks
@@ -230,7 +254,7 @@ contains
                   Block(blk) = Block(blk+1)
                 end do
                 NumBlocks = NumBlocks-1
-                updates = .true.
+                updateBLOCKS = .true.
                 mesg = 'Deleted block '//trim(tBlock)//' and sections (if any)' 
 
         case (fnBlockEditName, fnNextBlockEditName)
@@ -245,13 +269,16 @@ contains
                                 mesg = 'Block name '//trim(newBlock)//' already in use.'
                         else
                                 mesg = 'Block '//trim(tBlock)//' renamed to '//newBlock
-                                updates = .true.
+                                updateBLOCKS = .true.
                                 Block(targetBlock)%BlockID = newBlock
                                 tBlock = newBlock
                                 ! update block names of assigned sections, if any
                                 do fdx=1,Block(targetBlock)%NumClasses
                                   sect = Block(targetBlock)%Section(fdx)
-                                  if (sect>0) Section(sect)%BlockID = newBlock
+                                  if (sect>0) then
+                                    Section(sect)%BlockID = newBlock
+                                    updateCLASSES = .true.
+                                  end if
                                 end do
                         end if
                 end if
@@ -282,8 +309,10 @@ contains
                                     NumBlocks, Block,  NumSections, Section)
 
                                 NumBlocks = NumBlocks+1
-                                updates = .true.
+                                updateBLOCKS = .true.
+                                updateCLASSES = .true.
                                 mesg = 'Block '//trim(tBlock)//' copied to '//newBlock
+
                         end if
                 end if
 
@@ -306,7 +335,8 @@ contains
                                           Block(targetBlock)%Section(fdx) = sect
                                           Section(sect)%BlockID = Block(targetBlock)%BlockID
                                           mesg = 'Added '//tClassId
-                                          updates = .true.
+                                          updateBLOCKS = .true.
+                                          updateCLASSES = .true.
                                           write(*,*) trim(mesg)
                                           exit
                                   end if
@@ -325,7 +355,8 @@ contains
                                           Block(targetBlock)%Section(fdx) = 0
                                           Section(sect)%BlockID = SPACE
                                           mesg = 'Deleted '//tClassId
-                                          updates = .true.
+                                          updateBLOCKS = .true.
+                                          updateCLASSES = .true.
                                           write(*,*) trim(mesg)
                                           exit
                                   end if
@@ -336,15 +367,22 @@ contains
 
     end select
 
-    if (updates) then
+    if (updateBLOCKS) then
         call sort_alphabetical_blocks(NumBlocks, Block) 
         call xml_write_blocks(pathToSections, NumBlocks, Block,  Section, 0)
-        call xml_write_blocks(pathToSections, NumBlocks, Block,  Section, targetDepartment)
+        call xml_write_blocks(pathToSectionUpdates, NumBlocks, Block,  Section, targetDepartment)
+
         if (fn==fnBlockDeleteAll .or. fn==fnNextBlockDeleteAll .or. &
             fn==fnBlockDeleteName .or. fn==fnNextBlockDeleteName) then
                 call html_college_links(device, targetCollege, mesg)
                 return
         end if
+    end if
+    if (updateCLASSES) then
+        call offerings_summarize(NumSections, Section, Offering)
+        call xml_write_sections(pathToSections, NumSections, Section, 0)
+        call xml_write_sections(pathToSectionUpdates, NumSections, Section, targetDepartment)
+        call set_feature_availability()
     end if
 
     call html_write_header(device, 'Block schedule '//tBlock, mesg)
@@ -577,7 +615,7 @@ contains
           call list_sections_to_edit(device, Section, tLen2, tArray(tLen1+unassigned+1), fnOFFSET+fnBlockEditSection, &
             tBlock, 'Add', allowed_to_edit, &
             '<a name="'//trim(tSubject)//'"></a><br><b>Sections in '//trim(tSubject)// &
-            ' that fit existing block schedule, sorted by undesirabilty.</b>')
+            ' that fit existing block schedule, sorted by undesirability.</b>')
         end if
           
       end do ! jdx=1,unassigned,2  
@@ -774,7 +812,7 @@ contains
   
     call sort_alphabetical_blocks(NumBlocks, Block)
     call xml_write_blocks(pathToSections, NumBlocks, Block,  Section, 0)
-    call xml_write_blocks(pathToSections, NumBlocks, Block,  Section, targetDepartment)
+    call xml_write_blocks(pathToSectionUpdates, NumBlocks, Block,  Section, targetDepartment)
 
     if (createClasses) then
 

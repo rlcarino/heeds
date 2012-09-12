@@ -380,17 +380,17 @@ contains
 
             if (wrk%DeptIdx /= Room(rdx)%DeptIdx) then
                 isDirtyROOMS = .true.
-                remark = trim(remark)//': '//trim(tRoom)//' - Department changed to '//Department(wrk%DeptIdx)%Code
+                remark = trim(remark)//': Department changed to '//Department(wrk%DeptIdx)%Code
             end if
 
             if ( wrk%MaxCapacity /= Room(rdx)%MaxCapacity) then
                 isDirtyROOMS = .true.
-                remark = trim(remark)//': '//trim(tRoom)//' - Max seating capacity changed to '//itoa(wrk%MaxCapacity)
+                remark = trim(remark)//': Max seating capacity changed to '//itoa(wrk%MaxCapacity)
             end if
 
             if ( wrk%Cluster /= Room(rdx)%Cluster) then
                 isDirtyROOMS = .true.
-                remark = trim(remark)//': '//trim(tRoom)//' - Cluster changed to '//itoa(wrk%Cluster)
+                remark = trim(remark)//': Cluster changed to '//itoa(wrk%Cluster)
             end if
 
             if (isDirtyROOMS) then
@@ -421,7 +421,7 @@ contains
     
     if (isDirtyROOMS) then
             call xml_write_rooms(pathToCurrent)
-            call html_college_links(device, CollegeIdxUser, remark(3:))
+            call html_college_links(device, Department(wrk%DeptIdx)%CollegeIdx, trim(tRoom)//remark)
             return
     end if
 

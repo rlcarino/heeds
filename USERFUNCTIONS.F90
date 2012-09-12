@@ -94,6 +94,7 @@ module USERFUNCTIONS
     fnBlockEditSection        = 53, & ! edit section in block
     fnBlockEditSubject        = 54, & ! update subjects in block
     fnScheduleByArea          = 55, & ! display schedule of classes for editing, by area
+    fnPrintableWorkload       = 56, & ! printable teaching load
     ! = 56
     !
     fnEnlistmentSummary       = 61, & ! students not accommodated in a priority subject
@@ -132,20 +133,21 @@ module USERFUNCTIONS
     fnNextBlockEditSection    =103, & ! edit section in block
     fnNextBlockEditSubject    =104, & ! update subjects in block
     fnNextScheduleByArea      =105, & ! display schedule of classes for editing, by area
+    fnNextPrintableWorkload   =106, & ! printable teaching load
     ! = 106
     !
     fnDemandFreshmen          = 111, & ! view demand for subjects by incoming students
     fnUpdateDemandFreshmen    = 112, & ! update no. of incoming students
     fnPrintableSchedule       = 113, & ! printable weekly timetable
-    fnadvise_students          = 114, & ! generate Prediction()
-    fnDemandForSubjects        = 115, & ! view demand for subjects
+    fnAdviseStudent           = 114, & ! generate Prediction()
+    fnDemandForSubjects       = 115, & ! view demand for subjects
     fnPotentialStudents       = 116, & ! list of potential students of a subject
     !
     fnStopProgram              = 120    ! should be the last (used as array extent)
 
     integer, parameter :: fnNextOffset = fnNextScheduleOfClasses - fnScheduleOfClasses
 
-    logical, dimension(fnStopProgram) :: available ! modified in set_feature_availability()
+    logical, dimension(0:fnStopProgram) :: available ! modified in set_feature_availability()
     ! assume all functions are available throughout the term
 
 
@@ -212,6 +214,7 @@ contains
         !
 
         available = .true. ! all functions are initially available; reset below
+        available(0) = .false.
 
         if (NumStudents==0) then
             available(fnStudentsByProgram) = .false.
@@ -239,7 +242,7 @@ contains
         endif
 
         if (NumStudents==0 .or. NumPredictionRecords>0) then
-            available(fnadvise_students) = .false.
+            available(fnAdviseStudent) = .false.
         endif
 
         if (NumTeachers<=1) then
@@ -270,7 +273,7 @@ contains
             available(fnCurriculum) = .false.
         endif
 
-        if (Period==1) available(fnadvise_students) = .false.
+        if (Period==1) available(fnAdviseStudent) = .false.
 
         if (Period==1 .or. NumNextSections==0) then
             available(fnNextScheduleOfClasses) = .false.
@@ -297,7 +300,7 @@ contains
         end if
 
         ! deactivate "Advise all students"
-        available(fnadvise_students) = .false.
+        available(fnAdviseStudent) = .false.
         ! deactivate "Rebuild all individual COGs"
         available(fnRebuildChecklists) = .false.
 

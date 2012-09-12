@@ -363,7 +363,7 @@ contains
           call list_sections_to_edit(device, Section, tLen2, tArray(tLen1+1), &
             fnChangeMatriculation, tStdNo, 'Add', allowed_to_edit, &
             '<a name="'//trim(tSubject)//'"></a><br><b>Available sections in '//trim(tSubject)// &
-            ' that fit existing schedule, sorted by undesirabilty.</b>')
+            ' that fit existing schedule, sorted by undesirability.</b>')
         else ! sections suitable for 'prerog'
           do sect=1,n_opts
             idx_opt = UndesirabilityRank(sect)
@@ -383,7 +383,7 @@ contains
           call list_sections_to_edit(device, Section, tLen2, tArray(tLen1+1), fnChangeMatriculation, tStdNo, 'Prerog', &
             allowed_to_edit, &
             '<a name="'//trim(tSubject)//'"></a><br><b>"TEACHER''S PREROGATIVE" sections in '//trim(tSubject)// &
-            ' that fit existing schedule, sorted by undesirabilty.</b>')
+            ' that fit existing schedule, sorted by undesirability.</b>')
 
         end if
           

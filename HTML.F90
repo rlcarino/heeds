@@ -956,8 +956,8 @@ contains
                 '<small><b>(make sure directory '//trim(dirTRANSCRIPTS)//DIRSEP//' is empty!)</b></small></li>'))
             end if
 
-            if (available(fnadvise_students) ) then
-                write(device,AFORMAT) trim(cgi_make_href(fnadvise_students, targetUser, 'Advise', &
+            if (available(fnAdviseStudent) ) then
+                write(device,AFORMAT) trim(cgi_make_href(fnAdviseStudent, targetUser, 'Advise', &
                 A1=USER, pre='<li>', post=' all students (uploadables will be at '// &
                 trim(dirWWW)//DIRSEP//'static'//DIRSEP//'checklists)</li>'))
             end if

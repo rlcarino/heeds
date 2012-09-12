@@ -367,7 +367,7 @@ contains
         numEntries = NumSections
         ! check for classes edited by departments
         do ddx=2,NumDepartments-1
-            fileName = trim(dirXML)//trim(path)//'CLASSES-'//trim(Department(ddx)%Code)//'.XML'
+            fileName = trim(dirXML)//'updates-to-classes'//DIRSEP//trim(path)//'CLASSES-'//trim(Department(ddx)%Code)//'.XML'
             call xml_read_classes(fileName, NumSections, Section, ierr, QUIETLY)
             partialEntries = NumSections - numEntries
             numEntries = NumSections

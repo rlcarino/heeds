@@ -56,7 +56,8 @@ module COLLEGES
 
     ! University name
     character (len= MAX_LEN_UNIVERSITY_CODE) :: UniversityCode = SPACE
-    character (len=MAX_LEN_UNIVERSITY_NAME) :: UniversityName = SPACE
+    character (len=MAX_LEN_UNIVERSITY_NAME) :: UniversityName = '(Specify NAME in UNIVERSITY.XML)', &
+        UniversityAddress = '(Specify ADDRESS in UNIVERSITY.XML)'
 
     ! 'Administrative' college, for data not under the academic colleges
     character (len=MAX_LEN_COLLEGE_CODE) :: ADMINISTRATION = 'ADMIN'
@@ -124,6 +125,9 @@ contains
                 case ('NAME')
                     UniversityName = adjustl(value)
 
+                case ('ADDRESS')
+                    UniversityAddress = adjustl(value)
+
                 case ('ADMINISTRATION')
                     ADMINISTRATION = adjustl(value)
 
@@ -162,6 +166,7 @@ contains
         '    </comment>'
 
         call xml_write_character(unitNum, indent0, 'NAME', UniversityName)
+        call xml_write_character(unitNum, indent0, 'ADDRESS', UniversityAddress)
         call xml_write_character(unitNum, indent0, 'ADMINISTRATION', ADMINISTRATION)
         call xml_write_character(unitNum, indent0, 'REGISTRAR', REGISTRAR)
         call xml_write_integer  (unitNum, indent0, 'BASEYEAR', baseYear)

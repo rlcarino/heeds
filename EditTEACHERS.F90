@@ -305,6 +305,9 @@ contains
     end if
 
     call html_write_header(device, 'Teaching schedule of '//Teacher(targetTeacher)%Name, mesg)
+    !call html_write_header(device, 'Teaching schedule of '//Teacher(targetTeacher)%Name// &
+    !    trim(cgi_make_href(fnPrintableWorkload+fnOFFSET, targetUser, 'Printable', &
+    !    A1=tTeacher, pre='</b><small>(', post=')</small><b>')), mesg)
 
     ! collect meetings of teacher targetTeacher
     call timetable_meetings_of_teacher(NumSections, Section, targetTeacher, 0, tLen1, tArray, TimeTable, conflicted)
@@ -421,7 +424,7 @@ contains
             if (ierr/=0) wrk%TeacherID = Teacher(tdx)%TeacherID
             if (wrk%TeacherID /= Teacher(tdx)%TeacherID) then
                 isDirtyTEACHERS = .true.
-                remark = trim(remark)//': '//trim(tTeacher)//' - Login changed to '//wrk%TeacherID
+                remark = trim(remark)//': Login changed to '//wrk%TeacherID
             end if
             
             call cgi_get_named_string(QUERY_STRING, 'Name', wrk%Name, ierr)
@@ -429,15 +432,63 @@ contains
             if (ierr/=0) wrk%Name = Teacher(tdx)%Name
             if (wrk%Name /= Teacher(tdx)%Name) then
                 isDirtyTEACHERS = .true.
-                remark = trim(remark)//': '//trim(tTeacher)//' - Name changed to '//wrk%Name
+                remark = trim(remark)//': Name changed to '//wrk%Name
+            end if
+
+            call cgi_get_named_string(QUERY_STRING, 'Bachelor', wrk%Bachelor, ierr)
+            !write(*,*) 'ierr=', ierr, ', Bachelor=', wrk%Bachelor
+            if (ierr/=0) wrk%Bachelor = Teacher(tdx)%Bachelor
+            if (wrk%Bachelor /= Teacher(tdx)%Bachelor) then
+                isDirtyTEACHERS = .true.
+                remark = trim(remark)//': Bachelor changed to '//wrk%Bachelor
+            end if
+
+            call cgi_get_named_string(QUERY_STRING, 'Master', wrk%Master, ierr)
+            !write(*,*) 'ierr=', ierr, ', Master=', wrk%Master
+            if (ierr/=0) wrk%Master = Teacher(tdx)%Master
+            if (wrk%Master /= Teacher(tdx)%Master) then
+                isDirtyTEACHERS = .true.
+                remark = trim(remark)//': Master changed to '//wrk%Master
+            end if
+
+            call cgi_get_named_string(QUERY_STRING, 'Doctorate', wrk%Doctorate, ierr)
+            !write(*,*) 'ierr=', ierr, ', Doctorate=', wrk%Doctorate
+            if (ierr/=0) wrk%Doctorate = Teacher(tdx)%Doctorate
+            if (wrk%Doctorate /= Teacher(tdx)%Doctorate) then
+                isDirtyTEACHERS = .true.
+                remark = trim(remark)//': Doctorate changed to '//wrk%Doctorate
+            end if
+
+            call cgi_get_named_string(QUERY_STRING, 'Specialization', wrk%Specialization, ierr)
+            !write(*,*) 'ierr=', ierr, ', Specialization=', wrk%Specialization
+            if (ierr/=0) wrk%Specialization = Teacher(tdx)%Specialization
+            if (wrk%Specialization /= Teacher(tdx)%Specialization) then
+                isDirtyTEACHERS = .true.
+                remark = trim(remark)//': Specialization changed to '//wrk%Specialization
             end if
 
             call cgi_get_named_integer(QUERY_STRING, 'Load', wrk%MaxLoad, ierr)
             !write(*,*) 'ierr=', ierr, ', MaxLoad=', wrk%MaxLoad
             if (ierr/=0 .or. wrk%MaxLoad<=0) wrk%MaxLoad = Teacher(tdx)%MaxLoad
-            if (wrk%DeptIdx /= Teacher(tdx)%DeptIdx) then
+            if (wrk%MaxLoad /= Teacher(tdx)%MaxLoad) then
                 isDirtyTEACHERS = .true.
-                remark = trim(remark)//': '//trim(tTeacher)//' - Max load changed to '//itoa(wrk%MaxLoad)
+                remark = trim(remark)//': Max load changed to '//itoa(wrk%MaxLoad)
+            end if
+
+            call cgi_get_named_integer(QUERY_STRING, 'Rank', wrk%Rank, ierr)
+            !write(*,*) 'ierr=', ierr, ', Rank=', wrk%Rank
+            if (ierr/=0 .or. wrk%Rank<=0) wrk%Rank = Teacher(tdx)%Rank
+            if (wrk%Rank /= Teacher(tdx)%Rank) then
+                isDirtyTEACHERS = .true.
+                remark = trim(remark)//': Rank changed to '//AcademicRank(wrk%Rank)
+            end if
+
+            call cgi_get_named_integer(QUERY_STRING, 'Step', wrk%Step, ierr)
+            !write(*,*) 'ierr=', ierr, ', Step=', wrk%Step
+            if (ierr/=0 .or. wrk%Step<=0) wrk%Step = Teacher(tdx)%Step
+            if (wrk%Step /= Teacher(tdx)%Step) then
+                isDirtyTEACHERS = .true.
+                remark = trim(remark)//': Step changed to '//RankStep(wrk%Step)
             end if
 
             call cgi_get_named_string(QUERY_STRING, 'Department', tDepartment, ierr)
@@ -446,12 +497,12 @@ contains
             if (ierr/=0 .or. wrk%DeptIdx<=0) wrk%DeptIdx = Teacher(tdx)%DeptIdx
             if (wrk%DeptIdx /= Teacher(tdx)%DeptIdx) then
                 isDirtyTEACHERS = .true.
-                remark = trim(remark)//': '//trim(tTeacher)//' - Department changed to '//Department(wrk%DeptIdx)%Code
+                remark = trim(remark)//': Unit changed to '//Department(wrk%DeptIdx)%Code
             end if
 
             if (isDirtyTEACHERS) then
                     if ( wrk%TeacherID /= Teacher(tdx)%TeacherID) then
-                            ! add new subject?
+                            ! add new teacher?
                             j = index_to_teacher(wrk%TeacherID)
                             if (j==0) then
                                     NumAdditionalTeachers = NumAdditionalTeachers+1
@@ -477,7 +528,7 @@ contains
     
     if (isDirtyTEACHERS) then
             call xml_write_teachers(pathToCurrent)
-            call html_college_links(device, CollegeIdxUser, remark(3:))
+            call html_college_links(device, Department(wrk%DeptIdx)%CollegeIdx, trim(tTeacher)//remark)
             return
     end if
 
@@ -496,13 +547,12 @@ contains
 
     write(device,AFORMAT) &
       begintr//begintd//'Login name '//endtd//begintd//'<input name="Login" size="'//trim(itoa(MAX_LEN_TEACHER_CODE))// &
-        '" value="'//trim(tTeacher)//'"> (A new teacher record will be created if name is changed)'//endtd//endtr, &
+        '" value="'//trim(tTeacher)//'"> (A new teacher record will be created if login name is changed)'//endtd//endtr, &
       begintr//begintd//'Teacher name '//endtd//begintd//'<input name="Name" size="'//trim(itoa(MAX_LEN_TEACHER_NAME))// &
-        '" value="'//trim(Teacher(tdx)%Name)//'">'//endtd//endtr, &
-      begintr//begintd//'Max load '//endtd//begintd//'<input name="Load" size="3" value="'// &
-        trim(itoa(Teacher(tdx)%MaxLoad))//'">'//endtd//endtr
+        '" value="'//trim(Teacher(tdx)%Name)//'">'//endtd//endtr
+    ! dept
     write(device,AFORMAT) &
-      begintr//begintd//'Department '//endtd//begintd//'<select name="Department">'
+      begintr//begintd//'Unit '//endtd//begintd//'<select name="Department">'
     do i=2,NumDepartments
       if (i/=targetDepartment) then
               j=0
@@ -512,11 +562,266 @@ contains
       write(device,AFORMAT) '<option '//trim(selected(j))//' value="'//trim(Department(i)%Code)//'">'// &
         trim(Department(i)%Name)
     end do
+    write(device,AFORMAT) '</select>'//endtd//endtr
+    ! rank
+    write(device,AFORMAT) &
+      begintr//begintd//'Rank '//endtd//begintd//'<select name="Rank">'
+    do i=0,4
+      if (i/=Teacher(tdx)%Rank) then
+              j=0
+      else
+              j=1
+      end if
+      write(device,AFORMAT) '<option '//trim(selected(j))//' value="'//trim(itoa(i))//'">'// &
+        trim(AcademicRank(i))
+    end do
+    write(device,AFORMAT) '</select>'//endtd//endtr
+    ! step
+    write(device,AFORMAT) &
+      begintr//begintd//'Step '//endtd//begintd//'<select name="Step">'
+    do i=0,12
+      if (i/=Teacher(tdx)%Step) then
+              j=0
+      else
+              j=1
+      end if
+      write(device,AFORMAT) '<option '//trim(selected(j))//' value="'//trim(itoa(i))//'">'// &
+        trim(RankStep(i))
+    end do
+    write(device,AFORMAT) '</select>'//endtd//endtr
+    ! bachelor
+    write(device,AFORMAT) &
+      begintr//begintd//'Bachelor '//endtd//begintd//'<input name="Bachelor" size="'// &
+        trim(itoa(MAX_LEN_TEACHER_DEGREE))//'" value="'//trim(Teacher(tdx)%Bachelor)//'">'//endtd//endtr
+    ! master
+    write(device,AFORMAT) &
+      begintr//begintd//'Master '//endtd//begintd//'<input name="Master" size="'// &
+        trim(itoa(MAX_LEN_TEACHER_DEGREE))//'" value="'//trim(Teacher(tdx)%Master)//'">'//endtd//endtr
+    ! doctorate
+    write(device,AFORMAT) &
+      begintr//begintd//'Doctorate '//endtd//begintd//'<input name="Doctorate" size="'// &
+        trim(itoa(MAX_LEN_TEACHER_DEGREE))//'" value="'//trim(Teacher(tdx)%Doctorate)//'">'//endtd//endtr
+    ! specialization
+    write(device,AFORMAT) &
+      begintr//begintd//'Specialization '//endtd//begintd//'<input name="Specialization" size="'// &
+        trim(itoa(MAX_LEN_TEACHER_DEGREE))//'" value="'//trim(Teacher(tdx)%Specialization)//'">'//endtd//endtr
+    ! max load
+    write(device,AFORMAT) &
+      begintr//begintd//'Max load '//endtd//begintd//'<input name="Load" size="3" value="'// &
+        trim(itoa(Teacher(tdx)%MaxLoad))//'">'//endtd//endtr
 
     write(device,AFORMAT) '</table><br>&nbsp;<input name="action" type="submit" value="Update"></form><hr>'
 
     return
   end subroutine teacher_edit
+
+
+  subroutine teacher_schedule_printable(device, NumSections, Section, NumBlocks, Block)
+    integer, intent (in) :: device
+    integer, intent (in) :: NumSections
+    type (TYPE_SECTION), intent(in out), dimension (0:MAX_ALL_SECTIONS) :: Section
+        integer, intent (in) :: NumBlocks
+        type (TYPE_BLOCK), dimension(0:), intent(in) :: Block
+    integer :: tLen1, ierr
+    character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
+    integer, dimension(60,6) :: TimeTable
+    logical :: conflicted
+
+    ! which teacher?
+    call cgi_get_named_string(QUERY_STRING, 'A1', tTeacher, ierr)
+    targetTeacher = index_to_teacher(tTeacher)
+    if (ierr/=0 .or. targetTeacher==0) then
+            targetCollege = CollegeIdxUser
+            targetDepartment = DeptIdxUser
+            call html_write_header(device, 'Teacher schedule', '<br><hr>Teacher "'//tTeacher//'" not found')
+            return
+    end if
+
+    ! collect meetings of teacher targetTeacher
+    call timetable_meetings_of_teacher(NumSections, Section, targetTeacher, 0, tLen1, tArray, TimeTable, conflicted)
+    if (conflicted) then
+            targetCollege = CollegeIdxUser
+            targetDepartment = DeptIdxUser
+            call html_write_header(device, 'Teacher schedule', '<br><hr>Teacher "'//tTeacher//'": conflict in schedule')
+            return
+    end if
+
+    targetDepartment = Teacher(targetTeacher)%DeptIdx
+    targetCollege = Department(targetDepartment)%CollegeIdx
+
+    write(device,AFORMAT) '<table border="0" width="100%">', &
+        begintr//tdaligncenter//'Republic of the Philippines'//endtd//endtr, &
+        begintr//tdaligncenter//'<b>'//trim(UniversityName)//'</b>'//endtd//endtr, &
+        begintr//tdaligncenter//trim(UniversityAddress)//endtd//endtr, &
+        begintr//begintd//'<br>'//endtd//endtr, &
+        begintr//tdaligncenter//trim(College(targetCollege)%Name)//endtd//endtr, &
+        begintr//tdaligncenter//'<b>INDIVIDUAL FACULTY WORKLOAD</b>'//endtd//endtr, &
+        begintr//tdaligncenter//trim(txtSemester(currentTerm+6))//' Semester, SY '// &
+            trim(itoa(currentYear))//dash//trim(itoa(currentYear+1))//endtd//endtr, &
+        begintr//begintd//'<br>'//endtd//endtr, &
+        '</table>'
+
+    write(device,AFORMAT) '<table border="0" width="100%">', &
+        begintr//'<td width="50%">Name: <b>'//trim(Teacher(targetTeacher)%Name)//'</b>'//endtd, &
+                 '<td width="50%">Area of Retraining: '//trim(Teacher(targetTeacher)%Specialization)//endtd//endtr
+    ! bachelor
+    write(device,AFORMAT) &
+        begintr//'<td width="50%">Bachelor: '//trim(Teacher(targetTeacher)%Bachelor)//'</b>'//endtd, &
+                 '<td width="50%">Faculty Rank: '//trim(AcademicRank(Teacher(targetTeacher)%Rank))//nbsp// &
+                         trim(RankStep(Teacher(targetTeacher)%Step))//endtd//endtr
+    ! master
+    write(device,AFORMAT) &
+        begintr//'<td width="50%">Master: '//trim(Teacher(targetTeacher)%Master)//'</b>'//endtd, &
+                 '<td width="50%">Length of Service in University: '//nbsp//endtd//endtr
+    ! doctorate
+    write(device,AFORMAT) &
+        begintr//'<td width="50%">Doctorate: '//trim(Teacher(targetTeacher)%Doctorate)//'</b>'//endtd, &
+                begintd//nbsp//endtd//endtr
+    write(device,AFORMAT) '</table><hr>'
+
+    call teacher_workload(device, Section, tLen1, tArray, NumBlocks, Block)
+
+    call timetable_display(device, Section, TimeTable)
+
+    write(device,AFORMAT) '<hr>'
+
+    return
+  end subroutine teacher_schedule_printable
+
+
+  subroutine teacher_workload(device, Section, lenSL, SectionList, NumBlocks, Block)
+        integer, intent(in) :: device, lenSL, SectionList(3*lenSL+3)
+        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        integer, intent (in) :: NumBlocks
+        type (TYPE_BLOCK), dimension(0:), intent(in) :: Block
+        integer :: crse, idx, mdx, rdx, sdx, previous, conflict, dept
+        real :: totalUnits, meetingUnits, meetingHours
+        real :: lectHours, labHours, totalLect, totalLab
+
+        if (lenSL < 3) then
+            write(device,AFORMAT) '<br>No teaching load?<br>'
+            return
+        end if
+
+        totalUnits = 0.0
+        totalLect = 0.0
+        totalLab = 0.0
+
+        write(device,AFORMAT) '<table border="0" width="100%">'//begintr, &
+            thalignleft//'Class<br>Code'//endth// &
+            thalignleft//'Program<br>Year/Sec'//endth// &
+            thalignleft//'Subject<br>Code'//endth// &
+            thalignleft//'Descriptive Title'//endth// &
+            thalignleft//'Hrs.<br>Lect'//endth// &
+            thalignleft//'Hrs.<br>Lab'//endth// &
+            thalignleft//'No. of<br>Students'//endth // &
+            thalignleft//'Work<br>Load'//endth// &
+            thalignleft//'Day'//endth// &
+            thalignleft//'Time'//endth// &
+            thalignleft//'Room'//endth//endtr
+
+        previous = 0
+        do idx=1,lenSL,3
+            sdx=SectionList(idx)
+            mdx=SectionList(idx+1)
+            conflict=SectionList(idx+2)
+            crse = Section(sdx)%SubjectIdx
+            dept = Section(sdx)%DeptIdx
+
+            !new section ?
+            if (sdx/=previous) then ! include subject, section, units/blockname, seats/hours, time, day
+
+                if (is_lecture_lab_subject(crse)) then
+                    if (is_lecture_class(sdx, Section)) then ! lecture of lecture-lab
+                        meetingUnits = 2.0*Subject(crse)%Units/3.0
+                        meetingHours = Subject(crse)%LectHours
+                        lectHours = Subject(crse)%LectHours
+                        labHours = 0.0
+                    else ! lab of lecture-lab
+                        meetingUnits = Subject(crse)%Units/3.0
+                        meetingHours = Subject(crse)%LabHours
+                        lectHours = 0.0
+                        labHours = Subject(crse)%LabHours
+                    end if
+                else if (Subject(crse)%LectHours>0.0) then ! lecture-only
+                    meetingUnits = Subject(crse)%Units
+                    meetingHours = Subject(crse)%LectHours
+                    lectHours = Subject(crse)%LectHours
+                    labHours = 0.0
+                else if (Subject(crse)%LabHours>0.0) then ! lab-only
+                    meetingUnits = Subject(crse)%Units
+                    meetingHours = Subject(crse)%LabHours
+                    lectHours = 0.0
+                    labHours = Subject(crse)%LabHours
+                end if
+
+                totalLect = totalLect + lectHours
+                totalLab = totalLab + labHours
+                totalUnits = totalUnits + meetingUnits
+
+                previous = sdx
+                write(device,AFORMAT) begintr// &
+                    begintd//trim(Section(sdx)%Code)//endtd ! code
+
+                ! block
+                write(device,AFORMAT) begintd
+                call blocks_in_section(device, sdx, 0, NumBlocks, Block)
+                write(device,AFORMAT) endtd
+
+                write(device,AFORMAT) &
+                    begintd//trim(Subject(crse)%Name)//endtd !  subject
+                write(device,AFORMAT) &
+                    begintd//trim(Subject(crse)%Title)//endtd !  subject
+                if (lectHours>0.0) then
+                    write(device,AFORMAT) begintd//trim(ftoa(lectHours))//endtd ! lect hours
+                else
+                    write(device,AFORMAT) tdnbspendtd
+                end if
+                if (labHours>0.0) then
+                    write(device,AFORMAT) begintd//trim(ftoa(labHours))//endtd ! lab hours
+                else
+                    write(device,AFORMAT) tdnbspendtd
+                end if
+
+                write(device,AFORMAT) begintd//trim(itoa(Section(sdx)%Slots))//endtd
+
+                write(device,'(a,f5.2,a)') begintd, meetingUnits, endtd
+
+            end if
+            ! day, time
+            write(device,AFORMAT) &
+                begintd//txtDay(Section(sdx)%DayIdx(mdx))//endtd, &
+                begintd//trim(text_time_period(Section(sdx)%bTimeIdx(mdx), Section(sdx)%eTimeIdx(mdx)))//endtd
+            ! room
+            rdx = Section(sdx)%RoomIdx(mdx)
+            if (rdx > 0) then
+                write(device,AFORMAT) begintd//trim(Room(rdx)%Code)//endtd
+            else
+                write(device,AFORMAT) begintd//'TBA'//endtd
+            end if
+
+            if (sdx==SectionList(idx+3)) then ! NOT the last meeting; add SPACE for next line
+                write(device,AFORMAT) endtr
+                write(device,AFORMAT) begintr// &
+                    begintd//endtd//begintd//endtd//begintd//endtd//begintd//endtd// &
+                    begintd//endtd//begintd//endtd//begintd//endtd//begintd//endtd
+            else
+                write(device,AFORMAT) endtr
+            end if
+        end do
+        write(device,AFORMAT) begintr//'<td colspan="11"><hr>'//endtd//endtr, &
+            begintr//tdnbspendtd//tdnbspendtd//tdnbspendtd// &
+            tdalignright//'<b>Totals</b> : '//endtd// & ! code
+            begintd//trim(ftoa(totalLect))//endtd//begintd//trim(ftoa(totalLab))//endtd// & ! hours
+            tdnbspendtd// &
+            begintd//trim(ftoa(totalUnits))// &
+            tdnbspendtd// tdnbspendtd// tdnbspendtd//endtr, &
+            begintr//'<td colspan="11"><hr>'//endtd//endtr
+
+        write(device,AFORMAT) '</table>'
+
+        return
+  end subroutine teacher_workload
 
 
 end module EditTEACHERS
