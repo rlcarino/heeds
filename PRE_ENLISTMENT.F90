@@ -95,8 +95,8 @@ contains
     end subroutine delete_students_of_curriculum_from_enlistment
 
 
-    subroutine xml_write_pre_enlistment(filePath, eList, Section, curriculumFilter)
-        character (len=*), intent (in) :: filePath ! YEAR/TERM/(ENLISTMENT,PREDICTION,WAIVER-COI)
+    subroutine xml_write_pre_enlistment(path, basename, eList, Section, curriculumFilter)
+        character (len=*), intent (in) :: path, basename ! YEAR/TERM/(ENLISTMENT,PREDICTION,WAIVER-COI)
         type (TYPE_PRE_ENLISTMENT), intent(in) :: eList(0:)
         type (TYPE_SECTION), intent(in), dimension (0:) :: Section
         integer, intent (in), optional :: curriculumFilter
@@ -112,8 +112,15 @@ contains
             filter = 0
         end if
 
+        ! generate file name
+        fileName = trim(dirXML)//trim(path)//basename
+        if (filter>0) then
+            fileName = trim(fileName)//dash//trim(CurrProgCode(filter))//'.XML'
+        else
+            fileName = trim(fileName)//'.XML'
+        end if
+
         ! make backup & open new file
-        fileName = trim(dirXML)//trim(filePath)//'.XML'
         call move_to_backup(fileName)
         call xml_open_file(unitNo, XML_ROOT_ENLISTMENT, fileName, i)
         write(unitNo,AFORMAT) &
@@ -131,14 +138,14 @@ contains
         '        Enlisted          : Enlisted section', &
         '        Allowed           : Subject with satisfied prerequisite', &
         '        Predicted         : Allowed subject that contributes to demand', &
-        '        StdPriority=0     : Manually enlisted (GS, CVM, ...)', &
+        '        StdPriority=0     : Manually enlisted ("special-treatment" students)', &
         '        StdPriority=1     : New Student (no record of any grade)', &
         '        StdPriority=2     : Graduating (24 units or less left, no remaining subjects w/ unsatisfied prereqs)', &
         '        StdPriority=3     : Did not fail any subject last sem, or on LOA last sem', &
         '        StdPriority=4     : Failed (0-50%] of units last sem', &
         '        StdPriority=5     : Failed (50%,75%] of units', &
         '        StdPriority=6     : Failed (75%-100%] of units last sem', &
-        '        StdPriority=7     : Graduate student, or non-degree student, or diploma student', &
+        '        StdPriority=7     : (reserved)', &
         '        StdPriority=8     : (reserved)', &
         '        StdPriority=9     : Subjects not offered, or prerequisites not satisfied', &
         '        StdPriority=10    : Curricular program completed?', &
@@ -191,9 +198,9 @@ contains
     end subroutine xml_write_pre_enlistment
 
 
-    subroutine xml_read_pre_enlistment(filePath, NumSections, Section, eList, numEntries, errNo, openQuietly)
+    subroutine xml_read_pre_enlistment(path, basename, NumSections, Section, eList, numEntries, errNo, openQuietly)
 
-        character(len=*), intent(in) :: filePath
+        character(len=*), intent(in) :: path, basename
         integer, intent (in) :: NumSections
         type (TYPE_SECTION), intent(in), dimension (0:) :: Section
         type (TYPE_PRE_ENLISTMENT), intent(in out) :: eList(0:)
@@ -217,7 +224,7 @@ contains
 
         numEntries = 0
         ! open file, return on any error
-        fileName = trim(dirXML)//trim(filePath)//'.XML'
+        fileName = trim(dirXML)//trim(path)//trim(basename)//'.XML'
         call xml_open_file(unitNo, XML_ROOT_ENLISTMENT, fileName, errNo, forReading, quiet)
         if (errNo/=0) return
 
@@ -330,16 +337,16 @@ contains
         end do
 
         call xml_close_file(unitNo)
-        call file_log_message (itoa(numEntries)//' in '//fileName)
+        !call file_log_message (itoa(numEntries)//' in '//fileName)
 
         return
     end subroutine xml_read_pre_enlistment
 
 
-    subroutine read_pre_enlistment(filePath, NumSections, Section, eList, numEntries, errNo)
+    subroutine read_pre_enlistment(path, basename, firstGrp, lastGrp, NumSections, Section, eList, numEntries, errNo)
 
-        character(len=*), intent(in) :: filePath ! YEAR/TERM/(ENLISTMENT,PREDICTION)
-        integer, intent (in) :: NumSections
+        character(len=*), intent(in) :: path, basename ! YEAR/TERM/(ENLISTMENT,PREDICTION)
+        integer, intent (in) :: firstGrp, lastGrp, NumSections
         type (TYPE_SECTION), intent(in out), dimension (0:) :: Section
         type (TYPE_PRE_ENLISTMENT), intent(out) :: eList(0:)
         integer, intent (in out) :: numEntries
@@ -351,53 +358,53 @@ contains
         errNo = 0 ! OK if there's no enlistment record
 
         ! try the monolithic XML file
-        call xml_read_pre_enlistment(filePath, NumSections, Section, eList, numEntries, ierr)
+        call xml_read_pre_enlistment(path, basename, NumSections, Section, eList, numEntries, ierr)
         noXML = numEntries==0
         mainEntries = numEntries
         if (noXML) then
             ! try each priority group
-            do grp=0,6
-                call xml_read_pre_enlistment(trim(filePath)//dash//itoa(grp), NumSections, Section, eList, &
+            do grp=firstGrp,lastGrp
+                call xml_read_pre_enlistment(path, trim(basename)//dash//itoa(grp), NumSections, Section, eList, &
                     partialEntries, ierr, QUIETLY)
                 numEntries = numEntries + partialEntries
                 if (partialEntries>0) then ! not empty; move to backup
-                    call move_to_backup(trim(dirXML)//trim(filePath)//dash//itoa(grp))
+                    call move_to_backup(trim(dirXML)//trim(path)//trim(basename)//dash//itoa(grp))
                 end if
             end do
         end if
         if (noXML .and. numEntries==0) then ! no XML entries
-            call custom_read_pre_enlistment (filePath, 0, .false., NumSections, Section, eList, numEntries, ierr)
+            call custom_read_pre_enlistment(path, basename, NumSections, Section, eList, numEntries, ierr)
             if (numEntries==0) then
-                do grp=0,6
-                    call custom_read_pre_enlistment (trim(filePath)//dash//itoa(grp), 0, .false., &
-                    NumSections, Section, eList, partialEntries, ierr)
+                ! try each priority group
+                do grp=firstGrp,lastGrp
+                    call custom_read_pre_enlistment(path, trim(basename)//dash//itoa(grp), NumSections, Section, eList, &
+                        partialEntries, ierr)
                     numEntries = numEntries + partialEntries
                 end do
             end if
         end if
 
         if (numEntries>mainEntries) then ! write the XML enlistment file?
-            call xml_write_pre_enlistment(filePath, eList, Section)
+            call xml_write_pre_enlistment(path, basename, eList, Section)
         end if
 
         return
     end subroutine read_pre_enlistment
 
 
-    subroutine custom_read_pre_enlistment(filePath, actionIndex, skipCurrent, NumSections, Section, cList, numEntries, ier)
-        character(len=*), intent(in) :: filePath
+    subroutine custom_read_pre_enlistment(path, basename, NumSections, Section, cList, numEntries, ier)
+        character(len=*), intent(in) :: path, basename
         type (TYPE_SECTION), intent(in out), dimension (0:) :: Section
         type (TYPE_PRE_ENLISTMENT), intent(out) :: cList(0:)
-        logical, intent (in) :: skipCurrent
-        integer, intent (in) :: actionIndex, NumSections
+        integer, intent (in) :: NumSections
         integer, intent (out) :: numEntries, ier
 
-        integer :: std, i, j, k
+        integer :: std
         character (len=MAX_LEN_STUDENT_CODE) :: tStdNo
         character (len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
 
         numEntries = 0
-        fileName = trim(dirRAW)//trim(filePATH)
+        fileName = trim(dirRAW)//trim(path)//basename
         open(unit=unitNo, file=fileName, form='formatted', status='old', iostat=ier)
         if (ier/=0) return
 
@@ -426,59 +433,12 @@ contains
 
             ! student is in list
             numEntries = numEntries + 1
-            select case (actionIndex)
-
-                case (0) ! initialize cList(std)
-                    cList(std) = cList(0)
-                    ! if called by AutoScheduling.exe, ignore current subjects so as not
-                    ! to be enlisted as alternates
-                    if (skipCurrent) then
-                        cList(std)%lenSubject = cList(std)%lenSubject - cList(std)%NCurrent
-                        cList(std)%NCurrent = 0
-                    end if
-
-                case (1) ! replace sections in cList(std)
-                    do j=1,cList(0)%lenSubject
-                        ! find position of retrieved subject in cList(std)
-                        k = 0
-                        do i=1,cList(std)%NPriority+cList(std)%NAlternates
-                            if (cList(std)%Subject(i)/=cList(0)%Subject(j)) cycle
-                            ! jth subject found in position i
-                            cList(std)%Section(i) = cList(0)%Section(j)
-                            k = i
-                            exit
-                        end do
-                        if (k==0) & ! not found
-                        call file_log_message(Subject(cList(0)%Subject(j))%Name//&
-                        ' - subject not PRIORITY or ALTERNATE for : '//trim(line))
-                    end do
-
-                case default
-                    call file_log_message(itoa(actionIndex)//' - unknown action!')
-
-            end select
+            cList(std) = cList(0)
 
         end do loop_WRITEIN
         close(unitNo)
         call file_log_message (itoa(numEntries)//' in '//fileName)
 
-        !      ! calculate remaining slots
-        !      Section(:)%RemSlots = Section(:)%Slots
-        !      do std = 1,NumStudents
-        !          do i=1,cList(std)%NPriority+cList(std)%NAlternates+cList(std)%NCurrent
-        !              k = cList(std)%Section(i)
-        !              if (k > 0) then ! accommodated or force enlisted
-        !                  if (Section(k)%Slots>0) Section(k)%RemSlots = Section(k)%RemSlots - 1
-        !              end if
-        !          end do
-        !      end do
-        !      ! adjust capacities if oversubscribed
-        !      do k=1,NumSections
-        !          if (Section(k)%Slots>=0 .and. Section(k)%RemSlots>=0) cycle ! no issue
-        !          call file_log_message('Adjusting capacity of '//trim(Section(k)%ClassId)//' by '//itoa(-Section(k)%RemSlots))
-        !          Section(k)%Slots = Section(k)%Slots-Section(k)%RemSlots
-        !          Section(k)%RemSlots = 0
-        !      end do
         return
     end subroutine custom_read_pre_enlistment
 
@@ -577,6 +537,38 @@ contains
         end do
         return
     end subroutine GetEnlistment
+
+
+    subroutine read_predictions(path, NumSections, Section, eList, numEntries, errNo)
+
+        character(len=*), intent(in) :: path ! YEAR/TERM/
+        integer, intent (in) :: NumSections
+        type (TYPE_SECTION), intent(in out), dimension (0:) :: Section
+        type (TYPE_PRE_ENLISTMENT), intent(out) :: eList(0:)
+        integer, intent (in out) :: numEntries
+        integer, intent (out) :: errNo
+
+        integer :: mainEntries, partialEntries, ierr
+        logical :: noXML
+
+        errNo = 0 ! OK if there's no enlistment record
+
+        ! try the monolithic XML file
+        call xml_read_pre_enlistment(path, 'PREDICTIONS', NumSections, Section, eList, numEntries, ierr)
+        noXML = numEntries==0
+        mainEntries = numEntries
+        if (noXML) then ! try the custom format
+            call custom_read_pre_enlistment(path, 'PREDICTIONS', NumSections, Section, eList, numEntries, ierr)
+            call custom_read_pre_enlistment(path, 'NF-PREDICTIONS', NumSections, Section, eList, partialEntries, ierr)
+            numEntries = numEntries + partialEntries
+        end if
+
+        if (numEntries>mainEntries) then ! write the XML enlistment file?
+            call xml_write_pre_enlistment(path, 'PREDICTIONS', eList, Section)
+        end if
+
+        return
+    end subroutine read_predictions
 
 
 end module PRE_ENLISTMENT

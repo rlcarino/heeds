@@ -143,8 +143,6 @@ contains
             call xml_write_integer(unitNo,   indent0, 'Country', Student(std)%CountryIdx)
         if (Student(std)%CurriculumIdx/=0) &
             call xml_write_character(unitNo, indent0, 'Curriculum', Curriculum(Student(std)%CurriculumIdx)%Code)
-        if (Student(std)%ScholarshipIdx/=0) &
-            call xml_write_integer(unitNo,   indent0, 'Scholarship', Student(std)%ScholarshipIdx)
         if (Student(std)%Classification/=-1) &
             call xml_write_integer(unitNo,   indent0, 'Classification', Student(std)%Classification)
         do idx=1,Student(std)%Record(1,0)
@@ -319,9 +317,6 @@ contains
 
                 case ('Country')
                     wrkStudent%CountryIdx = atoi(value)
-
-                case ('Scholarship')
-                    wrkStudent%ScholarshipIdx = atoi(value)
 
                 case ('Classification') ! ignore
                     wrkStudent%Classification = atoi(value)
@@ -588,7 +583,6 @@ contains
             ! first line will indicate updated student info
             read (200, AFORMAT, iostat = eof) line
             call index_to_delimiters(COMMA, line, ndels, pos)
-            TCG(lenTCG)%Code = 0
             stdCurriculum = line(pos(5)+1:pos(6)-1)
             idxCURR = index_to_curriculum(stdCurriculum)
             if (stdCurriculum==SPACE .or. idxCURR==0) then ! first line does not contain student info
@@ -596,13 +590,14 @@ contains
                     lenTCG = lenTCG + 1
                     call check_array_bound (lenTCG, MAX_LEN_STUDENT_RECORD, 'MAX_LEN_STUDENT_RECORD')
                     TCG(lenTCG)%txtLine = line
+                    TCG(lenTCG)%Code = 0
                 end if
             else if (idxCURR<=0) then
                 idxCURR = -idxCURR
             end if
             if (idxCURR>0 .and. idxCURR/=Student(std)%CurriculumIdx) then
                 Student(std)%CurriculumIdx = idxCURR
-                TCG(1)%txtLine = text_student_info(std)
+                isDirtySTUDENTS = .true.
                 write (stderr,AFORMAT) 'UPDATE: '//trim(line)
             else ! revert
                 idxCURR = Student(std)%CurriculumIdx
@@ -1043,7 +1038,7 @@ contains
                             end if
                         else ! required in curriculum
                             ! check if prior token is dummy
-                            if (j>4 .and. q(j-1)<0) then ! PlanOfSubjectWork,Year,Term,dummy,Reqd (added previously)
+                            if (j>4 .and. q(j-1)<0) then ! PlanOfStudy,Year,Term,dummy,Reqd (added previously)
                                 i = TCG(tdx)%Subst(0) + 1
                                 TCG(tdx)%Subst(0) = i
                                 TCG(tdx)%Subst(i) = q(j)

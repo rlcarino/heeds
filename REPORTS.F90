@@ -41,7 +41,7 @@ contains
 
     subroutine student_distribution(device)
         integer, intent (in), optional :: device
-        integer :: CollegeCount(MAX_ALL_COLLEGES), ProgramCount(MAX_ALL_CURRICULA), CurriculumCount(MAX_ALL_CURRICULA)
+        integer :: CollegeCount(0:MAX_ALL_COLLEGES), ProgramCount(0:MAX_ALL_CURRICULA), CurriculumCount(0:MAX_ALL_CURRICULA)
         integer :: cdx, gdx, ierr, ldx, sdx, n, maxcount, idxCurr
         character(len=MAX_LEN_COLLEGE_CODE) :: tCollege
         !character (len=255) :: longline

@@ -32,8 +32,7 @@ module USERFUNCTIONS
 
     use BLOCKS
     use TIMETABLES
-    use CHECKLISTS
-    use CGI
+    use ADVISING
 
     implicit none
 

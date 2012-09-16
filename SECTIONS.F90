@@ -250,7 +250,6 @@ contains
         integer, intent (in) :: iDept
 
         integer :: sdx, mdx, subj
-        logical :: sameTeacher, sameRoom, sameTime
 
         ! training only?
         if (noWrites) return
@@ -288,17 +287,7 @@ contains
             ! subject belongs to given department?
             if (iDept>0 .and. Section(sdx)%DeptIdx/=iDept) cycle
 
-            sameTime = .true.
-            sameRoom = .true.
-            sameTeacher = .true.
-            do mdx=2,Section(sdx)%Nmeets
-                if (Section(sdx)%bTimeIdx(1)/=Section(sdx)%bTimeIdx(mdx) .or. &
-                Section(sdx)%eTimeIdx(1)/=Section(sdx)%eTimeIdx(mdx)) sameTime = .false.
-                if (Section(sdx)%RoomIdx(1)/=Section(sdx)%RoomIdx(mdx)) sameRoom = .false.
-                if (Section(sdx)%TeacherIdx(1)/=Section(sdx)%TeacherIdx(mdx)) sameTeacher = .false.
-            end do
-
-            if (sameTime .and. sameRoom .and. sameTeacher) then
+            if (is_regular_schedule(sdx, Section)) then
 
                 ! class is "regular": single entry for all meetings
                 call xml_write_character(unitNum, indent0, 'Section')
@@ -590,6 +579,29 @@ contains
 
         return
     end subroutine xml_read_classes
+
+
+    function is_regular_schedule(sect, Section)
+        ! returns true if section meetings have same (time, room, teacher), different days
+        integer, intent (in) :: sect
+        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        logical :: is_regular_schedule
+        logical :: sameTeacher, sameRoom, sameTime
+        integer :: mdx
+
+        sameTime = .true.
+        sameRoom = .true.
+        sameTeacher = .true.
+        do mdx=2,Section(sect)%Nmeets
+          if (Section(sect)%bTimeIdx(1)/=Section(sect)%bTimeIdx(mdx) .or. &
+              Section(sect)%eTimeIdx(1)/=Section(sect)%eTimeIdx(mdx)) sameTime = .false.
+          if (Section(sect)%RoomIdx(1)/=Section(sect)%RoomIdx(mdx)) sameRoom = .false.
+          if (Section(sect)%TeacherIdx(1)/=Section(sect)%TeacherIdx(mdx)) sameTeacher = .false.
+        end do
+        is_regular_schedule = sameTime .and. sameRoom .and. sameTeacher
+
+        return
+    end function is_regular_schedule
 
 
 end module SECTIONS

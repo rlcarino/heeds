@@ -128,7 +128,7 @@ contains
 
         numEntries = 0
         ! open file, return on any error
-        fileName = trim(dirXML)//trim(path)//'.XML'
+        fileName = trim(dirXML)//trim(path)//'WAIVER-COI.XML'
         call xml_open_file(unitNo, XML_ROOT_WAIVERS, fileName, errNo, forReading, quiet)
         if (errNo/=0) return
 

@@ -31,10 +31,12 @@
 program MAIN
 
     use SERVER
+    use SCHEDULING
 
     implicit none
 
-    integer :: active_users, itmp, errNo
+    integer :: activeUsers, itmp, errNo
+    integer :: idxGrp=-1, maxAlternates=-1
     character (len=MAX_LEN_FILE_PATH) :: dataSource
     character (len=40) :: argString
     real :: harvest
@@ -42,13 +44,14 @@ program MAIN
     ! 4+ arguments ?
     iTmp = iargc()
     if (iTmp<4) then
-        write(*,AFORMAT) 'Usage: '//PROGNAME//' univ year term period', &
+        write(*,AFORMAT) 'Usage: '//PROGNAME//' univ year term period action group', &
             '  where', &
             'univ      - university code', &
             'year      - the year when current Academic Year started', &
             'term      - 1=first sem, 2=second sem', &
             'period    - 1=enrollment period, 2=mid-term, 3=end-of-term (grades are available)', &
-            'action    - convert, checklists, advise, schedule, server, training'
+            'action    - checklists, advise, schedule, server, training', &
+            'group     - priority group to schedule, if action=schedule'
         stop
     end if
 
@@ -71,8 +74,10 @@ program MAIN
     call getarg(4, argString)
     Period = atoi(argString)
 
-    ! allow files to be rewritten
-    noWrites = .false.
+    ! default mode
+    argString = 'TRAINING'
+    noWrites = .true.
+    checkPassword = .false.
 
     if (iTmp>4) then
         call getarg(5, argString)
@@ -81,29 +86,51 @@ program MAIN
         select case (trim(argString))
 
             case ('CHECKLISTS')
+                noWrites = .false. ! allow files to be rewritten
 
             case ('ADVISE')
+                noWrites = .false. ! allow files to be rewritten
 
-            case ('SCHEDULE')
+            case ('SCHEDULE') ! get priority group
+                idxGrp = -1
+                if (iTmp>5) then
+                    call getarg(6, dataSource)
+                    idxGrp = atoi(dataSource)
+                end if
+                if (idxGrp<0 .or. idxGrp>7) then
+                    write(*,*) 'Action "'//trim(argString)//'" requires a priority group from 0 to 6.'
+                    stop
+                end if
+
+                ! the last argument is the no. of alternate subjects
+                maxAlternates = 0
+                if (iTmp>6) then
+                    call getarg(7, dataSource)
+                    maxAlternates = atoi(dataSource)
+                    if (maxAlternates<0) MaxAlternates = 0
+                end if
+
+                noWrites = .false. ! allow files to be rewritten
 
             case ('SERVER')
                 noWrites = .false.
                 checkPassword = .true.
 
+            case ('TRAINING')
+
             case default
-                argString = 'TRAINING'
-                noWrites = .true.
-                checkPassword = .false.
+                write(*,AFORMAT) &
+                    'Action "'//trim(argString)//'" not recognized', &
+                    'Valid actions are: checklists, advise, schedule, server, training', &
+                    'STOPPED'
+                stop
+
         end select
-    else
-        argString = 'TRAINING'
-        noWrites = .true.
-        checkPassword = .false.
+
     end if
 
     write(*,*) PROGNAME//VERSION//' started '//currentDate//dash//currentTime
-    write(*,*) 'University, Current year, term, period, action : ', &
-        trim(UniversityCode), currentYear, currentTerm, Period, trim(argString)
+    write(*,*) trim(UniversityCode), currentYear, currentTerm, Period, trim(argString), idxGrp, maxAlternates
 
     if (currentTerm==1) then
         prevYearYear = currentYear-1
@@ -135,6 +162,12 @@ program MAIN
     pathToCurrent = trim(itoa(currentYear))//DIRSEP//trim(txtSemester(currentTerm))//DIRSEP
     pathToTarget = trim(itoa(targetYear))//DIRSEP//trim(txtSemester(targetTerm))//DIRSEP
 
+    if (trim(argString)=='SCHEDULE') then ! use data from pathToTarget
+        pathToCurrent = pathToTarget
+        write(*,*) 'Creating schedules for SY '//trim(itoa(targetYear))//dash//trim(itoa(targetYear+1))// &
+             comma//space//trim(txtSemester(targetTerm))//' Semester, group ', idxGrp
+    end if
+
     ! fixed directories
     dirWWW                 = dirHEEDS//'web'//DIRSEP ! DocumentRoot in Apache
     dirCGI                 = dirHEEDS//'cgi'//DIRSEP ! Alias to /cgi-bin in Apache
@@ -156,6 +189,7 @@ program MAIN
     dirSUBSTITUTIONS       = trim(dirXML)//'substitutions'//DIRSEP ! directory for input/UNEDITED checklists from Registrar
     dirTRANSCRIPTS         = trim(dirXML)//'transcripts'//DIRSEP ! directory for raw transcripts
     dirEditedCHECKLISTS    = trim(dirXML)//'edited-checklists'//DIRSEP ! for output/EDITED checklists from College Secretaries
+
     call system (mkdirCmd//trim(dirXML)//trim(pathToCurrent))
     call system (mkdirCmd//trim(dirXML)//'updates-to-classes'//DIRSEP//trim(pathToCurrent))
     if (currentTerm/=targetTerm) then
@@ -190,37 +224,39 @@ program MAIN
     if (errNo/=0) then ! something wrong
         call server_end('Error in reading university info')
     end if
-    write(*,*) UniversityName
+    call file_log_message(UniversityName)
 
     ! read the colleges
     call read_colleges(pathToCurrent, errNo)
     if (errNo/=0) then ! something wrong
         call server_end('Error in reading the list of colleges')
     end if
-    write(*,*) NumColleges, ' colleges'
+    call file_log_message('# colleges ='//itoa(NumColleges))
 
     ! read the departments
     call read_departments(pathToCurrent, errNo)
     if (errNo/=0) then ! something wrong
         call server_end('Error in reading the list of departments')
     end if
-    write(*,*)  NumDepartments,  ' departments'
+    call file_log_message('# departments ='//itoa(NumDepartments))
 
     ! read the subjects
     call read_subjects(pathToCurrent, errNo)
     if (errNo/=0) then ! something wrong
         call server_end('Error in reading the list of subjects')
     end if
-    write(*,*)  NumSubjects,  ' subjects'
+    call file_log_message('# subjects ='//itoa(NumSubjects))
 
     ! read the curricular programs
     call read_curricula(pathToCurrent, errNo)
     if (errNo/=0) then ! something wrong
         call server_end('Error in reading the list of curricular programs')
     end if
-    write(*,*)  NumCurricula, ' curricular programs'
+    call file_log_message('# curricular programs ='//itoa(NumCurricula))
 
-    ! initialize NumStudents, student ranks
+    ! initialize student structure
+    call initialize_student(Student(0))
+    Student = Student(0)
     NumStudents = 0
     do iTmp=1,MAX_ALL_STUDENTS
         StdRank(iTmp) = iTmp
@@ -233,9 +269,7 @@ program MAIN
             call xml_write_student_grades(iTmp)
             if (mod(iTmp,1000)==0) write(*,*) iTmp,  ' done...'
         end do
-        write(*,*) 'All done!'
-        !argString = 'SERVER'
-        call server_end(' Stopped')
+        call server_end(PROGNAME//space//trim(argString)//'-mode is complete.')
     end if
 
 #if defined CUSTOM
@@ -263,16 +297,16 @@ program MAIN
     if (errNo/=0) then ! something wrong
         call server_end('Error in reading the list of rooms')
     end if
-    write(*,*)  NumRooms, ' rooms'
+    call file_log_message('# rooms ='//itoa(NumRooms))
 
     ! read the teachers
     call read_teachers(pathToCurrent, errNo)
     if (errNo/=0) then ! something wrong
         call server_end('Error in reading the list of teachers')
     end if
-    write(*,*)  NumTeachers, ' teachers'
+    call file_log_message('# teachers ='//itoa(NumTeachers))
 
-    ! mark colleges with some information
+    ! mark colleges with subject or curriculum information
     do targetDepartment=1,NumDepartments
         iTmp = Department(targetDepartment)%CollegeIdx
         College(iTmp)%hasInfo = College(iTmp)%hasInfo .or. Department(targetDepartment)%hasInfo
@@ -281,26 +315,34 @@ program MAIN
     ! read the classes
     call read_classes(pathToCurrent, NumCurrentSections, CurrentSection, CurrentOffering, errNo)
     UseCurrentCLASSES = NumCurrentSections>0
-    write(*,*)  NumCurrentSections, ' sections for current term'
+    call file_log_message('# sections for current term ='//itoa(NumCurrentSections))
+
+    ! read the list of students
+    call read_students(pathToCurrent, errNo)
+    call file_log_message('# students ='//itoa(NumStudents))
+
+    ! initialize enlisted subjects of students
+    call initialize_pre_enlistment(Preenlisted(0))
+    Preenlisted = Preenlisted(0)
+
+    ! scheduling-mode?
+    if (trim(argString)=='SCHEDULE') then
+        call generate_initial_schedules(idxGrp, maxAlternates)
+        call server_end(PROGNAME//space//trim(argString)//'-mode is complete.')
+    end if
 
     ! read the blocks
     call read_blocks(pathToCurrent, NumCurrentBlocks, CurrentBlock, NumCurrentSections, CurrentSection, errNo)
-    write(*,*)  NumCurrentBlocks, ' blocks for current term'
+    call file_log_message('# blocks for current term ='//itoa(NumCurrentBlocks))
 
     ! get no. of sections by dept
     call count_sections_by_dept(currentTerm, NumCurrentSections, CurrentSection)
 
-    ! read the list of students
-    call read_students(pathToCurrent, errNo)
-    write(*,*)  NumStudents, ' students for current term'
-
-    ! read currently enlisted subjects of students
-    call initialize_pre_enlistment(Preenlisted(0))
-    Preenlisted = Preenlisted(0)
+    ! read ENLISTMENT files
     NumEnlistmentRecords = 0
-    call read_pre_enlistment(trim(pathToCurrent)//'ENLISTMENT', NumCurrentSections, CurrentSection, Preenlisted, &
-        NumEnlistmentRecords, errNo)
-    write(*,*)  NumEnlistmentRecords,    ' enlistment records'
+    call read_pre_enlistment(pathToCurrent, 'ENLISTMENT', 0, 6, &
+        NumCurrentSections, CurrentSection, Preenlisted, NumEnlistmentRecords, errNo)
+    call file_log_message('# enlistment records ='//itoa(NumEnlistmentRecords))
 
     call recalculate_available_seats(CurrentSection)
 
@@ -316,6 +358,10 @@ program MAIN
     Advised = Advised(0)
     NumPredictionRecords = 0
 
+    call initialize_waiver(WaiverCOI(0))
+    WaiverCOI = WaiverCOI(0)
+    NumWaiverRecords = 0
+
     if (Period>1) then
 
         ! read the intake file
@@ -325,19 +371,33 @@ program MAIN
             NFintake(1:NumCurricula-1) = 1
             call xml_write_intake(pathToTarget)
         end if
-        write(*,*)  sum(NFintake),    ' incoming freshmen next term?'
+        call file_log_message('# incoming freshmen next term ='//trim(itoa(sum(NFintake)))//'?')
 
         ! read the classes
         call read_classes(pathToTarget, NumNextSections, NextSection, NextOffering, errNo)
         UseNextCLASSES = NumNextSections>0
-        write(*,*)  NumNextSections,    ' sections next term'
+        call file_log_message('# sections next term ='//itoa(NumNextSections))
 
         ! read the blocks
         call read_blocks(pathToTarget, NumNextBlocks, NextBlock, NumNextSections, NextSection, errNo)
-        write(*,*)  NumNextBlocks,    ' blocks next semester'
+        call file_log_message('# blocks next semester ='//itoa(NumNextBlocks))
 
         ! get no. of sections by deptCurrent
         call count_sections_by_dept(nextTerm, NumNextSections, NextSection)
+
+        ! read the list of new students
+        call read_students(pathToTarget, errNo)
+        call file_log_message('# students, including new ones ='//itoa(NumStudents))
+
+        ! retrieve predictions
+        call read_predictions(pathToTarget, NumNextSections, NextSection, Advised, &
+            NumPredictionRecords, errNo)
+        call file_log_message('# prediction records for next term ='//itoa(NumPredictionRecords))
+
+        call recalculate_available_seats(NextSection)
+
+        call read_waivers(pathToTarget, NumNextSections, NextSection, NextOffering, NumWaiverRecords, errNo)
+        call file_log_message('# waiver records for next term ='//itoa(NumWaiverRecords))
 
     end if
 
@@ -345,12 +405,26 @@ program MAIN
 
         case ('ADVISE')
 
-        case ('SCHEDULE')
+            if (Period==1) then
+                write(*,*)  'NEEDS ANALYSIS is not available during the enrollment period'
+
+            else
+                call advise_all_students()
+                call xml_write_pre_enlistment(pathToTarget, 'PREDICTIONS', Advised, NextSection)
+
+                ! invalidate pre-enlistment by moving ENLISTMENT files to backup
+                dataSource = trim(dirXML)//trim(pathToTarget)//'ENLISTMENT'
+                call move_to_backup(trim(dataSource)//'.XML')
+                do iTmp=2,7
+                    call move_to_backup(trim(dataSource)//dash//trim(itoa(iTmp))//'.XML')
+                end do
+
+            end if
 
         case ('SERVER', 'TRAINING')
 
             call create_user_names()
-            write(*,*)  NumUsers,  ' users'
+            call file_log_message('# predefined users ='//itoa(NumUsers))
 
             ! everything is clean for now
             isDirtySTUDENTS = .false.
@@ -369,18 +443,18 @@ program MAIN
             call cgi_write_script(trim(dirCGI)//CGI_SCRIPT, trim(QUERY_STRING), '30') ! ('NN' seconds to timeout)
 
             ! invalidate previous requests
-            call server_check_mailbox(1,active_users)
-            write(*,*) active_users, 'stale requests...'
+            call server_check_mailbox(1,activeUsers)
+            call file_log_message('# stale requests ='//itoa(activeUsers))
 
-            write(*,AFORMAT) 'The '//PROGNAME//' back-end program is ready.', &
-                'The CGI script is '//CGI_PATH, &
-                'Temporary HTML files will be in '//trim(dirTmp), &
-                'No. of predefined users is '//itoa(NumUsers)
+            call file_log_message('# cgi script ='//trim(dirCGI)//CGI_SCRIPT)
+            call file_log_message('# scratch directory ='//trim(dirTmp))
+            if (.not. noWrites) then ! server mode
+                call file_log_message('# administrative password ='//itoa(adminPassword))
+            end if
 
+            call file_log_message('The '//PROGNAME//' back-end program is ready.')
             if (noWrites) then ! training mode
-                write(*,AFORMAT) ' ', PROGNAME//' is in training mode. Any made changes will be lost after the program exits.'
-            else ! server mode
-                write(*,AFORMAT) 'The administrative password is '//itoa(adminPassword)
+                call file_log_message(PROGNAME//' is in training mode. Any made changes will be lost after the program exits.')
             end if
 
             ! start of server loop
@@ -389,10 +463,12 @@ program MAIN
             ! server loop has exited; remove CGI script
             call unlink(trim(dirCGI)//CGI_SCRIPT)
 
+
         case default
 
     end select
 
-    call server_end(' Stopped')
+    call server_end(PROGNAME//space//trim(argString)//'-mode is complete.')
+
 
 end program MAIN

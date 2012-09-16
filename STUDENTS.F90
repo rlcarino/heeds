@@ -46,7 +46,6 @@ module STUDENTS
         integer :: CountryIdx
         integer :: CurriculumIdx
         integer :: Classification
-        integer :: ScholarshipIdx
         integer :: Record(5,0:MAX_SUBJECTS_IN_CURRICULUM) ! 1=type,2=year,3=term,4=subject,5=grade
     end type TYPE_STUDENT
 
@@ -56,7 +55,7 @@ module STUDENTS
     integer :: NumStudents
     logical :: isDirtySTUDENTS = .false.
 
-    integer :: MaxLoad, MaxPriority, MaxAlternates
+    integer :: MaxLoad
 
 
     ! private tokens
@@ -77,24 +76,17 @@ contains
 
         integer :: iCurr, ierr, i, numEntries, partialEntries, numUpdates, mainEntries
         logical :: noXML
-        character(len=MAX_LEN_FILE_PATH) :: filePath
 
-        ! initialize student structure
-        call initialize_student(Student(0))
-        Student = Student(0)
         errNo = 0 ! errors or 'not found' are OK; there might be no students entered yet
 
-        ! old students
-        filePath = trim(path)//'STUDENTS'
-        call xml_read_students (filePath, mainEntries, ierr)
+        call xml_read_students (path, 0, mainEntries, ierr)
         noXML = mainEntries==0
         ! check for students added by program advisers
         numUpdates = 0
         done = .false.
         do iCurr=1,NumCurricula
             if (done(iCurr)) cycle
-            filePath = trim(path)//'STUDENTS-'//CurrProgCode(iCurr)
-            call xml_read_students (filePath, partialEntries, ierr, QUIETLY)
+            call xml_read_students (path, iCurr, partialEntries, ierr, QUIETLY)
             numUpdates = numUpdates + partialEntries
             do i = iCurr+1,NumCurricula
                 if (CurrProgCode(iCurr)==CurrProgCode(i)) done(i) = .true.
@@ -102,7 +94,7 @@ contains
         end do
         numEntries = mainEntries+numUpdates
 
-        if (numEntries==0) then ! no XML student files; try the custom formats
+        if (numEntries==0) then ! no XML student files; try the custom format
             call custom_read_students(path, numEntries, ierr)
         end if
 
@@ -117,7 +109,7 @@ contains
 
     subroutine initialize_student(S)
         type (TYPE_STUDENT) :: S
-        S = TYPE_STUDENT ('####-#####', '(not in directory)', SPACE, 1, 0, -1, 0, 0)
+        S = TYPE_STUDENT ('####-#####', '(not in directory)', SPACE, 1, 0, -1, 0)
         return
     end subroutine initialize_student
 
@@ -191,13 +183,14 @@ contains
             else
                 sdx = (i + j)/2
                 if (StdNum ==Student(sdx)%StdNo) then
+                    !write(*,*) 'Found '//StdNum//' at ', sdx
                     exit
                 else if (StdNum <Student(sdx)%StdNo) then
-                    !write(*,*) StdNum//' before '//Student(sdx)%StdNo
+                    !write(*,*) StdNum//' before '//Student(sdx)%StdNo, sdx
                     j = sdx-1
                 else
                     i = sdx+1
-                  !write(*,*) StdNum//' after '//Student(sdx)%StdNo
+                    !write(*,*) StdNum//' after '//Student(sdx)%StdNo, sdx
                 end if
             end if
         end do
@@ -215,7 +208,6 @@ contains
         COMMA//trim(Student(std)%Gender)//COMMA// &
         trim(itoa(Student(std)%CountryIdx))//COMMA// &
         trim(Curriculum(idxCURR)%Code)//COMMA// &
-        trim(itoa(Student(std)%ScholarshipIdx))//COMMA// &
         College(Curriculum(idxCURR)%CollegeIdx)%Code
         return
     end function text_student_info
@@ -247,7 +239,7 @@ contains
     subroutine xml_write_students(path, iCurr)
 
         integer, intent (in) :: iCurr
-        character(len=*), intent(in) :: path
+        character(len=*), intent(in) :: path ! YEAR/TERM/
 
         integer :: std, idx
 
@@ -291,8 +283,6 @@ contains
             if (Student(std)%CountryIdx/=1) &
                 call xml_write_integer(unitNo,   indent1, 'Country', Student(std)%CountryIdx)
             call xml_write_character(unitNo, indent1, 'Curriculum', Curriculum(idx)%Code)
-            if (Student(std)%ScholarshipIdx/=0) &
-                call xml_write_integer(unitNo,   indent1, 'Scholarship', Student(std)%ScholarshipIdx)
             if (Student(std)%Classification/=0) &
                 call xml_write_integer(unitNo,   indent1, 'Classification', Student(std)%Classification)
             call xml_write_character(unitNo, indent0, '/Student')
@@ -302,9 +292,10 @@ contains
     end subroutine xml_write_students
 
 
-    subroutine xml_read_students(filePath, numEntries, errNo, openQuietly)
+    subroutine xml_read_students(path, iCurr, numEntries, errNo, openQuietly)
 
-        character(len=*), intent(in) :: filePath ! YEAR/TERM/STUDENTS(-CURR)
+        character(len=*), intent(in) :: path ! YEAR/TERM/
+        integer, intent (in) :: iCurr
         integer, intent (out) :: numEntries, errNo
         logical, intent (in), optional :: openQuietly
 
@@ -315,6 +306,13 @@ contains
         logical :: quiet
         integer :: indexLoc
 
+        ! generate file name
+        if (iCurr>0) then
+            fileName = trim(dirXML)//trim(path)//'STUDENTS-'//trim(CurrProgCode(iCurr))//'.XML'
+        else
+            fileName = trim(dirXML)//trim(path)//'STUDENTS.XML'
+        end if
+
         if (present(openQuietly)) then
             quiet = openQuietly
         else
@@ -323,7 +321,6 @@ contains
 
         ! open file, return on any error
         numEntries = 0
-        fileName = trim(dirXML)//trim(filePath)//'.XML'
         call xml_open_file(unitNo, XML_ROOT_STUDENTS, fileName, errNo, forReading, quiet)
         if (errNo/=0) return
 
@@ -355,10 +352,7 @@ contains
                 case ('Country')
                     wrkStudent%CountryIdx = atoi(value)
 
-                case ('Scholarship')
-                    wrkStudent%ScholarshipIdx = atoi(value)
-
-                case ('Classification') ! ignore
+                case ('Classification')
                     wrkStudent%Classification = atoi(value)
 
                 case ('/Student')

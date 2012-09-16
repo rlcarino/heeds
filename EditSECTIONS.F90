@@ -216,7 +216,6 @@ contains
     character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
     character(len=MAX_LEN_COLLEGE_CODE) :: tCollege
     logical :: isLecture, okToAdd
-    logical :: sameTeacher, sameRoom, sameTime
 
     targetDepartment = DeptIdxUser
     targetCollege = CollegeIdxUser
@@ -546,16 +545,7 @@ contains
         end if
 
         ! time, day, room, teacher
-        sameTime = .true.
-        sameRoom = .true.
-        sameTeacher = .true.
-        do ncol=2,Section(sdx)%Nmeets
-          if (Section(sdx)%bTimeIdx(1)/=Section(sdx)%bTimeIdx(ncol) .or. &
-              Section(sdx)%eTimeIdx(1)/=Section(sdx)%eTimeIdx(ncol)) sameTime = .false.
-          if (Section(sdx)%RoomIdx(1)/=Section(sdx)%RoomIdx(ncol)) sameRoom = .false.
-          if (Section(sdx)%TeacherIdx(1)/=Section(sdx)%TeacherIdx(ncol)) sameTeacher = .false.
-        end do
-        if (sameTime .and. sameRoom .and. sameTeacher) then        
+        if (is_regular_schedule(sdx, Section)) then
           tdx = Section(sdx)%TeacherIdx(1) 
           rdx = Section(sdx)%RoomIdx(1) 
           write(device,AFORMAT) &

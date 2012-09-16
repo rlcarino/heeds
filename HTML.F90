@@ -49,7 +49,7 @@ contains
             '<table border="0" width="100%">'// &
             begintr//begintd//'<big><b>'//PROGNAME//VERSION//' for '// &
             trim(UniversityName)//'</b></big>'//endtd// &
-            tdalignright//'<a target="0" href="http://code.google.com/p/heeds/">Web</a>'//endtd// &
+            tdalignright//'<a target="0" href="http://code.google.com/p/heeds/">Help</a>'//endtd// &
             endtr//'</table><hr>'
             !tdalignright//'<a target="0" href="'//trim(PROGNAME)//'-Help.html">Help</a>'//endtd// &
 
@@ -99,7 +99,7 @@ contains
             '<form name="input" method="post" action="'//CGI_PATH//'">', &
             '<table border="0" width="100%">'// &
             begintr//begintd//'<big><b>'//trim(note)//SPACE//trim(UniversityName)//'</b></big>'//endtd// &
-            tdalignright//'<a target="0" href="http://code.google.com/p/heeds/">Web</a>'//endtd// &
+            tdalignright//'<a target="0" href="http://code.google.com/p/heeds/">Help</a>'//endtd// &
             endtr//'</table><hr>'
             !tdalignright//' <a target="0" href="/static/'//trim(PROGNAME)//'-Help.html">Help</a>'//endtd// &
 
@@ -787,15 +787,22 @@ contains
 
         integer, intent(in) :: device
 
-        ! last piece of info on the page
-        call date_and_time (date=currentDate,time=currentTime)
-        write(device,AFORMAT) &
-        '<small><i>Generated '//currentDate(1:4)//fslash//currentDate(5:6)//fslash//currentDate(7:8)// &
-        dash//currentTime(1:2)//':'//currentTime(3:4)//'.'// &
-        nbsp//nbsp//' Please report errors to '//trim(UniversityCode)//space//trim(REGISTRAR)//'.'// & ! nbsp//nbsp//CONTACT, &
-        nbsp//nbsp//' <a target="0" href="http://code.google.com/p/heeds/">HEEDS on the Web</a>.', &
-        '</i></small>', &
-        '</body></html>'
+        if (REQUEST/=fnPrintableWorkload+fnOFFSET .and. REQUEST/=fnPrintableSchedule) then
+            ! last piece of info on the page
+            call date_and_time (date=currentDate,time=currentTime)
+            write(device,AFORMAT) &
+                '<small><i>Generated '//currentDate(1:4)//fslash//currentDate(5:6)//fslash//currentDate(7:8)// &
+                dash//currentTime(1:2)//':'//currentTime(3:4)//'.'// &
+                nbsp//nbsp//' Please report errors to '//trim(UniversityCode)//space//trim(REGISTRAR)//'.'
+            if (noWrites) then ! training mode
+                write(device,AFORMAT) nbsp//nbsp//space//PROGNAME// &
+                    ' is in training mode. Any made changes will be lost after the program exits.'
+            end if
+            write(device,AFORMAT) &
+                nbsp//nbsp//' <a target="0" href="http://code.google.com/p/heeds/">Help</a>.', &
+                '</i></small>'
+        end if
+        write(device,AFORMAT) '</body></html>'
 
         close(device)
 

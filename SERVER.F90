@@ -36,6 +36,7 @@ module SERVER
     use EditSECTIONS
     use EditBLOCKS
     use EditCURRICULA
+    use EditPREDICTIONS
     use EditENLISTMENT
     use DEMAND
     use REPORTS
@@ -439,21 +440,21 @@ contains
 
 !            case (fnRebuildChecklists)
 !                    call RebuildChecklists(device, fname)
-!
-!            case (fnEditCheckList)
-!                if (Period==1) then
-!                    call checklist_edit(device, UseCurrentClasses, CurrentSection, CurrentOffering)
-!                else
-!                    call checklist_edit(device, UseNextClasses, NextSection, NextOffering)
-!                end if
-!
+
+            case (fnEditCheckList)
+                if (Period==1) then
+                    call checklist_edit(device, UseCurrentClasses, CurrentSection, CurrentOffering)
+                else
+                    call checklist_edit(device, UseNextClasses, NextSection, NextOffering)
+                end if
+
             case (fnChangeMatriculation)
                 call enlistment_edit(device, NumCurrentSections, CurrentSection, &
                     NumCurrentBlocks, CurrentBlock)
 
-!            case (fnFindBlock)
-!                call enlistment_find_block(device, NumCurrentSections, CurrentSection, &
-!                    NumCurrentBlocks, CurrentBlock)
+            case (fnFindBlock)
+                call enlistment_find_block(device, NumCurrentSections, CurrentSection, &
+                    NumCurrentBlocks, CurrentBlock)
 
             case (fnPrintableSchedule)
                 call enlistment_printable(device, NumCurrentSections, CurrentSection)
@@ -701,7 +702,6 @@ contains
             return
         end if
         wrk%StdNo = tStdNo
-        wrk%ScholarshipIdx = 0
 
         call cgi_get_named_string(QUERY_STRING, 'Name', wrk%Name, ierr)
         call cgi_get_named_string(QUERY_STRING, 'Gender', wrk%Gender, ierr)

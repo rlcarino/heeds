@@ -430,18 +430,17 @@ contains
 
         if (DO_NOT_BACKUP) return ! no backups
 
-        first = index(fname, 'xml')
-        if (first==0) return ! do not backup files not in 'xml' directory
+        first = index(fname, DIRSEP//'xml'//DIRSEP) + index(fname, DIRSEP//'raw'//DIRSEP)
+        if (first==0) return ! do not backup files not in 'xml' or 'raw' directory
 
         inquire(file=fname, exist=flagIsUp)
         if (.not. flagIsUp) return ! does not exist anyway
 
         call date_and_time (date=currentDate,time=currentTime)
         path = trim(fname)//dash//currentDate//dash//currentTime(1:6)
-        path(first:first+2) = 'bak'
+        path(first:first+4) = DIRSEP//'bak'//DIRSEP
         call rename (fname, path, iStat)
-        write(*,*) 'Status=', iStat, ' in moving '//trim(fname)//' to '//trim(path)
-
+        call file_io_log('Status='//trim(itoa(iStat))//' in moving '//trim(fname)//' to '//trim(path) )
         return
     end subroutine move_to_backup
 

@@ -40,15 +40,14 @@ contains
     integer, intent (in) :: device, fn
     integer, intent (in) :: NumSections
     type (TYPE_SECTION), intent(in), dimension (0:MAX_ALL_SECTIONS) :: Section
-    integer :: fac, nfacs, nsect, mdx, sdx, tdx, ierr, crse
+    integer :: fac, nfacs, nsect, mdx, sdx, tdx, ierr
     integer :: n_meetings, meetings(MAX_SECTION_MEETINGS)
     character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
     character(len=MAX_LEN_COLLEGE_CODE) :: tCollege
     character (len=127) :: mesg
     integer, dimension(60,6) :: TimeTable
     character(len=1) :: ch
-    real :: total_hrs, total_units
-    character(len=5) :: str_hrs, str_units ! xx.x
+    real :: totalLect, lectHours, totalLab, labHours, totalUnits, meetingUnits
 
     ! collect teachers
     tArray = 0
@@ -181,11 +180,12 @@ contains
               end do
             end do
             
-            write(device,AFORMAT) '<table border="0" width="60%">'//&
-              begintr//thalignleft//'Name'//endth// &
-                       thaligncenter//'Classes'//endth// &
-                       thaligncenter//'Units'//endth// &
-                       thaligncenter//'Hours'//endth// &
+            write(device,AFORMAT) '<table border="0" width="90%">'//&
+              begintr//thalignleft//'Name (Specialization)'//endth// &
+                       thaligncenter//'No. of<br>classes'//endth// &
+                       thaligncenter//'Lect<br>hours'//endth// &
+                       thaligncenter//'Lab<br>hours'//endth// &
+                       thaligncenter//'Teaching<br>load'//endth// &
                        thaligncenter//'Remark'//endth//endtr
    
             do tdx=1,nfacs
@@ -195,22 +195,19 @@ contains
               call timetable_clear(TimeTable)
               ! collect classes of teacher
               nsect = 0
-              total_hrs = 0.0
-              total_units = 0.0
+              totalUnits = 0.0
+              totalLect = 0.0
+              totalLab = 0.0
               do sdx=1,NumSections
                 call meetings_of_section_by_teacher(NumSections, Section, sdx, fac, n_meetings, meetings)
                 if (n_meetings>0) then ! teacher assigned to this section
-                        crse = Section(sdx)%SubjectIdx
                         nsect = nsect+1
                         tArray(nfacs+nsect) = sdx
-                        if (is_lecture_class(sdx, Section)) then
-                                total_units = total_units + Subject(crse)%LectHours
-                        else
-                                total_units = total_units + Subject(crse)%Units - Subject(crse)%LectHours
-                        end if
-                        !total_units = total_units + Subject(Section(sdx)%SubjectIdx)%Units
                         do mdx=1,n_meetings
-                          total_hrs = total_hrs + 0.25*(Section(sdx)%eTimeIdx(mdx)-Section(sdx)%bTimeIdx(mdx))
+                            call class_hours_and_load(mdx, sdx, Section, meetingUnits, lectHours, labHours)
+                            totalLect = totalLect + lectHours
+                            totalLab = totalLab + labHours
+                            totalUnits = totalUnits + meetingUnits
                         end do
                         ierr = -10
                         call timetable_add_meetings_of_section(NumSections, Section, sdx, n_meetings, meetings, TimeTable, ierr)
@@ -225,23 +222,20 @@ contains
               call cgi_url_encode(Teacher(fac)%TeacherID, QUERY_put)
 #endif
 
-              write(str_hrs,'(f5.1)') total_hrs
-              write(str_units,'(f5.1)') total_units
-              write(device,AFORMAT) begintr//begintd//trim(Teacher(fac)%Name)
+              write(device,AFORMAT) begintr//begintd//trim(Teacher(fac)%Name)//' ('//trim(Teacher(fac)%Specialization)//')'
               if (isRoleAdmin .or. (isRoleChair .and.  DeptIdxUser==Teacher(fac)%DeptIdx)) then
                 write(device,AFORMAT) trim(cgi_make_href(fnEditTeacher, targetUser, 'Edit', &
                   A1=QUERY_put, pre='&nbsp;<small>', post='</small>'))
               end if
-              !if (nsect>0) then
-                write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnTeacherSchedule, targetUser, itoa(nsect), &
-                  A1=QUERY_put, pre=endtd//tdaligncenter, post=endtd))
-              !else
-              !  write(device,AFORMAT) endtd//tdaligncenter//trim(itoa(nsect))//endtd
-              !end if
-              write(device,AFORMAT) &
-                tdaligncenter//str_units//endtd// &
-                tdaligncenter//str_hrs//endtd// &
-                tdaligncenter//trim(mesg)//endtd//endtr
+              write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnTeacherSchedule, targetUser, 'Edit', &
+                  A1=QUERY_put, pre=endtd//tdaligncenter//itoa(nsect)//'<small>', post='</small>'//endtd))
+              write(device,'(2(a,f5.1), a,f5.2,a)') tdaligncenter, totalLect, &
+                    endtd//tdaligncenter, totalLab, &
+                    endtd//tdaligncenter, totalUnits, &
+                    '/'//trim(itoa(Teacher(fac)%MaxLoad))// &
+                    trim(cgi_make_href(fnPrintableWorkload+fnOFFSET, targetUser, 'Printable', &
+                    A1=QUERY_put, pre='&nbsp;<small>', post='</small>'))//endtd// &
+                    tdaligncenter//trim(mesg)//endtd//endtr
             end do
             write(device,AFORMAT) '</table>'
 
@@ -304,10 +298,8 @@ contains
             end if
     end if
 
-    call html_write_header(device, 'Teaching schedule of '//Teacher(targetTeacher)%Name, mesg)
-    !call html_write_header(device, 'Teaching schedule of '//Teacher(targetTeacher)%Name// &
-    !    trim(cgi_make_href(fnPrintableWorkload+fnOFFSET, targetUser, 'Printable', &
-    !    A1=tTeacher, pre='</b><small>(', post=')</small><b>')), mesg)
+    call html_write_header(device, cgi_make_href(fnPrintableWorkload+fnOFFSET, targetUser, 'Printable', &
+        A1=tTeacher, post=' teaching schedule of '//Teacher(targetTeacher)%Name), mesg)
 
     ! collect meetings of teacher targetTeacher
     call timetable_meetings_of_teacher(NumSections, Section, targetTeacher, 0, tLen1, tArray, TimeTable, conflicted)
@@ -655,7 +647,7 @@ contains
         begintr//tdaligncenter//trim(UniversityAddress)//endtd//endtr, &
         begintr//begintd//'<br>'//endtd//endtr, &
         begintr//tdaligncenter//trim(College(targetCollege)%Name)//endtd//endtr, &
-        begintr//tdaligncenter//'<b>INDIVIDUAL FACULTY WORKLOAD</b>'//endtd//endtr, &
+        begintr//tdaligncenter//'<b>INDIVIDUAL FACULTY TEACHING LOAD</b>'//endtd//endtr, &
         begintr//tdaligncenter//trim(txtSemester(currentTerm+6))//' Semester, SY '// &
             trim(itoa(currentYear))//dash//trim(itoa(currentYear+1))//endtd//endtr, &
         begintr//begintd//'<br>'//endtd//endtr, &
@@ -681,9 +673,37 @@ contains
 
     call teacher_workload(device, Section, tLen1, tArray, NumBlocks, Block)
 
-    call timetable_display(device, Section, TimeTable)
+    write(device,AFORMAT) &
+      '<form name="input" method="post" action="'//CGI_PATH//'">', &
+      '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
+      '<input type="hidden" name="F" value="0'//trim(itoa(fnPrintableWorkload+fnOFFSET))//'">'// &
+      '<input type="hidden" name="A1" value="'//trim(tTeacher)//'">'
 
-    write(device,AFORMAT) '<hr>'
+    write(device,AFORMAT) '<br><br><br><br><table border="0" width="100%">', &
+        begintr//'<td width="50%">Prepared by:<br><br><br><br><br><br>'// &
+                 '<input name="Dean" size="'//trim(itoa(MAX_LEN_TEACHER_NAME))// &
+                 '" value="(College Dean)">'// &
+                 '<br>College Dean<br><br><br>'//endtd, &
+                 '<td width="50%">Received by:<br><br><br><br><br><br>'// &
+                 '<input name="DeanCollege" size="'//trim(itoa(MAX_LEN_TEACHER_NAME))// &
+                 '" value="'//trim(Teacher(targetTeacher)%Name)//'">'// &
+                 '<br>Faculty<br><br><br>'//endtd//endtr
+    write(device,AFORMAT) &
+        begintr//'<td width="50%">&nbsp;'//endtd, &
+                 '<td width="50%">Recommending Approval:<br><br><br><br><br><br>'// &
+                 '<input name="DeanInstruction" size="'//trim(itoa(MAX_LEN_TEACHER_NAME))// &
+                 '" value="(Dean of Instruction)">'// &
+                 '<br>Dean of Instruction<br><br><br>'//endtd//endtr
+    write(device,AFORMAT) &
+        begintr//'<td width="50%">Approved by:<br><br><br><br><br><br>'// &
+                 '<input name="President" size="'//trim(itoa(MAX_LEN_TEACHER_NAME))// &
+                 '" value="(President)">'// &
+                 '<br>Office of the President'//endtd, &
+                 '<td width="50%">&nbsp;'//endtd//endtr
+    write(device,AFORMAT) '</table>'
+
+    !call timetable_display(device, Section, TimeTable)
+    !write(device,AFORMAT) '<hr>'
 
     return
   end subroutine teacher_schedule_printable
@@ -694,8 +714,8 @@ contains
         type (TYPE_SECTION), intent(in), dimension (0:) :: Section
         integer, intent (in) :: NumBlocks
         type (TYPE_BLOCK), dimension(0:), intent(in) :: Block
-        integer :: crse, idx, mdx, rdx, sdx, previous, conflict, dept
-        real :: totalUnits, meetingUnits, meetingHours
+        integer :: crse, idx, mdx, rdx, sdx, previous
+        real :: totalUnits, meetingUnits
         real :: lectHours, labHours, totalLect, totalLab
 
         if (lenSL < 3) then
@@ -708,90 +728,58 @@ contains
         totalLab = 0.0
 
         write(device,AFORMAT) '<table border="0" width="100%">'//begintr, &
-            thalignleft//'Class<br>Code'//endth// &
-            thalignleft//'Program<br>Year/Sec'//endth// &
             thalignleft//'Subject<br>Code'//endth// &
-            thalignleft//'Descriptive Title'//endth// &
-            thalignleft//'Hrs.<br>Lect'//endth// &
-            thalignleft//'Hrs.<br>Lab'//endth// &
-            thalignleft//'No. of<br>Students'//endth // &
-            thalignleft//'Work<br>Load'//endth// &
+            thalignleft//'Descriptive Title (Units)'//endth// &
+            thalignleft//'Program<br>Year/Sec'//endth// &
+            thalignleft//'Class<br>Code'//endth// &
+            thalignleft//'Class<br>Size'//endth // &
             thalignleft//'Day'//endth// &
             thalignleft//'Time'//endth// &
-            thalignleft//'Room'//endth//endtr
+            thalignleft//'Room'//endth// &
+            thalignleft//'Hrs.<br>Lect'//endth// &
+            thalignleft//'Hrs.<br>Lab'//endth// &
+            thalignleft//'Work<br>Load'//endth// &
+            endtr
 
         previous = 0
         do idx=1,lenSL,3
             sdx=SectionList(idx)
             mdx=SectionList(idx+1)
-            conflict=SectionList(idx+2)
             crse = Section(sdx)%SubjectIdx
-            dept = Section(sdx)%DeptIdx
 
             !new section ?
-            if (sdx/=previous) then ! include subject, section, units/blockname, seats/hours, time, day
-
-                if (is_lecture_lab_subject(crse)) then
-                    if (is_lecture_class(sdx, Section)) then ! lecture of lecture-lab
-                        meetingUnits = 2.0*Subject(crse)%Units/3.0
-                        meetingHours = Subject(crse)%LectHours
-                        lectHours = Subject(crse)%LectHours
-                        labHours = 0.0
-                    else ! lab of lecture-lab
-                        meetingUnits = Subject(crse)%Units/3.0
-                        meetingHours = Subject(crse)%LabHours
-                        lectHours = 0.0
-                        labHours = Subject(crse)%LabHours
-                    end if
-                else if (Subject(crse)%LectHours>0.0) then ! lecture-only
-                    meetingUnits = Subject(crse)%Units
-                    meetingHours = Subject(crse)%LectHours
-                    lectHours = Subject(crse)%LectHours
-                    labHours = 0.0
-                else if (Subject(crse)%LabHours>0.0) then ! lab-only
-                    meetingUnits = Subject(crse)%Units
-                    meetingHours = Subject(crse)%LabHours
-                    lectHours = 0.0
-                    labHours = Subject(crse)%LabHours
-                end if
-
-                totalLect = totalLect + lectHours
-                totalLab = totalLab + labHours
-                totalUnits = totalUnits + meetingUnits
+            if (sdx/=previous) then
 
                 previous = sdx
-                write(device,AFORMAT) begintr// &
-                    begintd//trim(Section(sdx)%Code)//endtd ! code
 
+                !  subject
+                write(device,AFORMAT) begintr//begintd//trim(Subject(crse)%Name)//endtd
+                !  subject title, credit
+                write(device,'(a,f5.1,a)') begintd//trim(Subject(crse)%Title)//' (', Subject(crse)%Units, ')'//endtd
                 ! block
                 write(device,AFORMAT) begintd
                 call blocks_in_section(device, sdx, 0, NumBlocks, Block)
                 write(device,AFORMAT) endtd
-
-                write(device,AFORMAT) &
-                    begintd//trim(Subject(crse)%Name)//endtd !  subject
-                write(device,AFORMAT) &
-                    begintd//trim(Subject(crse)%Title)//endtd !  subject
-                if (lectHours>0.0) then
-                    write(device,AFORMAT) begintd//trim(ftoa(lectHours))//endtd ! lect hours
-                else
-                    write(device,AFORMAT) tdnbspendtd
-                end if
-                if (labHours>0.0) then
-                    write(device,AFORMAT) begintd//trim(ftoa(labHours))//endtd ! lab hours
-                else
-                    write(device,AFORMAT) tdnbspendtd
-                end if
-
+                ! section code
+                write(device,AFORMAT) begintd//trim(Section(sdx)%Code)//endtd
+                ! class size
                 write(device,AFORMAT) begintd//trim(itoa(Section(sdx)%Slots))//endtd
 
-                write(device,'(a,f5.2,a)') begintd, meetingUnits, endtd
+            else
+                write(device,AFORMAT) begintr// &
+                    tdnbspendtd// & ! subject code
+                    tdnbspendtd// & ! title, credit
+                    tdnbspendtd// & ! block
+                    tdnbspendtd// & ! section code
+                    tdnbspendtd     ! class size
 
             end if
-            ! day, time
-            write(device,AFORMAT) &
-                begintd//txtDay(Section(sdx)%DayIdx(mdx))//endtd, &
-                begintd//trim(text_time_period(Section(sdx)%bTimeIdx(mdx), Section(sdx)%eTimeIdx(mdx)))//endtd
+
+            ! day
+            write(device,AFORMAT) begintd//txtDay(Section(sdx)%DayIdx(mdx))//endtd
+            ! time
+            write(device,AFORMAT) begintd//trim(text_time_period(Section(sdx)%bTimeIdx(mdx), &
+                Section(sdx)%eTimeIdx(mdx)))//endtd
             ! room
             rdx = Section(sdx)%RoomIdx(mdx)
             if (rdx > 0) then
@@ -800,28 +788,77 @@ contains
                 write(device,AFORMAT) begintd//'TBA'//endtd
             end if
 
-            if (sdx==SectionList(idx+3)) then ! NOT the last meeting; add SPACE for next line
-                write(device,AFORMAT) endtr
-                write(device,AFORMAT) begintr// &
-                    begintd//endtd//begintd//endtd//begintd//endtd//begintd//endtd// &
-                    begintd//endtd//begintd//endtd//begintd//endtd//begintd//endtd
+            call class_hours_and_load(mdx, sdx, Section, meetingUnits, lectHours, labHours)
+            totalLect = totalLect + lectHours
+            totalLab = totalLab + labHours
+            totalUnits = totalUnits + meetingUnits
+
+            if (lectHours>0.0) then
+                write(device,'(a,f5.2,a)') begintd, lectHours, endtd ! lect hours
             else
-                write(device,AFORMAT) endtr
+                write(device,AFORMAT) tdnbspendtd
             end if
+
+            if (labHours>0.0) then
+                write(device,'(a,f5.2,a)') begintd, labHours, endtd ! lab hours
+            else
+                write(device,AFORMAT) tdnbspendtd
+            end if
+
+            write(device,'(a,f5.2,a)') begintd, meetingUnits, endtd//endtr
+
         end do
         write(device,AFORMAT) begintr//'<td colspan="11"><hr>'//endtd//endtr, &
-            begintr//tdnbspendtd//tdnbspendtd//tdnbspendtd// &
-            tdalignright//'<b>Totals</b> : '//endtd// & ! code
-            begintd//trim(ftoa(totalLect))//endtd//begintd//trim(ftoa(totalLab))//endtd// & ! hours
-            tdnbspendtd// &
-            begintd//trim(ftoa(totalUnits))// &
-            tdnbspendtd// tdnbspendtd// tdnbspendtd//endtr, &
-            begintr//'<td colspan="11"><hr>'//endtd//endtr
+            begintr//tdnbspendtd// & ! subject code
+            tdnbspendtd// & ! title, credit
+            tdnbspendtd// & ! block
+            tdnbspendtd// & ! section code
+            tdnbspendtd//  & ! class size
+            tdnbspendtd//  & ! day
+            tdnbspendtd//  & ! time
+            begintd//'<b>Totals</b> : '//endtd ! room
+        write(device,'(3(a,f5.2,a))') begintd, totalLect, endtd, & ! hours lect
+            begintd, totalLab, endtd, & ! hours lab
+            begintd, totalUnits, endtd//endtr ! load
+        !write(device,AFORMAT) begintr//'<td colspan="11"><hr>'//endtd//endtr
 
         write(device,AFORMAT) '</table>'
 
         return
   end subroutine teacher_workload
+
+
+  subroutine class_hours_and_load(mdx, sdx, Section, meetingUnits, lectHours, labHours)
+        integer, intent (in) :: mdx, sdx
+        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        real, intent(out) :: meetingUnits, lectHours, labHours
+        integer :: crse
+        real :: meetingHours
+
+        crse = Section(sdx)%SubjectIdx
+        meetingHours = (Section(sdx)%eTimeIdx(mdx) - Section(sdx)%bTimeIdx(mdx))/4.0
+        if (is_lecture_lab_subject(crse)) then
+            if (is_lecture_class(sdx, Section)) then ! lecture of lecture-lab
+                meetingUnits = meetingHours*Subject(crse)%LectLoad/Subject(crse)%LectHours
+                lectHours = meetingHours
+                labHours = 0.0
+            else ! lab of lecture-lab
+                meetingUnits = meetingHours*Subject(crse)%LabLoad/Subject(crse)%LabHours
+                lectHours = 0.0
+                labHours = meetingHours
+            end if
+        else if (Subject(crse)%LectHours>0.0) then ! lecture-only
+            meetingUnits = meetingHours*Subject(crse)%LectLoad/Subject(crse)%LectHours
+            lectHours = meetingHours
+            labHours = 0.0
+        else if (Subject(crse)%LabHours>0.0) then ! lab-only
+            meetingUnits = meetingHours*Subject(crse)%LabLoad/Subject(crse)%LabHours
+            lectHours = 0.0
+            labHours = meetingHours
+        end if
+
+        return
+  end subroutine class_hours_and_load
 
 
 end module EditTEACHERS

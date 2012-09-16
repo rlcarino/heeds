@@ -56,45 +56,45 @@
 
         ! predefine special subjects (symbols in prerequisites)
         Subject      = TYPE_SUBJECT (SPACE,     SPACE                             , &
-            1,0.0,0.0,0,0,0,0,0,0,0,0,0,  0,0,  0,0,  0,0,  0)
+            1,0.0,0.0,0,0,0,0,0,0,0,0,0,0,0,  0,0,  0,0,  0,0,  0)
         Subject(-1)  = TYPE_SUBJECT ('(dummy)', '(dummy)'                         , &
-            1,0.0,0.0,0,0,0,0,0,0,0,0,0,  0,0,  0,0,  0,0,  0)
+            1,0.0,0.0,0,0,0,0,0,0,0,0,0,0,0,  0,0,  0,0,  0,0,  0)
         Subject(-2)  = TYPE_SUBJECT ('AND',     '(appears in prerequisites)'      , &
-            1,0.0,0.0,7,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+            1,0.0,0.0,7,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
         Subject(-3)  = TYPE_SUBJECT ('APPROVAL','Approval by competent authority' , &
-            1,0.0,0.0,7,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+            1,0.0,0.0,7,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
         Subject(-4)  = TYPE_SUBJECT ('FIFTH',   '(appears in prerequisites)'      , &
-            1,0.0,0.0,7,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+            1,0.0,0.0,7,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
         Subject(-5)  = TYPE_SUBJECT ('FINAL',   '(appears in prerequisites)'      , &
-            1,0.0,0.0,7,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+            1,0.0,0.0,7,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
         Subject(-6)  = TYPE_SUBJECT ('FOURTH',  '(appears in prerequisites)'      , &
-            1,0.0,0.0,7,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+            1,0.0,0.0,7,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
         Subject(-7)  = TYPE_SUBJECT ('FRESHMAN','(appears in prerequisites)'      , &
-            1,0.0,0.0,7,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+            1,0.0,0.0,7,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
         Subject(-8)  = TYPE_SUBJECT ('GRADUATE','(appears in prerequisites)'      , &
-            1,0.0,0.0,7,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+            1,0.0,0.0,7,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
         Subject(-9)  = TYPE_SUBJECT ('JUNIOR',  '(appears in prerequisites)'      , &
-            1,0.0,0.0,7,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+            1,0.0,0.0,7,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
         Subject(-10) = TYPE_SUBJECT ('LANGUAGE','(Language Elective)'             , &
-            1,0.0,3.0,7,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+            1,0.0,3.0,7,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
         Subject(-11) = TYPE_SUBJECT ('MAJOR',   '(Must be in Plan Of Study)'      , &
-            1,0.0,3.0,7,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+            1,0.0,3.0,7,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
         Subject(-12) = TYPE_SUBJECT ('MINOR',   '(Must be in Plan Of Study)'      , &
-            1,0.0,3.0,7,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+            1,0.0,3.0,7,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
         Subject(-13) = TYPE_SUBJECT ('NONE',    '(appears in prerequisites)'      , &
-            1,0.0,0.0,7,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+            1,0.0,0.0,7,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
         Subject(-14) = TYPE_SUBJECT ('OR',      '(appears in prerequisites)'      , &
-            1,0.0,0.0,7,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+            1,0.0,0.0,7,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
         Subject(-15) = TYPE_SUBJECT ('SECOND',  '(appears in prerequisites)'      , &
-            1,0.0,0.0,7,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+            1,0.0,0.0,7,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
         Subject(-16) = TYPE_SUBJECT ('SENIOR',  '(appears in prerequisites)'      , &
-            1,0.0,0.0,7,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+            1,0.0,0.0,7,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
         Subject(-17) = TYPE_SUBJECT ('SIXTH',   '(appears in prerequisites)'      , &
-            1,0.0,0.0,7,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+            1,0.0,0.0,7,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
         Subject(-18) = TYPE_SUBJECT ('SOPHOMORE','(appears in prerequisites)'     , &
-            1,0.0,0.0,7,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+            1,0.0,0.0,7,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
         Subject(-19) = TYPE_SUBJECT ('THIRD',   '(appears in prerequisites)'      , &
-            1,0.0,0.0,7,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+            1,0.0,0.0,7,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
 
         NumDummySubjects = -19
         INDEX_TO_NONE = -13 ! index to NONE (the prerequisite of "No prerequisite" subjects)
@@ -161,6 +161,15 @@
                 Subject(NumSubjects)%LectHours
             Subject(NumSubjects)%MinLabSize = 50
             Subject(NumSubjects)%MaxLabSize = 50
+            ! default workload
+            if (Subject(NumSubjects)%LectHours>0.0 .and. Subject(NumSubjects)%LabHours>0.0) then
+                Subject(NumSubjects)%LectLoad = 2.0*Subject(NumSubjects)%Units/3.0
+                Subject(NumSubjects)%LabLoad = Subject(NumSubjects)%Units - Subject(NumSubjects)%LectLoad
+            elseif (Subject(NumSubjects)%LectHours>0.0) then
+                Subject(NumSubjects)%LectLoad = Subject(NumSubjects)%Units
+            else
+                Subject(NumSubjects)%LabLoad = Subject(NumSubjects)%Units
+            end if
 
             Department(NumDepartments)%hasInfo = .true.
 

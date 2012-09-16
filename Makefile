@@ -33,17 +33,19 @@
 # OS dependent symbols 
 #---------------------------------------------------------------
 
-#OS = WINDOWS
-#DESTDIR = /C/HEEDS/bin
-#EXT = WIN.EXE
+# assume MSYS
+OS = WINDOWS
+DESTDIR = /C/HEEDS/bin
+EXT = WIN.EXE
 #DELCMD = del
-#URLENCODE = -DDO_NOT_ENCODE
-
-OS = GNULINUX
-DESTDIR = /home/heeds/HEEDS/bin
-EXT = GLNX
 DELCMD = rm -f
 URLENCODE = -DDO_NOT_ENCODE
+
+#OS = GNULINUX
+#DESTDIR = /home/heeds/HEEDS/bin
+#EXT = GLNX
+#DELCMD = rm -f
+#URLENCODE = -DDO_NOT_ENCODE
 
 #---------------------------------------------------------------
 # raw data format & debugging flags 
@@ -59,8 +61,8 @@ DEBUG =
 FFLAGS = -ffree-form -fbounds-check
 OPTIONS = $(DEBUG) $(URLENCODE) -D$(OS) -I$(RAWDATA) -D$(RAWDATA)
 
-FC = gfortran -Wunused $(FFLAGS) $(OPTIONS) 
-#FC = g95 -Wunused-vars -ftrace=frame -ftrace=full $(FFLAGS) $(OPTIONS) 
+#FC = gfortran -Wunused $(FFLAGS) $(OPTIONS) 
+FC = g95 -Wunused-vars -ftrace=frame -ftrace=full $(FFLAGS) $(OPTIONS) 
 
 #---------------------------------------------------------------
 # object files
@@ -69,11 +71,12 @@ FC = gfortran -Wunused $(FFLAGS) $(OPTIONS)
 COMMON = BASE.o XML.o TIMES.o CGI.o COLLEGES.o DEPARTMENTS.o \
 	ROOMS.o TEACHERS.o SUBJECTS.o SECTIONS.o \
 	TIMETABLES.o CURRICULA.o STUDENTS.o GRADES.o \
-	CHECKLISTS.o PRE_ENLISTMENT.o BLOCKS.o 
+	CHECKLISTS.o PRE_ENLISTMENT.o WAIVERS.o BLOCKS.o \
+	ADVISING.o SCHEDULING.o
 
 INTERACTIVE = USERFUNCTIONS.o HTML.o \
 	EditSUBJECTS.o EditSECTIONS.o EditBLOCKS.o EditCURRICULA.o \
-	EditROOMS.o EditTEACHERS.o EditENLISTMENT.o \
+	EditROOMS.o EditTEACHERS.o EditPREDICTIONS.o EditENLISTMENT.o \
 	REPORTS.o DEMAND.o \
 	SERVER.o MAIN.o
 
@@ -81,10 +84,10 @@ INTERACTIVE = USERFUNCTIONS.o HTML.o \
 # targets
 #---------------------------------------------------------------
 
-all:	HEEDS
-
 help:
 	echo 'Usage: make HEEDS RAWDATA=data_format_code OS=GNULINUX|WINDOWS'
+
+all:	HEEDS
 
 HEEDS:	$(COMMON) $(INTERACTIVE)
 	$(FC) $(COMMON) $(INTERACTIVE) -o $(DESTDIR)/HEEDS-$(EXT)
@@ -117,11 +120,17 @@ STUDENTS.o:	CURRICULA.o  $(RAWDATA)/custom_read_students.F90
 
 PRE_ENLISTMENT.o:	SECTIONS.o STUDENTS.o GRADES.o
 
+WAIVERS.o:	STUDENTS.o SECTIONS.o
+
 BLOCKS.o:	SECTIONS.o CURRICULA.o 
 
 CHECKLISTS.o:	PRE_ENLISTMENT.o $(RAWDATA)/custom_checklists.F90
 
-USERFUNCTIONS.o:	CHECKLISTS.o CGI.o TIMETABLES.o BLOCKS.o
+ADVISING.o:	WAIVERS.o CHECKLISTS.o CGI.o $(RAWDATA)/custom_advising.F90
+
+USERFUNCTIONS.o:	ADVISING.o TIMETABLES.o BLOCKS.o
+
+SCHEDULING.o:	ADVISING.o TIMETABLES.o
 
 HTML.o:	USERFUNCTIONS.o 
 
@@ -133,6 +142,8 @@ EditBLOCKS.o:	HTML.o
 
 EditCURRICULA.o:	HTML.o
 
+EditPREDICTIONS.o:	HTML.o
+
 EditENLISTMENT.o:	HTML.o
 
 DEMAND.o:	HTML.o $(RAWDATA)/custom_demand.F90
@@ -140,7 +151,8 @@ DEMAND.o:	HTML.o $(RAWDATA)/custom_demand.F90
 REPORTS.o:	HTML.o $(RAWDATA)/custom_reports.F90
 
 SERVER.o:	EditSUBJECTS.o EditSECTIONS.o EditBLOCKS.o EditCURRICULA.o \
-	EditENLISTMENT.o REPORTS.o  DEMAND.o
+	EditPREDICTIONS.o EditENLISTMENT.o \
+	REPORTS.o  DEMAND.o
 
 MAIN.o:	SERVER.o
 
@@ -153,4 +165,6 @@ MAIN.o:	SERVER.o
 
 clean:
 	$(DELCMD) *.mod *.o *~ *.exe
+
+
 

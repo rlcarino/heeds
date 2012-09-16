@@ -502,7 +502,7 @@ contains
             end do
             if (n15 .gt. 0 .and. 4*tHours .ne. n15) then
                 write(*,*) Section(sdx)%ClassId//': scheduled hours ('// &
-                trim(itoa(n15/4))//') is inconsistent with subject parameter hours ('//trim(itoa(tHours))//')'
+                    trim(itoa(n15/4))//') is inconsistent with subject parameter hours ('//trim(itoa(tHours))//')'
                 if (.not. ignore) nconflicts = nconflicts + 1
             end if
         end do

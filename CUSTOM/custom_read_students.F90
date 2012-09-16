@@ -29,7 +29,7 @@
 
 
     subroutine custom_read_students (path, numEntries, ier)
-        character (len=*), intent (in) :: path ! YEAR/TERM/STUDENTS
+        character (len=*), intent (in) :: path ! YEAR/TERM/
         integer, intent (out) :: numEntries, ier
 
         call SIAS_read_students_from_enlistment(trim(path)//'FINALGRADE', numEntries, ier)
