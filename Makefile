@@ -34,18 +34,18 @@
 #---------------------------------------------------------------
 
 # assume MSYS
-OS = WINDOWS
-DESTDIR = /C/HEEDS/bin
-EXT = WIN.EXE
+#OS = WINDOWS
+#DESTDIR = /C/HEEDS/bin
+#EXT = WIN.EXE
 #DELCMD = del
+##DELCMD = rm -f
+#URLENCODE = -DDO_NOT_ENCODE
+
+OS = GNULINUX
+DESTDIR = /home/heeds/HEEDS/bin
+EXT = GLNX
 DELCMD = rm -f
 URLENCODE = -DDO_NOT_ENCODE
-
-#OS = GNULINUX
-#DESTDIR = /home/heeds/HEEDS/bin
-#EXT = GLNX
-#DELCMD = rm -f
-#URLENCODE = -DDO_NOT_ENCODE
 
 #---------------------------------------------------------------
 # raw data format & debugging flags 
@@ -61,8 +61,8 @@ DEBUG =
 FFLAGS = -ffree-form -fbounds-check
 OPTIONS = $(DEBUG) $(URLENCODE) -D$(OS) -I$(RAWDATA) -D$(RAWDATA)
 
-#FC = gfortran -Wunused $(FFLAGS) $(OPTIONS) 
-FC = g95 -Wunused-vars -ftrace=frame -ftrace=full $(FFLAGS) $(OPTIONS) 
+FC = gfortran -Wunused $(FFLAGS) $(OPTIONS) 
+#FC = g95 -Wunused-vars -ftrace=frame -ftrace=full $(FFLAGS) $(OPTIONS) 
 
 #---------------------------------------------------------------
 # object files
