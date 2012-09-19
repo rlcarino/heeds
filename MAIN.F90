@@ -156,6 +156,7 @@ program MAIN
         targetYear = currentYear
         targetTerm = currentTerm
     else ! forecasts are for next term
+        Period = 2 ! even if Period was set to 3 or 4
         targetYear = nextYear
         targetTerm = nextTerm
     end if
