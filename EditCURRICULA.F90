@@ -135,7 +135,6 @@ contains
     integer :: idx, tdx, m, n, cumulative, Year, Term, fnAction
     character(len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum, tAction
     character(len=10) :: tStatus ! (ACTIVE)/(INACTIVE)
-    character(len=4) :: strUnits
 
     ! which curriculum
     if (present(given)) then
@@ -217,12 +216,11 @@ contains
           else
             write(device,AFORMAT) begintd//trim(Subject(n)%Name)//endtd
           end if
-          write(strUnits,'(f4.1)') 1.0*Subject(n)%Units
           write(device,AFORMAT) &
             begintd//trim(Subject(n)%Title)//endtd//&
-            '<td align="center">'//trim(strUnits)//endtd//&
-            '<td align="center">'//trim(ftoa(Subject(n)%LectHours))//endtd//&
-            '<td align="center">'//trim(ftoa(Subject(n)%LabHours))//endtd//&
+            '<td align="center">'//trim(ftoa(Subject(n)%Units,1))//endtd//&
+            '<td align="center">'//trim(ftoa(Subject(n)%LectHours,2))//endtd//&
+            '<td align="center">'//trim(ftoa(Subject(n)%LabHours,2))//endtd//&
             '<td width="20%">'//trim(text_prerequisite_in_curriculum(n,Curriculum(targetCurriculum)))//endtd//&
             endtr
         end do

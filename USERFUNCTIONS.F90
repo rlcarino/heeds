@@ -307,7 +307,8 @@ contains
         available(fnDemandFreshmen) = sum(NFintake)>0
 
         ! university-specific customizations
-#if defined CUSTOM
+#if defined UPLB
+#else
         available(fnStudentsByYear) = .false.
 #endif
 

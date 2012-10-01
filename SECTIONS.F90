@@ -206,19 +206,19 @@ contains
         type (TYPE_SECTION), intent(in), dimension (0:) :: Section
         integer :: sect, dept
         ScheduleCount(Term,:) = 0
-#if defined CUSTOM
-        ! Subjects administered by program
-        do sect=1,NumSections
-            if (Section(sect)%SubjectIdx==0) cycle
-            dept = Section(sect)%DeptIdx
-            ScheduleCount(Term,dept) = max(atoi(Section(sect)%Code(2:)), ScheduleCount(Term,dept))
-        end do
-#else
+#if defined UPLB
         ! Subject administered by departments
         do sect=1,NumSections
             if (Section(sect)%SubjectIdx==0) cycle
             dept = Section(sect)%DeptIdx
             ScheduleCount(Term,dept) = ScheduleCount(Term,dept) + 1
+        end do
+#else
+        ! Subjects administered by program
+        do sect=1,NumSections
+            if (Section(sect)%SubjectIdx==0) cycle
+            dept = Section(sect)%DeptIdx
+            ScheduleCount(Term,dept) = max(atoi(Section(sect)%Code(2:)), ScheduleCount(Term,dept))
         end do
 #endif
         return
@@ -539,6 +539,7 @@ contains
 
                 case ('Teacher') ! teacher
                     tTeacher = adjustl(value)
+                    call upper_case(tTeacher)
                     if (tTeacher=='TBA') then
                         tidx = 0
                     else

@@ -34,6 +34,25 @@ module CGI
 
     implicit none
 
+    ! background color in timetables
+    character(len=7), parameter, dimension(0:14) :: bgcolor = (/ &
+        '#f0f8ff', & ! aliceblue
+        '#faebd7', & ! antiquewhite
+        '#7fffd4', & ! aquamarine
+        '#deb887', & ! burlywood
+        '#5f9ea0', & ! cadetblue
+        '#7fff00', & ! chartreuse
+        '#d2691e', & ! chocolate
+        '#ff7f50', & ! coral
+        '#6495ed', & ! cornflowerblue
+        '#dcdcdc', & ! gainsboro
+        '#bdb76b', & ! darkkhaki
+        '#ffa07a', & ! lightsalmon
+        '#ff00ff', & ! fuchsia
+        '#ffd700', & ! gold
+        '#da70d6' & ! orchid
+     /)
+
     ! some HTML tokens
     character(len=20), parameter :: Blue = '<font color=#0000FF>'
     character(len=20), parameter :: Fuchsia = '<font color=#FF00FF>'

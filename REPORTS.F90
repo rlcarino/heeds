@@ -297,7 +297,7 @@ contains
         targetDepartment = Subject(targetSubject)%DeptIdx
         targetCollege = Department(targetDepartment)%CollegeIdx
         call html_write_header (device, 'Students not accommodated in priority subject '// &
-        trim(Subject(targetSubject)%Name)//SPACE//dash//SPACE//trim(Subject(targetSubject)%Title))
+            trim(Subject(targetSubject)%Name)//SPACE//dash//SPACE//trim(Subject(targetSubject)%Title))
             !'<b>Students not accommodated in priority subject '//trim(Subject(targetSubject)%Name)//' - '// &
             !  trim(Subject(targetSubject)%Title)//'</b><br>', Department(targetDepartment)%Name// &
             !trim(txtSemester(currentTerm+3))//' Semester, SY '//trim(itoa(currentYear))//dash//itoa(currentYear+1)// &
@@ -307,10 +307,10 @@ contains
         !tArray = 0
         do tdx=1,NumStudents
             std = StdRank(tdx)
-            do ncol=1,Preenlisted(std)%NPriority+Preenlisted(std)%NAlternates+Preenlisted(std)%NCurrent
+            do ncol=1,Preenlisted(std)%NPriority ! +Preenlisted(std)%NAlternates+Preenlisted(std)%NCurrent
                 if (targetSubject/=Preenlisted(std)%Subject(ncol)) cycle  ! not this subject
-                if (Preenlisted(std)%Contrib(ncol)==0.0) cycle  ! alternate
                 if (Preenlisted(std)%Section(ncol)>0) cycle     ! accommodated
+                !if (Preenlisted(std)%Contrib(ncol)==0.0) cycle  ! alternate
                 n_count = n_count+1
                 tArray(n_count) = std
             end do
@@ -596,7 +596,8 @@ contains
         integer, intent (in) :: device, idxDEPT, maxSubjects
         type (TYPE_OFFERED_SUBJECTS), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS), intent (in) :: Offering
         integer :: crse, cdx, nlines, nSubjects
-#if defined CUSTOM
+#if defined UPLB
+#else
         integer :: idxCOLL
 #endif
         character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
@@ -611,13 +612,13 @@ contains
             if (Offering(crse)%Demand == 0) cycle
 
             if (idxDEPT/=0) then
-#if defined CUSTOM
+#if defined UPLB
+                ! Subject administered by departments
+                if (Subject(crse)%DeptIdx/=idxDEPT) cycle
+#else
                 ! Subjects administered by program
                 idxCOLL = Department(idxDEPT)%CollegeIdx
                 if (.not. is_used_in_college_subject(idxCOLL, crse) ) cycle
-#else
-                ! Subject administered by departments
-                if (Subject(crse)%DeptIdx/=idxDEPT) cycle
 #endif
             end if
             if (mod(nlines,20)==0) &
@@ -647,15 +648,15 @@ contains
             write(device,AFORMAT) tdalignright//trim(itoa(Offering(crse)%NSections))//endtd, &
             tdalignright//trim(itoa(Offering(crse)%TotalSlots))//endtd
             ! total accom
-#if defined CUSTOM
-            ! Subjects administered by program
-            write(device,AFORMAT) tdalignright//itoa(Offering(crse)%Accommodated)//endtd
-#else
+#if defined UPLB
             ! Subject administered by departments
             write(device,AFORMAT) trim(cgi_make_href(fnScheduleOfClasses, targetUser, &
                 itoa(Offering(crse)%Accommodated), &
                 A1=Department(Subject(crse)%DeptIdx)%Code, &
                 pre=tdalignright, post=endtd, anchor=tSubject))
+#else
+            ! Subjects administered by program
+            write(device,AFORMAT) tdalignright//itoa(Offering(crse)%Accommodated)//endtd
 #endif
 
             ! open seats

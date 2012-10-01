@@ -79,14 +79,14 @@ contains
     targetCollege = Curriculum(Block(targetBlock)%CurriculumIdx)%CollegeIdx
     targetDepartment = Block(targetBlock)%DeptIdx
 
-#if defined CUSTOM
-    ! Subjects administered by program
-    allowed_to_edit = isRoleAdmin .or. & ! USER is the ADMINISTRATOR
-            (isRoleChair .and. targetCollege==CollegeIdxUser ) ! USER is Dean, and College is the same as that of the Block
-#else
+#if defined UPLB
     ! Subject administered by departments
     allowed_to_edit = isRoleAdmin .or. & ! USER is the ADMINISTRATOR
             (isRoleChair .and. targetDepartment==DeptIdxUser) ! USER is Chair, and Department is the same as that of the Block
+#else
+    ! Subjects administered by program
+    allowed_to_edit = isRoleAdmin .or. & ! USER is the ADMINISTRATOR
+            (isRoleChair .and. targetCollege==CollegeIdxUser ) ! USER is Dean, and College is the same as that of the Block
 #endif
 
     mesg = SPACE
@@ -744,14 +744,14 @@ contains
 
     targetCollege = Curriculum(targetCurriculum)%CollegeIdx
 
-#if defined CUSTOM
-    ! Subjects administered by program
-    tDepartment = College(targetCollege)%Code
-    targetDepartment = index_to_dept(tDepartment)
-#else
+#if defined UPLB
     ! Subject administered by departments
     targetDepartment = DeptIdxUser
     tDepartment =  Department(targetDepartment)%Code
+#else
+    ! Subjects administered by program
+    tDepartment = College(targetCollege)%Code
+    targetDepartment = index_to_dept(tDepartment)
 #endif
 
     do Year=YearFirst,YearLast

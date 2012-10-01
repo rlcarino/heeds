@@ -179,7 +179,7 @@
                     ! numeric pass
                     down = Subject(crse)%Units
                     up = down*fGrade(grd)
-                    line = trim(line)//tdaligncenter//trim(ftoa(Subject(crse)%Units))//endtd
+                    line = trim(line)//tdaligncenter//trim(ftoa(Subject(crse)%Units,1))//endtd
 !                else if (grd == gdx4) then
 !                    ! 4.0
 !                    if (TCG(tdx)%ReExam == 0) then
@@ -193,7 +193,7 @@
 !                    else  ! 3.0
 !                        down = Subject(crse)%Units
 !                        up = down*3.5
-!                        line = trim(line)//tdaligncenter//trim(ftoa(Subject(crse)%Units))//endtd
+!                        line = trim(line)//tdaligncenter//trim(ftoa(Subject(crse)%Units,1))//endtd
 !                    end if
 !                else if (grd == gdxINC) then
 !                    ! INC
@@ -202,7 +202,7 @@
 !                    else if (TCG(tdx)%ReExam > 0 .and. TCG(tdx)%ReExam < 10) then
 !                        down = Subject(crse)%Units
 !                        up = down*fGrade(TCG(tdx)%ReExam)
-!                        line = trim(line)//tdaligncenter//trim(ftoa(Subject(crse)%Units))//endtd
+!                        line = trim(line)//tdaligncenter//trim(ftoa(Subject(crse)%Units,1))//endtd
 !                    else if (TCG(tdx)%ReExam == gdx5) then
 !                        down = Subject(crse)%Units
 !                        up = down*5.0
@@ -221,7 +221,7 @@
                 else
                     ! non numeric grade
                     if ( is_grade_passing(grd) ) then
-                        line = trim(line)//tdaligncenter//trim(ftoa(Subject(crse)%Units))//endtd
+                        line = trim(line)//tdaligncenter//trim(ftoa(Subject(crse)%Units,1))//endtd
                     else
                         line = trim(line)//tdnbspendtd
                     end if

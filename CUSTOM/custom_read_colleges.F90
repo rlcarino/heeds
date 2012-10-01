@@ -48,6 +48,8 @@
             select case (line(:pos(2)-1))
                 case ('NAME')
                     UniversityName = line(pos(2)+1:)
+                case ('ADDRESS')
+                    UniversityAddress = line(pos(2)+1:)
                 case ('ADMINISTRATION')
                     ADMINISTRATION = line(pos(2)+1:)
                 case ('REGISTRAR')

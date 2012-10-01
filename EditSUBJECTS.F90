@@ -48,17 +48,17 @@ contains
         if (targetDepartment>0) then
             targetCollege = Department(targetDepartment)%CollegeIdx
             nSubjects = 0
-#if defined CUSTOM
-            ! Subjects administered by program
+#if defined UPLB
             do idx=1,NumSubjects+NumAdditionalSubjects
-                if (is_used_in_college_subject(targetCollege, idx) ) then
+                if (Subject(idx)%DeptIdx == targetDepartment) then
                     nSubjects = nSubjects+1
                     tArray(nSubjects) = idx
                 end if
             end do
 #else
+            ! Subjects administered by program
             do idx=1,NumSubjects+NumAdditionalSubjects
-                if (Subject(idx)%DeptIdx == targetDepartment) then
+                if (is_used_in_college_subject(targetCollege, idx) ) then
                     nSubjects = nSubjects+1
                     tArray(nSubjects) = idx
                 end if
@@ -78,6 +78,7 @@ contains
                 do idx=1,NumSubjects+NumAdditionalSubjects
                     if (index(Subject(idx)%Name,trim(tDepartment)//SPACE)==1) then
                         nSubjects = nSubjects + 1
+                        !write(*,*) nSubjects, Subject(idx)%Name
                         tArray(nSubjects) = idx
                         targetDepartment = Subject(idx)%DeptIdx
                     end if
@@ -131,16 +132,16 @@ contains
                     write(device,AFORMAT) trim(tSubject)
                 end if
                 write(device,AFORMAT) '</a>'//endtd, &
-                tdaligncenter//trim(ftoa(Subject(crse)%Units))//endtd// &
+                tdaligncenter//trim(ftoa(Subject(crse)%Units,1))//endtd// &
                 tdaligncenter//trim(text_term_offered(Subject(crse)%TermOffered))//endtd// &
-                tdaligncenter//trim(ftoa(Subject(crse)%Tuition))//endtd// &
-                tdaligncenter//trim(ftoa(Subject(crse)%LabFee))//endtd// &
-                tdaligncenter//trim(ftoa(Subject(crse)%LectHours))//endtd// &
-                tdaligncenter//trim(ftoa(Subject(crse)%LectLoad))//endtd// &
+                tdaligncenter//trim(ftoa(Subject(crse)%Tuition,2))//endtd// &
+                tdaligncenter//trim(ftoa(Subject(crse)%LabFee,2))//endtd// &
+                tdaligncenter//trim(ftoa(Subject(crse)%LectHours,2))//endtd// &
+                tdaligncenter//trim(ftoa(Subject(crse)%LectLoad,2))//endtd// &
                 tdaligncenter//trim(itoa(Subject(crse)%MinLectSize))//endtd// &
                 tdaligncenter//trim(itoa(Subject(crse)%MaxLectSize))//endtd,  &
-                tdaligncenter//trim(ftoa(Subject(crse)%LabHours))//endtd// &
-                tdaligncenter//trim(ftoa(Subject(crse)%LabLoad))//endtd// &
+                tdaligncenter//trim(ftoa(Subject(crse)%LabHours,2))//endtd// &
+                tdaligncenter//trim(ftoa(Subject(crse)%LabLoad,2))//endtd// &
                 tdaligncenter//trim(itoa(Subject(crse)%MinLabSize))//endtd// &
                 tdaligncenter//trim(itoa(Subject(crse)%MaxLabSize))//endtd//endtr
 
@@ -198,35 +199,35 @@ contains
             if (ierr/=0) wrk%Units = Subject(crse)%Units
             if ( wrk%Units /= Subject(crse)%Units) then
                 isDirtySUBJECTS = .true.
-                remark = trim(remark)//': Units changed to '//ftoa(wrk%Units)
+                remark = trim(remark)//': Units changed to '//ftoa(wrk%Units,1)
             end if
 
             call cgi_get_named_float(QUERY_STRING, 'Tuition', wrk%Tuition, ierr)
             if (ierr/=0) wrk%Tuition = Subject(crse)%Tuition
             if ( wrk%Tuition /= Subject(crse)%Tuition) then
                 isDirtySUBJECTS = .true.
-                remark = trim(remark)//': Tuition fee changed to '//ftoa(wrk%Tuition)
+                remark = trim(remark)//': Tuition fee changed to '//ftoa(wrk%Tuition,2)
             end if
 
             call cgi_get_named_float(QUERY_STRING, 'LabFee', wrk%LabFee, ierr)
             if (ierr/=0) wrk%LabFee = Subject(crse)%LabFee
             if ( wrk%LabFee /= Subject(crse)%LabFee) then
                 isDirtySUBJECTS = .true.
-                remark = trim(remark)//': Lab fee changed to '//ftoa(wrk%LabFee)
+                remark = trim(remark)//': Lab fee changed to '//ftoa(wrk%LabFee,2)
             end if
 
             call cgi_get_named_float(QUERY_STRING, 'LectHours', wrk%LectHours, ierr)
             if (ierr/=0) wrk%LectHours = Subject(crse)%LectHours
             if ( wrk%LectHours /= Subject(crse)%LectHours) then
                 isDirtySUBJECTS = .true.
-                remark = trim(remark)//': Lecture Hours changed to '//ftoa(wrk%LectHours)
+                remark = trim(remark)//': Lecture Hours changed to '//ftoa(wrk%LectHours,2)
             end if
 
             call cgi_get_named_float(QUERY_STRING, 'LectLoad', wrk%LectLoad, ierr)
             if (ierr/=0) wrk%LectLoad = Subject(crse)%LectLoad
             if ( wrk%LectLoad /= Subject(crse)%LectLoad) then
                 isDirtySUBJECTS = .true.
-                remark = trim(remark)//': Lecture workload changed to '//ftoa(wrk%LectLoad)
+                remark = trim(remark)//': Lecture workload changed to '//ftoa(wrk%LectLoad,2)
             end if
 
             call cgi_get_named_integer(QUERY_STRING, 'MinLectSize', wrk%MinLectSize, ierr)
@@ -247,14 +248,14 @@ contains
             if (ierr/=0) wrk%LabHours = Subject(crse)%LabHours
             if ( wrk%LabHours /= Subject(crse)%LabHours) then
                 isDirtySUBJECTS = .true.
-                remark = trim(remark)//': LabHours changed to '//ftoa(wrk%LabHours)
+                remark = trim(remark)//': LabHours changed to '//ftoa(wrk%LabHours,2)
             end if
 
             call cgi_get_named_float(QUERY_STRING, 'LabLoad', wrk%LabLoad, ierr)
             if (ierr/=0) wrk%LabLoad = Subject(crse)%LabLoad
             if ( wrk%LabLoad /= Subject(crse)%LabLoad) then
                 isDirtySUBJECTS = .true.
-                remark = trim(remark)//': Lab workload changed to '//ftoa(wrk%LabLoad)
+                remark = trim(remark)//': Lab workload changed to '//ftoa(wrk%LabLoad,2)
             end if
 
             call cgi_get_named_integer(QUERY_STRING, 'MinLabSize', wrk%MinLabSize, ierr)
@@ -431,26 +432,26 @@ contains
       begintr//begintd//'Title'//endtd//begintd//'<input name="Title" size="'//trim(itoa(MAX_LEN_SUBJECT_TITLE))// &
         '" value="'//trim(Subject(crse)%Title)//'">'//endtd//endtr, &
         begintr//begintd//'Units'//endtd//begintd//'<input name="Units" size="3" value="'// &
-      trim(ftoa(Subject(crse)%Units))//'"> (0, if non-credit; i.e., PE, NSTP)'//endtd//endtr, &
+      trim(ftoa(Subject(crse)%Units,1))//'"> (0, if non-credit; i.e., PE, NSTP)'//endtd//endtr, &
       begintr//begintd//'Term Offered'//endtd//begintd//'<input name="TermOffered" size="3" value="'// &
         trim(text_term_offered_separated(Subject(crse)%TermOffered))//'"> (1, 2, S, or combination)'//endtd//endtr, &
       begintr//begintd//'Tuition fee'//endtd//begintd//'<input name="Tuition" size="3" value="'// &
-        trim(ftoa(Subject(crse)%Tuition))//'"> (total amount)'//endtd//endtr, &
+        trim(ftoa(Subject(crse)%Tuition,2))//'"> (total amount)'//endtd//endtr, &
       begintr//begintd//'Lab fee'//endtd//begintd//'<input name="LabFee" size="3" value="'// &
-        trim(ftoa(Subject(crse)%LabFee))//'"> (additional to tuition)'//endtd//endtr
+        trim(ftoa(Subject(crse)%LabFee,2))//'"> (additional to tuition)'//endtd//endtr
     write(device,AFORMAT)  &
       begintr//begintd//'Hours lecture class'//endtd//begintd//'<input name="LectHours" size="3" value="'// &
-      trim(ftoa(Subject(crse)%LectHours))//'"> (0, if no lecture component)'//endtd//endtr, &
+      trim(ftoa(Subject(crse)%LectHours,2))//'"> (0, if no lecture component)'//endtd//endtr, &
       begintr//begintd//'Workload for lecture class'//endtd//begintd//'<input name="LectLoad" size="3" value="'// &
-      trim(ftoa(Subject(crse)%LectLoad))//'"> (0, if no lecture component)'//endtd//endtr, &
+      trim(ftoa(Subject(crse)%LectLoad,2))//'"> (0, if no lecture component)'//endtd//endtr, &
       begintr//begintd//'Min size lecture class'//endtd//begintd//'<input name="MinLectSize" size="3" value="'// &
         trim(itoa(Subject(crse)%MinLectSize))//'">'//endtd//endtr, &
       begintr//begintd//'Max size lecture class'//endtd//begintd//'<input name="MaxLectSize" size="3" value="'// &
         trim(itoa(Subject(crse)%MaxLectSize))//'">'//endtd//endtr, &
       begintr//begintd//'Hours lab/recit/comp class'//endtd//begintd//'<input name="LabHours" size="3" value="'// &
-      trim(ftoa(Subject(crse)%LabHours))//'"> (0, if no lab/recit/computations component)'//endtd//endtr, &
+      trim(ftoa(Subject(crse)%LabHours,2))//'"> (0, if no lab/recit/computations component)'//endtd//endtr, &
       begintr//begintd//'Workload for lab class'//endtd//begintd//'<input name="LabLoad" size="3" value="'// &
-      trim(ftoa(Subject(crse)%LabLoad))//'"> (0, if no lab/recit/computations component)'//endtd//endtr, &
+      trim(ftoa(Subject(crse)%LabLoad,2))//'"> (0, if no lab/recit/computations component)'//endtd//endtr, &
       begintr//begintd//'Min size lab/recit/comp class'//endtd//begintd//'<input name="MinLabSize" size="3" value="'// &
         trim(itoa(Subject(crse)%MinLabSize))//'">'//endtd//endtr, &
       begintr//begintd//'Max size lab/recit/comp class'//endtd//begintd//'<input name="MaxLabSize" size="3" value="'// &

@@ -321,6 +321,7 @@ contains
                     call check_array_bound (wrk%lenSubject, MAX_SUBJECTS_PER_TERM, 'MAX_SUBJECTS_PER_TERM')
                     wrk%lenSubject = wrk%lenSubject + 1
                     wrk%Subject(wrk%lenSubject) = cdx
+                    wrk%Contrib(wrk%lenSubject) = 0.0
 
                 case ('/Student')
                     if (std/=0) then

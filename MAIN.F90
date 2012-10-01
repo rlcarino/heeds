@@ -273,21 +273,24 @@ program MAIN
         call server_end(PROGNAME//space//trim(argString)//'-mode is complete.')
     end if
 
-#if defined CUSTOM
-    ! set term offered of a subject to when it is taken in curricula programs
+#if defined UPLB
+    ! no need to reset term offered of a subject
+#else
+    ! set term offered of a subject to when it is taken in curricular programs
     call set_term_offered_accg_to_curricula()
+    call file_log_message('Resetting subject term of offering to when taken in curriculra programs...')
 #endif
 
     ! Synchronize pre-requisites of co-requisite subjects
     ! For example, CHEM 17.0 has MATH 11 or MATH 17, CHEM 17.1 has NONE. Set
     ! pre-requisite of CHEM 17.1 to that of CHEM 17
-    write(*,*) 'Synchronizing pre-requisites of co-requisite subjects...'
+    call file_log_message('Synchronizing pre-requisites of co-requisite subjects...')
     do targetSubject=1,NumSubjects
         if (Subject(Subject(targetSubject)%Prerequisite(1))%Name/='NONE') cycle ! pre-requisite is NONE
         if (Subject(targetSubject)%lenCoreq/=1) cycle ! should be one token only
         itmp = Subject(targetSubject)%Corequisite(1)
         if (itmp<=0) cycle ! token should be a named subject
-        write(*,*) Subject(targetSubject)%Name//'has co-requisite '//Subject(itmp)%Name
+        call file_log_message(Subject(targetSubject)%Name//'has co-requisite '//Subject(itmp)%Name)
         ! pre-requisite is NONE, co-requisite is a named subject
         Subject(targetSubject)%lenPreq = Subject(itmp)%lenPreq
         Subject(targetSubject)%Prerequisite = Subject(itmp)%Prerequisite

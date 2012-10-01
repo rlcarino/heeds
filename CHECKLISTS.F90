@@ -386,7 +386,7 @@ contains
                 trim(txtSemester(Student(std)%Record(3,idx)))//COMMA// &
                 trim(Subject(Student(std)%Record(4,idx))%Name)//COMMA// &
                 trim(txtGradeType(Student(std)%Record(1,idx)))//COMMA// &
-                trim(ftoa(Subject(Student(std)%Record(4,idx))%Units))//COMMA// &
+                trim(ftoa(Subject(Student(std)%Record(4,idx))%Units,1))//COMMA// &
                 txtGrade(pGrade(Student(std)%Record(5,idx)))
             TCG(lenTCG)%Code = 2  ! grade
             TCG(lenTCG)%Year    = Student(std)%Record(2,idx)
@@ -628,7 +628,7 @@ contains
                         trim(txtSemester(currentTerm))//COMMA// &
                         trim(Subject(Preenlisted(std)%Subject(i))%Name)//COMMA// &
                         trim(CurrentSection(Preenlisted(std)%Section(i))%Code)//COMMA// &
-                        trim(ftoa(Subject(Preenlisted(std)%Subject(i))%Units))//COMMA// &
+                        trim(ftoa(Subject(Preenlisted(std)%Subject(i))%Units,1))//COMMA// &
                         trim(txtGrade(pGrade(Preenlisted(std)%Grade(i))))
                     !write(*,*) trim(TCG(lenTCG)%txtLine)
                 end if

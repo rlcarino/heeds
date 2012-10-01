@@ -262,7 +262,9 @@ contains
             return
           end if
           header = trim(header)//' "'//trim(searchString)//'"'
-#if defined CUSTOM
+#if defined UPLB
+          ! department already set above
+#else
           ! Subjects administered by program
           tDepartment = tCollege
           targetDepartment = index_to_dept(tDepartment)
@@ -277,7 +279,9 @@ contains
           end if
           targetCollege = index_to_college(tCollege)
           header = tCollege//header
-#if defined CUSTOM
+#if defined UPLB
+          ! department already set above
+#else
           ! Subjects administered by program
           tDepartment = tCollege
           targetDepartment = index_to_dept(tDepartment)
@@ -393,18 +397,18 @@ contains
 
     nclosed = 0
     ! make list of closed subjects here, starting at tArray(nsections+nopen+1)
-#if defined CUSTOM
-    ! Subjects administered by program
+#if defined UPLB
     do cdx=1,NumSubjects+NumAdditionalSubjects
         if (Offering(cdx)%NSections>0) cycle
-        if (.not. is_used_in_college_subject(targetCollege, cdx)) cycle
+        if (Subject(cdx)%DeptIdx/=targetDepartment) cycle
         nclosed = nclosed+1
         tArray(nsections+nopen+nclosed) = cdx
     end do
 #else
+    ! Subjects administered by program
     do cdx=1,NumSubjects+NumAdditionalSubjects
         if (Offering(cdx)%NSections>0) cycle
-        if (Subject(cdx)%DeptIdx/=targetDepartment) cycle
+        if (.not. is_used_in_college_subject(targetCollege, cdx)) cycle
         nclosed = nclosed+1
         tArray(nsections+nopen+nclosed) = cdx
     end do
@@ -462,17 +466,17 @@ contains
           begintd//'<a name="'//trim(Subject(cdx)%Name)//'"></a><small>[<a href="#TOP">Top</a>]</small>'//endtd//endtr
       write(device,AFORMAT) &
           begintr//begintd//trim(Subject(cdx)%Name)//endtd//'<td colspan="8">'// &
-          trim(Subject(cdx)%Title)//'. '//trim(ftoa(Subject(cdx)%Units))//' units. '
+          trim(Subject(cdx)%Title)//'. '//trim(ftoa(Subject(cdx)%Units,1))//' units. '
 
       if (is_lecture_lab_subject(cdx)) then
         write(device,AFORMAT) &
-          trim(ftoa(Subject(cdx)%LectHours+Subject(cdx)%LabHours))//' hrs ('// &
-          trim(ftoa(Subject(cdx)%LectHours))//' lect + '// &
-          trim(ftoa(Subject(cdx)%LabHours))//' lab/recit).'
+          trim(ftoa(Subject(cdx)%LectHours+Subject(cdx)%LabHours,2))//' hrs ('// &
+          trim(ftoa(Subject(cdx)%LectHours,2))//' lect + '// &
+          trim(ftoa(Subject(cdx)%LabHours,2))//' lab/recit).'
       else if (Subject(cdx)%LectHours > 0.0) then
-        write(device,AFORMAT) trim(ftoa(Subject(cdx)%LectHours))//' hrs lect.'
+        write(device,AFORMAT) trim(ftoa(Subject(cdx)%LectHours,2))//' hrs lect.'
       else if (Subject(cdx)%LabHours > 0.0) then
-        write(device,AFORMAT) trim(ftoa(Subject(cdx)%LabHours))//' hrs lab/recit.'
+        write(device,AFORMAT) trim(ftoa(Subject(cdx)%LabHours,2))//' hrs lab/recit.'
       end if
 
       write(device,AFORMAT) '('//trim(text_term_offered_separated(Subject(cdx)%TermOffered))//')'
@@ -483,11 +487,11 @@ contains
       write(device,AFORMAT) endtd//endtr, &
           begintr//tdnbspendtd//'<td colspan="7">&nbsp;Pr. '//trim(text_prerequisite_of_subject(cdx,0))//endtd
 
-#if defined CUSTOM
+#if defined UPLB
+      okToAdd = isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==Subject(cdx)%DeptIdx)
+#else
       ! Subjects administered by program
       okToAdd = isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==targetDepartment)
-#else
-      okToAdd = isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==Subject(cdx)%DeptIdx)
 #endif
 
       if (okToAdd) then
@@ -632,9 +636,7 @@ contains
     type (TYPE_OFFERED_SUBJECTS), intent(in out), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS) :: Offering
     character(len=MAX_LEN_SUBJECT_CODE) :: tSubject
     character(len=MAX_LEN_SECTION_CODE) :: tSection
-#if defined CUSTOM
     character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
-#endif
     integer :: crse, Term, kdx, dept
     character (len=127) :: mesg
 
@@ -653,14 +655,15 @@ contains
           return
     end if
 
-#if defined CUSTOM
+#if defined UPLB
+    ! Subject administered by departments
+    targetDepartment = Subject(crse)%DeptIdx
+    targetCollege = Department(targetDepartment)%CollegeIdx
+    tDepartment = Department(targetDepartment)%Code
+#else
     ! Subjects administered by program
     call cgi_get_named_string(QUERY_STRING, 'A2', tDepartment, kdx)
     targetDepartment = index_to_dept(tDepartment)
-    targetCollege = Department(targetDepartment)%CollegeIdx
-#else
-    ! Subject administered by departments
-    targetDepartment = Subject(crse)%DeptIdx
     targetCollege = Department(targetDepartment)%CollegeIdx
 #endif
 
@@ -861,9 +864,9 @@ contains
 
     tLen = len_trim(Section(sect)%Code)+1
     if (is_lecture_class(sect,Section)) then
-            tHours = trim(ftoa(Subject(Section(sect)%SubjectIdx)%LectHours))//' lecture hours'
+            tHours = trim(ftoa(Subject(Section(sect)%SubjectIdx)%LectHours,2))//' lecture hours'
     else
-            tHours = trim(ftoa(Subject(Section(sect)%SubjectIdx)%LabHours))//' laboratory hours'
+            tHours = trim(ftoa(Subject(Section(sect)%SubjectIdx)%LabHours,2))//' laboratory hours'
     end if
     ! write input form to capture edits to Section(sect); previous inputs are in tSection
     write(device,AFORMAT) &

@@ -727,7 +727,7 @@ contains
                     begintr//tdaligncenter//'<i>Del '//trim(itoa(l))//'</i>'//endtd// &
                     tdaligncenter//'<input type="checkbox" name="del'//trim(itoa(l))//'">'//endtd// &
                     begintd//trim(Subject(k)%Name)//endtd// &
-                    tdaligncenter//trim(ftoa(Subject(k)%Units))//endtd// &
+                    tdaligncenter//trim(ftoa(Subject(k)%Units,1))//endtd// &
                     begintd//trim(Subject(k)%Title)//endtd//endtr
             end do
 
@@ -764,7 +764,7 @@ contains
                         begintr//tdaligncenter//trim(itoa(l))//endtd// &
                         begintd//tProb//endtd// &
                         begintd//trim(Subject(k)%Name)//endtd// &
-                        tdaligncenter//trim(ftoa(Subject(k)%Units))//endtd// &
+                        tdaligncenter//trim(ftoa(Subject(k)%Units,1))//endtd// &
                         begintd//trim(Subject(k)%Title)//endtd//endtr
                 end do
             end if
@@ -1308,7 +1308,7 @@ contains
                     idx = CheckList%SubjectIdx(tdx)
                     write(device,AFORMAT) &
                         begintr//begintd//trim(Subject(idx)%Name)//endtd// &
-                        tdaligncenter//trim(ftoa(Subject(idx)%Units))//endtd// &
+                        tdaligncenter//trim(ftoa(Subject(idx)%Units,1))//endtd// &
                         begintd//trim(Subject(idx)%Title)//endtd// &
                         begintd//trim(text_prerequisite_in_curriculum(idx))//endtd//endtr
                 end do
@@ -1336,7 +1336,7 @@ contains
                     end if
                 end do
                 if (n > 0) then
-                    write(device,AFORMAT) '<br><br><b>EXTRA subjects</b>, or subjects not specified in Plan Of Subjectwork'
+                    write(device,AFORMAT) '<br><br><b>EXTRA subjects</b>, or subjects not specified in Plan Of Study'
                     do m=1,n
                         write(device,AFORMAT) ' : &nbsp; '//Subject(TCG(q(m))%Subject)%Name//dash//txtGrade(pGrade(TCG(q(m))%Grade))
                     end do
@@ -1361,7 +1361,7 @@ contains
                             begintr//tdaligncenter//trim(itoa(tdx))//endtd// &
                             begintd//tProb//endtd// &
                             begintd//trim(Subject(idx)%Name)//endtd// &
-                            tdaligncenter//trim(ftoa(Subject(idx)%Units))//endtd// &
+                            tdaligncenter//trim(ftoa(Subject(idx)%Units,1))//endtd// &
                             begintd//trim(Subject(idx)%Title)//endtd//endtr
                     end do
                 end if
@@ -1381,7 +1381,7 @@ contains
                             begintr//tdaligncenter//trim(itoa(tdx))//endtd// &
                             begintd//tProb//endtd// &
                             begintd//trim(Subject(idx)%Name)//endtd// &
-                            tdaligncenter//trim(ftoa(Subject(idx)%Units))//endtd// &
+                            tdaligncenter//trim(ftoa(Subject(idx)%Units,1))//endtd// &
                             begintd//trim(Subject(idx)%Title)//endtd//endtr
                     end do
                 end if
@@ -1401,7 +1401,7 @@ contains
                             begintr//tdaligncenter//trim(itoa(tdx))//endtd// &
                             begintd//tProb//endtd// &
                             begintd//trim(Subject(idx)%Name)//endtd// &
-                            tdaligncenter//trim(ftoa(Subject(idx)%Units))//endtd// &
+                            tdaligncenter//trim(ftoa(Subject(idx)%Units,1))//endtd// &
                             begintd//trim(Subject(idx)%Title)//endtd//endtr
                     end do
                 end if

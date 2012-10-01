@@ -132,22 +132,45 @@ contains
         integer, intent(in) :: device, TimeTable(60,6)
         type (TYPE_SECTION), intent(in), dimension (0:MAX_ALL_SECTIONS) :: Section
         integer, parameter :: period = 2 ! no. of 15 minute intervals
-        integer :: i, ncol, sect
-        character (len=512) :: line
+        integer :: i, color, ncol, sect, j, mcol
+        character (len=1024) :: line
+        integer :: colorIdx(60,6)
+
+        ! background colors
+        colorIdx = 0
+        color = 0
+        do ncol=1,56,period
+            do i=6,1,-1
+                if (TimeTable(ncol,i)<=0) cycle ! no class at this time
+                if (colorIdx(ncol,i)/=0) cycle ! already has a color
+                ! section not colored yet
+                sect = TimeTable(ncol,i)
+                color = color + 1
+                do mcol=ncol,56,period
+                    do j=6,1,-1
+                        if (sect==TimeTable(mcol,j)) colorIdx(mcol,j) = mod(color,15)
+                    end do
+                end do
+            end do
+        end do
+
         write(device,AFORMAT) '<br><b>Weekly Timetable</b>'// &
-        '<table border="1" width="100%"><small>'
+            '<table border="1" width="100%"><small>'
         write(device,AFORMAT) begintr//beginth//'Time'//endth, &
-        thaligncenter//'Mon'//endth//thaligncenter//'Tue'//endth//thaligncenter//'Wed'//endth//&
-        thaligncenter//'Thu'//endth//thaligncenter//'Fri'//endth//thaligncenter//'Sat'//endth//&
-        endtr
+            thaligncenter//'Mon'//endth//thaligncenter//'Tue'//endth//thaligncenter//'Wed'//endth//&
+            thaligncenter//'Thu'//endth//thaligncenter//'Fri'//endth//thaligncenter//'Sat'//endth//&
+            endtr
         do ncol=1,56,period
             line = SPACE
             do i=6,1,-1
                 sect = TimeTable(ncol,i)
-                if (sect<0) then
-                    line = tdaligncenter//green//'<i>proposed</i>'//black//endtd//line
+                if (sect==0) then
+                    line = tdnbspendtd//line
+                elseif (sect<0) then
+                    line = tdaligncenter//green//'<b><i>proposed</i></b>'//black//endtd//line
                 else
-                    line = tdaligncenter//trim(Section(sect)%ClassId)//endtd//line
+                    line = '<td align="center" bgcolor="'//bgcolor(colorIdx(ncol,i))//'">'// &
+                        trim(Section(sect)%ClassId)//endtd//line
                 end if
             end do
             line = '<td width="100">'//trim(text_time_period(ncol,ncol+period))//endtd//line
@@ -258,12 +281,12 @@ contains
                 end if
                 if (countUnits) then
                     if (meetingUnits>0.0) then
-                        write(device,AFORMAT) begintd//trim(ftoa(meetingUnits))//endtd
+                        write(device,AFORMAT) begintd//trim(ftoa(meetingUnits,1))//endtd
                     else
                         write(device,AFORMAT) tdnbspendtd ! units
                     end if
                     if (meetingHours>0.0) then
-                        write(device,AFORMAT) begintd//trim(ftoa(meetingHours))//endtd ! hours
+                        write(device,AFORMAT) begintd//trim(ftoa(meetingHours,2))//endtd ! hours
                     else
                         write(device,AFORMAT) tdnbspendtd ! hours
                     end if
@@ -336,7 +359,7 @@ contains
         if (countUnits) then
             write(device,AFORMAT) begintr//'<td colspan="9"><hr>'//endtd//endtr, &
             begintr//tdnbspendtd//begintd//'<b>Totals</b> : '//endtd// & ! code
-            begintd//trim(ftoa(totalUnits))//endtd//begintd//trim(ftoa(totalHours))//endtd// & ! hours
+            begintd//trim(ftoa(totalUnits,2))//endtd//begintd//trim(ftoa(totalHours,2))//endtd// & ! hours
             tdnbspendtd// tdnbspendtd// tdnbspendtd// tdnbspendtd// tdnbspendtd//endtr, &
             begintr//'<td colspan="9"><hr>'//endtd//endtr
         end if
@@ -796,7 +819,7 @@ contains
                 nbsp//nbsp//' Please report errors to '//trim(UniversityCode)//space//trim(REGISTRAR)//'.'
             if (noWrites) then ! training mode
                 write(device,AFORMAT) nbsp//nbsp//space//PROGNAME// &
-                    ' is in training mode. Any made changes will be lost after the program exits.'
+                    ' is in training mode. Any changes made will be lost after the program exits.'
             end if
             write(device,AFORMAT) &
                 nbsp//nbsp//' <a target="0" href="http://code.google.com/p/heeds/">Help</a>.', &
@@ -1004,7 +1027,14 @@ contains
 
         ! subject areas in college
         tLen = 0
-#if defined CUSTOM
+#if defined UPLB
+        do cdx=1,NumSubjectAreas
+            if (SubjectArea(cdx)%CollegeIdx==coll) then
+                tLen = tLen+1
+                tArray(tLen) = cdx
+            end if
+        end do
+#else
         ! Subjects administered by program
         do cdx=1,NumSubjectAreas
             do ldx=1,NumCurricula
@@ -1015,13 +1045,6 @@ contains
                     exit
                 end if
             end do
-        end do
-#else
-        do cdx=1,NumSubjectAreas
-            if (SubjectArea(cdx)%CollegeIdx==coll) then
-                tLen = tLen+1
-                tArray(tLen) = cdx
-            end if
         end do
 #endif
 
@@ -1255,16 +1278,16 @@ contains
         do dept=2,NumDepartments
             if (Department(dept)%CollegeIdx/=coll) cycle
             n_count = 0
-#if defined CUSTOM
-            ! Subjects administered by program
+#if defined UPLB
             do crse=1,NumSubjects+NumAdditionalSubjects
-                if (.not. is_used_in_college_subject(coll, crse)) cycle
+                if (Subject(crse)%DeptIdx /= dept) cycle
                 n_count = n_count+1
                 exit
             end do
 #else
+            ! Subjects administered by program
             do crse=1,NumSubjects+NumAdditionalSubjects
-                if (Subject(crse)%DeptIdx /= dept) cycle
+                if (.not. is_used_in_college_subject(coll, crse)) cycle
                 n_count = n_count+1
                 exit
             end do
@@ -1292,16 +1315,16 @@ contains
         do dept=2,NumDepartments
             if (Department(dept)%CollegeIdx /= coll) cycle
             n_count = 0
-#if defined CUSTOM
-            ! Subjects administered by program
+#if defined UPLB
             do crse=1,NumSubjects+NumAdditionalSubjects
-                if (.not. is_used_in_college_subject(coll, crse)) cycle
+                if (Subject(crse)%DeptIdx /= dept) cycle
                 n_count = n_count+1
                 exit
             end do
 #else
+            ! Subjects administered by program
             do crse=1,NumSubjects+NumAdditionalSubjects
-                if (Subject(crse)%DeptIdx /= dept) cycle
+                if (.not. is_used_in_college_subject(coll, crse)) cycle
                 n_count = n_count+1
                 exit
             end do
@@ -1335,16 +1358,16 @@ contains
         do dept=2,NumDepartments
             if (Department(dept)%CollegeIdx /= coll) cycle
             n_count = 0
-#if defined CUSTOM
-            ! Subjects administered by program
+#if defined UPLB
             do crse=1,NumSubjects+NumAdditionalSubjects
-                if (.not. is_used_in_college_subject(coll, crse)) cycle
+                if (Subject(crse)%DeptIdx /= dept) cycle
                 n_count = n_count+1
                 exit
             end do
 #else
+            ! Subjects administered by program
             do crse=1,NumSubjects+NumAdditionalSubjects
-                if (Subject(crse)%DeptIdx /= dept) cycle
+                if (.not. is_used_in_college_subject(coll, crse)) cycle
                 n_count = n_count+1
                 exit
             end do

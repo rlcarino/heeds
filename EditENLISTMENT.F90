@@ -931,25 +931,25 @@ contains
               begintd//trim(Section(sect)%Code)//endtd ! code
 
             if (classUnits>0.0) then
-              write(device,AFORMAT) begintd//trim(ftoa(classUnits))//endtd
+              write(device,AFORMAT) begintd//trim(ftoa(classUnits,1))//endtd
             else
               write(device,AFORMAT) tdnbspendtd ! units
             end if
 
             if (classHours>0.0) then
-              write(device,AFORMAT) begintd//trim(ftoa(classHours))//endtd ! hours
+              write(device,AFORMAT) begintd//trim(ftoa(classHours,2))//endtd ! hours
             else
               write(device,AFORMAT) tdnbspendtd ! hours
             end if
 
             if (classTuition>0.0) then
-              write(device,AFORMAT) begintd//trim(ftoa(classTuition))//endtd
+              write(device,AFORMAT) begintd//trim(ftoa(classTuition,2))//endtd
             else
               write(device,AFORMAT) tdnbspendtd
             end if
 
             if (classLabFee>0.0) then
-              write(device,AFORMAT) begintd//trim(ftoa(classLabFee))//endtd
+              write(device,AFORMAT) begintd//trim(ftoa(classLabFee,2))//endtd
             else
               write(device,AFORMAT) tdnbspendtd 
             end if
@@ -984,8 +984,8 @@ contains
     end do
     write(device,AFORMAT) begintr//'<td colspan="9"><hr>'//endtd//endtr, &
         begintr//tdnbspendtd//begintd//'<b>Totals</b> : '//endtd// & ! code
-        begintd//trim(ftoa(totalUnits))//endtd//begintd//trim(ftoa(totalHours))//endtd// & ! hours
-        begintd//trim(ftoa(totalTuition))//endtd//begintd//trim(ftoa(totalLabFee))//endtd// & ! fees 
+        begintd//trim(ftoa(totalUnits,1))//endtd//begintd//trim(ftoa(totalHours,2))//endtd// & ! hours
+        begintd//trim(ftoa(totalTuition,2))//endtd//begintd//trim(ftoa(totalLabFee,2))//endtd// & ! fees
         tdnbspendtd// tdnbspendtd// tdnbspendtd//endtr, &
         '</table>'
 
