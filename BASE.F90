@@ -106,7 +106,7 @@ module BASE
 
     ! software version
     character(len= 5), parameter :: PROGNAME =  'HEEDS'
-    character(len= 8), parameter :: VERSION =   ' v.3.10'
+    character(len= 8), parameter :: VERSION =   ' v.3.11'
     character(len=38), parameter :: COPYRIGHT = 'Copyright (C) 2012 Ricolindo L. Carino'
     character(len=38), parameter :: EMAIL =     'Ricolindo.Carino@AcademicForecasts.com'
     character(len=76), parameter :: CONTACT =   'E-mail inquiries about '//PROGNAME//' to '//EMAIL//'.'
@@ -440,6 +440,14 @@ contains
         path = trim(fname)//dash//currentDate//dash//currentTime(1:6)
         path(first:first+4) = DIRSEP//'bak'//DIRSEP
         call rename (fname, path, iStat)
+        if (iStat/=0) then ! create directory
+            first = len_trim(path)
+            do while (path(first:first)/=DIRSEP)
+                first = first-1
+            end do
+            call system (mkdirCmd//path(:first))
+            call rename (fname, path, iStat)
+        end if
         call file_io_log('Status='//trim(itoa(iStat))//' in moving '//trim(fname)//' to '//trim(path) )
         return
     end subroutine move_to_backup

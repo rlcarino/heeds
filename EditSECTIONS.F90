@@ -427,7 +427,7 @@ contains
                 tSubject = Subject(tArray(nsections+nopen+idx))%Name
                 write(device,AFORMAT) '<option value="'//trim(tSubject)//'"> '//tSubject
             end do
-            write(device,AFORMAT) '</select> &nbsp;&nbsp; <input type="submit" value="Submit">'// &
+            write(device,AFORMAT) '</select> '//nbsp//nbsp//' <input type="submit" value="Submit">'// &
               endtd//endtr//'</table></form>'
     end if
 
@@ -462,7 +462,7 @@ contains
       call cgi_url_encode(Subject(cdx)%Name, QUERY_put)
 #endif
       write(device,AFORMAT) &
-          begintr//'<td colspan="8">&nbsp;'//endtd, & 
+          begintr//'<td colspan="8">'//nbsp//endtd, & 
           begintd//'<a name="'//trim(Subject(cdx)%Name)//'"></a><small>[<a href="#TOP">Top</a>]</small>'//endtd//endtr
       write(device,AFORMAT) &
           begintr//begintd//trim(Subject(cdx)%Name)//endtd//'<td colspan="8">'// &
@@ -482,10 +482,10 @@ contains
       write(device,AFORMAT) '('//trim(text_term_offered_separated(Subject(cdx)%TermOffered))//')'
       if (isRoleAdmin) then
            write(device,AFORMAT) trim(cgi_make_href(fnEditSubject, targetUser, 'Edit', A1=Subject(cdx)%Name, &
-                  pre='&nbsp;<small>[ ', post=' ]</small>'))
+                  pre=nbsp//'<small>[ ', post=' ]</small>'))
       end if
       write(device,AFORMAT) endtd//endtr, &
-          begintr//tdnbspendtd//'<td colspan="7">&nbsp;Pr. '//trim(text_prerequisite_of_subject(cdx,0))//endtd
+          begintr//tdnbspendtd//'<td colspan="7">'//nbsp//'Pr. '//trim(text_prerequisite_of_subject(cdx,0))//endtd
 
 #if defined UPLB
       okToAdd = isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==Subject(cdx)%DeptIdx)
@@ -513,7 +513,7 @@ contains
 
         isLecture = is_lecture_lab_subject(cdx) .and. is_lecture_class(sdx, Section) ! empty SPACE
         if (isLecture) then
-                write(device,AFORMAT) begintr//'<td colspan="9">&nbsp;'//endtd//endtr
+                write(device,AFORMAT) begintr//'<td colspan="9">'//nbsp//endtd//endtr
                 tSeats = itoa(Section(sdx)%Slots)
         else
                 tSeats = trim(itoa(Section(sdx)%Slots))//fslash//trim(itoa(Section(sdx)%RemSlots))
@@ -885,10 +885,10 @@ contains
     !  Room(tSection%RoomIdx(idx))%Code, Teacher(tSection%TeacherIdx(idx))%TeacherID, idx=1,tSection%NMeets)
     write(device,AFORMAT) &
         '<b>SECTION CODE</b> '//trim(Section(sect)%Code)// &
-        '&nbsp;&nbsp;<i>change to </i>&nbsp<input size="'//trim(itoa(tLen))//'" name="code" value="'// &
+        nbsp//nbsp//'<i>change to </i>&nbsp<input size="'//trim(itoa(tLen))//'" name="code" value="'// &
         trim(tSection%Code)//'">', &
-        '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>NO. OF STUDENTS</b> '//trim(itoa(Section(sect)%Slots))// &
-        '&nbsp;&nbsp;<i>change to </i>&nbsp<input size="3" name="slots" value="'//trim(itoa(tSection%Slots))//'">', &
+        nbsp//nbsp//nbsp//nbsp//nbsp//nbsp//'<b>NO. OF STUDENTS</b> '//trim(itoa(Section(sect)%Slots))// &
+        nbsp//nbsp//'<i>change to </i>&nbsp<input size="3" name="slots" value="'//trim(itoa(tSection%Slots))//'">', &
         '<br><i>(Note: Class meetings must total <b>'//trim(tHours)//'</b>) :</i>'
 
     write(device,AFORMAT) '<table border="0" width="100%">'//begintr, &
@@ -1266,7 +1266,7 @@ contains
       write(device,AFORMAT) '<option value="'//trim(Department(ddx)%Code)//'"'//trim(selected(idx_select))//'> '// &
         trim(Department(ddx)%Code)//dash//trim(Department(ddx)%Name)
     end do
-    write(device,AFORMAT) '</select>&nbsp;<input type="submit" name="action" value="Find rooms"><hr>'
+    write(device,AFORMAT) '</select>'//nbsp//'<input type="submit" name="action" value="Find rooms"><hr>'
 
     if (conflict_teacher .or. action_index==4) then ! tAction=='Find teachers') then
             call teacher_search_given_time(device, NumSections, Section, wrk, sect, idx, teacher_dept)
@@ -1282,7 +1282,7 @@ contains
       write(device,AFORMAT) '<option value="'//trim(Department(ddx)%Code)//'"'//trim(selected(idx_select))//'> '// &
         trim(Department(ddx)%Code)//dash//trim(Department(ddx)%Name)
     end do
-    write(device,AFORMAT) '</select>&nbsp;<input type="submit" name="action" value="Find teachers"><hr>'
+    write(device,AFORMAT) '</select>'//nbsp//'<input type="submit" name="action" value="Find teachers"><hr>'
 
     ! show other sections, if any
     write(device,AFORMAT) &

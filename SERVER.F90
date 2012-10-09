@@ -267,17 +267,18 @@ contains
 
         ! STOP the program by admin?
         if (REQUEST==fnStopProgram) then ! reset session
-            UserList(targetUser)%Session = -1
-            if (isDirtySTUDENTS) then
-                call xml_write_students(pathToCurrent, 0)
-                isDirtySTUDENTS = .false.
+            if (isRoleAdmin .and. REMOTE_ADDR==AdminIP) then
+                UserList(targetUser)%Session = -1
+                if (isDirtySTUDENTS) then
+                    call xml_write_students(pathToCurrent, 0)
+                    isDirtySTUDENTS = .false.
+                end if
+                ! write 'Sorry!' page for incoming requests
+                call html_sorry(trim(dirWWW)//DIRSEP//'index.html', 'The '//PROGNAME//' back-end program is not running?')
+                call html_sorry(fname, 'The stop signal was sent to '//PROGNAME)
+                call system('echo stop > stopped')
+                return
             end if
-            ! write 'Sorry!' page for incoming requests
-            call html_sorry(trim(dirWWW)//DIRSEP//'index.html', 'The '//PROGNAME//' back-end program is not running?')
-            call html_sorry(fname, 'The stop signal was sent to '//PROGNAME)
-
-            if (isRoleAdmin) call system('echo stop > stopped')
-            return
 
         ! logging out ?
         else if (REQUEST==fnStopUser) then ! reset session
@@ -297,12 +298,16 @@ contains
                 return
             else
                 ! check password if REGISTRAR
-                if (isRoleAdmin .and. checkPassword) then
-                    call cgi_get_named_integer(QUERY_STRING, 'P', device, ierr)
-                    if (device/=adminPassword) then
-                        call html_login(fname, mesg='Password is incorrect.')
-                        return
+                if (isRoleAdmin) then
+                    if (checkPassword) then
+                        call cgi_get_named_integer(QUERY_STRING, 'P', device, ierr)
+                        if (device/=adminPassword) then
+                            call html_login(fname, mesg='Password is incorrect.')
+                            return
+                        end if
                     end if
+                    ! remember IP address where REGISTRAR logs in
+                    AdminIP = REMOTE_ADDR
                 end if
                 UserList(targetUser)%Session = 0
             end if
@@ -315,6 +320,12 @@ contains
             else
                 UserList(targetUser)%Session = 0
             end if
+        end if
+
+        ! someone pretending to be REGISTRAR from a different IP?
+        if (isRoleAdmin .and. REMOTE_ADDR/=AdminIP) then
+            call html_login(fname)
+            return
         end if
 
         ! Open and write HTML headers to the response file (fname)
@@ -331,13 +342,14 @@ contains
                 call cgi_get_named_string(QUERY_STRING, 'A1', logoutUSER, ierr)
                 logoutUSERidx = index_to_user(logoutUSER)
                 UserList(logoutUSERidx)%Session = -1
-                call html_college_links(device, CollegeIdxUser, 'Forcibly logged out '//logoutUSER)
+                call html_college_links(device, CollegeIdxUser, mesg='Forcibly logged out '//logoutUSER)
+
+            case (fnToggleTrainingMode)
+                noWrites = .not. noWrites
+                call html_college_links(device, CollegeIdxUser, mesg='Toggled training mode')
 
             case (fnSearch)
                 call object_search (device)
-
-!            case (fnCollegeSelect)
-!                call list_colleges(device)
 
             case (fnCollegeLinks)
                 call html_college_links(device)

@@ -627,7 +627,7 @@ contains
                 '<td width="8%" align="right"><i><p>Total<br>seats</p></i>'//endtd, & ! total seats
                 '<td width="8%" align="right"><i><p>Total<br>accom</p></i>'//endtd, & ! total accom
                 '<td width="8%" align="right"><i><p>Open<br>seats</p></i>'//endtd, & !  open seats
-                '<td width="4%">&nbsp;'//endtd// &
+                '<td width="4%">'//nbsp//endtd// &
                 '<td width="8%" align="right"><i><p>Priority<br>demand</p></i>'//endtd, & ! priority demand
                 '<td width="8%" align="right"><i><p>Priority<br>not acc</p></i>'//endtd//endtr ! priority not accom
                     !'<td width="8%" align="right"><i><p>Excess<br>seats</p></i>'//endtd, & ! excess seats

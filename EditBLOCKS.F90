@@ -421,16 +421,16 @@ contains
         tSubject = Subject(crse)%Name
         call blank_to_underscore(tSubject, input_name2)
 
-        write(device,AFORMAT) begintr//begintd//'Replace &nbsp; '//trim(tSubject)//endtd// &
+        write(device,AFORMAT) begintr//begintd//'Replace '//nbsp//trim(tSubject)//endtd// &
           begintd//' with '//endtd// &
-          begintd//' &nbsp; <input type="text" name="REPL:'//trim(input_name2)// &
+          begintd//nbsp//' <input type="text" name="REPL:'//trim(input_name2)// &
           '" value="'//trim(tSubject)//'">'//endtd//endtr
 
       end do
       write(device,AFORMAT) &
-        begintr//'<td colspan="3">&nbsp;&nbsp;<input type="submit" name="action" value="Replace"> ', &
-        '&nbsp; <i>(Section is deleted from block if subject is replaced.</i>)'//endtd//endtr, &
-        begintr//'<td colspan="3">&nbsp;'//endtd//endtr//'</form>'
+        begintr//'<td colspan="3">'//nbsp//nbsp//'<input type="submit" name="action" value="Replace"> ', &
+        nbsp//' <i>(Section is deleted from block if subject is replaced.</i>)'//endtd//endtr, &
+        begintr//'<td colspan="3">'//nbsp//endtd//endtr//'</form>'
 
       write(device,AFORMAT) &
         '<form name="input" method="post" action="'//CGI_PATH//'">', &
@@ -438,9 +438,9 @@ contains
         '<input type="hidden" name="A1" value="'//trim(tBlock)//'">'// &
         '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
         begintr//'<td colspan="2"> Add subject '//endtd// &
-        begintd//' &nbsp; <input name="add" value="">'//endtd//endtr, &
-        begintr//'<td colspan="3">&nbsp;&nbsp;<input type="submit" name="action" value="Add, create new section"> ', &
-        '&nbsp;&nbsp;<input type="submit" name="action" value="Add, DO NOT create new section"> ' //endtd//endtr// &
+        begintd//nbsp//' <input name="add" value="">'//endtd//endtr, &
+        begintr//'<td colspan="3">'//nbsp//nbsp//'<input type="submit" name="action" value="Add, create new section"> ', &
+        nbsp//nbsp//'<input type="submit" name="action" value="Add, DO NOT create new section"> ' //endtd//endtr// &
         '</form></table>'
         
       ! action on whole block
@@ -451,20 +451,20 @@ contains
         '<input type="hidden" name="F" value="'//trim(itoa(fnOFFSET+fnBlockCopy))//'">'// &
         '<input type="hidden" name="A1" value="'//trim(tBlock)//'">'// &
         '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
-        'Copy block with new sections, to &nbsp; '//endtd//begintd//'<input name="BlockID" value="'//trim(newBlock)//'">'// &
-        endtd//begintd//' &nbsp; <input type="submit" name="action" value="Copy">'//endtd// &
+        'Copy block with new sections, to '//nbsp//endtd//begintd//'<input name="BlockID" value="'//trim(newBlock)//'">'// &
+        endtd//begintd//nbsp//' <input type="submit" name="action" value="Copy">'//endtd// &
         '</form>'//endtr, &
         begintr//begintd//'<form name="input" method="post" action="'//CGI_PATH//'">'// &
         '<input type="hidden" name="F" value="'//trim(itoa(fnOFFSET+fnBlockEditName))//'">'// &
         '<input type="hidden" name="A1" value="'//trim(tBlock)//'">'// &
         '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
-        'Rename block, same sections, to &nbsp; '//endtd//begintd//'<input name="BlockID" value="'//trim(newBlock)//'">'// &
-        endtd//begintd//' &nbsp; <input type="submit" name="action" value="Rename">'//endtd// &
+        'Rename block, same sections, to '//nbsp//endtd//begintd//'<input name="BlockID" value="'//trim(newBlock)//'">'// &
+        endtd//begintd//nbsp//' <input type="submit" name="action" value="Rename">'//endtd// &
         '</form>'//endtr, &
         trim(cgi_make_href(fnOFFSET+fnBlockDeleteName, targetUser, 'KEEP', A1=tBlock, &
-        pre=begintr//'<td colspan="3">Delete block, but &nbsp;', post='&nbsp; its sections.'//endtd//endtr)), &
+        pre=begintr//'<td colspan="3">Delete block, but '//nbsp, post=nbsp//' its sections.'//endtd//endtr)), &
         trim(cgi_make_href(fnOFFSET+fnBlockDeleteAll, targetUser, 'DELETE', A1=tBlock, &
-        pre=begintr//'<td colspan="3">Delete block, and &nbsp;', post='&nbsp; its sections.'//endtd//endtr)), &
+        pre=begintr//'<td colspan="3">Delete block, and '//nbsp, post=nbsp//' its sections.'//endtd//endtr)), &
         '</table>', &
         endtd//endtr//'</table><br>'
     end if
@@ -486,7 +486,7 @@ contains
         if (Block(targetBlock)%Section(fdx)==0) then
           mdx = mdx+1
           tSubject = Subject(Block(targetBlock)%Subject(fdx))%Name
-          write(device,AFORMAT) '&nbsp;&nbsp; '//trim(itoa(mdx))//'). <a href="#'// &
+          write(device,AFORMAT) nbsp//nbsp//trim(itoa(mdx))//'). <a href="#'// &
             trim(tSubject)//'">'//trim(tSubject)//'</a>'
         end if
       end do
@@ -673,12 +673,12 @@ contains
     do ldx=1,7
       write(device,AFORMAT) '<option value="'//trim(txtYear(ldx))//'"> '//trim(txtYear(ldx+9))//' Year'
     end do
-    write(device,AFORMAT) '</select>&nbsp;'//trim(mesg)//endtd//endtr, &
+    write(device,AFORMAT) '</select>'//nbsp//trim(mesg)//endtd//endtr, &
       begintr//begintd//'Number of blocks:'//endtd//begintd, &
       '<input name="A3" size="2" value="1">', &
       endtd//endtr//'</table>', &
-      '<br><b>Add block</b> &nbsp;&nbsp;<input type="submit" name="action" value="Do NOT create sections">', &
-      '&nbsp;&nbsp;&nbsp;&nbsp;<input type="submit" name="action" value="Create TBA sections">', &
+      '<br><b>Add block</b> '//nbsp//nbsp//'<input type="submit" name="action" value="Do NOT create sections">', &
+      nbsp//nbsp//nbsp//nbsp//'<input type="submit" name="action" value="Create TBA sections">', &
       '</form><hr>'
 
     return

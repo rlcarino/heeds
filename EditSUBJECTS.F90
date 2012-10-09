@@ -123,7 +123,7 @@ contains
                 beginth//'Max Size'//endth,  &
                 beginth//'Lab hrs'//endth//beginth//'Lab load'//endth//beginth//'Min Size'//endth// &
                 beginth//'Max Size'//endth//endtr, &
-                begintr//'<td colspan="11">&nbsp;'//endtd//endtr
+                begintr//'<td colspan="11">'//nbsp//endtd//endtr
 
                 write(device,AFORMAT) begintr//begintd//'<a name="'//trim(tSubject)//'"><b>Name:</b> '
                 if (isRoleAdmin) then
@@ -148,7 +148,7 @@ contains
                 write(device,AFORMAT) &
                 begintr//'<td colspan="13"><b>Title:</b> '//trim(Subject(crse)%Title)//endtd//endtr, &
                 begintr//'<td colspan="13"><b>Preq.</b> '//trim(text_prerequisite_of_subject(crse,0))//endtd//endtr, &
-                begintr//'<td colspan="13">&nbsp;'//endtd//endtr
+                begintr//'<td colspan="13">'//nbsp//endtd//endtr
             end do
 
             write(device,AFORMAT) '</small></table>'
@@ -497,7 +497,7 @@ contains
       begintr//begintd//'Prerequisite that can be concurrent'//endtd//begintd//'<input name="ConcPrerequisite" size="'// &
         trim(itoa(Subject(crse)%lenConcPreq*2*MAX_LEN_SUBJECT_CODE/3))//'" value="'//trim(mesg)//'">'//endtd//endtr
 
-    write(device,AFORMAT) '</table><br>&nbsp;<input name="action" type="submit" value="Update"></form><pre>', &
+    write(device,AFORMAT) '</table><br>'//nbsp//'<input name="action" type="submit" value="Update"></form><pre>', &
       'NOTE: The prerequisite is in prefix notation, the tokens being separated by the "+" symbol. Patterns are', &
       '   1. NONE - no prerequisite', &
       '   2. COI  - Consent of Instructor', &

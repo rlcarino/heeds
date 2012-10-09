@@ -93,6 +93,7 @@ module CGI
     character(len=MAX_CGI_FLT_LEN), private :: cgi_flt
 
     logical :: isRoleSRE = .false., isRoleChair = .false., isRoleAdmin = .false.
+    character(len=20) :: AdminIP = 'xxx.xxx.xxx.xxx'
 
 contains
 
@@ -486,6 +487,25 @@ contains
 
         return
     end subroutine cgi_write_script
+
+
+    subroutine cgi_write_sorry(fileName)
+
+        character (len=*), intent (in) :: fileName
+
+        integer :: device=2
+
+        call open_for_write (device, fileName)
+        write(device,AFORMAT) &
+            '<?php', '', &
+            'echo "<html><head><title>Sorry!</title></head><body>";', &
+            'echo "<br><font color=#ff0000>The '//PROGNAME//' program is not running?</font>";', &
+            'echo "</body></html>";', '', &
+            '?>'
+        close(device)
+
+        return
+    end subroutine cgi_write_sorry
 
 end module CGI
 

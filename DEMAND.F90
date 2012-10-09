@@ -137,8 +137,8 @@ contains
         end do
         write(device,AFORMAT) &
         '</select>', &
-        '&nbsp; to &nbsp;&nbsp;<input type="text" size="4" name="count" value="">', &
-        '&nbsp;&nbsp;<input type="submit" value="Submit">', &
+        nbsp//' to '//nbsp//nbsp//'<input type="text" size="4" name="count" value="">', &
+        nbsp//nbsp//'<input type="submit" value="Submit">', &
         '</i></form>'
     
         ! write HTML table
@@ -152,7 +152,7 @@ contains
             tCurriculum = Curriculum(idxCURR)%Code
             l = len_trim(tCurriculum)
             write(device,'(22a)') '<td align="center" valign="top"><p>'// &
-            trim(itoa(NFintake(idxCURR)))//'<br>&nbsp;<br>', &
+            trim(itoa(NFintake(idxCURR)))//'<br>'//nbsp//'<br>', &
             (tCurriculum(k:k)//'<br>', k=1,l-1), tCurriculum(l:l)//'</p>'//endtd
         end do
         ! approximate blocks

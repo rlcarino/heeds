@@ -363,7 +363,7 @@ contains
     !write(device,AFORMAT) '<hr>'
 
     call list_sections_to_edit(device, Section, tLen1, tArray, fnChangeMatriculation, tStdNo, 'Del', allowed_to_edit, &
-      '<b>Enlisted subjects</b> &nbsp;'//trim(cgi_make_href(fnPrintableSchedule, targetUser, 'Printable', &
+      '<b>Enlisted subjects</b> '//nbsp//trim(cgi_make_href(fnPrintableSchedule, targetUser, 'Printable', &
       A1=tStdNo, pre='<small>(', post=')</small>')) )
     call timetable_display(device, Section, TimeTable)
 
@@ -380,7 +380,7 @@ contains
         if (Preenlisted(targetStudent)%Section(fdx)==0) then
           mdx = mdx+1
           tSubject = Subject(Preenlisted(targetStudent)%Subject(fdx))%Name
-          write(device,AFORMAT) '&nbsp;&nbsp; '//trim(itoa(mdx))//'). <a href="#'// &
+          write(device,AFORMAT) nbsp//nbsp//trim(itoa(mdx))//'). <a href="#'// &
             trim(tSubject)//'">'//trim(tSubject)//'</a>'
         end if
       end do
@@ -696,7 +696,7 @@ contains
     ! EducationDevelopment
     write(device,AFORMAT) begintr//'<td colspan="2" align="right">Education Development'//endtd//tdnbspendtd
     write(device,'(a,f9.1,a)') &
-    '<td colspan="6">&nbsp;'//endtd//tdalignright, EducationDevelopment, endtd//endtr ! Lab
+    '<td colspan="6">'//nbsp//endtd//tdalignright, EducationDevelopment, endtd//endtr ! Lab
     totalLabFee = totalLabFee+ EducationDevelopment
 
     ! totals
@@ -825,13 +825,13 @@ contains
                 seats = Section(sect)%RemSlots
                 if (seats>0) then
                         write(device,AFORMAT) green//trim(Section(sect)%ClassId)//' ('// &
-                          trim(itoa(seats))//') '//black//' /&nbsp;'
+                          trim(itoa(seats))//') '//black//' /'//nbsp
                 else
                         write(device,AFORMAT) green//trim(Section(sect)%ClassId)//black//red//' ('// &
-                          trim(itoa(seats))//') '//black//' /&nbsp;'
+                          trim(itoa(seats))//') '//black//' /'//nbsp
                 end if
         else
-                write(device,AFORMAT) red//trim(Subject(crse)%Name)//black//' /&nbsp;'
+                write(device,AFORMAT) red//trim(Subject(crse)%Name)//black//' /'//nbsp
         end if
         if (mod(bdx,4)==0) then
                 write(device,AFORMAT) endtd//endtr// & ! end row
@@ -969,7 +969,7 @@ contains
                   begintd//trim(txtDay(Section(sect)%DayIdx(mdx)))//endtd// &
                   begintd//trim(Room(Section(sect)%RoomIdx(mdx))%Code)//endtd//endtr
                 do mdx=2,Section(sect)%NMeets
-                write(device,AFORMAT) begintr//'<td colspan="6">&nbsp;'//endtd// &
+                write(device,AFORMAT) begintr//'<td colspan="6">'//nbsp//endtd// &
                     begintd//trim(text_time_period(Section(sect)%bTimeIdx(mdx), Section(sect)%eTimeIdx(mdx)))//endtd// &
                     begintd//trim(txtDay(Section(sect)%DayIdx(mdx)))//endtd// &
                     begintd//trim(Room(Section(sect)%RoomIdx(mdx))%Code)//endtd//endtr

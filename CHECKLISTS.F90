@@ -80,7 +80,7 @@ module CHECKLISTS
             Disp_Subject, &  ! named subject, or blank
             Disp_Comment    ! comment
         character (len=MAX_LEN_TEXT_GRADE) :: Disp_Grade ! grade
-        character (len=2) :: Disp_Units ! units
+        character (len=4) :: Disp_Units ! units
         character (len=5) :: Disp_Remarks ! remarks (PriN, AltK)
                         ! *=specify, ?=check prereq, #=repeat/remove/complete,
                         ! %=lapsed 4/INC, @=offered, $=prerequisite satisfied

@@ -34,11 +34,13 @@ module SCHEDULING
 
     implicit none
 
-    !integer, private, dimension (0:MAX_ALL_STUDENTS):: lenP1
-    !real, private, dimension (0:MAX_ALL_STUDENTS):: AdjustedLoad, UnderLoad
-    !real :: highestLoad
-    !logical, private :: doFreshmen
-    !integer, private :: maxPriority
+#if defined UPLB
+    integer, private, dimension (0:MAX_ALL_STUDENTS):: lenP1
+    real, private, dimension (0:MAX_ALL_STUDENTS):: AdjustedLoad, UnderLoad
+    real :: highestLoad
+    logical, private :: doFreshmen
+    integer, private :: maxPriority
+#endif
 
 contains
 

@@ -177,7 +177,7 @@ contains
               write(device,AFORMAT) begintr//begintd//trim(Room(rdx)%Code)
               if (isRoleAdmin .or. (isRoleChair .and. Room(rdx)%DeptIdx==DeptIdxUser)) then
                 write(device,AFORMAT) trim(cgi_make_href(fnEditRoom, targetUser, 'Edit', &
-                  A1=QUERY_put, pre='&nbsp;<small>', post='</small>'))
+                  A1=QUERY_put, pre=nbsp//'<small>', post='</small>'))
               end if
               write(device,AFORMAT) &
                 endtd//tdaligncenter//trim(itoa(Room(rdx)%Cluster))//endtd// &
@@ -314,7 +314,7 @@ contains
       write(device,AFORMAT) '<option value="'//trim(Department(mdx)%Code)//'"'//trim(selected(ierr))//'> '// &
         trim(Department(mdx)%Code)//dash//trim(Department(mdx)%Name)
     end do
-    write(device,AFORMAT) '</select>&nbsp;<input type="submit" value="Find classes"><hr>'
+    write(device,AFORMAT) '</select>'//nbsp//'<input type="submit" value="Find classes"><hr>'
 
     return
   end subroutine room_schedule
@@ -456,7 +456,7 @@ contains
       begintr//begintd//'Cluster'//endtd//begintd//'<input name="Cluster" size="3" value="'// &
         trim(itoa(Room(rdx)%Cluster))//'">'//endtd//endtr
 
-    write(device,AFORMAT) '</table><br>&nbsp;<input name="action" type="submit" value="Update"></form><pre>', &
+    write(device,AFORMAT) '</table><br>'//nbsp//'<input name="action" type="submit" value="Update"></form><pre>', &
       'NOTE: Rooms that are located in buildings within walking distance of each other belong to the same cluster.', &
       '</pre><hr>'
 

@@ -225,7 +225,7 @@ contains
               write(device,AFORMAT) begintr//begintd//trim(Teacher(fac)%Name)//' ('//trim(Teacher(fac)%Specialization)//')'
               if (isRoleAdmin .or. (isRoleChair .and.  DeptIdxUser==Teacher(fac)%DeptIdx)) then
                 write(device,AFORMAT) trim(cgi_make_href(fnEditTeacher, targetUser, 'Edit', &
-                  A1=QUERY_put, pre='&nbsp;<small>', post='</small>'))
+                  A1=QUERY_put, pre=nbsp//'<small>', post='</small>'))
               end if
               write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnTeacherSchedule, targetUser, 'Edit', &
                   A1=QUERY_put, pre=endtd//tdaligncenter//itoa(nsect)//'<small>', post='</small>'//endtd))
@@ -234,7 +234,7 @@ contains
                     endtd//tdaligncenter, totalUnits, &
                     '/'//trim(itoa(Teacher(fac)%MaxLoad))// &
                     trim(cgi_make_href(fnPrintableWorkload+fnOFFSET, targetUser, 'Printable', &
-                    A1=QUERY_put, pre='&nbsp;<small>', post='</small>'))//endtd// &
+                    A1=QUERY_put, pre=nbsp//'<small>', post='</small>'))//endtd// &
                     tdaligncenter//trim(mesg)//endtd//endtr
             end do
             write(device,AFORMAT) '</table>'
@@ -370,7 +370,7 @@ contains
       write(device,AFORMAT) '<option value="'//trim(Department(mdx)%Code)//'"'//trim(selected(ierr))//'> '// &
         trim(Department(mdx)%Code)//dash//trim(Department(mdx)%Name)
     end do
-    write(device,AFORMAT) '</select>&nbsp;<input type="submit" value="Find classes"><hr>'
+    write(device,AFORMAT) '</select>'//nbsp//'<input type="submit" value="Find classes"><hr>'
     return
   end subroutine teacher_schedule
 
@@ -602,7 +602,7 @@ contains
       begintr//begintd//'Max load '//endtd//begintd//'<input name="Load" size="3" value="'// &
         trim(itoa(Teacher(tdx)%MaxLoad))//'">'//endtd//endtr
 
-    write(device,AFORMAT) '</table><br>&nbsp;<input name="action" type="submit" value="Update"></form><hr>'
+    write(device,AFORMAT) '</table><br>'//nbsp//'<input name="action" type="submit" value="Update"></form><hr>'
 
     return
   end subroutine teacher_edit
@@ -689,7 +689,7 @@ contains
                  '" value="'//trim(Teacher(targetTeacher)%Name)//'">'// &
                  '<br>Faculty<br><br><br>'//endtd//endtr
     write(device,AFORMAT) &
-        begintr//'<td width="50%">&nbsp;'//endtd, &
+        begintr//'<td width="50%">'//nbsp//endtd, &
                  '<td width="50%">Recommending Approval:<br><br><br><br><br><br>'// &
                  '<input name="DeanInstruction" size="'//trim(itoa(MAX_LEN_TEACHER_NAME))// &
                  '" value="(Dean of Instruction)">'// &
@@ -699,7 +699,7 @@ contains
                  '<input name="President" size="'//trim(itoa(MAX_LEN_TEACHER_NAME))// &
                  '" value="(President)">'// &
                  '<br>Office of the President'//endtd, &
-                 '<td width="50%">&nbsp;'//endtd//endtr
+                 '<td width="50%">'//nbsp//endtd//endtr
     write(device,AFORMAT) '</table>'
 
     !call timetable_display(device, Section, TimeTable)

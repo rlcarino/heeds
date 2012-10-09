@@ -29,53 +29,53 @@
 
 
 
-    subroutine custom_read_departments (path, errNo)
+subroutine custom_read_departments (path, errNo)
 
-        character(len=*), intent(in) :: path
-        integer, intent (out) :: errNo
+    character(len=*), intent(in) :: path
+    integer, intent (out) :: errNo
 
-        integer :: ldx
-        character (len=MAX_LEN_COLLEGE_CODE) :: tCollege
-        character (len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
+    integer :: ldx
+    character (len=MAX_LEN_COLLEGE_CODE) :: tCollege
+    character (len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
 
-        fileName = trim(dirRAW)//trim(path)//'DEPARTMENTS.CSV'
-        open (unit=unitNum, file=fileName, status='old', iostat=errNo)
-        if (errNo/=0) return
+    fileName = trim(dirRAW)//trim(path)//'DEPARTMENTS.CSV'
+    open (unit=unitNum, file=fileName, status='old', iostat=errNo)
+    if (errNo/=0) return
 
-        call file_log_message('Retrieving department info from '//fileName)
+    call file_log_message('Retrieving department info from '//fileName)
 
-        ! skip first line
-        read(unitNum, AFORMAT) line
+    ! skip first line
+    read(unitNum, AFORMAT) line
 
-        do
+    do
 
-            read(unitNum, AFORMAT, iostat=eof) line
-            if (eof<0) exit
-            if (line==SPACE .or. line(1:1)=='#') cycle
+        read(unitNum, AFORMAT, iostat=eof) line
+        if (eof<0) exit
+        if (line==SPACE .or. line(1:1)=='#') cycle
 
-            !id,code,name,sched,number,orperiod,orexam
-            !6,"CA","College of Agriculture","C","","11-1"," "
-            !5,"CAS","College of Arts and Sciences","A","","11-1"," "
-            !1 2   3 4                            5
-            call index_to_delimiters('"', line, ndels, pos)
+        !id,code,name,sched,number,orperiod,orexam
+        !6,"CA","College of Agriculture","C","","11-1"," "
+        !5,"CAS","College of Arts and Sciences","A","","11-1"," "
+        !1 2   3 4                            5
+        call index_to_delimiters('"', line, ndels, pos)
 
-            tDepartment = line(pos(2)+1:pos(3)-1)
-            if (index(tDepartment,trim(REGISTRAR))>0) cycle ! add at the end
+        tDepartment = line(pos(2)+1:pos(3)-1)
+        if (index(tDepartment,trim(REGISTRAR))>0) cycle ! add at the end
 
-            tCollege = tDepartment
-            ldx = index_to_college(tCollege)
-            NumDepartments = NumDepartments + 1
-            call check_array_bound (NumDepartments, MAX_ALL_DEPARTMENTS, 'MAX_ALL_DEPARTMENTS')
-            Department(NumDepartments)%Code = tDepartment
-            Department(NumDepartments)%Name = line(pos(4)+1:pos(5)-1)
-            Department(NumDepartments)%SectionPrefix = line(pos(6)+1:pos(7)-1)
-            if (Department(NumDepartments)%SectionPrefix==SPACE) Department(NumDepartments)%SectionPrefix = '#'
-            Department(NumDepartments)%CollegeIdx = ldx
+        tCollege = tDepartment
+        ldx = index_to_college(tCollege)
+        NumDepartments = NumDepartments + 1
+        call check_array_bound (NumDepartments, MAX_ALL_DEPARTMENTS, 'MAX_ALL_DEPARTMENTS')
+        Department(NumDepartments)%Code = tDepartment
+        Department(NumDepartments)%Name = line(pos(4)+1:pos(5)-1)
+        Department(NumDepartments)%SectionPrefix = line(pos(6)+1:pos(7)-1)
+        if (Department(NumDepartments)%SectionPrefix==SPACE) Department(NumDepartments)%SectionPrefix = '#'
+        Department(NumDepartments)%CollegeIdx = ldx
 
-        end do
+    end do
 
-        close(unitNum)
+    close(unitNum)
 
-        return
-    end subroutine custom_read_departments
+    return
+end subroutine custom_read_departments
 

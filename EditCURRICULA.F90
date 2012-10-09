@@ -114,10 +114,10 @@ contains
               tAction = 'Activate'
               fnAction = fnActivateCurriculum
       end if
-      write(device,AFORMAT) '&nbsp;<i> '//tStatus//'</i>&nbsp;'
+      write(device,AFORMAT) nbsp//'<i> '//tStatus//'</i>'//nbsp
       if (isRoleAdmin) then
           write(device,AFORMAT) trim(cgi_make_href(fnAction, targetUser, tAction, A1=Curriculum(ldx)%Code, &
-              pre='&nbsp;<small>', post=nbsp))
+              pre=nbsp//'<small>', post=nbsp))
           write(device,AFORMAT) trim(cgi_make_href(fnEditCurriculum, targetUser, 'Edit', A1=Curriculum(ldx)%Code, &
               pre=nbsp, post='</small>'))
       end if
@@ -170,10 +170,10 @@ contains
             tAction = 'Activate'
             fnAction = fnActivateCurriculum
     end if
-    write(device,AFORMAT) '&nbsp;<i> '//tStatus//'</i>&nbsp;'
+    write(device,AFORMAT) nbsp//'<i> '//tStatus//'</i>'//nbsp
     if (isRoleAdmin) then
         write(device,AFORMAT) trim(cgi_make_href(fnAction, targetUser, tAction, A1=Curriculum(targetCurriculum)%Code, &
-            pre='&nbsp;<small>', post=nbsp))
+            pre=nbsp//'<small>', post=nbsp))
         write(device,AFORMAT) trim(cgi_make_href(fnEditCurriculum, targetUser, 'Edit', A1=Curriculum(targetCurriculum)%Code, &
             pre=nbsp, post='</small>'))
     end if
@@ -194,7 +194,7 @@ contains
       end do
       cumulative = cumulative + n
       if (m > 0) then
-        write(device,AFORMAT) begintr//'<td colspan="6">&nbsp;'//endtd//endtr, &
+        write(device,AFORMAT) begintr//'<td colspan="6">'//nbsp//endtd//endtr, &
           begintr//'<td colspan="6"><b>'//trim(Curriculum(targetCurriculum)%Code)//': '// &
           trim(txtYear(Year))//' Year, '// &
           trim(txtSemester(Term+3))//' Term ('//trim(itoa(n))//' units; '//trim(itoa(cumulative))//' cumulative)' &
@@ -457,10 +457,10 @@ write(*,*) 'NumSubst=', NumSubst, ' SubstIdx(.)=', SubstIdx(NumSubst), &
         trim(College(i)%Name)
     end do
     if (Curriculum(targetCurriculum)%Active) then
-      mesg = '<input type="radio" name="Status" value="Active" checked="yes"> Active &nbsp;'// &
+      mesg = '<input type="radio" name="Status" value="Active" checked="yes"> Active '//nbsp// &
                '<input type="radio" name="Status" value="Inactive"> Inactive'
     else
-      mesg = '<input type="radio" name="Status" value="Active"> Active &nbsp;'// &
+      mesg = '<input type="radio" name="Status" value="Active"> Active '//nbsp// &
                '<input type="radio" name="Status" value="Inactive" checked="yes"> Inactive'
     end if
     write(device,AFORMAT) '</select>'//endtd//endtr, &
@@ -491,7 +491,7 @@ write(*,*) 'NumSubst=', NumSubst, ' SubstIdx(.)=', SubstIdx(NumSubst), &
         end if 
       end do
       tUnits = tUnits + n
-      !if (Term==0) write(device,AFORMAT) begintr//'<td colspan="2">&nbsp;'//endtd//endtr
+      !if (Term==0) write(device,AFORMAT) begintr//'<td colspan="2">'//nbsp//endtd//endtr
       write(device,AFORMAT) begintr//begintd// &
         trim(txtYear(Year+9))//' Year, '//trim(txtSemester(Term+6))//' Term ('// &
         trim(itoa(n))//fslash//trim(itoa(tUnits))//')'//endtd, &
@@ -515,7 +515,7 @@ write(*,*) 'NumSubst=', NumSubst, ' SubstIdx(.)=', SubstIdx(NumSubst), &
       begintd//'<input name="Substitution" size="'//trim(itoa(MAX_LEN_CURRICULUM_NAME))// &
       '" value="(Enter new substitution rule)">'//endtd//endtr
     
-    write(device,AFORMAT) '</table><br>&nbsp;<input name="action" type="submit" value="Update"></form><pre>', &
+    write(device,AFORMAT) '</table><br>'//nbsp//'<input name="action" type="submit" value="Update"></form><pre>', &
       !'NOTE: Subjects for a term are specified by COMMA-separated subjects codes.', &
       '</pre><hr>'
 

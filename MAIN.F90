@@ -114,7 +114,7 @@ program MAIN
 
             case ('SERVER')
                 noWrites = .false.
-                checkPassword = .true.
+                checkPassword = .true. ! true if production version
 
             case ('TRAINING')
 
@@ -465,8 +465,10 @@ program MAIN
             call server_start()
 
             ! server loop has exited; remove CGI script
-            call unlink(trim(dirCGI)//CGI_SCRIPT)
+            !call unlink(trim(dirCGI)//CGI_SCRIPT)
 
+            ! server loop has exited; make CGI script say sorry
+            call cgi_write_sorry(trim(dirCGI)//CGI_SCRIPT)
 
         case default
 

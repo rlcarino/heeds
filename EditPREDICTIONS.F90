@@ -704,9 +704,9 @@ contains
                 '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">'// &
                 '<input type="hidden" name="A1" value="'//trim(Student(targetStudent)%StdNo)//'">'
             write(device,AFORMAT) &
-                '<br><i>Allowed load </i> &nbsp; <input type="text" name="allowed" size="5" value="'// &
+                '<br><i>Allowed load </i> '//nbsp//' <input type="text" name="allowed" size="5" value="'// &
                 trim(itoa(Advice%AllowedLoad))//'">'// &
-                '&nbsp; &nbsp; <i>Priority group </i> &nbsp; <input type="text" name="group" size="5" value="'// &
+                nbsp//nbsp//' <i>Priority group </i> '//nbsp//' <input type="text" name="group" size="5" value="'// &
                 trim(itoa(Advice%StdPriority))//'"> <small>(1=New freshman, 2=Graduating, '// &
                 '3=Good standing, 4=Warning, 5=Probation, 6=dismissed/PD)</small>', &
                 '<table border="0" width="80%">'
@@ -817,7 +817,7 @@ contains
         end do
         write(device,AFORMAT) &
             '</select>', &
-            '&nbsp;&nbsp;<input type="submit" name="action" value="Change CURRICULUM">', &
+            nbsp//nbsp//'<input type="submit" name="action" value="Change CURRICULUM">', &
             '</form><hr>'
         call checklist_page_links(device) !, .true.)
 
@@ -840,10 +840,10 @@ contains
         !      '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
         !      '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">'// &
         !      '<input type="hidden" name="A1" value="'//trim(Student(targetStudent)%StdNo)//'">', &
-        !      '<b>ADDITIONAL subject</b>: &nbsp; Subject <input name="subject" value="">&nbsp; ', &
-        !      ' Year <input name="year" value="">&nbsp; ', &
-        !      ' Term <input name="term" value="">&nbsp;', &
-        !      '&nbsp;&nbsp;<input type="submit" name="action" value="ADDITIONAL subject">', &
+        !      '<b>ADDITIONAL subject</b>: '//nbsp//' Subject <input name="subject" value="">'//nbsp//, &
+        !      ' Year <input name="year" value="">'//nbsp//, &
+        !      ' Term <input name="term" value="">'//nbsp, &
+        !      nbsp//nbsp//'<input type="submit" name="action" value="ADDITIONAL subject">', &
         !      '<br><i>Note: Year=(THIRD,FOURTH,FIFTH,...) in curriculum, Term=(SUMMER,FIRST,SECOND)</i>', &
         !      '</form><hr>'
         !    call checklist_page_links(device) !, .true.)
@@ -856,8 +856,8 @@ contains
         !      '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
         !      '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">'// &
         !      '<input type="hidden" name="A1" value="'//trim(Student(targetStudent)%StdNo)//'">', &
-        !      '<b>Cancel ADDITIONAL subject</b> &nbsp; <input type="text" name="subject" value="">&nbsp; ', &
-        !      '&nbsp;&nbsp;<input type="submit" name="action" value="Cancel ADDITIONAL">', &
+        !      '<b>Cancel ADDITIONAL subject</b> '//nbsp//' <input type="text" name="subject" value="">'//nbsp//, &
+        !      nbsp//nbsp//'<input type="submit" name="action" value="Cancel ADDITIONAL">', &
         !      '</form><hr>'
         !    call checklist_page_links(device) !, .true.)
 
@@ -896,8 +896,8 @@ contains
             '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
             '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">'// &
             '<input type="hidden" name="A1" value="'//trim(Student(targetStudent)%StdNo)//'">', &
-            '<b>Cancel SUBSTITUTION for subject</b> &nbsp; <input type="text" name="subject" value="">&nbsp; ', &
-            '&nbsp;&nbsp;<input type="submit" name="action" value="Cancel SUBSTITUTION">', &
+            '<b>Cancel SUBSTITUTION for subject</b> '//nbsp//' <input type="text" name="subject" value="">'//nbsp//, &
+            nbsp//nbsp//'<input type="submit" name="action" value="Cancel SUBSTITUTION">', &
             '</form><hr>'
         call checklist_page_links(device) !, .true.)
 
@@ -906,10 +906,10 @@ contains
         !      '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
         !      '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">'// &
         !      '<input type="hidden" name="A1" value="'//trim(Student(targetStudent)%StdNo)//'">', &
-        !      '<b>Change grade</b>: &nbsp; Subject <input name="subject" value="">&nbsp; ', &
-        !      ' Grade <input name="grade" value="">&nbsp; ', &
-        !      ' Year earned: <input name="year" value="">&nbsp; ', &
-        !      ' Term <input name="term" value="">&nbsp;', &
+        !      '<b>Change grade</b>: '//nbsp//' Subject <input name="subject" value="">'//nbsp//, &
+        !      ' Grade <input name="grade" value="">'//nbsp//, &
+        !      ' Year earned: <input name="year" value="">'//nbsp//, &
+        !      ' Term <input name="term" value="">'//nbsp, &
         !      '<br><i>Note: Grade=(numeric, S, INC, PASS, REGD), Year=(19XX,2XXX), Term=(SUMMER,FIRST,SECOND)</i>', &
         !      '<br><input type="submit" name="action" value="Change grade">', &
         !      '</form><hr>'
@@ -970,12 +970,12 @@ contains
                         begintd//trim(CLExt(p(idx))%Disp_Comment)//endtd//&
                         begintd//trim(CLExt(p(idx))%Disp_Input_Grade)//endtd//&
                         begintd//trim(CLExt(p(idx))%Disp_Units)//endtd//&
-                        '<td colspan="5">&nbsp;'//endtd//endtr
+                        '<td colspan="5">'//nbsp//endtd//endtr
                 end do
             end if
             if (n > m) then
                 do idx=m+1,n
-                    write(device,AFORMAT) begintr//'<td colspan="5">&nbsp;'//endtd// &
+                    write(device,AFORMAT) begintr//'<td colspan="5">'//nbsp//endtd// &
                         begintd//trim(CLExt(q(idx))%Disp_Subject)//endtd//&
                         begintd//trim(CLExt(q(idx))%Disp_Comment)//endtd//&
                         begintd//trim(CLExt(q(idx))%Disp_Input_Grade)//endtd//&
@@ -995,13 +995,13 @@ contains
             if (m > 0) then
                 write(device,AFORMAT) begintr//'<td colspan="4"><br><b>'//trim(txtYear(Year))// &
                 ' Year, Summer</b> ('//trim(itoa(TermUnits(tdx+2)))//' units)'//endtd// &
-                '<td colspan="5">&nbsp;'//endtd//endtr
+                '<td colspan="5">'//nbsp//endtd//endtr
                 do idx=1,m
                     write(device,AFORMAT) begintr//begintd//trim(CLExt(p(idx))%Disp_Subject)//endtd//&
                         begintd//trim(CLExt(p(idx))%Disp_Comment)//endtd//&
                         begintd//trim(CLExt(p(idx))%Disp_Input_Grade)//endtd//&
                         begintd//trim(CLExt(p(idx))%Disp_Units)//endtd//&
-                        '<td colspan="5">&nbsp;'//endtd//endtr
+                        '<td colspan="5">'//nbsp//endtd//endtr
                 end do
             end if
         end do
@@ -1067,12 +1067,12 @@ contains
                         begintd//trim(CLExt(p(idx))%Disp_Input_Elective)//endtd//&
                         begintd//trim(CLExt(p(idx))%Disp_Grade)//endtd//&
                         begintd//trim(CLExt(p(idx))%Disp_Units)//endtd//&
-                        '<td colspan="5">&nbsp;'//endtd//endtr
+                        '<td colspan="5">'//nbsp//endtd//endtr
                 end do
             end if
             if (n > m) then
                 do idx=m+1,n
-                    write(device,AFORMAT) begintr//'<td colspan="5">&nbsp;'//endtd// &
+                    write(device,AFORMAT) begintr//'<td colspan="5">'//nbsp//endtd// &
                         begintd//trim(CLExt(q(idx))%Disp_Subject)//endtd//&
                         begintd//trim(CLExt(q(idx))%Disp_Input_Elective)//endtd//&
                         begintd//trim(CLExt(q(idx))%Disp_Grade)//endtd//&
@@ -1092,13 +1092,13 @@ contains
             if (m > 0) then
                 write(device,AFORMAT) begintr//'<td colspan="4"><br><b>'//trim(txtYear(Year))// &
                     ' Year, Summer</b> ('//trim(itoa(TermUnits(tdx+2)))//' units)'//endtd// &
-                    '<td colspan="5">&nbsp;'//endtd//endtr
+                    '<td colspan="5">'//nbsp//endtd//endtr
                 do idx=1,m
                     write(device,AFORMAT) begintr//begintd//trim(CLExt(p(idx))%Disp_Subject)//endtd//&
                         begintd//trim(CLExt(p(idx))%Disp_Input_Elective)//endtd//&
                         begintd//trim(CLExt(p(idx))%Disp_Grade)//endtd//&
                         begintd//trim(CLExt(p(idx))%Disp_Units)//endtd//&
-                        '<td colspan="5">&nbsp;'//endtd//endtr
+                        '<td colspan="5">'//nbsp//endtd//endtr
                 end do
             end if
         end do
@@ -1150,9 +1150,9 @@ contains
         k = Curriculum(idxCURR)%NumTerms
         n = SpecifiedUnits(k)
         write(device,AFORMAT) '<br><b>Units to earn classifications</b>', &
-            (': &nbsp; '//trim(txtStanding(l))//'<='//trim(itoa(int((0.25*l)*n))), l=1,4)
+            (': '//nbsp//trim(txtStanding(l))//'<='//trim(itoa(int((0.25*l)*n))), l=1,4)
         write(device,AFORMAT) '<br><b>Units to achieve YEAR</b>', &
-            (': &nbsp; '//trim(txtYear(l))//'<'//trim(itoa(SpecifiedUnits(3*l))), l=1,(k+1)/3)
+            (': '//nbsp//trim(txtYear(l))//'<'//trim(itoa(SpecifiedUnits(3*l))), l=1,(k+1)/3)
 
         write(device,AFORMAT) '<table border="0" width="100%">'
         do tdx=1,CheckList%NumTerms,3
@@ -1202,7 +1202,7 @@ contains
                         begintd//CLExt(p(idx))%Disp_Grade//endtd//&
                         begintd//CLExt(p(idx))%Disp_Units//endtd//&
                         begintd//CLExt(p(idx))%Disp_Remarks//endtd//&
-                        '<td colspan="6">&nbsp;'//endtd//&
+                        '<td colspan="6">'//nbsp//endtd//&
                         endtr
                 end do
             end if
@@ -1210,7 +1210,7 @@ contains
                 do idx=m+1,n
                     write(device,AFORMAT) &
                         begintr// &
-                        '<td colspan="6">&nbsp;'//endtd// &
+                        '<td colspan="6">'//nbsp//endtd// &
                         begintd//CLExt(q(idx))%Disp_Subject//endtd//&
                         begintd//CLExt(q(idx))%Disp_Comment//endtd//&
                         begintd//CLExt(q(idx))%Disp_Grade//endtd//&
@@ -1233,7 +1233,7 @@ contains
                 !write(device,AFORMAT) SPACE, SPACE//trim(txtYear(Year))//' Year, Summer'
                 write(device,AFORMAT) begintr//'<td colspan="5"><br><b>'//trim(txtYear(Year))// &
                     ' Year, Summer</b> ('//trim(itoa(TermUnits(tdx+2)))//' units)'//endtd// &
-                    '<td colspan="6">&nbsp;'//endtd//endtr
+                    '<td colspan="6">'//nbsp//endtd//endtr
                 do idx=1,m
                     write(device,AFORMAT) &
                         begintr// &
@@ -1242,40 +1242,40 @@ contains
                         begintd//CLExt(p(idx))%Disp_Grade//endtd//&
                         begintd//CLExt(p(idx))%Disp_Units//endtd//&
                         begintd//CLExt(p(idx))%Disp_Remarks//endtd//&
-                        '<td colspan="6">&nbsp;'//endtd//&
+                        '<td colspan="6">'//nbsp//endtd//&
                         endtr
                 end do
             end if
         end do
         write(device,AFORMAT) '</table>', &
-            '<br><b>LEGENDS</b> for grades and remarks:&nbsp; * - specify subject/GE/PE 2 activity;'//&
-            '&nbsp; # - failed, or lapsed 4/INC;&nbsp; % - conditional; (NG) - no grade;', &
-            '<br>&nbsp; PASS - credit earned/exempted;&nbsp; REGD - currently registered;', &
-            '&nbsp; PriN - Nth priority subject;&nbsp; AltK - Kth alternate subject'
+            '<br><b>LEGENDS</b> for grades and remarks:'//nbsp//' * - specify subject/GE/PE 2 activity;'//&
+            nbsp//' # - failed, or lapsed 4/INC;'//nbsp//' % - conditional; (NG) - no grade;', &
+            '<br>'//nbsp//' PASS - credit earned/exempted;'//nbsp//' REGD - currently registered;', &
+            nbsp//' PriN - Nth priority subject;'//nbsp//' AltK - Kth alternate subject'
 
         call get_scholastic_three_terms (prevYearYear, prevYearTerm, UnitsPaid, UnitsDropped, UnitsPassed, Standing)
         write(device,AFORMAT) '<br><br><b>SUMMARY for '//txtSemester(prevYearTerm+6)// &
             ' Semester '//trim(itoa(prevYearYear))//dash//trim(itoa(prevYearYear+1)), &
             '</b>: Units registered='//trim(itoa(UnitsPaid)), &
-            ': &nbsp; Dropped='//trim(itoa(UnitsDropped)), &
-            ': &nbsp; Earned='//trim(itoa(UnitsPassed)), &
-            ': &nbsp; Scholastic standing='//trim(txtScholastic(Standing))
+            ': '//nbsp//' Dropped='//trim(itoa(UnitsDropped)), &
+            ': '//nbsp//' Earned='//trim(itoa(UnitsPassed)), &
+            ': '//nbsp//' Scholastic standing='//trim(txtScholastic(Standing))
 
         call get_scholastic_three_terms (prevTermYear, prevTermTerm, UnitsPaid, UnitsDropped, UnitsPassed, Standing)
         write(device,AFORMAT) '<br><b>SUMMARY for '//txtSemester(prevTermTerm+6)// &
             ' Semester '//trim(itoa(prevTermYear))//dash//trim(itoa(prevTermYear+1)), &
             '</b>: Units registered='//trim(itoa(UnitsPaid)), &
-            ': &nbsp; Dropped='//trim(itoa(UnitsDropped)), &
-            ': &nbsp; Earned='//trim(itoa(UnitsPassed)), &
-            ': &nbsp; Scholastic standing='//trim(txtScholastic(Standing))
+            ': '//nbsp//' Dropped='//trim(itoa(UnitsDropped)), &
+            ': '//nbsp//' Earned='//trim(itoa(UnitsPassed)), &
+            ': '//nbsp//' Scholastic standing='//trim(txtScholastic(Standing))
 
         call get_scholastic_three_terms (currentYear, currentTerm, UnitsPaid, UnitsDropped, UnitsPassed, Standing)
         write(device,AFORMAT) '<br><b>SUMMARY for '//txtSemester(currentTerm+6)// &
             ' Semester '//trim(itoa(currentYear))//dash//trim(itoa(currentYear+1)), &
             '</b>: Units registered='//trim(itoa(UnitsPaid)), &
-            ': &nbsp; Dropped='//trim(itoa(UnitsDropped)), &
-            ': &nbsp; Earned='//trim(itoa(UnitsPassed)), &
-            ': &nbsp; Scholastic standing='//trim(txtScholastic(Standing))
+            ': '//nbsp//' Dropped='//trim(itoa(UnitsDropped)), &
+            ': '//nbsp//' Earned='//trim(itoa(UnitsPassed)), &
+            ': '//nbsp//' Scholastic standing='//trim(txtScholastic(Standing))
 
         if (MissingPOCW>0) then
             write(device,AFORMAT) '<br><br>'//red//'<b>MISSING ELECTIVEs/entries in Plan of Study = '// &
@@ -1286,8 +1286,8 @@ contains
             write(device,AFORMAT) '<br><br><b>ASSUMPTION at the end of '//txtSemester(currentTerm+6)// &
                 ' Semester '//trim(itoa(currentYear))//dash//trim(itoa(currentYear+1)), &
                 '</b>: Units earned='//trim(itoa(Advice%UnitsEarned)), &
-                ': &nbsp; Classification='//trim(txtStanding(Advice%StdClassification)), &
-                ': &nbsp; Year in curriculum='//trim(txtYear(Advice%StdYear))
+                ': '//nbsp//' Classification='//trim(txtStanding(Advice%StdClassification)), &
+                ': '//nbsp//' Year in curriculum='//trim(txtYear(Advice%StdYear))
         end if
 
         select case (Advice%StdPriority)
@@ -1338,7 +1338,7 @@ contains
                 if (n > 0) then
                     write(device,AFORMAT) '<br><br><b>EXTRA subjects</b>, or subjects not specified in Plan Of Study'
                     do m=1,n
-                        write(device,AFORMAT) ' : &nbsp; '//Subject(TCG(q(m))%Subject)%Name//dash//txtGrade(pGrade(TCG(q(m))%Grade))
+                        write(device,AFORMAT) ' : '//Subject(TCG(q(m))%Subject)%Name//dash//txtGrade(pGrade(TCG(q(m))%Grade))
                     end do
                     write(device,AFORMAT) '<br>'
                 end if

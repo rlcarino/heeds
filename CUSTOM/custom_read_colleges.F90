@@ -28,79 +28,79 @@
 !======================================================================
 
 
-    subroutine custom_read_university(path, errNo)
+subroutine custom_read_university(path, errNo)
 
-        character(len=*), intent(in) :: path
-        integer, intent(out) :: errNo
+    character(len=*), intent(in) :: path
+    integer, intent(out) :: errNo
 
-        fileName = trim(dirRAW)//trim(path)//'UNIVERSITY'
-        open (unit=unitNum, file=fileName, status='old', iostat=errNo)
-        if (errNo/=0) return
+    fileName = trim(dirRAW)//trim(path)//'UNIVERSITY'
+    open (unit=unitNum, file=fileName, status='old', iostat=errNo)
+    if (errNo/=0) return
 
-        call file_log_message('Retrieving university info from '//fileName)
+    call file_log_message('Retrieving university info from '//fileName)
 
-        do
-            read(unitNum, AFORMAT, iostat=eof) line
-            if (eof<0) exit
-            if (line==SPACE .or. line(1:1)=='#') cycle
+    do
+        read(unitNum, AFORMAT, iostat=eof) line
+        if (eof<0) exit
+        if (line==SPACE .or. line(1:1)=='#') cycle
 
-            call index_to_delimiters(comma, line, ndels, pos)
-            select case (line(:pos(2)-1))
-                case ('NAME')
-                    UniversityName = line(pos(2)+1:)
-                case ('ADDRESS')
-                    UniversityAddress = line(pos(2)+1:)
-                case ('ADMINISTRATION')
-                    ADMINISTRATION = line(pos(2)+1:)
-                case ('REGISTRAR')
-                    REGISTRAR = line(pos(2)+1:)
-                case ('BASEYEAR')
-                    baseYear = atoi(trim(line(pos(2)+1:)))
-            end select
+        call index_to_delimiters(comma, line, ndels, pos)
+        select case (line(:pos(2)-1))
+            case ('NAME')
+                UniversityName = line(pos(2)+1:)
+            case ('ADDRESS')
+                UniversityAddress = line(pos(2)+1:)
+            case ('ADMINISTRATION')
+                ADMINISTRATION = line(pos(2)+1:)
+            case ('REGISTRAR')
+                REGISTRAR = line(pos(2)+1:)
+            case ('BASEYEAR')
+                baseYear = atoi(trim(line(pos(2)+1:)))
+        end select
 
-        end do
-        close(unitNum)
+    end do
+    close(unitNum)
 
-        return
-    end subroutine custom_read_university
+    return
+end subroutine custom_read_university
 
 
-    subroutine custom_read_colleges(path, errNo)
-        !id,code,name,sched,number,orperiod,orexam
-        !6,"CA","College of Agriculture","C","","11-1"," "
-        !5,"CAS","College of Arts and Sciences","A","","11-1"," "
-        !1 2   3 4                            5
+subroutine custom_read_colleges(path, errNo)
+    !id,code,name,sched,number,orperiod,orexam
+    !6,"CA","College of Agriculture","C","","11-1"," "
+    !5,"CAS","College of Arts and Sciences","A","","11-1"," "
+    !1 2   3 4                            5
 
-        character(len=*), intent(in) :: path
-        integer, intent(out) :: errNo
+    character(len=*), intent(in) :: path
+    integer, intent(out) :: errNo
 
-        fileName = trim(dirRAW)//trim(path)//'COLLEGES.CSV'
-        open (unit=unitNum, file=fileName, status='old', iostat=errNo)
-        if (errNo/=0) return
+    fileName = trim(dirRAW)//trim(path)//'COLLEGES.CSV'
+    open (unit=unitNum, file=fileName, status='old', iostat=errNo)
+    if (errNo/=0) return
 
-        call file_log_message('Retrieving college codes from '//fileName)
-        ! skip first line
-        read(unitNum, AFORMAT) line
+    call file_log_message('Retrieving college codes from '//fileName)
+    ! skip first line
+    read(unitNum, AFORMAT) line
 
-        do
-            read(unitNum, AFORMAT, iostat=eof) line
+    do
+        read(unitNum, AFORMAT, iostat=eof) line
 
-            if (eof<0) exit
-            if (line==SPACE .or. line(1:1)=='#') cycle
+        if (eof<0) exit
+        if (line==SPACE .or. line(1:1)=='#') cycle
 
-            call index_to_delimiters('"', line, ndels, pos)
+        call index_to_delimiters('"', line, ndels, pos)
 
-            if (index(line,ADMINISTRATION)>0) cycle ! add later
+        if (index(line,ADMINISTRATION)>0) cycle ! add later
 
-            NumColleges = NumColleges + 1
-            call check_array_bound (NumColleges, MAX_ALL_COLLEGES, 'MAX_ALL_COLLEGES')
-            College(NumColleges)%Code = line(pos(2)+1:pos(3)-1)
-            College(NumColleges)%Name = line(pos(4)+1:pos(5)-1)
+        NumColleges = NumColleges + 1
+        call check_array_bound (NumColleges, MAX_ALL_COLLEGES, 'MAX_ALL_COLLEGES')
+        College(NumColleges)%Code = line(pos(2)+1:pos(3)-1)
+        College(NumColleges)%Name = line(pos(4)+1:pos(5)-1)
 
-        end do
+    end do
 
-        close(unitNum)
+    close(unitNum)
 
-        return
-    end subroutine custom_read_colleges
+    return
+end subroutine custom_read_colleges
 

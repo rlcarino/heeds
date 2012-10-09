@@ -42,7 +42,7 @@ module USERFUNCTIONS
     fnStopUser                =  2, & ! logout user
     fnStopUserByAdmin         =  3, & ! forced logout of user by Admin
     fnSearch                  =  4, & ! search for an object
-    fnCollegeSelect           =  5, & ! select target college
+    fnToggleTrainingMode      =  5, & ! toggle training mode
     fnCollegeLinks            =  6, & ! index to college info
     fnSubjectList             =  7, & ! view list of subjects administered by a department
     fnEditSubject             =  8, & ! edit subject
