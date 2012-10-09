@@ -896,7 +896,7 @@ contains
             '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
             '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">'// &
             '<input type="hidden" name="A1" value="'//trim(Student(targetStudent)%StdNo)//'">', &
-            '<b>Cancel SUBSTITUTION for subject</b> '//nbsp//' <input type="text" name="subject" value="">'//nbsp//, &
+            '<b>Cancel SUBSTITUTION for subject</b> '//nbsp//' <input type="text" name="subject" value="">'//nbsp, &
             nbsp//nbsp//'<input type="submit" name="action" value="Cancel SUBSTITUTION">', &
             '</form><hr>'
         call checklist_page_links(device) !, .true.)
