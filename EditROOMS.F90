@@ -457,7 +457,7 @@ contains
         trim(itoa(Room(rdx)%Cluster))//'">'//endtd//endtr
 
     write(device,AFORMAT) '</table><br>'//nbsp//'<input name="action" type="submit" value="Update"></form><pre>', &
-      'NOTE: Rooms that are located in buildings within walking distance of each other belong to the same cluster.', &
+      'NOTE: Rooms that are located in buildings within walking distance of each other must belong to the same cluster.', &
       '</pre><hr>'
 
     return

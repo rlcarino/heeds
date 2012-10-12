@@ -269,7 +269,7 @@ contains
         character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
         character (len=MAX_LEN_TEXT_GRADE) :: tGrade
         character (len=MAX_LEN_TEXT_SEMESTER) :: tTerm
-        integer :: cdx, idx, grdType
+        integer :: cdx, idx, grdType, idxCurr, gdx
         logical :: flag
 
         if (present(openQuietly)) then
@@ -313,7 +313,13 @@ contains
 
                 case ('Curriculum')
                     tCurriculum = adjustl(value)
-                    wrkStudent%CurriculumIdx = index_to_curriculum(tCurriculum)
+                    idxCurr = index_to_curriculum(tCurriculum)
+                    if (idxCurr<0) then
+                        idxCurr = -idxCurr
+                    else
+                        idxCurr =NumCurricula
+                    end if
+                    wrkStudent%CurriculumIdx = idxCurr
 
                 case ('Country')
                     wrkStudent%CountryIdx = atoi(value)
@@ -322,6 +328,7 @@ contains
                     wrkStudent%Classification = atoi(value)
 
                 case default
+                    call upper_case(tag)
                     do grdType = 0,3
                         if (trim(tag)==trim(txtGradeType(grdType))) then
                             call index_to_delimiters(COMMA, value, ndels, pos)
@@ -331,11 +338,20 @@ contains
                             wrkStudent%Record(1,idx) = grdType ! type
                             wrkStudent%Record(2,idx) = atoi(value(1:pos(2)-1)) ! year
                             tTerm = value(pos(2)+1:pos(3)-1)
+                            call upper_case(tTerm)
                             wrkStudent%Record(3,idx) = index_to_term(tTerm) ! term
                             tSubject = value(pos(3)+1:pos(4)-1)
                             wrkStudent%Record(4,idx) = index_to_subject(tSubject) ! subject
                             tGrade = value(pos(4)+1:pos(5)-1)
-                            wrkStudent%Record(5,idx) = index_to_grade(tGrade) ! grade
+                            gdx = index_to_grade(tGrade) ! grade
+                            if (gdx<=0 .and. &
+                                wrkStudent%Record(2,idx)==currentYear .and. &
+                                wrkStudent%Record(3,idx)==currentTerm .and. &
+                                Period>1) then
+                                gdx = gdxREGD
+                                !write(*,*) wrkStudent%Record(2,idx), tTerm, tSubject, tGrade, gdx
+                            end if
+                            wrkStudent%Record(5,idx) = gdx
                             exit
                         end if
                     end do

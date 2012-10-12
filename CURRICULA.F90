@@ -190,7 +190,7 @@ contains
         character(len=MAX_LEN_XML_TAG) :: tag
         type(TYPE_CURRICULUM) :: tmpCurriculum
 
-        integer :: i, j, k, idxterm, year, term
+        integer :: i, j, k, idxterm, year, term, ierr
         character (len=MAX_LEN_SUBJECT_CODE) :: token
         character (len=MAX_LEN_COLLEGE_CODE) :: tCollege
         character (len=MAX_LEN_TEXT_SEMESTER) :: strTerm
@@ -242,15 +242,16 @@ contains
 
                 case ('Year') ! value is one of FIRST, SECOND, THIRD, FOURTH, ...
                     strYear = adjustl(value)
+                    call upper_case(strYear)
                     year = index_to_year(strYear)
 
                 case ('Term') ! value is one of FIRST, SECOND, SUMMER
                     strTerm = adjustl(value)
+                    call upper_case(strTerm)
                     term = index_to_term(strTerm)
 
                 case ('Subjects') ! value is comma-separated list of subjects
-                    call tokenize_subjects(value, ',', MAX_SUBJECTS_PER_TERM, nLoad, loadArray, errNo)
-                    if (errNo>0) return
+                    call tokenize_subjects(value, ',', MAX_SUBJECTS_PER_TERM, nLoad, loadArray, ierr)
 
                 case ('/Load') ! value is empty
                     if (term==0) term = 3 ! SUMMER
@@ -274,6 +275,10 @@ contains
                             end if
                         end do
                     end if
+                    nLoad = 0
+                    loadArray = 0
+                    year = -1
+                    term = -1
 
                 case ('/Curriculum') ! add temporary curriculum data to Curriculum()
                     NumCurricula = NumCurricula + 1

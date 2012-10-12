@@ -322,6 +322,7 @@ contains
         character (len=MAX_LEN_XML_LINE) :: value
         character (len=MAX_LEN_XML_TAG) :: tag
         logical :: quiet
+        integer :: idxCurr
 
         if (present(openQuietly)) then
             quiet = openQuietly
@@ -353,7 +354,13 @@ contains
 
                 case ('Curriculum')
                     tCurriculum = adjustl(value)
-                    wrkBlock%CurriculumIdx = index_to_curriculum(tCurriculum)
+                    idxCurr = index_to_curriculum(tCurriculum)
+                    if (idxCurr<0) then
+                        idxCurr = -idxCurr
+                    else
+                        idxCurr =NumCurricula
+                    end if
+                    wrkBlock%CurriculumIdx = idxCurr
 
                 case ('Year')
                     wrkBlock%Year = atoi(value)
@@ -447,7 +454,7 @@ contains
             tDepartment = line(pos(4)+1:pos(5)-1)
             Block(NumBlocks)%DeptIdx = index_to_dept(tDepartment)
             tCurriculum = line(pos(5)+1:pos(6)-1)
-            Block(NumBlocks)%CurriculumIdx = index_to_curriculum(tCurriculum)
+            Block(NumBlocks)%CurriculumIdx = abs(index_to_curriculum(tCurriculum))
             Block(NumBlocks)%Year = atoi(line(pos(7)+1:pos(8)-1))
             Block(NumBlocks)%Term = atoi(line(pos(8)+1:pos(9)-1))
 

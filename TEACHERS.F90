@@ -345,9 +345,11 @@ contains
                     call initialize_teacher(wrkTeacher)
 
                 case ('TeacherId')
+                    call upper_case(value)
                     wrkTeacher%TeacherId = adjustl(value)
 
                 case ('Name')
+                    call upper_case(value)
                     wrkTeacher%Name = adjustl(value)
 
                 case ('Department')
@@ -447,6 +449,7 @@ contains
                     ! ignore
 
                 case ('TeacherId') ! copy teacher data
+                    call upper_case(value)
                     wrkTeacher%TeacherId = adjustl(value)
                     j = index_to_teacher(wrkTeacher%TeacherId)
                     wrkTeacher = Teacher(j)

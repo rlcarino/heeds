@@ -109,14 +109,14 @@ subroutine student_performance (device, mesg)
             if (TCG(tdx)%Term == 0) then
                 write(device,AFORMAT) &
                 begintr//tdnbspendtd//'<td colspan="4" align="left">SUMMER, '// &
-                trim(itoa(TCG(tdx)%Year))//endtd//'<td colspan="6">&nbsp;'//endtd//endtr
+                trim(itoa(TCG(tdx)%Year))//endtd//'<td colspan="6">'//nbsp//endtd//endtr
             else
                 write(device,AFORMAT) &
                 begintr//tdnbspendtd, &
                 '<td colspan="4" align="left">'//trim(txtSemester(TCG(tdx)%Term))// &
                 ' SEMESTER, '//trim(itoa(TCG(tdx)%Year))//dash// &
                 trim(itoa(TCG(tdx)%Year+1))//endtd// &
-                '<td colspan="6">&nbsp;'//endtd//endtr
+                '<td colspan="6">'//nbsp//endtd//endtr
             end if
             ! re-initialize accumulators
             prevtaken = TCG(tdx)%Taken
@@ -128,7 +128,7 @@ subroutine student_performance (device, mesg)
             call index_to_delimiters(COMMA, TCG(tdx)%txtLine, ndels, pos)
             line = begintr
             line = trim(line)//begintd//TCG(tdx)%txtLine(pos(4)+1:pos(5)-1)//endtd
-            line = trim(line)//'<td colspan="4">&nbsp; '//endtd
+            line = trim(line)//'<td colspan="4">'//nbsp//endtd
             line = trim(line)//tdaligncenter//TCG(tdx)%txtLine(pos(7)+1:pos(8)-1)//endtd
             line = trim(line)//'<td colspan="2">DATA ERROR'//endtd//endtr
         !
@@ -332,7 +332,7 @@ subroutine student_performance (device, mesg)
     end do
     write(device,AFORMAT) begintr//'<td colspan="5"><hr>'//endtd//endtr
     write(device,'(2(a,f5.1),a,f6.4,a)') &
-    begintr//tdalignright//'TOTALS&nbsp;'// &
+    begintr//tdalignright//'TOTALS'//nbsp// &
     endtd//tdalignright, GSumEnrolled, &
     endtd//tdalignright, GSumEarned, &
     endtd//tdnbspendtd//begintd//'(Excludes 0-credit subjects; includes extra subjects)'//endtd//endtr

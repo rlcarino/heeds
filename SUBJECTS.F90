@@ -290,6 +290,11 @@ contains
 
         ! read additional info
         call xml_read_subjects_other(path, errNo)
+        if (errNo/=0) then
+            call custom_read_subjects_prerequisites(path, errNo)
+            noXML = errNo==0
+            errNo = 0
+        end if
 
         ! write the XML subjects file?
         if (noXML) call xml_write_subjects(path)
@@ -522,8 +527,8 @@ contains
         ! additional subject info
         errNo = 0
         fileName = trim(dirXML)//trim(path)//'SUBJECTS-OTHER.XML'
-        call xml_open_file(unitNo, XML_ROOT_SUBJECTS, fileName, eof, forReading)
-        if (eof/=0) return
+        call xml_open_file(unitNo, XML_ROOT_SUBJECTS, fileName, errNo, forReading)
+        if (errNo/=0) return
 
         do
             read(unitNo, AFORMAT, iostat=eof) line
@@ -682,11 +687,12 @@ contains
         integer, intent (out) :: nTokens, tokenArray(maxTokens), ier
         character, intent (in) :: symbol ! delimiter
         character(len=*), intent (in) :: subline
-        integer :: i, j, ndelsub, posub(30)
+        integer :: i, j, k, ndelsub, posub(30)
         character (len=MAX_LEN_SUBJECT_CODE) :: token
 
         !write(*,*) 'String is : '//subline
         ier = 0
+        k = 0
         call index_to_delimiters(symbol, subline, ndelsub, posub)
         do j=1,ndelsub
             token = adjustl(subline(posub(j)+1:posub(j+1)-1))
@@ -696,7 +702,8 @@ contains
                 ier = 113 ! not listed
                 call file_log_message ('Tokenize(): '//subline, trim(token)//' is not in catalog?')
             else
-                tokenArray(j) = i
+                k = k+1
+                tokenArray(k) = i
             end if
         end do
         nTokens = ndelsub

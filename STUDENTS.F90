@@ -304,7 +304,7 @@ contains
         character (len=MAX_LEN_XML_LINE) :: value
         character (len=MAX_LEN_XML_TAG) :: tag
         logical :: quiet
-        integer :: indexLoc
+        integer :: indexLoc, idxCurr
 
         ! generate file name
         if (iCurr>0) then
@@ -347,7 +347,13 @@ contains
 
                 case ('Curriculum')
                     tCurriculum = adjustl(value)
-                    wrkStudent%CurriculumIdx = index_to_curriculum(tCurriculum)
+                    idxCurr = index_to_curriculum(tCurriculum)
+                    if (idxCurr<0) then
+                        idxCurr = -idxCurr
+                    else
+                        idxCurr = NumCurricula
+                    end if
+                    wrkStudent%CurriculumIdx = idxCurr
 
                 case ('Country')
                     wrkStudent%CountryIdx = atoi(value)

@@ -815,8 +815,8 @@ contains
                 dash//currentTime(1:2)//':'//currentTime(3:4)//'.'// &
                 nbsp//nbsp//' Please report errors to '//trim(UniversityCode)//space//trim(REGISTRAR)//'.'
             if (noWrites) then ! training mode
-                write(device,AFORMAT) nbsp//nbsp//space//PROGNAME// &
-                    ' is in training mode. Any changes made will be lost after the program exits.'
+                write(device,AFORMAT) nbsp//nbsp//'<b>'//red//PROGNAME// &
+                    ' is in training mode. Any changes made will be lost after the program exits.'//black//'</b>'
             end if
             write(device,AFORMAT) &
                 nbsp//nbsp//' <a target="0" href="http://code.google.com/p/heeds/">Help</a>.', &
@@ -960,10 +960,10 @@ contains
 
             if (noWrites) then ! training mode
                 write(device,AFORMAT) trim(cgi_make_href(fnToggleTrainingMode, targetUSER, 'Turn it OFF', &
-                    pre='<li><b>Training mode is '//green//'ON'//black//'</b>. ', post='</li>'))
+                    pre='<li><b>Training mode is '//red//'ON'//black//'</b>. ', post='</li>'))
             else
                 write(device,AFORMAT) trim(cgi_make_href(fnToggleTrainingMode, targetUSER, 'Turn it ON', &
-                    pre='<li><b>Training mode is '//red//'OFF'//black//'</b>. ', post='</li>'))
+                    pre='<li><b>Training mode is '//green//'OFF'//black//'</b>. ', post='</li>'))
             end if
 
         end if
