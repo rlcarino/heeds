@@ -357,7 +357,7 @@ contains
                     idxCurr = index_to_curriculum(tCurriculum)
                     if (idxCurr<0) then
                         idxCurr = -idxCurr
-                    else
+                    else if (idxCurr==0) then
                         idxCurr =NumCurricula
                     end if
                     wrkBlock%CurriculumIdx = idxCurr
