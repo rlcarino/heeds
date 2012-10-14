@@ -80,16 +80,16 @@ subroutine custom_read_curricula(path, errNo)
 
         currFile = trim(dirRAW)//trim(path)//line(pos(2)+1:pos(3)-1)//'.CSV'
         inquire(file=currFile, exist=FlagIsUp)
-        if (.not. FlagIsUp) then
-            write(*,*) 'File not found: '//trim(currFile)
-            if (ndels<8 .or. pos(9)-pos(8)<=1) cycle
-            currFile =trim(dirRAW)//trim(path)//line(pos(8)+1:pos(9)-1)
-            inquire(file=currFile, exist=FlagIsUp)
-            if (.not. FlagIsUp) then
-                write(*,*) 'File not found: '//trim(currFile)
-                cycle
-            end if
-        end if
+        !if (.not. FlagIsUp) then
+        !    write(*,*) 'File not found: '//trim(currFile)
+        !    if (ndels<8 .or. pos(9)-pos(8)<=1) cycle
+        !    currFile =trim(dirRAW)//trim(path)//line(pos(8)+1:pos(9)-1)
+        !    inquire(file=currFile, exist=FlagIsUp)
+        !    if (.not. FlagIsUp) then
+        !        write(*,*) 'File not found: '//trim(currFile)
+        !        cycle
+        !    end if
+        !end if
 
         tCollege = line(pos(6)+1:pos(7)-1)
         idxCOLL = 0
@@ -97,8 +97,8 @@ subroutine custom_read_curricula(path, errNo)
             if (tcollege==College(j)%Code) idxCOLL = j
         end do
         if (idxCOLL==0) then
-            call file_log_message (line, trim(tcollege)//' - college not known')
-            cycle
+            call file_log_message (line, trim(tcollege)//' - college not known; using ADMIN')
+            idxCOLL = NumColleges
         end if
         College(idxCOLL)%hasInfo = .true.
         call check_array_bound (NumCurricula+1, MAX_ALL_CURRICULA, 'MAX_ALL_CURRICULA')
@@ -109,6 +109,16 @@ subroutine custom_read_curricula(path, errNo)
         Curriculum(NumCurricula)%Specialization = '(Edit specialization)'
         Curriculum(NumCurricula)%Remark = '(Edit remark)'
         Curriculum(NumCurricula)%NSubjects = 0
+
+        if (.not. FlagIsUp) then
+            call file_log_message (line, 'Curriculum file not found: '//trim(currFile))
+            token = 'NONE'
+            Curriculum(NumCurricula)%NumTerms = 1
+            Curriculum(NumCurricula)%NSubjects = 1
+            Curriculum(NumCurricula)%SubjectIdx(1) = index_to_subject (token)
+            Curriculum(NumCurricula)%SubjectTerm(1) = 1
+            cycle
+        end if
 
         ! read subjects
         call file_log_message ('Retrieving '//trim(currFile)//' for '//tCurriculum)

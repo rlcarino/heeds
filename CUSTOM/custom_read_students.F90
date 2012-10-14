@@ -32,8 +32,9 @@ subroutine custom_read_students (path, numEntries, ier)
     character (len=*), intent (in) :: path ! YEAR/TERM/
     integer, intent (out) :: numEntries, ier
 
-    call SIAS_read_students_from_enlistment(trim(path)//'FINALGRADE', numEntries, ier)
-    if (numEntries==0) call SIAS_read_students (trim(path)//'STUDENTS', numEntries, ier)
+    call SIAS_read_students (trim(path)//'STUDENTS', numEntries, ier)
+    if (numEntries==0) &
+        call SIAS_read_students_from_enlistment(trim(path)//'FINALGRADE', numEntries, ier)
     ier = 0
 
     return
@@ -62,24 +63,72 @@ subroutine SIAS_read_students (filePath, numEntries, ier)
         read(unitNo,AFORMAT,iostat=eof) line
         if (eof<0) exit student_loop
         if (line(1:1)=='#' .or. line(1:3)=='   ') cycle student_loop
-        call index_to_delimiters('"', line, ndels, pos)
-        !no,code,name,subject,year,address,age,sexmale,sexfemale,civilstatus,scholarship,units,new,old,transferee,info1,info2,info3,info4
-        !1 2   3 4  5 6    7      8     9     10   11 12     13
+!        call index_to_delimiters('"', line, ndels, pos)
+!        !no,code,name,subject,year,address,age,sexmale,sexfemale,civilstatus,scholarship,units,new,old,transferee,info1,info2,info3,info4
+!        !1 2   3 4  5 6    7      8     9     10   11 12     13
+!
+!        if (ndels<13) then
+!            call file_log_message (line,'There must be at least 13 data items')
+!            cycle student_loop !         return
+!        end if
+!
+!        call initialize_student(wrkStudent)
+!
+!        StdCurriculum = line(pos(6)+1:pos(7)-1)
+!        idxCURR = index_to_curriculum(StdCurriculum)
+!        if (idxCURR==0) then
+!            StdCurriculum = 'OTHER'
+!            idxCURR = index_to_curriculum(StdCurriculum)
+!            !call file_log_message (trim(line), 'Curriculum "'//trim(StdCurriculum)//'" not in catalog')
+!            !cycle student_loop
+!        else if (idxCURR<=0) then
+!            idxCURR = -idxCURR
+!            !write (*,*) line(:pos(13)-1)//' : using curriculum '// Curriculum(idxCURR)%Code
+!        end if
+!        wrkStudent%CurriculumIdx = idxCURR
+!        ! remove punctuation from name
+!        wrkStudent%Name = SPACE
+!        j = 0
+!        do i=pos(4)+1,pos(5)-1
+!            ch = line(i:i)
+!            if (ch==COMMA .or. index(SPECIAL,ch)>0) cycle
+!            j = j+1
+!            wrkStudent%Name(j:j) = ch
+!        end do
+!        call upper_case(wrkStudent%Name)
+!
+!        wrkStudent%StdNo = line(pos(2)+1:pos(3)-1)
+!        if (line(pos(10)+1:pos(11)-1)/=SPACE) then
+!            wrkStudent%Gender = line(pos(10)+1:pos(11)-1)
+!        else
+!            wrkStudent%Gender = line(pos(12)+1:pos(13)-1)
+!        end if
+!        wrkStudent%CountryIdx = 1
+!        wrkStudent%Classification = atoi(line(pos(7)+2:pos(8)-2))
+!
+!        call update_student_info(wrkStudent, indexLoc)
+!        if (indexLoc<0) numEntries = numEntries + 1
 
-        if (ndels<13) then
-            call file_log_message (line,'There must be at least 13 data items')
-            cycle student_loop !         return
+        !no,"code","name","crscd",year,units,lecunits,labunits,sub
+        !1,"09-10074","Abad Maricris Mondia","BSENT",3,18,18,0,17758
+        !2,"09-10193","Abad Nikko Delfinado","BSITECH-AU",1,17,17,1,17497
+        !3,"07-10855","Abad,  Sherwin Pasion","BSENT",4,12,12,0,9801
+        !1 2        3 4                     5 6     7
+        call index_to_delimiters('"', line, ndels, pos)
+        if (ndels<7) then
+            call file_log_message (line,'Format must be: no,"code","name","crscd",year,units,lecunits,labunits,sub')
+            cycle student_loop
         end if
 
         call initialize_student(wrkStudent)
 
         StdCurriculum = line(pos(6)+1:pos(7)-1)
+        if (StdCurriculum(1:3)=='AB-') StdCurriculum = 'AB'//StdCurriculum(4:)
         idxCURR = index_to_curriculum(StdCurriculum)
         if (idxCURR==0) then
+            call file_log_message (trim(line), 'Curriculum "'//trim(StdCurriculum)//'" not in catalog; using OTHER')
             StdCurriculum = 'OTHER'
             idxCURR = index_to_curriculum(StdCurriculum)
-            !call file_log_message (trim(line), 'Curriculum "'//trim(StdCurriculum)//'" not in catalog')
-            !cycle student_loop
         else if (idxCURR<=0) then
             idxCURR = -idxCURR
             !write (*,*) line(:pos(13)-1)//' : using curriculum '// Curriculum(idxCURR)%Code
@@ -97,13 +146,9 @@ subroutine SIAS_read_students (filePath, numEntries, ier)
         call upper_case(wrkStudent%Name)
 
         wrkStudent%StdNo = line(pos(2)+1:pos(3)-1)
-        if (line(pos(10)+1:pos(11)-1)/=SPACE) then
-            wrkStudent%Gender = line(pos(10)+1:pos(11)-1)
-        else
-            wrkStudent%Gender = line(pos(12)+1:pos(13)-1)
-        end if
+        wrkStudent%Gender = 'X'
         wrkStudent%CountryIdx = 1
-        wrkStudent%Classification = atoi(line(pos(7)+2:pos(8)-2))
+        wrkStudent%Classification = atoi(line(pos(7)+2:pos(7)-2))
 
         call update_student_info(wrkStudent, indexLoc)
         if (indexLoc<0) numEntries = numEntries + 1
@@ -150,6 +195,7 @@ subroutine SIAS_read_students_from_enlistment (filePath, numEntries, ier)
             call initialize_student(wrkStudent)
 
             StdCurriculum = line(pos(6)+1:pos(7)-1)
+            if (StdCurriculum(1:3)=='AB-') StdCurriculum = 'AB'//StdCurriculum(4:)
             idxCURR = index_to_curriculum(StdCurriculum)
             if (idxCURR==0) then
                 StdCurriculum = 'OTHER'

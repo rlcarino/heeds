@@ -293,6 +293,7 @@ contains
         if (errNo/=0) then
             call custom_read_subjects_prerequisites(path, errNo)
             noXML = errNo==0
+            call SIAS_read_assessment(path, errNo)
             errNo = 0
         end if
 

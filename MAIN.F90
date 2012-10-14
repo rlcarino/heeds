@@ -278,7 +278,7 @@ program MAIN
 #else
     ! set term offered of a subject to when it is taken in curricular programs
     call set_term_offered_accg_to_curricula()
-    call file_log_message('Resetting subject term of offering to when taken in curriculra programs...')
+    call file_log_message('Resetting subject term of offering to when taken in curricular programs...')
 #endif
 
     ! Synchronize pre-requisites of co-requisite subjects

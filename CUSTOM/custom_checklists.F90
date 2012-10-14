@@ -116,7 +116,7 @@ subroutine extract_student_grades()
                         ! subject, grade
                         tSubject = adjustl(line(pos(idx)+1:pos(idx+1)-1))
                         cdx = index_to_subject(tSubject)
-                        if (tSubject/=SPACE .and. cdx<=0) then
+                        if (cdx<=0) then
                             call file_io_log (trim(wrkStudent%Name)//' - "'//trim(tSubject)// &
                             '" not in catalog', QUIETLY)
                             cycle
@@ -128,6 +128,8 @@ subroutine extract_student_grades()
                             gdx = index_to_grade(tGrade)
                         end if
                         fdx = wrkStudent%Record(1,0) + 1
+                        call check_array_bound(fdx, MAX_SUBJECTS_IN_CURRICULUM, &
+                            'MAX_SUBJECTS_IN_CURRICULUM : '//trim(wrkStudent%StdNo)//' - too many subjects taken?')
                         wrkStudent%Record(1,0) = fdx
 
                         wrkStudent%Record(1,fdx) = idxGrd
