@@ -519,32 +519,35 @@ contains
                 !write(device,AFORMAT) '<b>"'//ch//'" students in '//tCollege//'</b><br><hr>'
                 header = '"'//ch//'" students in '//tCollege
 
-        !           case (fnStudentsByYear)
-        !                   ! which college ?
-        !                   call cgi_get_named_string(QUERY_STRING, 'A2', tYear, ierr)
-        !                   call cgi_get_named_string(QUERY_STRING, 'A1', tCollege, ierr)
-        !                   targetCollege = index_to_college(tCollege)
-        !                   if (ierr/=0 .or. targetCollege<=0 .or. tYear==SPACE) then
-        !                           write(device,AFORMAT) '<br>'//red//'College "'//tCollege// &
-        !                             '" or student number year "'//tYear//'" not found.'//black//'<hr><br>'
-        !                           targetCollege  = NumColleges ! trigger 'All colleges' link for Admin
-        !                           return
-        !                   else
-        !                           do tdx=1,NumStudents
-        !                              std = StdRank(tdx)
-        !                              if (Curriculum(Student(std)%CurriculumIdx)%CollegeIdx /= targetCollege) cycle
-        !                              if (Student(std)%StdNo(1:StdNoYearLen) /= tYear) cycle
-        !                              n_count = n_count+1
-        !                              tArray(n_count) = std
-        !                           end do
-        !                           !if (n_count>0) then
-        !                           !        targetCurriculum = Student(tArray(n_count))%CurriculumIdx ! trigger links to this college
-        !                           !else
-        !                           !        targetCollege  = NumColleges ! trigger 'All colleges' link for Admin
-        !                           !end if
-        !                   end if
-        !                   !write(device,AFORMAT) '<b>"'//tYear//'" students in '//tCollege//'</b><br><hr>'
-        !                   header = '"'//tYear//'" students in '//tCollege
+#if defined UPLB
+            case (fnStudentsByYear)
+                    ! which college ?
+                    call cgi_get_named_string(QUERY_STRING, 'A2', tYear, ierr)
+                    call cgi_get_named_string(QUERY_STRING, 'A1', tCollege, ierr)
+                    targetCollege = index_to_college(tCollege)
+                    if (ierr/=0 .or. targetCollege<=0 .or. tYear==SPACE) then
+                            write(device,AFORMAT) '<br>'//red//'College "'//tCollege// &
+                              '" or student number year "'//tYear//'" not found.'//black//'<hr><br>'
+                            targetCollege  = NumColleges ! trigger 'All colleges' link for Admin
+                            return
+                    else
+                            do tdx=1,NumStudents
+                               std = StdRank(tdx)
+                               if (Curriculum(Student(std)%CurriculumIdx)%CollegeIdx /= targetCollege) cycle
+                               if (Student(std)%StdNo(1:StdNoYearLen) /= tYear) cycle
+                               n_count = n_count+1
+                               tArray(n_count) = std
+                            end do
+                            !if (n_count>0) then
+                            !        targetCurriculum = Student(tArray(n_count))%CurriculumIdx ! trigger links to this college
+                            !else
+                            !        targetCollege  = NumColleges ! trigger 'All colleges' link for Admin
+                            !end if
+                    end if
+                    !write(device,AFORMAT) '<b>"'//tYear//'" students in '//tCollege//'</b><br><hr>'
+                    header = '"'//tYear//'" students in '//tCollege
+#endif
+
         end select
 
 

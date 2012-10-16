@@ -97,9 +97,9 @@ contains
         if (numEntries==0) then ! no XML student files; try the custom format
             call custom_read_students(path, numEntries, ierr)
         end if
+        call sort_alphabetical_students()
 
         if ((noXML .and. numEntries>0) .or. numUpdates>0) then ! students were added; write the XML students file
-            call sort_alphabetical_students()
             call xml_write_students(path, 0)
         end if
 
@@ -337,9 +337,11 @@ contains
                     call initialize_student(wrkStudent)
 
                 case ('StdNo')
+                    call upper_case(value)
                     wrkStudent%StdNo = adjustl(value)
 
                 case ('Name')
+                    call upper_case(value)
                     wrkStudent%Name = adjustl(value)
 
                 case ('Gender')

@@ -450,9 +450,6 @@ contains
             case (fnStudentAdd)
                 call student_add(device)
 
-!            case (fnRebuildChecklists)
-!                    call RebuildChecklists(device, fname)
-
             case (fnEditCheckList)
                 if (Period==1) then
                     call checklist_edit(device, UseCurrentClasses, CurrentSection, CurrentOffering)
