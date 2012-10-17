@@ -80,16 +80,17 @@ subroutine custom_read_curricula(path, errNo)
 
         currFile = trim(dirRAW)//trim(path)//line(pos(2)+1:pos(3)-1)//'.CSV'
         inquire(file=currFile, exist=FlagIsUp)
-        !if (.not. FlagIsUp) then
-        !    write(*,*) 'File not found: '//trim(currFile)
-        !    if (ndels<8 .or. pos(9)-pos(8)<=1) cycle
-        !    currFile =trim(dirRAW)//trim(path)//line(pos(8)+1:pos(9)-1)
-        !    inquire(file=currFile, exist=FlagIsUp)
-        !    if (.not. FlagIsUp) then
-        !        write(*,*) 'File not found: '//trim(currFile)
-        !        cycle
-        !    end if
-        !end if
+        if (.not. FlagIsUp) then
+            !write(*,*) 'File not found: '//trim(currFile)
+            if (ndels>=8 .and. pos(9)-pos(8)>1) then
+                currFile =trim(dirRAW)//trim(path)//line(pos(8)+1:pos(9)-1)
+                inquire(file=currFile, exist=FlagIsUp)
+                !if (.not. FlagIsUp) then
+                !    write(*,*) 'File not found: '//trim(currFile)
+                !    cycle
+                !end if
+            end if
+        end if
 
         tCollege = line(pos(6)+1:pos(7)-1)
         idxCOLL = 0
