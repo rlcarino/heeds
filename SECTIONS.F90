@@ -362,8 +362,8 @@ contains
             numEntries = NumSections
             if (partialEntries>0) then ! remove classes of dept from monolithic file
                 call delete_sections_of_dept(mainEntries, Section, ddx)
-                call move_to_backup(filename) ! delete departmental block
             end if
+            if (ierr==0) call move_to_backup(filename) ! delete departmental block
         end do
         numUpdates = NumSections - mainEntries
         if (NumSections==0) then ! try the custom format
@@ -566,8 +566,20 @@ contains
                 case ('/Section') ! make ClassId, then add to list of sections
                     token = trim(Subject(wrkSection%SubjectIdx)%Name)//SPACE//wrkSection%Code
                     wrkSection%ClassId = token
-                    NumSections = NumSections + 1
-                    Section(NumSections) = wrkSection
+                    quiet = .true.
+                    do i=1,NumSections
+                        if (Section(i)%ClassId .ne. wrkSection%ClassId) cycle
+                        quiet = .false.
+                        exit
+                    end do
+                    if (quiet) then
+                        NumSections = NumSections + 1
+                        call check_array_bound (NumSections, MAX_ALL_SECTIONS, 'MAX_ALL_SECTIONS')
+                        Section(NumSections) = wrkSection
+                    else
+                        call file_log_message ('In '//trim(fName)//' : '//trim(wrkSection%ClassId)// &
+                            ' owned by '//trim(tDept)//' - duplicate class; ignored.')
+                    end if
 
                 case default
                     ! do nothing

@@ -74,10 +74,11 @@ contains
         character(len=*), intent(in) :: path
         integer, intent (out) :: errNo
 
-        integer :: iCurr, ierr, i, numEntries, partialEntries, numUpdates, mainEntries
+        integer :: iCurr, ierr, i, numEntries, partialEntries, numUpdates, mainEntries, previous
         logical :: noXML
 
         errNo = 0 ! errors or 'not found' are OK; there might be no students entered yet
+        previous = NumStudents
 
         call xml_read_students (path, 0, mainEntries, ierr)
         noXML = mainEntries==0
@@ -97,7 +98,7 @@ contains
         if (numEntries==0) then ! no XML student files; try the custom format
             call custom_read_students(path, numEntries, ierr)
         end if
-        call sort_alphabetical_students()
+        if (NumStudents>previous) call sort_alphabetical_students()
 
         if ((noXML .and. numEntries>0) .or. numUpdates>0) then ! students were added; write the XML students file
             call xml_write_students(path, 0)

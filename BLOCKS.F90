@@ -48,7 +48,7 @@ module BLOCKS
         integer, dimension(MAX_SUBJECTS_PER_TERM) :: Subject, Section ! subjects and corresponding sections
     end type TYPE_BLOCK
 
-    integer, parameter :: MAX_ALL_BLOCKS = 4*MAX_ALL_CURRICULA ! max all blocks
+    integer, parameter :: MAX_ALL_BLOCKS = 6*MAX_ALL_CURRICULA ! max all blocks
     type (TYPE_BLOCK), dimension(0:MAX_ALL_BLOCKS) :: CurrentBlock, NextBlock
     integer :: NumCurrentBlocks, NumNextBlocks
 
@@ -270,8 +270,8 @@ contains
             numEntries = NumBlocks
             if (partialEntries>0) then ! remove blocks of dept from monolithic file
                 call delete_blocks_from_dept(mainEntries, Block, ddx)
-                call move_to_backup(filename)
             end if
+            if (ierr==0) call move_to_backup(filename)
         end do
         numUpdates = NumBlocks-mainEntries
 
@@ -385,8 +385,20 @@ contains
                     wrkBlock%Subject(wrkBlock%NumClasses) = Section(wrkBlock%Section(wrkBlock%NumClasses))%SubjectIdx
 
                 case ('/Block')
-                    NumBlocks = NumBlocks + 1
-                    Block(NumBlocks) = wrkBlock
+                    quiet = .true.
+                    do idxCurr=1,NumBlocks
+                        if (wrkBlock%BlockID/=Block(idxCurr)%BlockID) cycle
+                        quiet = .false.
+                        exit
+                    end do
+                    if (quiet) then
+                        NumBlocks = NumBlocks + 1
+                        call check_array_bound (NumBlocks, MAX_ALL_BLOCKS, 'MAX_ALL_BLOCKS')
+                        Block(NumBlocks) = wrkBlock
+                    else
+                        call file_log_message ('In '//trim(fName)//' : '//trim(WrkBlock%BlockID)// &
+                            ' owned by '//trim(tDepartment)//' - duplicate block; ignored.')
+                    end if
 
                 case default
                     ! do nothing

@@ -106,7 +106,7 @@ module BASE
 
     ! software version
     character(len= 5), parameter :: PROGNAME =  'HEEDS'
-    character(len= 8), parameter :: VERSION =   ' v.3.22'
+    character(len= 8), parameter :: VERSION =   ' v.3.23'
     character(len=38), parameter :: COPYRIGHT = 'Copyright (C) 2012 Ricolindo L. Carino'
     character(len=38), parameter :: EMAIL =     'Ricolindo.Carino@AcademicForecasts.com'
     character(len=76), parameter :: CONTACT =   'E-mail inquiries about '//PROGNAME//' to '//EMAIL//'.'
