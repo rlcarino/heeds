@@ -405,6 +405,13 @@ contains
     targetDepartment = Subject(crse)%DeptIdx
 
     call html_write_header(device, 'Edit subject '//tSubject, remark(3:))
+    j = index(tSubject,SPACE)
+    if ( j<len_trim(tSubject) ) then
+        write(device,AFORMAT) &
+          trim(cgi_make_href(fnSubjectList, targetUser, tSubject(:j-1), A1=tSubject(:j-1), &
+          pre='<small><i>Edit another '//nbsp, post=' subject</i></small>'))
+          
+    end if
 
     write(device,AFORMAT) &
       '<form name="input" method="post" action="'//CGI_PATH//'">', &

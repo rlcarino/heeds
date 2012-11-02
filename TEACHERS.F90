@@ -394,12 +394,23 @@ contains
                 case ('Specialization')
                     wrkTeacher%Specialization = adjustl(value)
 
-                case ('/Teacher') ! add temporary teacher data to Teacher()
-                    NumTeachers = NumTeachers + 1
-                    call check_array_bound (NumTeachers, MAX_ALL_TEACHERS, 'MAX_ALL_TEACHERS')
-                    Teacher(NumTeachers) = wrkTeacher
-                    Department(wrkTeacher%DeptIdx)%hasInfo = .true.
-
+                case ('/Teacher') ! add/merge temporary teacher data to Teacher()
+                    ! teacher encountered previously?
+                    i = 0
+                    do j=1,NumTeachers
+                        if (wrkTeacher%TeacherId/=Teacher(j)%TeacherId) cycle
+                        i = j
+                        exit
+                    end do
+                    if (i/=0) then ! overwrite existing record
+                        call file_log_message ('Duplicate record for '//trim(wrkTeacher%TeacherId)//'; updated.')
+                        Teacher(i) = wrkTeacher
+                    else
+                        NumTeachers = NumTeachers + 1
+                        call check_array_bound (NumTeachers, MAX_ALL_TEACHERS, 'MAX_ALL_TEACHERS')
+                        Teacher(NumTeachers) = wrkTeacher
+                        Department(wrkTeacher%DeptIdx)%hasInfo = .true.
+                    end if
 
                 case default
                     ! do nothing
