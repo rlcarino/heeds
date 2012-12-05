@@ -80,7 +80,7 @@ contains
         end if
 
         ! write the XML ROOMS file?
-        if (noXML) call xml_write_rooms(path)
+        if (noXML .and. NumRooms>0) call xml_write_rooms(path)
 
         return
     end subroutine read_rooms

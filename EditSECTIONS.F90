@@ -98,7 +98,7 @@ contains
       end do
       if (skip) cycle ! done with this teacher
       teacher_count = teacher_count+1
-      write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnTeacherSchedule, targetUser, Teacher(tdx)%Name, &
+      write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnTeacherSchedule, Teacher(tdx)%Name, &
           A1=Teacher(tdx)%TeacherID, &
           pre=begintr//begintd, &
           post=endtd//begintd//'['//trim(itoa(ncol))//']'))
@@ -181,7 +181,7 @@ contains
 #else
       call cgi_url_encode(Room(rdx)%Code, QUERY_put)
 #endif
-      write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnRoomSchedule, targetUser, Room(rdx)%Code, &
+      write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnRoomSchedule, Room(rdx)%Code, &
           A1=QUERY_put, &
           pre=begintr//begintd, &
           post=endtd//begintd//'['//trim(itoa(ncol))//']'))
@@ -417,9 +417,8 @@ contains
     ! offer to open sections
     if (nclosed>0 .and. (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==targetDepartment))) then
             write(device,AFORMAT) &
-              '<form name="input" method="post" action="'//CGI_PATH//'">', &
+              '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
               '<input type="hidden" name="F" value="'//trim(itoa(fnOFFSET+fnScheduleOfferSubject))//'">', &
-              '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
               '<input type="hidden" name="A2" value="'//trim(Department(targetDepartment)%Code)//'">', &
               '<table border="0" width="100%">'//begintr//'<td colspan="'//trim(itoa(maxcol))//'" align="right">', &
               'Open a section in <select name="A1"> <option value=""> (select subject)'
@@ -481,7 +480,7 @@ contains
 
       write(device,AFORMAT) '('//trim(text_term_offered_separated(Subject(cdx)%TermOffered))//')'
       if (isRoleAdmin) then
-           write(device,AFORMAT) trim(cgi_make_href(fnEditSubject, targetUser, 'Edit', A1=Subject(cdx)%Name, &
+           write(device,AFORMAT) trim(cgi_make_href(fnEditSubject, 'Edit', A1=Subject(cdx)%Name, &
                   pre=nbsp//'<small>[ ', post=' ]</small>'))
       end if
       write(device,AFORMAT) endtd//endtr, &
@@ -496,7 +495,7 @@ contains
 
       if (okToAdd) then
           write(device,AFORMAT) begintd//'<small>', &
-              trim(cgi_make_href(fnOFFSET+fnScheduleOfferSubject, targetUser, 'Add '//tDepartment, &
+              trim(cgi_make_href(fnOFFSET+fnScheduleOfferSubject, 'Add '//tDepartment, &
                 A1=QUERY_put, A2=Department(targetDepartment)%Code, &
                 post='</small>'//endtd//endtr)) 
       else
@@ -529,7 +528,7 @@ contains
         ! section code, link to gradesheet entry form
         if (fnOFFSET==0 .and. available(fnGradeSheet) .and. &
             (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==owner_dept))) then
-          write(device,AFORMAT) trim(cgi_make_href(fnGradeSheet, targetUser, trim(Section(sdx)%Code), &
+          write(device,AFORMAT) trim(cgi_make_href(fnGradeSheet, trim(Section(sdx)%Code), &
           A1=QUERY_PUT, pre=begintd, post=endtd))
         else
           write(device,AFORMAT) begintd//trim(Section(sdx)%Code)//endtd
@@ -542,7 +541,7 @@ contains
 
         ! seats, link to classlist
         if (fnOFFSET==0 .and. available(fnClassList)) then
-          write(device,AFORMAT) trim(cgi_make_href(fnClassList, targetUser, tSeats, &
+          write(device,AFORMAT) trim(cgi_make_href(fnClassList, tSeats, &
           A1=QUERY_PUT, pre=begintd, post=endtd))
         else
           write(device,AFORMAT) begintd//trim(tSeats)//endtd
@@ -595,12 +594,12 @@ contains
         end if
         write(device,AFORMAT) begintd//'<small>'
         if (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==owner_dept)) then
-            write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnScheduleEdit, targetUser, ' Edit', &
+            write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnScheduleEdit, ' Edit', &
                 A1=QUERY_put))
-            write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnScheduleDelete, targetUser, ' Del', &
+            write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnScheduleDelete, ' Del', &
                 A1=QUERY_put))
             if (isLecture) then
-              write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnScheduleAddLab, targetUser, 'Add lab', &
+              write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnScheduleAddLab, 'Add lab', &
                 A1=QUERY_put))
             end if
         else
@@ -798,10 +797,10 @@ contains
                     Call delete_section_from_blocks(sect, NumSections, Section, NumBlocks, Block)
             end if
     end if
-    call xml_write_blocks(pathToSections, NumBlocks, Block,  Section, 0)
-    call xml_write_blocks(pathToSectionUpdates, NumBlocks, Block,  Section, dept)
-    call xml_write_sections(pathToSections, NumSections, Section, 0)
-    call xml_write_sections(pathToSectionUpdates, NumSections, Section, dept)
+    call xml_write_blocks(pathToSOURCE, NumBlocks, Block,  Section, 0)
+    call xml_write_blocks(pathToUPDATES, NumBlocks, Block,  Section, dept)
+    call xml_write_sections(pathToSOURCE, NumSections, Section, 0)
+    call xml_write_sections(pathToUPDATES, NumSections, Section, dept)
     
     call offerings_summarize(NumSections, Section, Offering)
     call section_list_all (device, NumSections, Section, Offering, NumBlocks, Block,  &
@@ -870,10 +869,9 @@ contains
     end if
     ! write input form to capture edits to Section(sect); previous inputs are in tSection
     write(device,AFORMAT) &
-        '<form name="input" method="post" action="'//CGI_PATH//'">', &
+        '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
         '<input type="hidden" name="F" value="'//trim(itoa(fnOFFSET+fnScheduleValidate))//'">'// &
-        '<input type="hidden" name="A1" value="'//trim(Section(sect)%ClassId)//'">'// &
-        '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">'
+        '<input type="hidden" name="A1" value="'//trim(Section(sect)%ClassId)//'">'
 
     !write(*,*) 'section_write_edit_form()'
     !write(*,*) 'ORIGINAL: Code=', Section(sect)%Code, ', slots=', Section(sect)%Slots, &
@@ -1092,8 +1090,8 @@ contains
             case ('Confirm') ! Confirm previously validated edits
                     action_index = 2
                     Section(sect) = wrk
-                    call xml_write_sections(pathToSections, NumSections, Section, 0)
-                    call xml_write_sections(pathToSectionUpdates, NumSections, Section, dept)
+                    call xml_write_sections(pathToSOURCE, NumSections, Section, 0)
+                    call xml_write_sections(pathToUPDATES, NumSections, Section, dept)
                     
                     call offerings_summarize(NumSections, Section, Offering)
                     call section_list_all (device, NumSections, Section, Offering, NumBlocks, Block,  &
@@ -1231,9 +1229,8 @@ contains
 
     ! common form inputs
     write(device,AFORMAT) &
-        '<form name="input" method="post" action="'//CGI_PATH//'">', &
+        '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
         '<input type="hidden" name="F" value="'//trim(itoa(fnOFFSET+fnScheduleValidate))//'">', &
-        '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
         '<input type="hidden" name="A1" value="'//trim(Section(sect)%ClassId)//'">', &
         '<input type="hidden" name="code" value="'//trim(wrk%Code)//'">'// &
         '<input type="hidden" name="slots" value="'//trim(itoa(wrk%Slots))//'">'

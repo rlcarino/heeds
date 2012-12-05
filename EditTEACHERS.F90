@@ -224,16 +224,16 @@ contains
 
               write(device,AFORMAT) begintr//begintd//trim(Teacher(fac)%Name)//' ('//trim(Teacher(fac)%Specialization)//')'
               if (isRoleAdmin .or. (isRoleChair .and.  DeptIdxUser==Teacher(fac)%DeptIdx)) then
-                write(device,AFORMAT) trim(cgi_make_href(fnEditTeacher, targetUser, 'Edit', &
+                write(device,AFORMAT) trim(cgi_make_href(fnEditTeacher, 'Edit', &
                   A1=QUERY_put, pre=nbsp//'<small>', post='</small>'))
               end if
-              write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnTeacherSchedule, targetUser, 'Edit', &
+              write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnTeacherSchedule, 'Edit', &
                   A1=QUERY_put, pre=endtd//tdaligncenter//itoa(nsect)//'<small>', post='</small>'//endtd))
               write(device,'(2(a,f5.1), a,f5.2,a)') tdaligncenter, totalLect, &
                     endtd//tdaligncenter, totalLab, &
                     endtd//tdaligncenter, totalUnits, &
                     '/'//trim(itoa(Teacher(fac)%MaxLoad))// &
-                    trim(cgi_make_href(fnPrintableWorkload+fnOFFSET, targetUser, 'Printable', &
+                    trim(cgi_make_href(fnPrintableWorkload+fnOFFSET, 'Printable', &
                     A1=QUERY_put, pre=nbsp//'<small>', post='</small>'))//endtd// &
                     tdaligncenter//trim(mesg)//endtd//endtr
             end do
@@ -292,13 +292,13 @@ contains
                             end do
                             mesg = 'Deleted '//tClassId
                     end if
-                    call xml_write_sections(pathToSections, NumSections, Section, 0)
-                    call xml_write_sections(pathToSectionUpdates, &
+                    call xml_write_sections(pathToSOURCE, NumSections, Section, 0)
+                    call xml_write_sections(pathToUPDATES, &
                       NumSections, Section, LoadFromDept)
             end if
     end if
 
-    call html_write_header(device, cgi_make_href(fnPrintableWorkload+fnOFFSET, targetUser, 'Printable', &
+    call html_write_header(device, cgi_make_href(fnPrintableWorkload+fnOFFSET, 'Printable', &
         A1=tTeacher, post=' teaching schedule of '//Teacher(targetTeacher)%Name), mesg)
 
     ! collect meetings of teacher targetTeacher
@@ -354,9 +354,8 @@ contains
 
     ! search for feasible classes in another department?
     write(device,AFORMAT) &
-        '<br><form name="input" method="post" action="'//CGI_PATH//'">', &
+        '<br><form name="input" method="post" action="'//CGI_SCRIPT//'">', &
         '<input type="hidden" name="F" value="'//trim(itoa(fnOFFSET+fnTeacherSchedule))//'">', &
-        '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
         '<input type="hidden" name="A1" value="'//trim(tTeacher)//'">'
 
 
@@ -531,8 +530,7 @@ contains
     call html_write_header(device, 'Edit teacher '//tTeacher, remark(3:))
 
     write(device,AFORMAT) &
-      '<form name="input" method="post" action="'//CGI_PATH//'">', &
-      '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
+      '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
       '<input type="hidden" name="F" value="'//trim(itoa(fnEditTeacher))//'">'// &
       '<input type="hidden" name="A1" value="'//trim(tTeacher)//'">', &
       '<table border="0" width="100%">'
@@ -674,8 +672,7 @@ contains
     call teacher_workload(device, Section, tLen1, tArray, NumBlocks, Block)
 
     write(device,AFORMAT) &
-      '<form name="input" method="post" action="'//CGI_PATH//'">', &
-      '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
+      '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
       '<input type="hidden" name="F" value="0'//trim(itoa(fnPrintableWorkload+fnOFFSET))//'">'// &
       '<input type="hidden" name="A1" value="'//trim(tTeacher)//'">'
 

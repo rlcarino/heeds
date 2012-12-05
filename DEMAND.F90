@@ -115,8 +115,7 @@ contains
         end do
         ! enable edit
         write(device,AFORMAT) &
-        '<form name="input" method="post" action="'//CGI_PATH//'">', &
-        '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
+        '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
         '<input type="hidden" name="F" value="'//trim(itoa(fnUpdateDemandFreshmen))//'">', &
         '<input type="hidden" name="A1" value="'//trim(tCollege)//'">'
         do idxCURR=1,NumCurricula

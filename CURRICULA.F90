@@ -479,7 +479,7 @@ contains
 !        end do
 
         ! write the XML CURRICULA file?
-        if (noXML) then
+        if (noXML .and. NumCurricula>0) then
             call xml_write_curricula(path)
             call xml_write_equivalencies(path)
         end if

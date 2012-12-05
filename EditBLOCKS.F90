@@ -369,8 +369,8 @@ contains
 
     if (updateBLOCKS) then
         call sort_alphabetical_blocks(NumBlocks, Block) 
-        call xml_write_blocks(pathToSections, NumBlocks, Block,  Section, 0)
-        call xml_write_blocks(pathToSectionUpdates, NumBlocks, Block,  Section, targetDepartment)
+        call xml_write_blocks(pathToSOURCE, NumBlocks, Block,  Section, 0)
+        call xml_write_blocks(pathToUPDATES, NumBlocks, Block,  Section, targetDepartment)
 
         if (fn==fnBlockDeleteAll .or. fn==fnNextBlockDeleteAll .or. &
             fn==fnBlockDeleteName .or. fn==fnNextBlockDeleteName) then
@@ -380,8 +380,8 @@ contains
     end if
     if (updateCLASSES) then
         call offerings_summarize(NumSections, Section, Offering)
-        call xml_write_sections(pathToSections, NumSections, Section, 0)
-        call xml_write_sections(pathToSectionUpdates, NumSections, Section, targetDepartment)
+        call xml_write_sections(pathToSOURCE, NumSections, Section, 0)
+        call xml_write_sections(pathToUPDATES, NumSections, Section, targetDepartment)
         call set_feature_availability()
     end if
 
@@ -410,10 +410,9 @@ contains
       ! actions on individual subjects 
         begintr//'<td valign="top" size="50%"><b>Actions on subjects</b>', &
         '<table border="0" cellpadding="0" cellspacing="0">', &
-        '<form name="input" method="post" action="'//CGI_PATH//'">', &
+        '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
         '<input type="hidden" name="F" value="'//trim(itoa(fnOFFSET+fnBlockEditSubject))//'">'// &
-        '<input type="hidden" name="A1" value="'//trim(tBlock)//'">'// &
-        '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">'
+        '<input type="hidden" name="A1" value="'//trim(tBlock)//'">'
       do fdx=1,Block(targetBlock)%NumClasses
         crse = Block(targetBlock)%Subject(fdx) ! index to subject
         sect = Block(targetBlock)%Section(fdx)
@@ -433,10 +432,9 @@ contains
         begintr//'<td colspan="3">'//nbsp//endtd//endtr//'</form>'
 
       write(device,AFORMAT) &
-        '<form name="input" method="post" action="'//CGI_PATH//'">', &
+        '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
         '<input type="hidden" name="F" value="'//trim(itoa(fnOFFSET+fnBlockEditSubject))//'">'// &
         '<input type="hidden" name="A1" value="'//trim(tBlock)//'">'// &
-        '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
         begintr//'<td colspan="2"> Add subject '//endtd// &
         begintd//nbsp//' <input name="add" value="">'//endtd//endtr, &
         begintr//'<td colspan="3">'//nbsp//nbsp//'<input type="submit" name="action" value="Add, create new section"> ', &
@@ -447,23 +445,21 @@ contains
       write(device,AFORMAT) '<td valign="top" size="50%"><b>Actions on block</b>', &
         '<table border="0" cellpadding="0" cellspacing="0">', &
         begintr//begintd// &
-        '<form name="input" method="post" action="'//CGI_PATH//'">'// &
+        '<form name="input" method="post" action="'//CGI_SCRIPT//'">'// &
         '<input type="hidden" name="F" value="'//trim(itoa(fnOFFSET+fnBlockCopy))//'">'// &
         '<input type="hidden" name="A1" value="'//trim(tBlock)//'">'// &
-        '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
         'Copy block with new sections, to '//nbsp//endtd//begintd//'<input name="BlockID" value="'//trim(newBlock)//'">'// &
         endtd//begintd//nbsp//' <input type="submit" name="action" value="Copy">'//endtd// &
         '</form>'//endtr, &
-        begintr//begintd//'<form name="input" method="post" action="'//CGI_PATH//'">'// &
+        begintr//begintd//'<form name="input" method="post" action="'//CGI_SCRIPT//'">'// &
         '<input type="hidden" name="F" value="'//trim(itoa(fnOFFSET+fnBlockEditName))//'">'// &
         '<input type="hidden" name="A1" value="'//trim(tBlock)//'">'// &
-        '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
         'Rename block, same sections, to '//nbsp//endtd//begintd//'<input name="BlockID" value="'//trim(newBlock)//'">'// &
         endtd//begintd//nbsp//' <input type="submit" name="action" value="Rename">'//endtd// &
         '</form>'//endtr, &
-        trim(cgi_make_href(fnOFFSET+fnBlockDeleteName, targetUser, 'KEEP', A1=tBlock, &
+        trim(cgi_make_href(fnOFFSET+fnBlockDeleteName, 'KEEP', A1=tBlock, &
         pre=begintr//'<td colspan="3">Delete block, but '//nbsp, post=nbsp//' its sections.'//endtd//endtr)), &
-        trim(cgi_make_href(fnOFFSET+fnBlockDeleteAll, targetUser, 'DELETE', A1=tBlock, &
+        trim(cgi_make_href(fnOFFSET+fnBlockDeleteAll, 'DELETE', A1=tBlock, &
         pre=begintr//'<td colspan="3">Delete block, and '//nbsp, post=nbsp//' its sections.'//endtd//endtr)), &
         '</table>', &
         endtd//endtr//'</table><br>'
@@ -650,8 +646,7 @@ contains
 
     ! add block
     write(device,AFORMAT) &
-      '<form name="input" method="post" action="'//CGI_PATH//'">', &
-      '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
+      '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
       '<input type="hidden" name="F" value="'//trim(itoa(fnOFFSET+fnBlockNewAdd))//'">'
     if (fnOFFSET==0) then
             mesg = trim(txtSemester(currentTerm+3))//' (current) Semester'
@@ -811,15 +806,15 @@ contains
     end do ! Year=YearFirst,YearLast
   
     call sort_alphabetical_blocks(NumBlocks, Block)
-    call xml_write_blocks(pathToSections, NumBlocks, Block,  Section, 0)
-    call xml_write_blocks(pathToSectionUpdates, NumBlocks, Block,  Section, targetDepartment)
+    call xml_write_blocks(pathToSOURCE, NumBlocks, Block,  Section, 0)
+    call xml_write_blocks(pathToUPDATES, NumBlocks, Block,  Section, targetDepartment)
 
     if (createClasses) then
 
       call offerings_summarize(NumSections, Section, Offering)
            
-      call xml_write_sections(pathToSections, NumSections, Section, 0)
-      call xml_write_sections(pathToSectionUpdates, NumSections, Section, targetDepartment)
+      call xml_write_sections(pathToSOURCE, NumSections, Section, 0)
+      call xml_write_sections(pathToUPDATES, NumSections, Section, targetDepartment)
 
       call set_feature_availability()
 

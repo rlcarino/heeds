@@ -97,7 +97,7 @@ contains
                 !write(device,AFORMAT) &
                 !   begintr//'<td width="10%"><small><a href="#'//trim(College(gdx)%Code)//'">'//trim(College(gdx)%Code)//'</a></small>'//endtd
                 if (available(fnStudentsDistribution)) then
-                    write(device,AFORMAT) trim(cgi_make_href(fnStudentsDistribution, targetUser, College(gdx)%Code, &
+                    write(device,AFORMAT) trim(cgi_make_href(fnStudentsDistribution, College(gdx)%Code, &
                         A1=College(gdx)%Code, &
                         pre=begintr//'<td width="10%"><small>', post='</small>'//endtd))
                 else
@@ -238,7 +238,7 @@ contains
                     if (CurrProgNum(ldx) /= cdx) cycle
                     ! code
                     write(device,AFORMAT) &
-                        trim(cgi_make_href(fnCurriculum, targetUser, Curriculum(ldx)%Code, &
+                        trim(cgi_make_href(fnCurriculum, Curriculum(ldx)%Code, &
                         A1=Curriculum(ldx)%Code, &
                         pre=begintr//'<td width="10%"><small>', post='</small>'//endtd))
                     ! bar chart
@@ -256,7 +256,7 @@ contains
                     ! count
                     !write(device,AFORMAT) tdalignright//trim(itoa(CurriculumCount(ldx)))//endtd
                     if (CurriculumCount(ldx) .gt. 0) then
-                        write(device,AFORMAT) trim(cgi_make_href(fnStudentsByCurriculum, targetUser, itoa(CurriculumCount(ldx)), &
+                        write(device,AFORMAT) trim(cgi_make_href(fnStudentsByCurriculum, itoa(CurriculumCount(ldx)), &
                             A1=Curriculum(ldx)%Code, &
                             pre=tdalignright, post=endtd))
                     else
@@ -496,7 +496,7 @@ contains
                     write(device,AFORMAT) begintr//'<td align="center">'//trim(itoa(-l))//endtd
                     do j=MaxLoad,0,-1
                         if (pos(j)>0) then
-                            write(device,AFORMAT) trim(cgi_make_href(fnUnderloadedStudents, targetUser, itoa(pos(j)), &
+                            write(device,AFORMAT) trim(cgi_make_href(fnUnderloadedStudents, itoa(pos(j)), &
                                 A1=trim(itoa(j)), A2=trim(itoa(l)), pre=tdalignright, post=endtd))
                         else
                             write(device,AFORMAT) tdalignright//'.'//endtd
@@ -564,17 +564,17 @@ contains
                         begintd//trim(Curriculum(Student(std)%CurriculumIdx)%Code)//endtd//begintd
 
                     if (available(fnChangeMatriculation) ) then
-                        write(device,AFORMAT) trim(cgi_make_href(fnChangeMatriculation, targetUser, 'schedule', &
+                        write(device,AFORMAT) trim(cgi_make_href(fnChangeMatriculation, 'schedule', &
                             A1=Student(std)%StdNo, &
                             pre=' [ ', post=' ]'))
                     end if
                     if (available(fnEditCheckList) ) then
-                        write(device,AFORMAT) trim(cgi_make_href(fnEditCheckList, targetUser, 'checklist', &
+                        write(device,AFORMAT) trim(cgi_make_href(fnEditCheckList, 'checklist', &
                             A1=Student(std)%StdNo, &
                             pre=' [ ', post=' ]'))
                     end if
                     if (available(fnStudentPerformance) ) then
-                        write(device,AFORMAT) trim(cgi_make_href(fnStudentPerformance, targetUser, 'performance', &
+                        write(device,AFORMAT) trim(cgi_make_href(fnStudentPerformance, 'performance', &
                             A1=Student(std)%StdNo, &
                             pre=' [ ', post=' ]'))
                     end if
@@ -650,7 +650,7 @@ contains
             ! total accom
 #if defined UPLB
             ! Subject administered by departments
-            write(device,AFORMAT) trim(cgi_make_href(fnScheduleOfClasses, targetUser, &
+            write(device,AFORMAT) trim(cgi_make_href(fnScheduleOfClasses, &
                 itoa(Offering(crse)%Accommodated), &
                 A1=Department(Subject(crse)%DeptIdx)%Code, &
                 pre=tdalignright, post=endtd, anchor=tSubject))
@@ -665,7 +665,7 @@ contains
             write(device,AFORMAT) tdalignright//trim(itoa(Offering(crse)%Demand))//endtd
             ! priority not accom
             if (Offering(crse)%PriorityNotAccommodated>0) then
-                write(device,AFORMAT) trim(cgi_make_href(fnNotAccommodated, targetUser, &
+                write(device,AFORMAT) trim(cgi_make_href(fnNotAccommodated, &
                     itoa(Offering(crse)%PriorityNotAccommodated), &
                     A1=tSubject, pre=tdalignright, post=endtd//endtr ))
             else

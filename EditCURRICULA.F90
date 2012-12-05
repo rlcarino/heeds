@@ -101,7 +101,7 @@ contains
     write(device,AFORMAT) '<ol>'
     do ldx=1,NumCurricula
       if (CurrProgCode(ldx) /= tCurriculum) cycle
-      write(device,AFORMAT) trim(cgi_make_href(fnCurriculum, targetUser, Curriculum(ldx)%Code, &
+      write(device,AFORMAT) trim(cgi_make_href(fnCurriculum, Curriculum(ldx)%Code, &
         A1=Curriculum(ldx)%Code, &
         pre='<li>', post=' - '//trim(Curriculum(ldx)%Title)//SPACE// &
         trim(Curriculum(ldx)%Specialization)//SPACE//trim(Curriculum(ldx)%Remark)))
@@ -116,9 +116,9 @@ contains
       end if
       write(device,AFORMAT) nbsp//'<i> '//tStatus//'</i>'//nbsp
       if (isRoleAdmin) then
-          write(device,AFORMAT) trim(cgi_make_href(fnAction, targetUser, tAction, A1=Curriculum(ldx)%Code, &
+          write(device,AFORMAT) trim(cgi_make_href(fnAction, tAction, A1=Curriculum(ldx)%Code, &
               pre=nbsp//'<small>', post=nbsp))
-          write(device,AFORMAT) trim(cgi_make_href(fnEditCurriculum, targetUser, 'Edit', A1=Curriculum(ldx)%Code, &
+          write(device,AFORMAT) trim(cgi_make_href(fnEditCurriculum, 'Edit', A1=Curriculum(ldx)%Code, &
               pre=nbsp, post='</small>'))
       end if
       write(device,AFORMAT) '</li>'
@@ -172,9 +172,9 @@ contains
     end if
     write(device,AFORMAT) nbsp//'<i> '//tStatus//'</i>'//nbsp
     if (isRoleAdmin) then
-        write(device,AFORMAT) trim(cgi_make_href(fnAction, targetUser, tAction, A1=Curriculum(targetCurriculum)%Code, &
+        write(device,AFORMAT) trim(cgi_make_href(fnAction, tAction, A1=Curriculum(targetCurriculum)%Code, &
             pre=nbsp//'<small>', post=nbsp))
-        write(device,AFORMAT) trim(cgi_make_href(fnEditCurriculum, targetUser, 'Edit', A1=Curriculum(targetCurriculum)%Code, &
+        write(device,AFORMAT) trim(cgi_make_href(fnEditCurriculum, 'Edit', A1=Curriculum(targetCurriculum)%Code, &
             pre=nbsp, post='</small>'))
     end if
 
@@ -211,7 +211,7 @@ contains
           n = Curriculum(targetCurriculum)%SubjectIdx(idx)
           write(device,AFORMAT) begintr
           if (isRoleAdmin) then
-            write(device,AFORMAT) trim(cgi_make_href(fnEditSubject, targetUser, Subject(n)%Name, &
+            write(device,AFORMAT) trim(cgi_make_href(fnEditSubject, Subject(n)%Name, &
               A1=Subject(n)%Name, A2=College(targetCollege)%Code, pre=begintd, post=endtd))
           else
             write(device,AFORMAT) begintd//trim(Subject(n)%Name)//endtd
@@ -330,7 +330,6 @@ contains
               if (Term == 0) Year = Year-1
               call cgi_get_named_string(QUERY_STRING, 'Subjects'//trim(itoa(tdx)), mesg, ierr)
 
-              write(*,*) 'GET: ierr=',ierr, ', line= ', trim(mesg)
               if (mesg==SPACE .or. ierr/=0) cycle
 
               call tokenize_subjects(mesg, COMMA, MAX_SECTION_MEETINGS, m, subjectList, ierr)
@@ -425,8 +424,7 @@ write(*,*) 'NumSubst=', NumSubst, ' SubstIdx(.)=', SubstIdx(NumSubst), &
     call html_write_header(device, 'Edit curriculum '//tCurriculum, remark(3:))
 
     write(device,AFORMAT) &
-      '<form name="input" method="post" action="'//CGI_PATH//'">', &
-      '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
+      '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
       '<input type="hidden" name="F" value="'//trim(itoa(fnEditCurriculum))//'">'// &
       '<input type="hidden" name="A1" value="'//trim(tCurriculum)//'">', &
       '<table border="0" width="100%">'

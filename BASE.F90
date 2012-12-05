@@ -32,32 +32,30 @@ module BASE
 
     implicit none
 
-    ! HEEDS root directory
 #if defined GNULINUX
+    ! HEEDS root directory
     character(len=18), parameter :: dirHEEDS = '/home/heeds/HEEDS/'
 #else
-    character(len= 7), parameter :: dirHEEDS = '\HEEDS\'
+    ! HEEDS root directory
+    character(len= 9), parameter :: dirHEEDS = 'C:\HEEDS\'
 #endif
 
     ! CGI script
-    character(len= 9), parameter :: CGI_SCRIPT = 'relay.php'
-    character(len=18), parameter :: CGI_PATH = '/cgi-bin/'//CGI_SCRIPT
+    character(len= 9), parameter :: CGI_SCRIPT = 'heeds.cgi'
 
     ! flags to control generation of log files, backups
-    logical, parameter :: MANY_LOG_FILES = .true. ! a log file for every run?
-    logical, parameter :: DO_NOT_BACKUP = .false. ! create backups?
+    logical, parameter :: MANY_LOG_FILES = .false. ! a log file for every run?
+    logical, parameter :: DO_NOT_BACKUP = .true. ! no backups?
 
     ! directory separator; delete, directory, mkdir commands
 #if defined GNULINUX
     character(len= 1), parameter :: DIRSEP = '/'
     character(len= 6), parameter :: delCmd = 'rm -f '
-    character(len= 9), parameter :: dirCmd = 'dir -1tr '
     character(len= 9), parameter :: mkdirCmd = 'mkdir -p '
     character(len= 6), parameter :: mvCmd = 'mv -f '
 #else
     character(len= 1), parameter :: DIRSEP = '\'
     character(len= 7), parameter :: delCmd = 'del /q '
-    character(len=17), parameter :: dirCmd = 'dir /b /o:d /t:c '
     character(len= 6), parameter :: mkdirCmd = 'mkdir '
     character(len= 8), parameter :: mvCmd = 'move /y '
 #endif
@@ -71,17 +69,12 @@ module BASE
     character(len= 8) :: currentDate ! current date
 
     integer :: stderr = 999 ! unit number of file for error messages
-    integer :: adminPassword = 0 ! randomly generated password for REGISTRAR
-    logical :: checkPassword = .true. ! check the password
 
     ! Max length of file path+name
     integer, parameter :: MAX_LEN_FILE_PATH = 256
 
     ! data & output locations
     character (len=MAX_LEN_FILE_PATH) :: &
-        dirTmp, & ! directory for files to/from CGI script (must be readable/writable by HEEDS & Apache)
-        dirWWW, & ! directory where web pages will be served (must be writable by HEEDS)
-        dirCGI, & ! where CGI script is stored
         dirBak, & ! directory for backup files
         dirLog, & ! directory for log files
         dirSUBSTITUTIONS, & ! directory for input/UNEDITED checklists from Registrar
@@ -93,8 +86,8 @@ module BASE
         dirXML, & ! directory for XML data files
         pathToCurrent, & ! path to files for currentYear+currentTerm
         pathToTarget, &  ! path to files for targetYear+targetTerm
-        pathToSections, &
-        pathToSectionUpdates
+        pathToSOURCE, &
+        pathToUPDATES
 
     ! constants
     character(len= 1), parameter :: &
@@ -103,13 +96,17 @@ module BASE
     character(len=10), parameter :: DECDIGITS = '0123456789'
     character(len=16), parameter :: HEXDIGITS = '0123456789ABCDEF'
     character(len=24), parameter :: SPECIAL = '<>"#%{}|^~[]`;/?:=&$+().'
+    character(len= 2), parameter :: CRLF = achar(13)//achar(10)
+    character(len= 1), parameter :: NUL = achar(0)
 
     ! software version
     character(len= 5), parameter :: PROGNAME =  'HEEDS'
-    character(len= 8), parameter :: VERSION =   ' v.3.22'
+    character(len= 6), parameter :: VERSION =   ' v.4.0'
     character(len=38), parameter :: COPYRIGHT = 'Copyright (C) 2012 Ricolindo L. Carino'
     character(len=38), parameter :: EMAIL =     'Ricolindo.Carino@AcademicForecasts.com'
     character(len=76), parameter :: CONTACT =   'E-mail inquiries about '//PROGNAME//' to '//EMAIL//'.'
+    character(len=31), parameter :: WEB       = 'http://code.google.com/p/heeds/'
+
 
 contains
 
@@ -151,6 +148,20 @@ contains
         end do
         return
     end subroutine upper_case
+
+
+    subroutine lower_case(string)
+        ! change string to lower case
+        character(len=*), intent (inout) :: string
+        integer :: i,length
+        length=len(string)
+        do i=1,length
+            if (string(i:i) .lt. 'A') cycle
+            if (string(i:i) .gt. 'Z') cycle
+            string(i:i) = char(ichar(string(i:i))+32)
+        end do
+        return
+    end subroutine lower_case
 
 
     function atoi(inString)
@@ -453,25 +464,5 @@ contains
     end subroutine move_to_backup
 
 
-    subroutine initialize_random_seed()
-
-        integer :: i, n, clock
-        integer, dimension(:), allocatable :: seed
-
-        ! initialize the random seed based on the system's time.
-        ! (example from http://gcc.gnu.org/onlinedocs/gfortran/RANDOM_005fSEED.html#RANDOM_005fSEED)
-        call random_seed(size = n)
-        allocate(seed(n))
-
-        call system_clock(count=clock)
-
-        seed = clock + 37 * (/ (i - 1, i = 1, n) /)
-        call random_seed(put = seed)
-
-        deallocate(seed)
-
-        return
-    end subroutine initialize_random_seed
-  
 end module BASE
 

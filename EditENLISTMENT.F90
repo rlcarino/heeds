@@ -106,8 +106,7 @@ contains
     else
 
       write(device,AFORMAT) &
-        '<form name="input" method="post" action="'//CGI_PATH//'">', &
-        '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
+        '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
         '<input type="hidden" name="F" value="'//trim(itoa(fnGradeSheet))//'">', &
         '<input type="hidden" name="A1" value="'//trim(tClassId)//'">'
 
@@ -363,7 +362,7 @@ contains
     !write(device,AFORMAT) '<hr>'
 
     call list_sections_to_edit(device, Section, tLen1, tArray, fnChangeMatriculation, tStdNo, 'Del', allowed_to_edit, &
-      '<b>Enlisted subjects</b> '//nbsp//trim(cgi_make_href(fnPrintableSchedule, targetUser, 'Printable', &
+      '<b>Enlisted subjects</b> '//nbsp//trim(cgi_make_href(fnPrintableSchedule, 'Printable', &
       A1=tStdNo, pre='<small>(', post=')</small>')) )
     call timetable_display(device, Section, TimeTable)
 
@@ -477,7 +476,7 @@ contains
           call list_sections_to_edit(device, Section, tLen2, tArray(tLen1+1), fnChangeMatriculation, tStdNo, 'Prerog', &
             allowed_to_edit, '<a name="'//trim(tSubject)//'"></a><br><b>"TEACHER''S PREROGATIVE" sections in '// &
             trim(tSubject)//' that fit existing schedule, sorted by undesirability.</b>')
-          write(device,AFORMAT) trim(cgi_make_href(fnScheduleOfClasses, targetUser, &
+          write(device,AFORMAT) trim(cgi_make_href(fnScheduleOfClasses, &
               'here', A1=Department(Subject(crse)%DeptIdx)%Code, &
               pre='(The '//trim(tSubject)//' sections are ', post=')<br>', anchor=tSubject))
 
@@ -808,7 +807,7 @@ contains
       !  n_matches, '/'(blk)%NumClasses, ' matches, from ', &
       !  Preenlisted(targetStudent)%lenSubject, ' feasible subjects of '//Student(targetStudent)%StdNo
       write(device,AFORMAT) begintr// &
-        begintd//trim(cgi_make_href(fnBlockSchedule, targetUser, Block(blk)%BlockID, A1=Block(blk)%BlockID))//endtd// &
+        begintd//trim(cgi_make_href(fnBlockSchedule, Block(blk)%BlockID, A1=Block(blk)%BlockID))//endtd// &
         begintd//trim(itoa(n_matches))//SPACE//fslash//SPACE//trim(itoa(Block(blk)%NumClasses))//endtd// &
         begintd
       matched = .false.
@@ -838,7 +837,7 @@ contains
                   begintr//tdnbspendtd//tdnbspendtd//begintd ! new row with first 2 columns empty
         end if
       end do
-      write(device,AFORMAT) trim(cgi_make_href(fnChangeMatriculation, targetUser, 'Enlist', A1=tStdNo, A2='Block', &
+      write(device,AFORMAT) trim(cgi_make_href(fnChangeMatriculation, 'Enlist', A1=tStdNo, A2='Block', &
         A3=Block(blk)%BlockID, pre=nbsp, post=endtd//endtr))
     end do
     if (n_blks==0) then

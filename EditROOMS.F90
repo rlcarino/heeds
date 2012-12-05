@@ -176,14 +176,14 @@ contains
 #endif
               write(device,AFORMAT) begintr//begintd//trim(Room(rdx)%Code)
               if (isRoleAdmin .or. (isRoleChair .and. Room(rdx)%DeptIdx==DeptIdxUser)) then
-                write(device,AFORMAT) trim(cgi_make_href(fnEditRoom, targetUser, 'Edit', &
+                write(device,AFORMAT) trim(cgi_make_href(fnEditRoom, 'Edit', &
                   A1=QUERY_put, pre=nbsp//'<small>', post='</small>'))
               end if
               write(device,AFORMAT) &
                 endtd//tdaligncenter//trim(itoa(Room(rdx)%Cluster))//endtd// &
                 tdaligncenter//trim(itoa(Room(rdx)%MaxCapacity))//endtd
               !if (nsect>0) then
-                write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnRoomSchedule, targetUser, itoa(nsect), &
+                write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnRoomSchedule, itoa(nsect), &
                   A1=QUERY_put, pre=tdaligncenter, post=endtd))
               !else
               !  write(device,AFORMAT) tdaligncenter//trim(itoa(nsect))//endtd
@@ -242,8 +242,8 @@ contains
                             end do
                             mesg = 'Deleted '//tClassId
                     end if
-                    call xml_write_sections(pathToSections, NumSections, Section, 0)
-                    call xml_write_sections(pathToSectionUpdates, NumSections, Section, LoadFromDept)
+                    call xml_write_sections(pathToSOURCE, NumSections, Section, 0)
+                    call xml_write_sections(pathToUPDATES, NumSections, Section, LoadFromDept)
             end if
     end if
 
@@ -298,9 +298,8 @@ contains
 
     ! search for feasible classes in another department?
     write(device,AFORMAT) &
-        '<br><form name="input" method="post" action="'//CGI_PATH//'">', &
+        '<br><form name="input" method="post" action="'//CGI_SCRIPT//'">', &
         '<input type="hidden" name="F" value="'//trim(itoa(fnOFFSET+fnRoomSchedule))//'">', &
-        '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
         '<input type="hidden" name="A1" value="'//trim(tRoom)//'">'
 
 
@@ -430,8 +429,7 @@ contains
     call html_write_header(device, 'Edit room '//tRoom, remark(3:))
 
     write(device,AFORMAT) &
-      '<form name="input" method="post" action="'//CGI_PATH//'">', &
-      '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
+      '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
       '<input type="hidden" name="F" value="'//trim(itoa(fnEditRoom))//'">'// &
       '<input type="hidden" name="A1" value="'//trim(tRoom)//'">', &
       '<table border="0" width="100%">'

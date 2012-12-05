@@ -645,8 +645,7 @@ contains
         if (isRoleAdmin .or. (isRoleSRE .and. CurrProgCode(CurriculumIdxUser)==CurrProgCode(targetCurriculum) ) ) then
             if (lenSubject>0) then
                 write(device,AFORMAT) &
-                    '<form name="input" method="post" action="'//CGI_PATH//'">', &
-                    '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
+                    '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
                     '<input type="hidden" name="earned" value="'//trim(itoa(Advice%UnitsEarned))//'">', &
                     '<input type="hidden" name="classification" value="'//trim(itoa(Advice%StdClassification))//'">', &
                     '<input type="hidden" name="year" value="'//trim(itoa(Advice%StdYear))//'">', &
@@ -699,8 +698,7 @@ contains
                 trim(text_student_curriculum(targetStudent))// &
                 '<br><b>REVISE PREDICTION for '//txtSemester(targetTerm+6)// &
                 ' Semester '//trim(itoa(targetYear))//dash//trim(itoa(targetYear+1))//'</b>', &
-                '<form name="input" method="post" action="'//CGI_PATH//'">'// &
-                '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">'// &
+                '<form name="input" method="post" action="'//CGI_SCRIPT//'">'// &
                 '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">'// &
                 '<input type="hidden" name="A1" value="'//trim(Student(targetStudent)%StdNo)//'">'
             write(device,AFORMAT) &
@@ -795,8 +793,7 @@ contains
         write(device,AFORMAT) &
             '<a name="Change CURRICULUM"></a><hr>'// &
             trim(text_student_curriculum(targetStudent))// &
-            '<form name="input" method="post" action="'//CGI_PATH//'">', &
-            '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
+            '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
             '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">', &
             '<input type="hidden" name="A1" value="'//trim(Student(targetStudent)%StdNo)//'">', &
             '<b>CHANGE CURRICULUM</b> from '//trim(Curriculum(Student(targetStudent)%CurriculumIdx)%Code)//' to: <br>', &
@@ -836,8 +833,7 @@ contains
         !    write(device,AFORMAT) &
         !      '<a name="ADDITIONAL subject"></a><hr>'// &
         !      trim(text_student_curriculum(targetStudent))// &
-        !      '<form name="input" method="post" action="'//CGI_PATH//'">', &
-        !      '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
+        !      '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
         !      '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">'// &
         !      '<input type="hidden" name="A1" value="'//trim(Student(targetStudent)%StdNo)//'">', &
         !      '<b>ADDITIONAL subject</b>: '//nbsp//' Subject <input name="subject" value="">'//nbsp//, &
@@ -852,8 +848,7 @@ contains
         !    write(device,AFORMAT) &
         !      '<a name="Cancel ADDITIONAL"></a><hr>'// &
         !      trim(text_student_curriculum(targetStudent))// &
-        !      '<form name="input" method="post" action="'//CGI_PATH//'">', &
-        !      '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
+        !      '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
         !      '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">'// &
         !      '<input type="hidden" name="A1" value="'//trim(Student(targetStudent)%StdNo)//'">', &
         !      '<b>Cancel ADDITIONAL subject</b> '//nbsp//' <input type="text" name="subject" value="">'//nbsp//, &
@@ -865,8 +860,7 @@ contains
         write(device,AFORMAT) &
             '<a name="Subject SUBSTITUTION"></a><hr>'// &
             trim(text_student_curriculum(targetStudent))// &
-            '<form name="input" method="post" action="'//CGI_PATH//'">', &
-            '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
+            '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
             '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">'// &
             '<input type="hidden" name="A1" value="'//trim(Student(targetStudent)%StdNo)//'">', &
             '<b>Subject SUBSTITUTION</b>: Enter the required and substitute subjects'// &
@@ -892,8 +886,7 @@ contains
         write(device,AFORMAT) &
             '<a name="Cancel SUBSTITUTION"></a><hr>'// &
             trim(text_student_curriculum(targetStudent))// &
-            '<form name="input" method="post" action="'//CGI_PATH//'">', &
-            '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
+            '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
             '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">'// &
             '<input type="hidden" name="A1" value="'//trim(Student(targetStudent)%StdNo)//'">', &
             '<b>Cancel SUBSTITUTION for subject</b> '//nbsp//' <input type="text" name="subject" value="">'//nbsp, &
@@ -902,8 +895,7 @@ contains
         call checklist_page_links(device) !, .true.)
 
         !    ! change grade
-        !    write(device,AFORMAT) '<form name="input" method="post" action="'//CGI_PATH//'">', &
-        !      '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
+        !    write(device,AFORMAT) '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
         !      '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">'// &
         !      '<input type="hidden" name="A1" value="'//trim(Student(targetStudent)%StdNo)//'">', &
         !      '<b>Change grade</b>: '//nbsp//' Subject <input name="subject" value="">'//nbsp//, &
@@ -925,8 +917,7 @@ contains
 
         write(device,AFORMAT) &
             '<a name="Change GRADE"></a><hr>'// &
-            '<form name="input" method="post" action="'//CGI_PATH//'">', &
-            '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
+            '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
             '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">'// &
             '<input type="hidden" name="A1" value="'//trim(Student(std)%StdNo)//'">', &
             '<b>CHANGE OF GRADE</b> for '// trim(text_student_curriculum(std)), &
@@ -1022,8 +1013,7 @@ contains
 
         write(device,AFORMAT) &
             '<a name="Update ELECTIVE"></a><hr>'// &
-            '<form name="input" method="post" action="'//CGI_PATH//'">'// &
-            '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
+            '<form name="input" method="post" action="'//CGI_SCRIPT//'">'// &
             '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">'// &
             '<input type="hidden" name="A1" value="'//trim(Student(std)%StdNo)//'">', &
             '<b>PLAN OF STUDY update form</b> for '// trim(text_student_curriculum(std)), &

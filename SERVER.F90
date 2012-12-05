@@ -41,197 +41,141 @@ module SERVER
     use DEMAND
     use REPORTS
 
+    use ISO_C_BINDING
+
     implicit none
 
-    integer, parameter :: sleep_time = 2 ! if there are no active users
 
+    interface
+
+        ! The function to accept a request from the webserver
+        function FCGI_Accept () bind(C, NAME='FCGI_Accept')
+            use ISO_C_BINDING
+            implicit none
+            integer(C_INT) :: FCGI_Accept
+        end function FCGI_Accept
+
+        ! The function to retrieve POSTed data
+        function FCGI_getchar () bind(C, NAME='FCGI_getchar')
+            use ISO_C_BINDING
+            implicit none
+            character(C_CHAR) :: FCGI_getchar
+        end function FCGI_getchar
+
+        ! The function to write back to the webserver
+        function FCGI_puts (s) bind(C, NAME='FCGI_puts')
+            use ISO_C_BINDING
+            implicit none
+            integer(C_INT) :: FCGI_puts
+            character(C_CHAR), dimension(*) :: s
+        end function FCGI_puts
+
+    end interface
 
 contains
 
 
-    subroutine server_start()
+    subroutine server_loop()
 
-        integer :: active_users
-  
-        ! loop until the file "stopped" exists
-        ! this file is created when 'Stop PROGNAME' is selected by REGISTRAR
-        do while (access('stopped', 'rw') .ne. 0) ! stopped exists?
+        ! for POSTed data
+        character(len=1) :: ch
+        character(len=10) :: contentLength
 
-            call server_check_mailbox(2, active_users)
-            if (active_users == 0) then ! no mailboxes
-                call sleep (sleep_time)
+        integer :: nChars, ierr, device, nHits
+
+        ! Counter for requests
+        nHits = 0
+
+        ! open a 'scratch' response file
+        device = max(10, getpid()) ! unit number for response file
+        open(unit=device, form='formatted', file='/tmp/'//itoa(device)) !status='scratch')
+
+        do while (FCGI_Accept() >= 0)
+
+            ! rewind the response file
+            rewind (device)
+
+            ! Tell the webserver to expect text/html
+            nChars = FCGI_puts ('Content-type: text/html'//CRLF//NUL)
+
+            ! Request method was GET ?
+            call get_environment_variable('QUERY_STRING', QUERY_STRING)
+            nChars = len_trim(QUERY_STRING)
+            if (nChars==0) then
+                ! Request method was POST ?
+                call get_environment_variable('CONTENT_LENGTH', contentLength)
+                nChars = len_trim(contentLength)
+                QUERY_STRING = SPACE
+                if (nChars>0) then
+                    nChars = atoi(contentLength)
+                    do ierr=1,nChars
+                        ch = FCGI_getchar()
+                        QUERY_STRING(ierr:ierr) = ch
+                    end do
+                !else  ! not GET nor POST
+                end if
             end if
 
-        end do
-        call unlink('stopped', active_users)
-        return
+            ! append query to log file
+            nHits = nHits + 1
+            call file_log_message ('Request '//trim(itoa(nHits))//': '//trim(QUERY_STRING))
 
-    end subroutine server_start
-  
-  
-    subroutine server_end(msg)
+            call server_respond(device)
 
-        character(len=*), intent (in) :: msg
+            ! Flush all writes to the response file
+            flush(device)
 
-        call date_and_time (date=currentDate,time=currentTime)
-        call file_log_message(msg, 'Ends '//currentDate//dash//currentTime(1:4) )
-        close(stderr)
-        write(*,*) 'Check the latest .log file in '//trim(dirLog)//' for other messages.'
-        stop
-    end subroutine server_end
+            ! copy to FCGI's stdout
+            rewind(device)
+            do while (.true.)
 
+                read(device ,AFORMAT,iostat=ierr) QUERY_STRING
+                if (ierr < 0) exit ! no more lines
 
-    subroutine server_check_mailbox(actionIndex, activeUsers)
-
-        integer, intent(in) :: actionIndex
-        integer, intent(out) :: activeusers
-
-        integer :: ierr, pos, t_unit, sarray(13)
-        character (len=MAX_LEN_FILE_PATH) :: tLine, mailBox, responseFile
-
-        ! make a list of mailboxes
-        activeUsers = 0
-        call system(dirCmd//trim(dirTmp)//' > mailboxes', ierr)
-        !write(*,*) 'dir *.mbox: ', ierr
-        ierr = stat('mailboxes', sarray)
-        !write(*,*) 'stat mailboxes: ', ierr
-
-        ! any mailboxes ?
-        if (ierr .eq. 0 .and. sarray(8) .gt. 0) then
-
-            open(unit=8, file='mailboxes', status='unknown', form='formatted', iostat=ierr)
-            !write(*,*) 'open mailBox: ', ierr
-
-            ! loop through mailboxes
-            do while (ierr==0)
-
-                read(8,AFORMAT,iostat=ierr) tLine
-                if (ierr .lt. 0) then ! no more mailboxes
-                    close(8)
-                    exit
-                end if
-
-                ! a mailBox?
-                if (index(tLine, '.mbox') == 0) cycle
-                !write(*,*) trim(tLine)
-
-                ! initialize
-                QUERY_STRING = SPACE
-                REMOTE_ADDR = SPACE
-
-                ! form path to response
-                mailBox = trim(dirTmp)//tLine
-
-                ! extract name of response file by stripping '.mbox'
-                pos = len_trim(tLine)
-                responseFile = trim(dirTmp)//tLine(:pos-5)
-                !write(*,*)  trim(responseFile)
-
-                ! make a copy of timestamp & IP address
-                UserList(0)%lastQUERY = tLine(:pos-5)
-
-                ! extract REMOTE_ADDRESS
-                pos = len_trim(responseFile)-1
-                do while (responseFile(pos:pos)/=dash)
-                    pos = pos-1
-                end do
-                REMOTE_ADDR = responseFile(pos+1:)
-
-                ! open mailBox
-                t_unit = 100+activeUsers
-                open(unit=t_unit, file=mailBox, form='formatted', iostat=ierr)
-                !write(*,*) 'open : ', ierr
-                if (ierr .lt. 0) then
-                    ierr = 0
-                    cycle
-                end if
-
-                ! read QUERY
-                read(t_unit,AFORMAT, iostat=ierr) QUERY_STRING
-                !write(*,*) 'read : ', ierr
-                if (ierr .lt. 0) then
-                    ierr = 0
-                    cycle
-                end if
-                close(t_unit)
-
-                ! remove quotes
-                pos = len_trim(QUERY_STRING)
-                QUERY_STRING = QUERY_STRING(2:pos-1)
-
-                ! de-obfuscate?
-                if (QUERY_STRING(1:4)=='GET:') then ! METHOD=GET
-                    QUERY_STRING = QUERY_STRING(5:) ! remove initial "GET:"
-                    call cgi_obfuscate(QUERY_STRING)
-                end if
-
-                ! append query to log file
-                call file_log_message ('Request: '//trim(tLine)//'?'//trim(QUERY_STRING))
-
-                ! make a copy QUERY
-                UserList(0)%lastQUERY = trim(UserList(0)%lastQUERY)//'?'//QUERY_STRING
-
-                ! respond
-                select case (actionIndex)
-
-                    case (1) ! response to stale requests
-                        call html_login(responseFile, mesg=PROGNAME//' is undergoing maintenance. Please try again later.')
-
-                    case (2) ! response to current requests
-                        call server_respond(responseFile)
-                        ! reset available features (in case objects were added or deleted)
-                        call set_feature_availability()
-
-                end select
-
-                ! write lock
-                call write_lock_file(responseFile)
-
-                ! delete mailBox
-                call unlink(mailBox, ierr)
-
-                ! increment counter for active users
-                activeUsers = activeUsers + 1
+                ! FCGI expects NULL terminated strings
+                nChars = FCGI_puts (trim(QUERY_STRING)//NUL)
 
             end do
 
-        end if
+            if (REQUEST==fnStopProgram) exit
+
+            ! reset available features (in case objects were added or deleted)
+            call set_feature_availability()
+
+        end do ! while (FCGI_Accept() >= 0)
+        close(device)
 
         return
-    end subroutine server_check_mailbox
+
+    end subroutine server_loop
 
 
-    subroutine server_respond (fname)
-        character(len=*), intent (in) :: fname
-        integer :: ierr, device, logoutUSERidx
-        character(len=10) :: submitButton
-        character (len=MAX_LEN_USER_CODE) :: logoutUSER
+    subroutine server_respond (device)
+        integer, intent (in) :: device
 
-        !write(*,*) trim(fname), '?', trim(QUERY_STRING)
+        integer :: ierr
 
         ! Establish REQUESTed function; initialize arguments
         call cgi_get_named_integer(QUERY_STRING, 'F', REQUEST, ierr)
-        if (REQUEST==fnStopProgram) then
-            call cgi_get_named_string(QUERY_STRING, 'A', submitButton, ierr)
-            if (trim(submitButton)=='Logout') then
-                REQUEST = fnStopUser
-            end if
-        end if
+
+        ! if no REQUESTED funtion, return the landing page
+        if (ierr==-1) REQUEST = fnLogin
 
         ! set TermQualifier to next semester if REQUEST uses data for next semester
         if (REQUEST>=fnNextScheduleOfClasses) then
             fnOFFSET = fnNextOffset
             TermQualifier = green//trim(txtSemester(targetTerm+3))//' Semester, SY '// &
                 trim(itoa(targetYear))//dash//itoa(targetYear+1)//black
-            pathToSections = pathToTarget
-            pathToSectionUpdates = 'updates-to-classes'//DIRSEP//pathToTarget
+            pathToSOURCE = pathToTarget
+            pathToUPDATES = 'UPDATES'//DIRSEP//pathToTarget
         else
             fnOFFSET = 0
             TermQualifier = SPACE
-            pathToSections = pathToCurrent
-            pathToSectionUpdates = 'updates-to-classes'//DIRSEP//pathToCurrent
+            pathToSOURCE = pathToCurrent
+            pathToUPDATES = 'UPDATES'//DIRSEP//pathToCurrent
         end if
 
+        ! target object of REQUESTed function
         targetStudent = 0
         targetSubject = 0
         targetSection = 0
@@ -242,107 +186,16 @@ contains
         targetBlock = 0
 
         ! Establish ROLE
-        call cgi_get_named_integer(QUERY_STRING, 'U', targetUser, ierr)
-        if (targetUser<1 .or. targetUser>NumUsers) then
-            call html_login(fname, mesg='Please select a user role.')
-            return
-        end if
-        USER = UserList(targetUser)%Code
-        isRoleAdmin = .false.
-        isRoleSRE = .false.
-        isRoleChair = .false.
-        DeptIdxUser = UserList(targetUser)%DeptIdx
-        CollegeIdxUser = UserList(targetUser)%CollegeIdx
-        CurriculumIdxUser = UserList(targetUser)%CurriculumIdx
-        if (trim(USER)==REGISTRAR) then
-            isRoleAdmin = .true.
-        elseif (UserList(targetUser)%Role==2) then
-            isRoleSRE = .true.
-        elseif (UserList(targetUser)%Role==1) then
-            isRoleChair = .true.
-        end if
-
-        ! copy from UserList(0), set in server_check_mailbox()
-        UserList(targetUser)%lastQUERY = UserList(0)%lastQUERY
-
-        ! STOP the program by admin?
-        if (REQUEST==fnStopProgram) then ! reset session
-            if (isRoleAdmin .and. REMOTE_ADDR==AdminIP) then
-                UserList(targetUser)%Session = -1
-                if (isDirtySTUDENTS) then
-                    call xml_write_students(pathToCurrent, 0)
-                    isDirtySTUDENTS = .false.
-                end if
-                ! write 'Sorry!' page for incoming requests
-                call html_sorry(trim(dirWWW)//DIRSEP//'index.html', 'The '//PROGNAME//' back-end program is not running?')
-                call html_sorry(fname, 'The stop signal was sent to '//PROGNAME)
-                call system('echo stop > stopped')
-                return
-            end if
-
-        ! logging out ?
-        else if (REQUEST==fnStopUser) then ! reset session
-            UserList(targetUser)%Session = -1
-            if (isDirtySTUDENTS) then
-                call xml_write_students(pathToCurrent, 0)
-                isDirtySTUDENTS = .false.
-            end if
-            call html_login(fname)
-            return
-
-        ! logging in, but already has an ongoing session? (multiple logins)
-        else if (REQUEST==fnLogin) then
-            if (UserList(targetUser)%Session/=-1) then ! true=logged in
-                call html_login(fname, mesg=trim(USER)//' has an ongoing session at IP address '// &
-                    trim(REMOTE_ADDR)//'. Please logout that session first.')
-                return
-            else
-                ! check password if REGISTRAR
-                if (isRoleAdmin) then
-                    if (checkPassword) then
-                        call cgi_get_named_integer(QUERY_STRING, 'P', device, ierr)
-                        if (device/=adminPassword) then
-                            call html_login(fname, mesg='Password is incorrect.')
-                            return
-                        end if
-                    end if
-                    ! remember IP address where REGISTRAR logs in
-                    AdminIP = REMOTE_ADDR
-                end if
-                UserList(targetUser)%Session = 0
-            end if
-
-        ! already logged out but request is not fnLogin? (old page submitted)
-        else if (REQUEST/=fnLogin) then
-            if (UserList(targetUser)%Session==-1) then ! true=logged out
-                call html_login(fname, mesg='Already logged out. Please login again.')
-                return
-            else
-                UserList(targetUser)%Session = 0
-            end if
-        end if
-
-        ! someone pretending to be REGISTRAR from a different IP?
-        if (isRoleAdmin .and. REMOTE_ADDR/=AdminIP) then
-            call html_login(fname)
-            return
-        end if
-
-        ! Open and write HTML headers to the response file (fname)
-        device = 100+REQUEST
-        call open_for_write(device, fname)
+        !call cgi_get_named_integer(QUERY_STRING, 'U', USER, ierr)
+        ! hardcode USER to Registrar for now
+        USER = REGISTRAR
+        call get_user_info()
 
         ! Write response to REQUEST
         select case (REQUEST)
 
             case (fnLogin)
                 call html_college_links(device, CollegeIdxUser)
-
-            case (fnStopUserByAdmin)
-                call cgi_get_named_string(QUERY_STRING, 'A1', logoutUSER, ierr)
-                logoutUSERidx = index_to_user(logoutUSER)
-                UserList(logoutUSERidx)%Session = -1
-                call html_college_links(device, CollegeIdxUser, mesg='Forcibly logged out '//logoutUSER)
 
             case (fnToggleTrainingMode)
                 noWrites = .not. noWrites
@@ -417,7 +270,7 @@ contains
                     NumCurrentBlocks, CurrentBlock)
 
             case (fnBlockSchedule, fnBlockDeleteName, fnBlockEditName, fnBlockCopy, fnBlockDeleteAll, &
-                    fnBlockEditSection, fnBlockEditSubject)
+                fnBlockEditSection, fnBlockEditSubject)
                 call block_show_schedule(device, NumCurrentSections, CurrentSection, CurrentOffering, &
                     NumCurrentBlocks, CurrentBlock, REQUEST)
 
@@ -523,7 +376,7 @@ contains
                     NumNextBlocks, NextBlock)
 
             case (fnNextBlockSchedule, fnNextBlockDeleteName, fnNextBlockEditName, fnNextBlockCopy, &
-                    fnNextBlockDeleteAll, fnNextBlockEditSection, fnNextBlockEditSubject)
+                fnNextBlockDeleteAll, fnNextBlockEditSection, fnNextBlockEditSubject)
                 call block_show_schedule(device, NumNextSections, NextSection, NextOffering, &
                     NumNextBlocks, NextBlock, REQUEST)
 
@@ -534,12 +387,23 @@ contains
                 call block_add(device, nextTerm, NumNextSections, NextSection, NextOffering, &
                     NumNextBlocks, NextBlock)
 
+            case (fnStopProgram)
+                if (isDirtySTUDENTS) then
+                    call xml_write_students(pathToCurrent, 0)
+                end if
+                targetCollege = CollegeIdxUser
+                targetDepartment = DeptIdxUser
+                TermQualifier = SPACE
+
+                call html_write_header(device, SPACE, &
+                    '<hr>The stop signal was sent to the '//PROGNAME//' program.')
+
             case default
                 targetCollege = CollegeIdxUser
                 targetDepartment = DeptIdxUser
                 TermQualifier = SPACE
-                call html_write_header(device, 'Functionality not available', &
-                    '<br><hr>The functionality you requested is not available in this version of '//PROGNAME//' .')
+                call html_write_header(device, SPACE, &
+                    '<hr>The functionality you requested is not available in this version of '//PROGNAME//'.')
 
         end select
 
@@ -547,6 +411,18 @@ contains
 
         return
     end subroutine server_respond
+
+
+    subroutine server_end(msg)
+
+        character(len=*), intent (in) :: msg
+
+        call date_and_time (date=currentDate,time=currentTime)
+        call file_log_message(msg, 'Ends '//currentDate//dash//currentTime(1:4) )
+        close(stderr)
+        write(*,*) 'Check the latest .log file in '//trim(dirLog)//' for other messages.'
+        stop
+    end subroutine server_end
 
 
     subroutine object_search (device)
@@ -587,8 +463,8 @@ contains
                     call room_list_all (device, NumNextSections, NextSection, REQUEST)
 
                 case default
-                    call html_write_header(device, 'Functionality not available', &
-                    '<br><hr>The functionality you requested is not available in this version of '//PROGNAME//' .')
+                    call html_write_header(device, SPACE, &
+                        '<hr>The functionality you requested is not available in this version of '//PROGNAME//'.')
 
             end select
         end if
@@ -641,8 +517,7 @@ contains
 
         call html_write_header(device, 'Add a student')
         write(device,AFORMAT) &
-            '<form name="input" method="post" action="'//CGI_PATH//'">', &
-            '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
+            '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
             '<input type="hidden" name="F" value="'//trim(itoa(fnStudentAdd))//'">', &
             '<table border="0" width="100%" cellpadding="0" cellspacing="0">'
         ! student number

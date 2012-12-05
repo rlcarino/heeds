@@ -40,12 +40,14 @@
 #DELCMD = del
 ##DELCMD = rm -f
 #URLENCODE = -DDO_NOT_ENCODE
+#FCGIOPTS = 
 
 OS = GNULINUX
 DESTDIR = /home/heeds/HEEDS/bin
 EXT = GLNX
 DELCMD = rm -f
 URLENCODE = -DDO_NOT_ENCODE
+FCGIOPTS = /home/heeds/fcgi-2.4.1/libfcgi/.libs/libfcgi.so -lnsl -Wl,--rpath -Wl,/usr/local/lib
 
 #---------------------------------------------------------------
 # raw data format & debugging flags 
@@ -90,7 +92,7 @@ help:
 all:	HEEDS
 
 HEEDS:	$(COMMON) $(INTERACTIVE)
-	$(FC) $(COMMON) $(INTERACTIVE) -o $(DESTDIR)/HEEDS-$(EXT)
+	$(FC) $(COMMON) $(INTERACTIVE) -o $(DESTDIR)/HEEDS-$(EXT) $(FCGIOPTS)
 
 BASE.o:	Makefile
 

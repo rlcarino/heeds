@@ -35,11 +35,10 @@ program MAIN
 
     implicit none
 
-    integer :: activeUsers, itmp, errNo
+    integer :: itmp, errNo
     integer :: idxGrp=-1, maxAlternates=-1
     character (len=MAX_LEN_FILE_PATH) :: dataSource
     character (len=40) :: argString
-    real :: harvest
 
     ! 4+ arguments ?
     iTmp = iargc()
@@ -58,13 +57,6 @@ program MAIN
     ! program starts
     call date_and_time (date=currentDate,time=currentTime)
 
-    ! initialize random seed
-    call initialize_random_seed()
-
-    ! generate password for REGISTRAR
-    call RANDOM_NUMBER(harvest)
-    adminPassword = int(1.0E8*harvest)
-
     ! get arguments
     call getarg(1, UniversityCode)
     call getarg(2, argString)
@@ -77,7 +69,6 @@ program MAIN
     ! default mode
     argString = 'TRAINING'
     noWrites = .true.
-    checkPassword = .false.
 
     if (iTmp>4) then
         call getarg(5, argString)
@@ -114,7 +105,6 @@ program MAIN
 
             case ('SERVER')
                 noWrites = .false.
-                checkPassword = .true. ! true if production version
 
             case ('TRAINING')
 
@@ -170,9 +160,6 @@ program MAIN
     end if
 
     ! fixed directories
-    dirWWW                 = dirHEEDS//'web'//DIRSEP ! DocumentRoot in Apache
-    dirCGI                 = dirHEEDS//'cgi'//DIRSEP ! Alias to /cgi-bin in Apache
-    dirTmp                 = dirHEEDS//'tmp'//DIRSEP ! where the CGI script communicates with HEEDS
     dirBak                 = dirHEEDS//'bak'//DIRSEP ! for backup files
     dirLog                 = dirHEEDS//'log'//DIRSEP ! for log files
     dirUploadCHECKLISTS    = dirHEEDS//'web'//DIRSEP//'static'//DIRSEP//'upload-checklists'//DIRSEP ! individual checklists for upload
@@ -192,10 +179,10 @@ program MAIN
     dirEditedCHECKLISTS    = trim(dirXML)//'edited-checklists'//DIRSEP ! for output/EDITED checklists from College Secretaries
 
     call system (mkdirCmd//trim(dirXML)//trim(pathToCurrent))
-    call system (mkdirCmd//trim(dirXML)//'updates-to-classes'//DIRSEP//trim(pathToCurrent))
+    call system (mkdirCmd//trim(dirXML)//'UPDATES'//DIRSEP//trim(pathToCurrent))
     if (currentTerm/=targetTerm) then
         call system (mkdirCmd//trim(dirXML)//trim(pathToTarget))
-        call system (mkdirCmd//trim(dirXML)//'updates-to-classes'//DIRSEP//trim(pathToTarget))
+        call system (mkdirCmd//trim(dirXML)//'UPDATES'//DIRSEP//trim(pathToTarget))
     end if
     call system (mkdirCmd//trim(dirSUBSTITUTIONS))
     call system (mkdirCmd//trim(dirTRANSCRIPTS))
@@ -204,14 +191,11 @@ program MAIN
     ! backup directories
     dataSource = trim(dirBak)//trim(UniversityCode)//DIRSEP ! //currentDate//dash//currentTime(:6)//DIRSEP
     call system (mkdirCmd//trim(dataSource)//trim(pathToCurrent) )
-    call system (mkdirCmd//trim(dataSource)//'updates-to-classes'//DIRSEP//trim(pathToCurrent) )
+    call system (mkdirCmd//trim(dataSource)//'UPDATES'//DIRSEP//trim(pathToCurrent) )
     if (currentTerm/=targetTerm) then
         call system (mkdirCmd//trim(dataSource)//trim(pathToTarget) )
-        call system (mkdirCmd//trim(dataSource)//'updates-to-classes'//DIRSEP//trim(pathToTarget) )
+        call system (mkdirCmd//trim(dataSource)//'UPDATES'//DIRSEP//trim(pathToTarget) )
     end if
-
-    ! delete lock files from requests received while application was not running
-    call system(delCmd//trim(dirTmp)//'*.lock', errNo)
 
     if (MANY_LOG_FILES) then
         open(unit=stderr, file=trim(dirLOG)//currentDate//dash//currentTime(:7)//'log', status='replace')
@@ -427,34 +411,11 @@ program MAIN
 
         case ('SERVER', 'TRAINING')
 
-            call create_user_names()
-            call file_log_message('# predefined users ='//itoa(NumUsers))
-
             ! everything is clean for now
             isDirtySTUDENTS = .false.
 
             ! set available functions
             call set_feature_availability()
-
-            ! make the login page
-            call html_login(trim(dirWWW)//DIRSEP//'index.html')
-
-            ! write the CGI script, change "\" to "/"
-            QUERY_STRING = dirTmp
-            do iTmp=1,len_trim(dirTmp)
-                if (QUERY_STRING(iTmp:iTmp)==bslash) QUERY_STRING(iTmp:iTmp) = fslash
-            end do
-            call cgi_write_script(trim(dirCGI)//CGI_SCRIPT, trim(QUERY_STRING), '30') ! ('NN' seconds to timeout)
-
-            ! invalidate previous requests
-            call server_check_mailbox(1,activeUsers)
-            call file_log_message('# stale requests ='//itoa(activeUsers))
-
-            call file_log_message('# cgi script ='//trim(dirCGI)//CGI_SCRIPT)
-            call file_log_message('# scratch directory ='//trim(dirTmp))
-            if (.not. noWrites) then ! server mode
-                call file_log_message('# administrative password ='//itoa(adminPassword))
-            end if
 
             call file_log_message('The '//PROGNAME//' back-end program is ready.')
             if (noWrites) then ! training mode
@@ -462,13 +423,8 @@ program MAIN
             end if
 
             ! start of server loop
-            call server_start()
-
-            ! server loop has exited; remove CGI script
-            !call unlink(trim(dirCGI)//CGI_SCRIPT)
-
-            ! server loop has exited; make CGI script say sorry
-            call cgi_write_sorry(trim(dirCGI)//CGI_SCRIPT)
+            call server_loop()
+            ! server loop has exited
 
         case default
 

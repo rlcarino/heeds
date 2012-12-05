@@ -525,8 +525,7 @@ contains
                 gdx = index_to_grade(tGrade)
                 if (gdx<0) then
                     call file_log_message ('Invalid grade - '//line)
-                    tGrade = 'REGD'
-                    gdx = index_to_grade(tGrade)
+                    gdx = gdxREGD
                 end if
             end if
             preRegistered%Grade(k) = gdx

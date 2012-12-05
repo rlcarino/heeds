@@ -149,26 +149,10 @@ module USERFUNCTIONS
     logical, dimension(0:fnStopProgram) :: available ! modified in set_feature_availability()
     ! assume all functions are available throughout the term
 
-
-    ! users
-    integer, parameter :: &
-    MAX_LEN_USER_CODE = MAX_LEN_CURRICULUM_CODE, &
-    MAX_LEN_USER_NAME = MAX_LEN_CURRICULUM_NAME, &
-    MAX_ALL_USERFUNCTIONS=4*MAX_ALL_CURRICULA+MAX_ALL_COLLEGES
-    type :: typeUSER
-        character (len=MAX_LEN_USER_CODE) :: Code
-        character (len=MAX_LEN_USER_NAME) :: Name
-        character (len=MAX_QUERY_STRING_LEN) :: lastQUERY
-        integer :: Role, Session, CollegeIdx, DeptIdx, CurriculumIdx, Year
-    end type typeUSER
-    type (typeUSER), dimension(0:MAX_ALL_USERFUNCTIONS) :: UserList
-    integer :: NumUsers
-
-    ! information about a  user who made a request
+    ! information about a user who made a request
+    integer, parameter :: MAX_LEN_USER_CODE = MAX_LEN_CURRICULUM_CODE
     integer :: DeptIdxUser, CollegeIdxUser, CurriculumIdxUser
     character (len=MAX_LEN_USER_CODE) :: USER
-
-    character(len=20) :: REMOTE_ADDR ! The IP address of the user
     character(len=MAX_QUERY_STRING_LEN) :: QUERY_STRING ! The QUERY
 
     ! the requested server function
@@ -176,7 +160,7 @@ module USERFUNCTIONS
 
     ! the target of the fucntion
     integer :: targetCollege, targetDepartment, targetSubject, targetRoom, targetTeacher, &
-    targetCurriculum, targetStudent, targetBlock, targetSection, targetUser
+    targetCurriculum, targetStudent, targetBlock, targetSection
 
     ! work arrays
     integer :: tArray(max(MAX_ALL_STUDENTS,2*MAX_ALL_SUBJECTS))
@@ -307,92 +291,68 @@ contains
         available(fnDemandFreshmen) = sum(NFintake)>0
 
         ! university-specific customizations
-#if defined UPLB
-#else
-        available(fnStudentsByYear) = .false.
-#endif
 
         return
     end subroutine set_feature_availability
 
 
-    subroutine create_user_names()
-        ! Make list of users
-        integer :: idx, rank, year!, jdx
+    subroutine get_user_info()
 
-        UserList = typeUSER (SPACE,SPACE,SPACE,0,-1,0,0,0,0)
-        NumUsers = 0
-        done = .false.
-        do targetDepartment=2,NumDepartments
-            if (.not. Department(targetDepartment)%hasInfo) cycle
-            NumUsers = NumUsers + 1
-            UserList(NumUsers)%Code = Department(targetDepartment)%Code
-            if (REGISTRAR/=Department(targetDepartment)%Code) then
-                UserList(NumUsers)%Name = trim(Department(targetDepartment)%Code)//' Teaching Load Scheduler'
+        ! establish user info
+        character (len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
+        character (len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
+        character (len=MAX_LEN_STUDENT_CODE) :: tStdNo
+
+        isRoleAdmin = .false.
+        isRoleSRE = .false.
+        isRoleChair = .false.
+        isRoleStudent = .false.
+        isRoleGuest = .false.
+
+        DeptIdxUser = 0
+        CollegeIdxUser = 0
+        CurriculumIdxUser = 0
+
+        if (trim(USER)==REGISTRAR) then
+            isRoleAdmin = .true.
+            tDepartment = USER
+            DeptIdxUser = index_to_dept(tDepartment)
+            CollegeIdxUser = Department(DeptIdxUser)%CollegeIdx
+        else
+            tDepartment = USER
+            targetDepartment = index_to_dept(tDepartment)
+            if (targetDepartment/=0) then
+                isRoleChair = .true.
+                DeptIdxUser = targetDepartment
+                CollegeIdxUser = Department(targetDepartment)%CollegeIdx
             else
-                UserList(NumUsers)%Name = trim(Department(targetDepartment)%Code)//'@'//UniversityCode
-            end if
-            UserList(NumUsers)%Role = 1
-            UserList(NumUsers)%DeptIdx = targetDepartment
-            UserList(NumUsers)%CollegeIdx = Department(targetDepartment)%CollegeIdx
-            UserList(NumUsers)%CurriculumIdx = 0
-        end do
-        ! sort
-        do targetDepartment=1,NumUsers-1
-            do targetCollege=targetDepartment+1,NumUsers
-                if (UserList(targetCollege)%Code<UserList(targetDepartment)%Code) then
-                    UserList(NUmUsers+1) = UserList(targetDepartment)
-                    UserList(targetDepartment) = UserList(targetCollege)
-                    UserList(targetCollege) = UserList(NUmUsers+1)
+                tCurriculum = USER
+                targetCurriculum = index_to_curriculum(tCurriculum)
+                if (targetCurriculum/=0) then
+                    isRoleSRE = .true.
+                    USER = CurrProgCode(targetCurriculum)
+                    CurriculumIdxUser = targetCurriculum
+                    CollegeIdxUser = Curriculum(targetCurriculum)%CollegeIdx
+                    DeptIdxUser = 0
+                else
+                    tStdNo = USER
+                    targetStudent = index_to_student(tStdNo)
+                    if (targetStudent/=0) then
+                        isRoleStudent = .true.
+                        CurriculumIdxUser = Student(targetStudent)%CurriculumIdx
+                        CollegeIdxUser = Curriculum(CurriculumIdxUser)%CollegeIdx
+                        DeptIdxUser = 0
+                    else
+                        USER = SPACE
+                        isRoleGuest = .true.
+                        DeptIdxUser = NumDepartments
+                        CollegeIdxUser = NumColleges
+                    end if
                 end if
-            end do
-        end do
-        idx = NumUsers ! remember departments
-        do targetCollege=1,NumColleges-1
-            do targetCurriculum=1,NumCurricula
-                if (.not. Curriculum(targetCurriculum)%Active) cycle
-                if (Curriculum(targetCurriculum)%CollegeIdx /= targetCollege) cycle
-                if (done(targetCurriculum)) cycle
-                do rank=1,10
-                    NumUsers = NumUsers + 1
-                    UserList(NumUsers)%Code = trim(CurrProgCode(targetCurriculum))//SPACE//itoa3bz(rank)
-                    UserList(NumUsers)%Name = trim(CurrProgCode(targetCurriculum))//' Registration Adviser '//itoa3bz(rank)
-                    UserList(NumUsers)%Role = 2
-                    UserList(NumUsers)%CollegeIdx = targetCollege
-                    UserList(NumUsers)%CurriculumIdx = targetCurriculum
-                    UserList(NumUsers)%Year = rank
-                end do
-                do year=targetCurriculum+1,NumCurricula
-                    if (CurrProgCode(year) == CurrProgCode(targetCurriculum)) done(year) = .true.
-                end do
-            end do
-        end do
-        do targetDepartment=idx+1,NumUsers-1
-            do targetCollege=targetDepartment+1,NumUsers
-                if (UserList(targetCollege)%Code<UserList(targetDepartment)%Code) then
-                    UserList(NUmUsers+1) = UserList(targetDepartment)
-                    UserList(targetDepartment) = UserList(targetCollege)
-                    UserList(targetCollege) = UserList(NUmUsers+1)
-                end if
-            end do
-        end do
-        return
-    end subroutine create_user_names
-
-
-    function index_to_user(token)
-        integer :: index_to_user
-        character (len=MAX_LEN_USER_CODE), intent(in) :: token
-        integer :: i
-        index_to_user = 0
-        do i=1,NumUsers
-            if (token==UserList(i)%Code) then
-                index_to_user = i
-                exit
             end if
-        end do
-        return
-    end function index_to_user
+        end if
 
+        return
+    end subroutine get_user_info
 
 end module USERFUNCTIONS
