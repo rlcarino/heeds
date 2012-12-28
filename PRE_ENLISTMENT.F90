@@ -115,7 +115,7 @@ contains
         ! generate file name
         fileName = trim(dirXML)//trim(path)//basename
         if (filter>0) then
-            fileName = trim(fileName)//dash//trim(CurrProgCode(filter))//'.XML'
+            fileName = trim(fileName)//DASH//trim(CurrProgCode(filter))//'.XML'
         else
             fileName = trim(fileName)//'.XML'
         end if
@@ -365,11 +365,11 @@ contains
         if (noXML) then
             ! try each priority group
             do grp=firstGrp,lastGrp
-                call xml_read_pre_enlistment(path, trim(basename)//dash//itoa(grp), NumSections, Section, eList, &
+                call xml_read_pre_enlistment(path, trim(basename)//DASH//itoa(grp), NumSections, Section, eList, &
                     partialEntries, ierr, QUIETLY)
                 numEntries = numEntries + partialEntries
                 if (partialEntries>0) then ! not empty; move to backup
-                    call move_to_backup(trim(dirXML)//trim(path)//trim(basename)//dash//itoa(grp))
+                    call move_to_backup(trim(dirXML)//trim(path)//trim(basename)//DASH//itoa(grp))
                 end if
             end do
         end if
@@ -378,7 +378,7 @@ contains
             if (numEntries==0) then
                 ! try each priority group
                 do grp=firstGrp,lastGrp
-                    call custom_read_pre_enlistment(path, trim(basename)//dash//itoa(grp), NumSections, Section, eList, &
+                    call custom_read_pre_enlistment(path, trim(basename)//DASH//itoa(grp), NumSections, Section, eList, &
                         partialEntries, ierr)
                     numEntries = numEntries + partialEntries
                 end do
@@ -525,8 +525,7 @@ contains
                 gdx = index_to_grade(tGrade)
                 if (gdx<0) then
                     call file_log_message ('Invalid grade - '//line)
-                    tGrade = 'REGD'
-                    gdx = index_to_grade(tGrade)
+                    gdx = gdxREGD
                 end if
             end if
             preRegistered%Grade(k) = gdx

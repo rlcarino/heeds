@@ -127,7 +127,7 @@ contains
 
                 write(device,AFORMAT) begintr//begintd//'<a name="'//trim(tSubject)//'"><b>Name:</b> '
                 if (isRoleAdmin) then
-                    write(device,AFORMAT) trim(cgi_make_href(fnEditSubject, targetUser, tSubject, A1=tSubject))
+                    write(device,AFORMAT) trim(cgi_make_href(fnEditSubject, tSubject, A1=tSubject))
                 else
                     write(device,AFORMAT) trim(tSubject)
                 end if
@@ -408,14 +408,12 @@ contains
     j = index(tSubject,SPACE)
     if ( j<len_trim(tSubject) ) then
         write(device,AFORMAT) &
-          trim(cgi_make_href(fnSubjectList, targetUser, tSubject(:j-1), A1=tSubject(:j-1), &
+          trim(cgi_make_href(fnSubjectList, tSubject(:j-1), A1=tSubject(:j-1), &
           pre='<small><i>Edit another '//nbsp, post=' subject</i></small>'))
-          
     end if
 
     write(device,AFORMAT) &
       '<form name="input" method="post" action="'//CGI_PATH//'">', &
-      '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
       '<input type="hidden" name="F" value="'//trim(itoa(fnEditSubject))//'">'// &
       '<input type="hidden" name="A1" value="'//trim(tSubject)//'">', &
       '<table border="0" width="100%">'

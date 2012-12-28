@@ -113,7 +113,7 @@ contains
         if (noWrites) return
 
         ! generate file name
-        idx = index(Student(std)%StdNo,dash)-1
+        idx = index(Student(std)%StdNo,DASH)-1
         if (idx<2) idx = 2
         fileName = trim(dirTRANSCRIPTS)//trim(Student(std)%StdNo(1:idx))//DIRSEP//trim(Student(std)%StdNo)//'.XML'
 
@@ -169,7 +169,7 @@ contains
         if (noWrites) return
 
         ! generate file name
-        idx = index(Student(std)%StdNo,dash)-1
+        idx = index(Student(std)%StdNo,DASH)-1
         if (idx<2) idx = 2
         fileName = trim(dirSUBSTITUTIONS)//trim(Student(std)%StdNo(1:idx))//DIRSEP//trim(Student(std)%StdNo)//'.XML'
 
@@ -279,7 +279,7 @@ contains
         end if
 
         ! generate file name
-        idx = index(Student(std)%StdNo,dash)-1
+        idx = index(Student(std)%StdNo,DASH)-1
         if (idx<2) idx = 2
         fileName = trim(dirTRANSCRIPTS)//trim(Student(std)%StdNo(1:idx))//DIRSEP//trim(Student(std)%StdNo)//'.XML'
 
@@ -306,6 +306,7 @@ contains
                     ! do nothing; should not change
 
                 case ('Name')
+                    call upper_case(value)
                     wrkStudent%Name = adjustl(value)
 
                 case ('Gender')
@@ -436,7 +437,7 @@ contains
         end if
 
         ! generate file name
-        idx = index(Student(std)%StdNo,dash)-1
+        idx = index(Student(std)%StdNo,DASH)-1
         if (idx<2) idx = 2
         fileName = trim(dirSUBSTITUTIONS)//trim(Student(std)%StdNo(1:idx))//DIRSEP//trim(Student(std)%StdNo)//'.XML'
 
@@ -588,7 +589,7 @@ contains
         logical :: fileOK
 
         idxCURR = Student(std)%CurriculumIdx
-        StdNoYearLen = index(Student(std)%StdNo,dash)-1
+        StdNoYearLen = index(Student(std)%StdNo,DASH)-1
         if (StdNoYearLen<=0) StdNoYearLen = StdNoChars
         fileTCG = trim(dirRAW)//'checklists'//DIRSEP//Student(std)%StdNo(1:StdNoYearLen)//DIRSEP//Student(std)%StdNo
 
@@ -699,7 +700,7 @@ contains
                 !  cycle loop_tcg
                 !end if
                 ! exclude invalid grades
-                if (gdx<0) then
+                if (gdx<=0) then
                     TCG(tdx)%ErrorCode = 16
                     TCG(tdx)%errLine = ' ERROR : '
                     TCG(tdx)%errLine(pos(7):) = ' ^ grade not valid'
@@ -730,10 +731,10 @@ contains
                 end if
                 ! Gender-specific PE? Add M or F
 
-                i = index(tSection, dash)
+                i = index(tSection, DASH)
                 if ( (tSubject(1:4)=='PE 2' .or. tSubject(1:4)=='PE 3') .and. &
                      i>0) then
-                  tSubject = tSubject(1:4)//dash//tSection(:i-1)
+                  tSubject = tSubject(1:4)//DASH//tSection(:i-1)
                   if (tSubject=='PE 2-BB' .or. tSubject=='PE 2-BS' .or. &
                       tSubject=='PE 2-JD' .or. tSubject=='PE 2-SF' .or. &
                       tSubject=='PE 2-SO' .or. tSubject=='PE 2-SW' .or. &
@@ -890,7 +891,7 @@ contains
                 end do
                 if (j>0) then ! found
                     TCG(tdx)%Code = -1
-                    !write(*,*) 'Mistake : '//Student(std)%StdNo//dash//trim(TCG(tdx)%txtLine)
+                    !write(*,*) 'Mistake : '//Student(std)%StdNo//DASH//trim(TCG(tdx)%txtLine)
                 end if
             end if
         end do
@@ -911,7 +912,7 @@ contains
         integer :: i, j, k, cdx, eof, tdx
 
         idxCURR = Student(std)%CurriculumIdx
-        StdNoYearLen = index(Student(std)%StdNo,dash)-1
+        StdNoYearLen = index(Student(std)%StdNo,DASH)-1
         if (StdNoYearLen<=0) StdNoYearLen = StdNoChars
         fileTCG = trim(dirRAW)//'checklists'//DIRSEP//Student(std)%StdNo(1:StdNoYearLen)//DIRSEP//Student(std)%StdNo
         pocw = 0 ! no. of PlanOfStudy entries

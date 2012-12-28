@@ -36,7 +36,6 @@ subroutine student_performance (device, mesg)
     character(len=MAX_LEN_STUDENT_CODE) :: tStdNo
     character(len=MAX_LEN_SUBJECT_CODE) :: tSubject, tArea
     character(len=255) :: AreaNumbers
-    integer, dimension(0:20) :: Frequency
     real :: SumEnrolled, SumEarned, SumDown, SumUp, tUnits
     real :: GSumEnrolled, GSumEarned, GSumDown, GSumUp
 
@@ -47,7 +46,7 @@ subroutine student_performance (device, mesg)
     integer :: tdx, grd
     integer :: prevtaken
     real :: up, down
-    character (len=6) :: token1, token2
+    character (len=10) :: token1, token2
 
     ! which student?
     call cgi_get_named_string(QUERY_STRING, 'A1', tStdNo, ierr)
@@ -69,16 +68,14 @@ subroutine student_performance (device, mesg)
     call read_student_records (targetStudent)
 
     write(device,AFORMAT) '<br><b>UNOFFICIAL Copy of Grades and Weighted Average by Term</b><table border="0" width="100%">'
-    write(device,AFORMAT) begintr//'<td colspan="8"><hr>'//endtd//endtr, &
+    write(device,AFORMAT) begintr//'<td colspan="7"><hr>'//endtd//endtr, &
     begintr//begintd//'SUBJECT'//endtd, &
     '<td colspan="4" align="left">COLLEGIATE RECORDS'//endtd, &
     tdaligncenter//'FINAL'//endtd, &
-    tdaligncenter//'REMOVAL/'//endtd, &
     tdnbspendtd//tdnbspendtd//tdnbspendtd//tdnbspendtd//endtr, &
     begintr//begintd//'NUMBER'//endtd, &
     '<td colspan="4" align="left">DESCRIPTIVE TITLE OF THE SUBJECT'//endtd, &
     tdaligncenter//'GRADE'//endtd, &
-    tdaligncenter//'COMPLETION'//endtd, &
     tdaligncenter//'CREDIT'//endtd, &
     '<td colspan="3" align="right">WTD AVERAGE'//endtd//endtr
     SumUp = 0.0
@@ -94,9 +91,9 @@ subroutine student_performance (device, mesg)
         !
         if (prevtaken /= TCG(tdx)%Taken) then
             ! write summary for current term
-            write(device,AFORMAT) begintr//'<td colspan="8"><hr>'//endtd
+            write(device,AFORMAT) begintr//'<td colspan="7"><hr>'//endtd
             if (SumUp*SumDown>0.0) then
-                write(device,'(a,f7.2,a,f6.2,a,f8.6,a)') &
+                write(device,'(a,f8.2,a,f5.1,a,f8.2,a)') &
                 tdalignright, SumUp, endtd// &
                 tdalignright, SumDown, endtd// &
                 tdalignright, SumUp/SumDown, endtd//endtr
@@ -112,11 +109,11 @@ subroutine student_performance (device, mesg)
                 trim(itoa(TCG(tdx)%Year))//endtd//'<td colspan="6">'//nbsp//endtd//endtr
             else
                 write(device,AFORMAT) &
-                begintr//tdnbspendtd, &
-                '<td colspan="4" align="left">'//trim(txtSemester(TCG(tdx)%Term))// &
-                ' SEMESTER, '//trim(itoa(TCG(tdx)%Year))//dash// &
-                trim(itoa(TCG(tdx)%Year+1))//endtd// &
-                '<td colspan="6">'//nbsp//endtd//endtr
+                    begintr//tdnbspendtd, &
+                    '<td colspan="4" align="left">'//trim(txtSemester(TCG(tdx)%Term))// &
+                    ' SEMESTER, '//trim(itoa(TCG(tdx)%Year))//DASH// &
+                    trim(itoa(TCG(tdx)%Year+1))//endtd// &
+                    '<td colspan="6">'//nbsp//endtd//endtr
             end if
             ! re-initialize accumulators
             prevtaken = TCG(tdx)%Taken
@@ -140,8 +137,7 @@ subroutine student_performance (device, mesg)
             token1 = SPACE
             token2 = SPACE
             tSubject = Subject(crse)%Name
-            !                l = index(tSubject,dash)
-            !                if (l > 0) tSubject(l:) = ' '
+
             line = begintr
             line = trim(line)//begintd//trim(tSubject)//endtd
             line = trim(line)//'<td colspan="4">'//trim(Subject(crse)%Title)//endtd
@@ -154,64 +150,14 @@ subroutine student_performance (device, mesg)
             else
                 line = trim(line)//tdaligncenter//txtGrade(pGrade(grd))//endtd
             end if
-            if (TCG(tdx)%ReExam == 0) then
-                line = trim(line)//tdaligncenter//dash//endtd
-            else
-                line = trim(line)//tdaligncenter//txtGrade(pGrade(TCG(tdx)%ReExam))//endtd
-            end if
-            !
+
             if (Subject(crse)%Units == 0) then
-                !                    if (is_grade_passing(grd)) then
-                !                        if (Subject(crse)%Name(1:3) == 'PE ') then
-                !                            line = trim(line)//tdaligncenter//'(2)'//endtd
-                !                        else if (Subject(crse)%Name(1:3) == 'MS ') then
-                !                            line = trim(line)//tdaligncenter//'(1.5)'//endtd
-                !                        else if (Subject(crse)%Name(1:4) == 'LTS ' .or. &
-                !                        Subject(crse)%Name(1:5) == 'CWTS ' .or. &
-                !                        Subject(crse)%Name(1:5) == 'ROTC ' .or. &
-                !                        Subject(crse)%Name(1:5) == 'NSTP ') then
-                !                            line = trim(line)//tdaligncenter//'(1.5)'//endtd
-                !                        end if
-                !                    else
                 line = trim(line)//tdnbspendtd
-            !                    end if
             else if (is_grade_numeric_pass(grd)) then
                 ! numeric pass
                 down = Subject(crse)%Units
                 up = down*fGrade(grd)
                 line = trim(line)//tdaligncenter//trim(ftoa(Subject(crse)%Units,1))//endtd
-            !                else if (grd == gdx4) then
-            !                    ! 4.0
-            !                    if (TCG(tdx)%ReExam == 0) then
-            !                        down = Subject(crse)%Units
-            !                        up = down*fGrade(grd)
-            !                        line = trim(line)//tdnbspendtd
-            !                    else if (TCG(tdx)%ReExam == gdx5) then
-            !                        down = Subject(crse)%Units
-            !                        up = down*4.5
-            !                        line = trim(line)//tdnbspendtd
-            !                    else  ! 3.0
-            !                        down = Subject(crse)%Units
-            !                        up = down*3.5
-            !                        line = trim(line)//tdaligncenter//trim(ftoa(Subject(crse)%Units,1))//endtd
-            !                    end if
-            !                else if (grd == gdxINC) then
-            !                    ! INC
-            !                    if (TCG(tdx)%ReExam == 0) then
-            !                        line = trim(line)//tdnbspendtd
-            !                    else if (TCG(tdx)%ReExam > 0 .and. TCG(tdx)%ReExam < 10) then
-            !                        down = Subject(crse)%Units
-            !                        up = down*fGrade(TCG(tdx)%ReExam)
-            !                        line = trim(line)//tdaligncenter//trim(ftoa(Subject(crse)%Units,1))//endtd
-            !                    else if (TCG(tdx)%ReExam == gdx5) then
-            !                        down = Subject(crse)%Units
-            !                        up = down*5.0
-            !                        line = trim(line)//tdnbspendtd
-            !                    else if (TCG(tdx)%ReExam == gdx4) then
-            !                        down = Subject(crse)%Units
-            !                        up = down*4.0
-            !                        line = trim(line)//tdnbspendtd
-            !                    end if
             else if (grd == gdx5) then
                 ! 5.0
                 down = Subject(crse)%Units
@@ -229,61 +175,56 @@ subroutine student_performance (device, mesg)
 
         end if
         if (down>0.0) then
-            write (token1,'(f6.2)') up
-            write (token2,'(f6.2)') down
+            write (token1,'(f8.2)') up
+            write (token2,'(f5.1)') down
         end if
         write (device,AFORMAT) trim(line)// &
-        tdalignright//trim(token1)//endtd// &
-        tdalignright//trim(token2)//endtd// &
+            tdalignright//trim(token1)//endtd// &
+            tdalignright//trim(token2)//endtd// &
         tdnbspendtd
         SumUp = SumUp + Up
         SumDown = SumDown + Down
     end do
     ! write summary for last term
-    write(device,AFORMAT) begintr//'<td colspan="8"><hr>'//endtd
+    write(device,AFORMAT) begintr//'<td colspan="7"><hr>'//endtd
     if (SumUp*SumDown>0.0) then
-        write(device,'(a,f7.2,a,f6.2,a,f8.6,a)') &
-        tdalignright, SumUp, endtd// &
-        tdalignright, SumDown, endtd// &
-        tdalignright, SumUp/SumDown, endtd//endtr
+        write(device,'(a,f8.2,a,f5.1,a,f8.2,a)') &
+            tdalignright, SumUp, endtd// &
+            tdalignright, SumDown, endtd// &
+            tdalignright, SumUp/SumDown, endtd//endtr
         GSumUp = GSumUp + SumUp
         GSumDown = GSumDown + SumDown
     else
         write(device,AFORMAT) endtr
     end if
     if (GSumUp*GSumDown>0.0) then
-        write(device,'(a,f7.2,a,f6.2,a,f8.6,a)') &
-        begintr//'<td colspan="8" align="right"><b>General Weighted Average : </b>'//endtd// &
-        tdalignright, GSumUp, endtd// &
-        tdalignright, GSumDown, endtd// &
-        tdalignright, GSumUp/GSumDown, endtd//endtr
+        write(device,'(a,f8.2,a,f5.1,a,f8.2,a)') &
+            begintr//'<td colspan="7" align="right"><b>General Weighted Average : </b>'//endtd// &
+            tdalignright, GSumUp, endtd// &
+            tdalignright, GSumDown, endtd// &
+            tdalignright, GSumUp/GSumDown, endtd//endtr
     end if
-
-    write(device,AFORMAT) '</table><hr>' !begintr//'<td colspan="8">Grading System: '// &
-      !'1 - Excellent; 1.5 - Very Good; 2 - Good; 2.5 - Satisfactory; 3 - Pass; '// &
-      !'4 - Conditional failure; 5 - Failure; Inc. - Incomplete; Drp. - Dropped'//endtd//endtr, &
-      !'</table><hr>'
+    write(device,AFORMAT) '</table><hr>'
 
     write(device,AFORMAT) '<br><b>WEIGHTED AVERAGE BY SUBJECT AREA</b><br><hr>', &
-    '<table border="0" width="100%">'// &
-    begintr//begintd//'SUBJECT AREA'//endtd// &
-    tdalignright//'UNITS'//endtd// &
-    tdalignright//'UNITS'//endtd// &
-    tdalignright//'WEIGHTED'//endtd// &
-    begintd//nbsp//'SUBJECTS'//endtd//endtr, &
-    begintr//begintd//nbsp//endtd// &
-    tdalignright//'ENROLLED'//endtd// &
-    tdalignright//'EARNED'//endtd// &
-    tdalignright//'AVERAGE'//endtd// &
-    begintd//nbsp//endtd//endtr// &
-    begintr//'<td colspan="5"><hr>'//endtd//endtr
+        '<table border="0" width="100%">'// &
+        begintr//begintd//'SUBJECT AREA'//endtd// &
+        tdalignright//'UNITS'//endtd// &
+        tdalignright//'UNITS'//endtd// &
+        tdalignright//'WEIGHTED'//endtd// &
+        begintd//nbsp//'SUBJECTS'//endtd//endtr, &
+        begintr//begintd//nbsp//endtd// &
+        tdalignright//'ENROLLED'//endtd// &
+        tdalignright//'EARNED'//endtd// &
+        tdalignright//'AVERAGE'//endtd// &
+        begintd//nbsp//endtd//endtr// &
+        begintr//'<td colspan="5"><hr>'//endtd//endtr
 
     GSumDown = 0.0
     GSumUp = 0.0
     GSumEnrolled = 0.0
     GSumEarned = 0.0
     do idx=1,NumSubjectAreas
-        Frequency = 0
         SumDown = 0.0
         SumUp = 0.0
         SumEnrolled = 0.0
@@ -299,7 +240,6 @@ subroutine student_performance (device, mesg)
             if (SubjectArea(idx)%Code/=tArea) cycle
             dept = Subject(crse)%DeptIdx
             gdx = TCG(l)%Grade
-            Frequency(gdx) = Frequency(gdx) + 1
             tUnits = max(1.0,1.0*Subject(crse)%Units)
             if (gdx/=gdxLOA .and. gdx/=gdxDRP) then
                 if (index(TCG(l)%txtLine, ',REMOVAL') + index(TCG(l)%txtLine, ',COMPLETION') == 0) then
@@ -316,7 +256,7 @@ subroutine student_performance (device, mesg)
         end do
         if (SumEnrolled==0.0) cycle ! no units enrolled in this area
         !write(*,*) SubjectArea(idx), SumEnrolled, SumEarned, SumUp/max(1.0,SumDown), trim(AreaNumbers)
-        write(device,'(2(a,f5.1),a,f6.4,a)') &
+        write(device,'(2(a,f5.1),a,f8.2,a)') &
         begintr//begintd//trim(SubjectArea(idx)%Code)// & !' @ '//trim(Department(dept)%Code)// &
         endtd//tdalignright, SumEnrolled, &
         endtd//tdalignright, SumEarned, &
@@ -331,7 +271,7 @@ subroutine student_performance (device, mesg)
         end if
     end do
     write(device,AFORMAT) begintr//'<td colspan="5"><hr>'//endtd//endtr
-    write(device,'(2(a,f5.1),a,f6.4,a)') &
+    write(device,'(2(a,f5.1),a,f8.2,a)') &
     begintr//tdalignright//'TOTALS'//nbsp// &
     endtd//tdalignright, GSumEnrolled, &
     endtd//tdalignright, GSumEarned, &
@@ -341,3 +281,80 @@ subroutine student_performance (device, mesg)
     return
 end subroutine student_performance
 
+
+
+subroutine enlistment_write_summary(device, Offering, idxDEPT, maxSubjects)
+    integer, intent (in) :: device, idxDEPT, maxSubjects
+    type (TYPE_OFFERED_SUBJECTS), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS), intent (in) :: Offering
+    integer :: crse, cdx, nlines, nSubjects
+    integer :: idxCOLL
+    character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
+    character (len=4) :: tNote
+
+    nlines = 0
+    nSubjects = 0
+    write(device,AFORMAT) '<table border="1" width="87%">'
+    do cdx=1,NumSubjects+NumAdditionalSubjects
+        crse = SubjectRank(cdx)
+        !write(*,*) cdx, Subject(crse)%Name, Offering(crse)%Demand
+        if (Offering(crse)%Demand == 0) cycle
+
+        if (idxDEPT/=0) then
+            idxCOLL = Department(idxDEPT)%CollegeIdx
+            if (.not. is_used_in_college_subject(idxCOLL, crse) ) cycle
+        end if
+        if (mod(nlines,20)==0) &
+        write(device,AFORMAT) begintr//'<td width="15%"><i><p>Subject<br></p></i>'//endtd, & ! subject
+            '<td width="8%" align="right"><i><p>No. of<br>sections</p></i>'//endtd, & ! no. of sections
+            '<td width="8%" align="right"><i><p>Total<br>seats</p></i>'//endtd, & ! total seats
+            '<td width="8%" align="right"><i><p>Total<br>accom</p></i>'//endtd, & ! total accom
+            '<td width="8%" align="right"><i><p>Open<br>seats</p></i>'//endtd, & !  open seats
+            '<td width="4%">'//nbsp//endtd// &
+            '<td width="8%" align="right"><i><p>Priority<br>demand</p></i>'//endtd, & ! priority demand
+            '<td width="8%" align="right"><i><p>Priority<br>not acc</p></i>'//endtd//endtr ! priority not accom
+
+        tSubject = Subject(crse)%Name
+
+        ! subject
+        if (Offering(crse)%NSections>0) then
+            tNote = ' '
+        else
+            tNote = ' (*)'
+        end if
+        write(device,AFORMAT)  begintr//'<td width="15%">'//trim(tSubject)//tNote//endtd
+        ! no. of sections, total seats
+        write(device,AFORMAT) tdalignright//trim(itoa(Offering(crse)%NSections))//endtd, &
+        tdalignright//trim(itoa(Offering(crse)%TotalSlots))//endtd
+        ! total accom
+        write(device,AFORMAT) tdalignright//itoa(Offering(crse)%Accommodated)//endtd
+
+        ! open seats
+        write(device,AFORMAT) tdalignright//trim(itoa(Offering(crse)%OpenSlots))//endtd//tdnbspendtd
+        ! priority demand
+        write(device,AFORMAT) tdalignright//trim(itoa(Offering(crse)%Demand))//endtd
+        ! priority not accom
+        if (Offering(crse)%PriorityNotAccommodated>0) then
+            write(device,AFORMAT) trim(cgi_make_href(fnNotAccommodated, &
+                itoa(Offering(crse)%PriorityNotAccommodated), &
+                A1=tSubject, pre=tdalignright, post=endtd//endtr ))
+        else
+            write(device,AFORMAT) tdalignright//'0'//endtd//endtr
+        end if
+
+        nlines = nlines+1
+
+        nSubjects = nSubjects+1
+        if (nSubjects>=maxSubjects) exit
+    end do
+    write(device,AFORMAT) '</table>', &
+        '<br>Legends:', &
+        '<br><i>No. of sections</i> = sections/labs open', &
+        '<br><i>Total seats</i> = Total number of seats, all sections', &
+        '<br><i>Total accom</i> = No. of students accommodated in the subject', &
+        '<br><i>Priority demand</i> = No. of students who need the subject as specified in their curriculum, '// &
+        ' or as a back subject', &
+        '<br><i>Priority not accom</i> = priority demand not satisfied', &
+        '<br>(*) = no sections open, or subject is needed by graduating students'
+    write(device,AFORMAT) '<hr>'
+    return
+end subroutine enlistment_write_summary

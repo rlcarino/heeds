@@ -93,7 +93,8 @@ module CGI
     character(len=MAX_CGI_FLT_LEN), private :: cgi_flt
 
     logical :: isRoleSRE = .false., isRoleChair = .false., isRoleAdmin = .false.
-    character(len=20) :: AdminIP = 'xxx.xxx.xxx.xxx'
+    logical :: isRoleStudent = .false., isRoleGuest = .false.
+    character(len=40) :: defaultUSER
 
 contains
 
@@ -122,7 +123,7 @@ contains
 
             if (index(SPECIAL,ch)/=0) encode = .true. ! special, unsafe, reserved
 
-            if (ch==bslash .or. ch==prime) encode = .true. ! \, '
+            if (ch==BSLASH .or. ch==PRIME) encode = .true. ! \, '
 
             if (ch==SPACE) then  ! encode as +
                 str_out(idx_out:idx_out) = '+'
@@ -343,38 +344,22 @@ contains
     end subroutine cgi_get_wild_name_value
 
 
-    subroutine cgi_obfuscate(token)
-
-        character(len=*), intent (in out) :: token
-!        character :: cTmp
-!        integer :: lenHalf, lenToken, i, j
-!
-!        lenToken = len_trim(token)
-!        lenHalf = lenToken/2
-!        do i=1,lenHalf,2
-!            j = lenToken-i+1
-!            cTmp = token(i:i)
-!            token(i:i) = token(j:j)
-!            token(j:j) = cTmp
-!        end do
-
-        return
-    end subroutine cgi_obfuscate
-
-
-    function cgi_make_href(fn, USER, label, pre, post, A1, A2, A3, A4, A5, anchor, newtab)
+    function cgi_make_href(fn, label, pre, post, A1, A2, A3, A4, A5, anchor, newtab)
     ! build HTML href, like:
-    !   pre<a href="CGI_PATH?U=USER&F=fn&A1=A1&...A5=A5 #anchor target=newtab">label</a>post
+    !   pre<a href="CGI_PATH?F=fn&A1=A1&...A5=A5 #anchor target=newtab">label</a>post
 
-        integer, intent (in) :: fn, USER
+        integer, intent (in) :: fn
         character(len=*), intent (in) :: label
         character(len=*), intent (in), optional :: A1, A2, A3, A4, A5
         character(len=*), intent (in), optional :: pre, post, anchor, newtab
 
         character(len=MAX_QUERY_STRING_LEN) :: cgi_make_href, tmp
 
-        ! user and function
-        tmp = 'U='//trim(itoa(USER))//'&F='//itoa(fn)
+        real :: harvest
+
+        ! a random token
+        call random_number(harvest)
+        tmp = 'T='//trim(itoa(int(1.0E5*harvest)))
 
         ! the arguments to the function
         if (present(A1)) then
@@ -398,8 +383,8 @@ contains
             tmp = trim(tmp)//'&A5='//cgi_wrk
         end if
 
-        ! obfuscate
-        call cgi_obfuscate(tmp)
+        ! the function
+        tmp = trim(tmp)//'&F='//itoa(fn)
 
         ! begin href
         tmp = '<a href="'//CGI_PATH//'?'//tmp
@@ -424,88 +409,6 @@ contains
         return
     end function cgi_make_href
 
-
-    subroutine cgi_write_script(fileName, wrkDir, timeOut)
-
-        character (len=*), intent (in) :: fileName, wrkDir, timeOut
-
-        integer :: device=2
-
-        call open_for_write (device, fileName)
-        write(device,AFORMAT) &
-            '<?php', &
-            '', &
-            '// create mailbox name from timestamp and IP address of user', &
-            '$timestamp = gettimeofday();', &
-            '$fname = "'//trim(wrkDir)// &
-            '" . $timestamp["sec"] . $timestamp["usec"] . "-" . $_SERVER[''REMOTE_ADDR''];', &
-            '', &
-            '// open mailbox for writing', &
-            '$handle = fopen($fname . ".mbox", "wt");', &
-            '', &
-            '// write "QUERY_STRING"\n to mailbox', &
-            'if ($_SERVER[''REQUEST_METHOD'']=="POST") {', &
-            '  //copy "php://input" to mailbox', &
-            '  fwrite($handle, "\"" . file_get_contents("php://input") . "\"\n");', &
-            '} ', &
-            'else {', &
-            '  fwrite($handle, "\"" . $_SERVER[''REQUEST_METHOD''] . ":" . $_SERVER[''QUERY_STRING''] . "\"\n");', &
-            '}', &
-            '', &
-            '// close mailbox', &
-            'fclose($handle);', &
-            '', &
-            '// wait for backend to read mailbox and to respond', &
-            '$maxtimetowait = '//timeOut//'; // seconds', &
-            '$sleeptime = 100000; // usecs (microseconds; 1 sec = 1 000 000 usec)', &
-            '$loopcount = $maxtimetowait * 1000000 / $sleeptime;', &
-            'for ($i=1; $i<=$loopcount; $i++) {', &
-            '  usleep($sleeptime); ', &
-            '  // check for lock that indicates the backend has responded', &
-            '  if (is_file($fname . ".lock")) {', &
-            '    // display response', &
-            '    copy ($fname, "php://output");', &
-            '    // delete lock', &
-            '    unlink ($fname . ".lock");', &
-            '    // delete response', &
-            '    unlink ($fname);', &
-            '    // quit', &
-            '    return;', &
-            '  }', &
-            '}', &
-            '', &
-            '// backend did not respond; remove mailbox', &
-            'if (is_file($fname . ".mbox")) {', &
-            '  unlink ($fname . ".mbox");', &
-            '}', &
-            'echo "<html><head><title>Sorry!</title></head><body>";', &
-            'echo "<br><font color=#ff0000>The '//PROGNAME//' program is not running?</font>";', &
-            'echo "</body></html>";', &
-            '', &
-            '?>'
-        close(device)
-
-        return
-    end subroutine cgi_write_script
-
-
-    subroutine cgi_write_sorry(fileName)
-
-        character (len=*), intent (in) :: fileName
-
-        integer :: device=2
-
-        call open_for_write (device, fileName)
-        write(device,AFORMAT) &
-            '<?php', '', &
-            'echo "<html><head><title>Sorry!</title></head><body>";', &
-            'echo "<br><font color=#ff0000>The '//PROGNAME//' program is not running?</font>";', &
-            'echo "</body></html>";', '', &
-            '?>'
-        close(device)
-
-        return
-    end subroutine cgi_write_sorry
 
 end module CGI
 

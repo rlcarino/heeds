@@ -224,16 +224,16 @@ contains
 
               write(device,AFORMAT) begintr//begintd//trim(Teacher(fac)%Name)//' ('//trim(Teacher(fac)%Specialization)//')'
               if (isRoleAdmin .or. (isRoleChair .and.  DeptIdxUser==Teacher(fac)%DeptIdx)) then
-                write(device,AFORMAT) trim(cgi_make_href(fnEditTeacher, targetUser, 'Edit', &
+                write(device,AFORMAT) trim(cgi_make_href(fnEditTeacher, 'Edit', &
                   A1=QUERY_put, pre=nbsp//'<small>', post='</small>'))
               end if
-              write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnTeacherSchedule, targetUser, 'Edit', &
+              write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnTeacherSchedule, 'Edit', &
                   A1=QUERY_put, pre=endtd//tdaligncenter//itoa(nsect)//'<small>', post='</small>'//endtd))
               write(device,'(2(a,f5.1), a,f5.2,a)') tdaligncenter, totalLect, &
                     endtd//tdaligncenter, totalLab, &
                     endtd//tdaligncenter, totalUnits, &
                     '/'//trim(itoa(Teacher(fac)%MaxLoad))// &
-                    trim(cgi_make_href(fnPrintableWorkload+fnOFFSET, targetUser, 'Printable', &
+                    trim(cgi_make_href(fnPrintableWorkload+fnOFFSET, 'Printable', &
                     A1=QUERY_put, pre=nbsp//'<small>', post='</small>'))//endtd// &
                     tdaligncenter//trim(mesg)//endtd//endtr
             end do
@@ -292,13 +292,13 @@ contains
                             end do
                             mesg = 'Deleted '//tClassId
                     end if
-                    call xml_write_sections(pathToSections, NumSections, Section, 0)
-                    call xml_write_sections(pathToSectionUpdates, &
+                    call xml_write_sections(pathToSOURCE, NumSections, Section, 0)
+                    call xml_write_sections(pathToUPDATES, &
                       NumSections, Section, LoadFromDept)
             end if
     end if
 
-    call html_write_header(device, cgi_make_href(fnPrintableWorkload+fnOFFSET, targetUser, 'Printable', &
+    call html_write_header(device, cgi_make_href(fnPrintableWorkload+fnOFFSET, 'Printable', &
         A1=tTeacher, post=' teaching schedule of '//Teacher(targetTeacher)%Name), mesg)
 
     ! collect meetings of teacher targetTeacher
@@ -356,7 +356,6 @@ contains
     write(device,AFORMAT) &
         '<br><form name="input" method="post" action="'//CGI_PATH//'">', &
         '<input type="hidden" name="F" value="'//trim(itoa(fnOFFSET+fnTeacherSchedule))//'">', &
-        '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
         '<input type="hidden" name="A1" value="'//trim(tTeacher)//'">'
 
 
@@ -368,7 +367,7 @@ contains
                 ierr = 1
       end if
       write(device,AFORMAT) '<option value="'//trim(Department(mdx)%Code)//'"'//trim(selected(ierr))//'> '// &
-        trim(Department(mdx)%Code)//dash//trim(Department(mdx)%Name)
+        trim(Department(mdx)%Code)//DASH//trim(Department(mdx)%Name)
     end do
     write(device,AFORMAT) '</select>'//nbsp//'<input type="submit" value="Find classes"><hr>'
     return
@@ -532,7 +531,6 @@ contains
 
     write(device,AFORMAT) &
       '<form name="input" method="post" action="'//CGI_PATH//'">', &
-      '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
       '<input type="hidden" name="F" value="'//trim(itoa(fnEditTeacher))//'">'// &
       '<input type="hidden" name="A1" value="'//trim(tTeacher)//'">', &
       '<table border="0" width="100%">'
@@ -649,7 +647,7 @@ contains
         begintr//tdaligncenter//trim(College(targetCollege)%Name)//endtd//endtr, &
         begintr//tdaligncenter//'<b>INDIVIDUAL FACULTY TEACHING LOAD</b>'//endtd//endtr, &
         begintr//tdaligncenter//trim(txtSemester(currentTerm+6))//' Semester, SY '// &
-            trim(itoa(currentYear))//dash//trim(itoa(currentYear+1))//endtd//endtr, &
+            trim(itoa(currentYear))//DASH//trim(itoa(currentYear+1))//endtd//endtr, &
         begintr//begintd//'<br>'//endtd//endtr, &
         '</table>'
 
@@ -675,35 +673,27 @@ contains
 
     write(device,AFORMAT) &
       '<form name="input" method="post" action="'//CGI_PATH//'">', &
-      '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
       '<input type="hidden" name="F" value="0'//trim(itoa(fnPrintableWorkload+fnOFFSET))//'">'// &
       '<input type="hidden" name="A1" value="'//trim(tTeacher)//'">'
 
     write(device,AFORMAT) '<br><br><br><br><table border="0" width="100%">', &
         begintr//'<td width="50%">Prepared by:<br><br><br><br><br><br>'// &
-                 '<input name="Dean" size="'//trim(itoa(MAX_LEN_TEACHER_NAME))// &
-                 '" value="(College Dean)">'// &
+                 trim(College(targetCollege)%Dean)// &
                  '<br>College Dean<br><br><br>'//endtd, &
                  '<td width="50%">Received by:<br><br><br><br><br><br>'// &
-                 '<input name="DeanCollege" size="'//trim(itoa(MAX_LEN_TEACHER_NAME))// &
-                 '" value="'//trim(Teacher(targetTeacher)%Name)//'">'// &
+                 trim(Teacher(targetTeacher)%Name)// &
                  '<br>Faculty<br><br><br>'//endtd//endtr
     write(device,AFORMAT) &
         begintr//'<td width="50%">'//nbsp//endtd, &
                  '<td width="50%">Recommending Approval:<br><br><br><br><br><br>'// &
-                 '<input name="DeanInstruction" size="'//trim(itoa(MAX_LEN_TEACHER_NAME))// &
-                 '" value="(Dean of Instruction)">'// &
+                 trim(DeanOfInstruction)// &
                  '<br>Dean of Instruction<br><br><br>'//endtd//endtr
     write(device,AFORMAT) &
         begintr//'<td width="50%">Approved by:<br><br><br><br><br><br>'// &
-                 '<input name="President" size="'//trim(itoa(MAX_LEN_TEACHER_NAME))// &
-                 '" value="(President)">'// &
+                 trim(UniversityPresident)// &
                  '<br>Office of the President'//endtd, &
                  '<td width="50%">'//nbsp//endtd//endtr
     write(device,AFORMAT) '</table>'
-
-    !call timetable_display(device, Section, TimeTable)
-    !write(device,AFORMAT) '<hr>'
 
     return
   end subroutine teacher_schedule_printable

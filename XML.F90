@@ -72,7 +72,7 @@ module XML
         indent5 = INDENT_INCR*6
     character(len=80)  :: indentation = ' '
 
-    logical            :: forReading = .true., QUIETLY = .true., noWrites = .false.
+    logical            :: forReading = .true., QUIETLY = .true.
 
 contains
 
@@ -231,6 +231,63 @@ contains
 
         return
     end subroutine xml_parse_line
+
+
+    subroutine pma_xml_begin_row(device, indent, name)
+        integer, intent (in) :: device, indent
+        character (len=*), intent (in) :: name
+        write(device, AFORMAT) indentation(:indent)//'<table name="'//name//'">'
+        return
+    end subroutine pma_xml_begin_row
+
+    subroutine pma_xml_end_row(device, indent)
+        integer, intent (in) :: device, indent
+        write(device, AFORMAT) indentation(:indent)//'</table>'
+        return
+    end subroutine pma_xml_end_row
+
+    subroutine pma_xml_column(device, indent, tag, value)
+        integer, intent (in) :: device, indent
+        character (len=*), intent (in) :: tag, value
+        if (len_trim(value)>0) then
+            write(device, AFORMAT) indentation(:indent)// &
+                '<column name="'//tag//'">'//trim(value)//'</column>'
+        else
+            write(device, AFORMAT) indentation(:indent)// &
+                '<column name="'//tag//'">('//tag//')</column>'
+        end if
+        return
+    end subroutine pma_xml_column
+
+
+    subroutine pma_xml_parse_line(line, name, value)
+        character(len=MAX_LEN_XML_LINE), intent (in out) :: line
+        character(len=MAX_LEN_XML_TAG), intent (out) :: name
+        character(len=MAX_LEN_XML_LINE), intent (out) :: value
+        ! locals
+        integer :: nL, nR ! positions of "> and </
+
+        ! initialize return values
+        name = SPACE
+        value = SPACE
+        line = adjustl(line)
+!<table name="name">
+!<column name="name">value</column>
+!1234567890123456
+!</table>
+        if (index(line, '<column name="') > 0) then ! start of column
+            nL = index(line, '">') ! end of name
+            nR = index(line, '</') ! end of value
+            name = line(15:nL-1)
+            value = line(nL+2:nR-1)
+        elseif (index(line, '<table name="') > 0) then ! start of row
+            name = line(14:len_trim(line)-2)
+        elseif (index(line, '</table>') > 0) then ! end of row
+            name = '/table'
+        end if
+
+        return
+    end subroutine pma_xml_parse_line
 
 
 end module XML

@@ -324,7 +324,7 @@ contains
         ! figure out how many hours based on subject type and section code
         idx = tSection%SubjectIdx
         if (is_lecture_lab_subject(idx)) then
-            if (index(tSection%ClassId,dash)==0) then
+            if (index(tSection%ClassId,DASH)==0) then
                 SectionHours = Subject(idx)%LectHours
             else
                 SectionHours = Subject(idx)%LabHours
@@ -358,7 +358,7 @@ contains
         else ! lab section conflicts with lecture section?
             if (is_lecture_lab_subject(tSection%SubjectIdx)) then ! subject is lecture-lab
                 ! a lab section ?
-                i = index(tSection%ClassId,dash)
+                i = index(tSection%ClassId,DASH)
                 if (i>0) then
                     ! find lecture section
                     tClassId = tSection%ClassId(:i-1)
@@ -418,7 +418,7 @@ contains
             !tSection = trim(tSubject)//SPACE//Section(sect)%Code(:j-1)
             tSection = Section(sect)%ClassId
             j = len_trim(tSection)
-            do while (tSection(j:j)/=dash)
+            do while (tSection(j:j)/=DASH)
                 j = j-1
             end do
             tSection(j:) = SPACE
@@ -455,7 +455,7 @@ contains
             !if (Subject(crse)%LectHours * Subject(crse)%LabHours==0) cycle
             if (.not. is_lecture_lab_subject(crse)) cycle
             ! subject is lecture-lab
-            j = index(Section(sect)%Code,dash)
+            j = index(Section(sect)%Code,DASH)
             if (j==0) then
                 Section(sect)%SubjectIdx = -(crse-NumDummySubjects)
             ! a lecture section

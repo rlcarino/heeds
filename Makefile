@@ -30,36 +30,19 @@
 # Makefile for HEEDS
 
 #---------------------------------------------------------------
-# OS dependent symbols 
-#---------------------------------------------------------------
-
-# assume MSYS
-#OS = WINDOWS
-#DESTDIR = /C/HEEDS/bin
-#EXT = WIN.EXE
-#DELCMD = del
-##DELCMD = rm -f
-#URLENCODE = -DDO_NOT_ENCODE
-
-OS = GNULINUX
-DESTDIR = /home/heeds/HEEDS/bin
-EXT = GLNX
-DELCMD = rm -f
-URLENCODE = -DDO_NOT_ENCODE
-
-#---------------------------------------------------------------
 # raw data format & debugging flags 
 #---------------------------------------------------------------
 RAWDATA = CUSTOM
 DEBUG = 
 #-DDBsubst 
 #-DDBprereq -DDBcoreq -DDBconcpreq
+URLENCODE = -DDO_NOT_ENCODE
 
 #---------------------------------------------------------------
 # Fortran compiler and flags
 #---------------------------------------------------------------
 FFLAGS = -ffree-form -fbounds-check
-OPTIONS = $(DEBUG) $(URLENCODE) -D$(OS) -I$(RAWDATA) -D$(RAWDATA)
+OPTIONS = $(DEBUG) $(URLENCODE) -D$(RAWDATA) -D$(USAGE) -D$(OS) -D$(HTTP) -D$(CGI) -I$(RAWDATA)
 
 FC = gfortran -Wunused $(FFLAGS) $(OPTIONS) 
 #FC = g95 -Wunused-vars -ftrace=frame -ftrace=full $(FFLAGS) $(OPTIONS) 
@@ -85,12 +68,46 @@ INTERACTIVE = USERFUNCTIONS.o HTML.o \
 #---------------------------------------------------------------
 
 help:
-	echo 'Usage: make HEEDS RAWDATA=data_format_code OS=GNULINUX|WINDOWS'
+	echo 'Usage: make HEEDS RAWDATA=data_format_code USAGE=PERSONAL|GROUP OS=GLNX|MSWIN HTTP=APACHE|NGINX CGI=PHP|BATCH|BASH'
 
-all:	HEEDS
+# default target
+all:	GLNX_PERSONAL_APACHE_PHP
+#GLNX_PERSONAL_APACHE_PHP
+#GLNX_GROUP_APACHE_PHP
 
+#
+# The Windows build-PC must have msys installed
+#
+# For USAGE=GROUP, a MySQL database 'heeds' with a table 'users' is required
+#
+
+# Windows+Apache (for deployment on a personal Windows laptop or desktop)
+MSWIN_APACHE_BATCH:
+	make HEEDS RAWDATA=CUSTOM BIN=/c/HEEDS/bin USAGE=PERSONAL OS=MSWIN HTTP=APACHE CGI=BATCH LIB=
+
+# Windows+Apache+PHP (for deployment on a Windows desktop acting as departmental server)
+MSWIN_APACHE_PHP:
+	make HEEDS RAWDATA=CUSTOM BIN=/c/HEEDS/bin USAGE=GROUP OS=MSWIN HTTP=APACHE CGI=PHP LIB=
+
+# GNU/Linux+Apache (for deployment on a personal GNU/Linux laptop or desktop)
+GLNX_APACHE_BASH:
+	make HEEDS RAWDATA=CUSTOM BIN=/home/heeds/HEEDS/bin USAGE=PERSONAL OS=GLNX HTTP=APACHE CGI=BASH LIB=
+
+# GNU/Linux+Apache+PHP (for deployment on a personal GNU/Linux laptop or desktop; no database of users)
+GLNX_PERSONAL_APACHE_PHP:
+	make HEEDS RAWDATA=CUSTOM BIN=/home/heeds/HEEDS/bin USAGE=PERSONAL OS=GLNX HTTP=APACHE CGI=PHP LIB=
+
+# GNU/Linux+Apache+PHP (for deployment on a GNU/Linux desktop acting as departmental server; requires a database of users)
+GLNX_GROUP_APACHE_PHP:
+	make HEEDS RAWDATA=CUSTOM BIN=/home/heeds/HEEDS/bin USAGE=GROUP OS=GLNX HTTP=APACHE CGI=PHP LIB=
+	
+# GNU/Linux+NGINX+FastCGI (for deployment on a GNU/Linux server)
+GLNX_NGINX_FCGI:
+	make HEEDS RAWDATA=CUSTOM BIN=/home/heeds/HEEDS/bin USAGE=GROUP OS=GLNX HTTP=NGINX CGI=FCGI LIB="-lfcgi -Wl,--rpath -Wl,/usr/local/lib"
+
+#	
 HEEDS:	$(COMMON) $(INTERACTIVE)
-	$(FC) $(COMMON) $(INTERACTIVE) -o $(DESTDIR)/HEEDS-$(EXT)
+	$(FC) $(COMMON) $(INTERACTIVE) -o $(BIN)/HEEDS-$(USAGE)-$(OS)-$(HTTP)-$(CGI) $(LIB)
 
 BASE.o:	Makefile
 
@@ -164,7 +181,4 @@ MAIN.o:	SERVER.o
 .SUFFIXES:	 .F90
 
 clean:
-	$(DELCMD) *.mod *.o *~ *.exe
-
-
-
+	rm -f *.mod *.o *~ *.exe

@@ -115,7 +115,7 @@ contains
         call xml_read_teachers_other(path, errNo)
 
         ! write the XML TEACHERS file?
-        if (noXML) call xml_write_teachers(path)
+        if (noXML .and. NumTeachers>0) call xml_write_teachers(path)
 
         return
     end subroutine read_teachers

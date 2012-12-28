@@ -37,93 +37,70 @@ module HTML
 contains
 
 
-    subroutine html_sorry(fileName, mesg)
-
-        character(len=*), intent(in) :: fileName, mesg
-
-        integer :: device=7
-
-        call open_for_write(device, fileName)
-        write(device,AFORMAT) &
-        '   <html><head><title>'//PROGNAME//'</title></head><body>', &
-            '<table border="0" width="100%">'// &
-            begintr//begintd//'<big><b>'//PROGNAME//VERSION//' for '// &
-            trim(UniversityName)//'</b></big>'//endtd// &
-            tdalignright//'<a target="0" href="http://code.google.com/p/heeds/">Help</a>'//endtd// &
-            endtr//'</table><hr>'
-            !tdalignright//'<a target="0" href="'//trim(PROGNAME)//'-Help.html">Help</a>'//endtd// &
-
-        if (mesg/=space) write(device,AFORMAT)  '<br>'//red//mesg//black//'<br><br>'
-
-        write(device,AFORMAT) '<hr>'
-        call html_copyright(device)
-        write(device,AFORMAT) '</body></html>'
-
-        close(device)
-
-        return
-    end subroutine html_sorry
-
-
     subroutine html_copyright(device)
         integer, intent(in) :: device
 
         write(device,AFORMAT) &
-            '<i>'//PROGNAME//nbsp//COPYRIGHT//'<br>', &
+            '<small><i>'//PROGNAME//nbsp//COPYRIGHT//'<br>', &
             'This program comes with ABSOLUTELY NO WARRANTY; for details see the ', &
             'GNU GENERAL PUBLIC LICENSE Version 3 ', &
             '(<a target="0" href="http://www.gnu.org/licenses/gpl-3.0.html">GPLv3</a>).<br>', &
             'This program is free software, and you are welcome to redistribute it under certain conditions; ', &
             ' see the GPLv3 for details.<br>', &
-            CONTACT//'</i><hr>'
+            'The source code is available at <a target="0" href="'//WEB//'">'// &
+            WEB//'</a><br>', &
+            CONTACT//'</i></small><hr>'
 
         return
     end subroutine html_copyright
 
 
+    subroutine html_landing_page(device, mesg)
+        integer, intent(in) :: device
+        character(len=*), intent(in), optional :: mesg
+
+        write(device,AFORMAT) &
+            '<html><head><title>'//PROGNAME//VERSION//'</title></head><body>'
+
+        if (present(mesg)) then
+            write(device,aformat) &
+                '<h1>'//trim(UniversityCode)//nbsp//PROGNAME//'</h1>', &
+                red//mesg//black
+#if defined GROUP
+            if (isRoleAdmin) write(device,AFORMAT) &
+                '<br><br><a href="/cgi-bin/logout.php">Logout</a>'
+#endif
+        else
+            write(device,AFORMAT) &
+                '<h1>'//trim(UniversityCode)//nbsp//PROGNAME//' Login</h1>', &
+                '<form name="input" method="post" action="'//CGI_PATH//'">', &
+                '<input type="hidden" name="F" value="1"><br>', &
+                '<b>Role:</b> <input type="text" name="U" value=""> ', &
+                nbsp//nbsp//' <input type="submit" value="Login"><br>', &
+                '</form><hr>'
+
+            call html_copyright(device)
+        end if
+
+        return
+    end subroutine html_landing_page
+
+
     subroutine html_login(fname, mesg)
         character(len=*), intent(in) :: fname
         character(len=*), intent(in), optional :: mesg
-        character(len=20) :: note
-        character(len=MAX_LEN_USER_CODE) :: tUser
-        integer :: device=7, i, j
+        integer :: device=7
 
         call open_for_write(device, fname)
         if (present(mesg)) then
-            note = SPACE
+            call html_landing_page(device, mesg)
         else
-            note = PROGNAME//VERSION//' for'
+            call html_landing_page(device)
         end if
-        write(device,AFORMAT) &
-            '<html><head><title>'//PROGNAME//' </title></head><body>', &
-            '<form name="input" method="post" action="'//CGI_PATH//'">', &
-            '<table border="0" width="100%">'// &
-            begintr//begintd//'<big><b>'//trim(note)//SPACE//trim(UniversityName)//'</b></big>'//endtd// &
-            tdalignright//'<a target="0" href="http://code.google.com/p/heeds/">Help</a>'//endtd// &
-            endtr//'</table><hr>'
-            !tdalignright//' <a target="0" href="/static/'//trim(PROGNAME)//'-Help.html">Help</a>'//endtd// &
 
-        if (present(mesg)) write(device,AFORMAT)  '<br><br>'//red//mesg//black//'<br><br>'
-
-        tUser = REGISTRAR
-        j = index_to_user(tUser)
-        write(device,AFORMAT) '<br><b>Role is : </b> <select name="U">', & ! '<option value=""> -select role-', &
-            '<option value="'//trim(itoa(j))//'"> '//trim(UserList(j)%Name)
-        do i=1,NumUsers
-            if (i/=j) &
-                write(device,AFORMAT) '<option value="'//trim(itoa(i))//'"> '//trim(UserList(i)%Name)
-        end do
-        write(device,AFORMAT) '</select>'//nbsp//nbsp
-        if (checkPassword) then
-            write(device,AFORMAT) &
-                '<b>Password is : </b> <input type="password" name="P" value="">'//nbsp//nbsp
-        end if
-        write(device,AFORMAT) &
-            '<input type="hidden" name="F" value="1"><input type="submit" value="Login">', &
-            '</form><hr>'
-        call html_copyright(device)
         write(device,AFORMAT) '</body></html>'
         close(device)
+
         return
     end subroutine html_login
 
@@ -270,9 +247,9 @@ contains
                 REQUEST==fnOFFSET+fnBlockCopy .or. &
                 REQUEST==fnOFFSET+fnBlockSchedule)) then ! link section code to edit section
                     write(device,AFORMAT) &
-                    trim(cgi_make_href(fnOFFSET+fnScheduleOfClasses, targetUser, Subject(crse)%Name, &
+                    trim(cgi_make_href(fnOFFSET+fnScheduleOfClasses, Subject(crse)%Name, &
                     A1=Department(dept)%Code, pre=begintr//begintd, post=endtd, anchor=Subject(crse)%Name)), &
-                    trim(cgi_make_href(fnOFFSET+fnScheduleEdit, targetUser, Section(sdx)%Code, &
+                    trim(cgi_make_href(fnOFFSET+fnScheduleEdit, Section(sdx)%Code, &
                     A1=QUERY_put, pre=begintd, post=endtd))
                 else
                     write(device,AFORMAT) &
@@ -331,7 +308,7 @@ contains
             else
                 if (target_fn==fnOFFSET+fnRoomSchedule .or. target_fn==fnOFFSET+fnTeacherSchedule) then
                     if ( permitted ) then
-                        write(device,AFORMAT) trim(cgi_make_href(target_fn, targetUser, target_action, &
+                        write(device,AFORMAT) trim(cgi_make_href(target_fn, target_action, &
                         A1=target_name, A2=target_action, A3=QUERY_put, &
                         pre=begintd//'<small>', post='</small>'//endtd//endtr))
                     else
@@ -343,7 +320,7 @@ contains
                         if (is_lecture_lab_subject(Section(sdx)%SubjectIdx) .and.  is_lecture_class(sdx, Section)) then
                             write(device,AFORMAT) tdnbspendtd//endtr
                         else
-                            write(device,AFORMAT) trim(cgi_make_href(target_fn, targetUser, target_action, &
+                            write(device,AFORMAT) trim(cgi_make_href(target_fn, target_action, &
                             A1=target_name, A2=target_action, A3=QUERY_put, &
                             pre=begintd//'<small>', post='</small>'//trim(note)//endtd//endtr))
                         end if
@@ -379,7 +356,6 @@ contains
         character(len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
         character(len=MAX_LEN_CLASS_ID) :: tClassId
         character(len=127) :: header
-        !character(len=4) :: tYear
         character(len=1) :: ch
 
         ! collect students
@@ -435,7 +411,7 @@ contains
                                 tArray(n_count) = std
                                 exit
                             elseif (Preenlisted(std)%Subject(ncol)==crse .and. is_lecture_lab_subject(crse)) then
-                                ldx = index(Section(sect)%ClassId,dash)
+                                ldx = index(Section(sect)%ClassId,DASH)
                                 if (ldx>0) then ! student is accommodated in a lab section
                                     if (trim(tClassId)==Section(sect)%ClassId(:ldx-1)) then ! lab of lecture
                                         n_count = n_count+1
@@ -519,7 +495,6 @@ contains
                 !write(device,AFORMAT) '<b>"'//ch//'" students in '//tCollege//'</b><br><hr>'
                 header = '"'//ch//'" students in '//tCollege
 
-#if defined UPLB
             case (fnStudentsByYear)
                     ! which college ?
                     call cgi_get_named_string(QUERY_STRING, 'A2', tYear, ierr)
@@ -531,10 +506,11 @@ contains
                             targetCollege  = NumColleges ! trigger 'All colleges' link for Admin
                             return
                     else
+                            sect = len_trim(tYear)
                             do tdx=1,NumStudents
                                std = StdRank(tdx)
                                if (Curriculum(Student(std)%CurriculumIdx)%CollegeIdx /= targetCollege) cycle
-                               if (Student(std)%StdNo(1:StdNoYearLen) /= tYear) cycle
+                               if (Student(std)%StdNo(1:sect) /= tYear(:sect)) cycle
                                n_count = n_count+1
                                tArray(n_count) = std
                             end do
@@ -546,7 +522,6 @@ contains
                     end if
                     !write(device,AFORMAT) '<b>"'//tYear//'" students in '//tCollege//'</b><br><hr>'
                     header = '"'//tYear//'" students in '//tCollege
-#endif
 
         end select
 
@@ -564,17 +539,17 @@ contains
                 begintd//trim(Student(std)%Name)//endtd//begintd//Curriculum(ldx)%Code//endtd//begintd
 
                 if (available(fnChangeMatriculation) ) then
-                    write(device,AFORMAT) trim(cgi_make_href(fnChangeMatriculation, targetUser, 'schedule', &
+                    write(device,AFORMAT) trim(cgi_make_href(fnChangeMatriculation, 'schedule', &
                     A1=Student(std)%StdNo, &
                     pre=' [ ', post=' ]'))
                 end if
                 if (available(fnEditCheckList) ) then
-                    write(device,AFORMAT) trim(cgi_make_href(fnEditCheckList, targetUser, 'checklist', &
+                    write(device,AFORMAT) trim(cgi_make_href(fnEditCheckList, 'checklist', &
                     A1=Student(std)%StdNo, &
                     pre=' [ ', post=' ]'))
                 end if
                 if (available(fnStudentPerformance) ) then
-                    write(device,AFORMAT) trim(cgi_make_href(fnStudentPerformance, targetUser, 'performance', &
+                    write(device,AFORMAT) trim(cgi_make_href(fnStudentPerformance, 'performance', &
                     A1=Student(std)%StdNo, &
                     pre=' [ ', post=' ]'))
                 end if
@@ -623,17 +598,17 @@ contains
                 begintd//trim(Curriculum(ldx)%Code)//endtd//begintd
 
                 if (available(fnChangeMatriculation) ) then
-                    write(device,AFORMAT) trim(cgi_make_href(fnChangeMatriculation, targetUser, 'schedule', &
+                    write(device,AFORMAT) trim(cgi_make_href(fnChangeMatriculation, 'schedule', &
                     A1=Student(std)%StdNo, &
                     pre=' [ ', post=' ]'))
                 end if
                 if (available(fnEditCheckList) ) then
-                    write(device,AFORMAT) trim(cgi_make_href(fnEditCheckList, targetUser, 'checklist', &
+                    write(device,AFORMAT) trim(cgi_make_href(fnEditCheckList, 'checklist', &
                     A1=Student(std)%StdNo, &
                     pre=' [ ', post=' ]'))
                 end if
                 if (available(fnStudentPerformance) ) then
-                    write(device,AFORMAT) trim(cgi_make_href(fnStudentPerformance, targetUser, 'performance', &
+                    write(device,AFORMAT) trim(cgi_make_href(fnStudentPerformance, 'performance', &
                     A1=Student(std)%StdNo, &
                     pre=' [ ', post=' ]'))
                 end if
@@ -661,20 +636,15 @@ contains
             '<html><head><title>'//trim(UniversityCode)//space//PROGNAME//VERSION// &
             '</title></head><body><a name="TOP"></a>'
 
-        write(device,AFORMAT) &
-            '<form name="input" method="post" action="'//CGI_PATH//'">', &
-            '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
-            '<input type="hidden" name="F" value="'//trim(itoa(fnStopProgram))//'">'
-
         ! banner line 1: user context & shortcuts
         write(device,AFORMAT) &
             '<table border="0" width="100%" cellpadding="0" cellspacing="0">', &
-            begintr//begintd//'<b>'//PROGNAME//VERSION//' for '//trim(UniversityCode)//', '// &
+            begintr//begintd//'<b>'//trim(UniversityName)//', '// &
             trim(txtSemester(currentTerm+3))//' Semester, SY '//trim(itoa(currentYear))//dash// &
             trim(itoa(currentYear+1))//' '//trim(txtPeriod(Period))//'</b>'//endtd
 
         write(device,AFORMAT) &
-            tdalignright//'<i>User is '//trim(USER)//'.</i><small>'
+            tdalignright//'<small>User is '//trim(USER)//'. '
 
         ! primary links for Department Chair
         if (isRoleChair) then
@@ -685,7 +655,7 @@ contains
         ! primary links for Registration Adviser
         else if (isRoleSRE) then
             if (available(fnCurriculum) .and. REQUEST/=fnCurriculum) then
-                write(device,AFORMAT) trim(cgi_make_href(fnCurriculumList, targetUser, 'Curriculum', &
+                write(device,AFORMAT) trim(cgi_make_href(fnCurriculumList, 'Curriculum', &
                     A1=CurrProgCode(CurriculumIdxUser), pre=nbsp))
             end if
 
@@ -693,18 +663,20 @@ contains
 
         ! link to other links
         tCollege = College(Department(DeptIdxUser)%CollegeIdx)%Code
-        write(device,AFORMAT) trim(cgi_make_href(fnCollegeLinks, targetUser, &
+        write(device,AFORMAT) trim(cgi_make_href(fnCollegeLinks, &
             tCollege, A1=tCollege, pre=nbsp))
 
-        ! stop program by Admin
+        ! Stop HEEDS for Admin & Logout for all users
         if (isRoleAdmin) write(device,AFORMAT) &
-            '<input name="A" type="submit" value="Stop '//PROGNAME//'">'
-
-        ! logout link for all users
-        write(device,AFORMAT) &
-            '<input name="A" type="submit" value="Logout">', &
-            !trim(cgi_make_href(fnStopUser, targetUser, 'Logout', pre=nbsp)), &
-            '</small>'//endtd//endtr
+            trim(cgi_make_href(fnStopProgram, 'Stop '//PROGNAME, pre=nbsp))
+#if defined PERSONAL
+        write(device,AFORMAT) trim(cgi_make_href(fnStopUser, 'Logout', pre=nbsp))
+#else
+        !if (isRoleAdmin) write(device,AFORMAT) &
+        !    nbsp//'<a href="/cgi-bin/shutdown.php">Stop '//PROGNAME//'</a>'
+        write(device,AFORMAT) nbsp//'<a href="/cgi-bin/logout.php">Logout</a>'
+#endif
+        write(device,AFORMAT) '</small>'//endtd//endtr
 
         ! line 2 for banner: higher level context for selected function
         write(device,AFORMAT) begintr//begintd//'<small>'
@@ -722,22 +694,22 @@ contains
             if (nItems==0 .and. available(fnFindBlock) .and. REQUEST/=fnFindBlock .and. &
             (IsRoleAdmin .or. &
             (IsRoleSRE .and. CurrProgCode(Student(targetStudent)%CurriculumIdx)==CurrProgCode(CurriculumIdxUser))) ) then
-                write(device,AFORMAT) trim(cgi_make_href(fnFindBlock, targetUser, 'Find block', &
+                write(device,AFORMAT) trim(cgi_make_href(fnFindBlock, 'Find block', &
                     A1=tStdNo, pre=nbsp))
             end if
 
             if (available(fnChangeMatriculation) .and. REQUEST/=fnChangeMatriculation) then
-                write(device,AFORMAT) trim(cgi_make_href(fnChangeMatriculation, targetUser, 'Schedule', &
+                write(device,AFORMAT) trim(cgi_make_href(fnChangeMatriculation, 'Schedule', &
                     A1=tStdNo, pre=nbsp))
             end if
 
             if (available(fnEditCheckList) .and. REQUEST/=fnEditCheckList) then
-                write(device,AFORMAT) trim(cgi_make_href(fnEditCheckList, targetUser, 'Checklist', &
+                write(device,AFORMAT) trim(cgi_make_href(fnEditCheckList, 'Checklist', &
                     A1=tStdNo, pre=nbsp))
             end if
 
             if (available(fnStudentPerformance) .and. REQUEST/=fnStudentPerformance) then
-                write(device,AFORMAT) trim(cgi_make_href(fnStudentPerformance, targetUser, 'Performance', &
+                write(device,AFORMAT) trim(cgi_make_href(fnStudentPerformance, 'Performance', &
                 A1=tStdNo, pre=nbsp))
             end if
 
@@ -748,7 +720,7 @@ contains
         ! students of curriculum ?
         if (targetCurriculum>0) then
             if (REQUEST/=fnCollegeLinks .and. REQUEST/=fnStudentsByProgram .and. available(fnStudentsByProgram)) then
-                write(device,AFORMAT) trim(cgi_make_href(fnStudentsByProgram, targetUser, 'students', &
+                write(device,AFORMAT) trim(cgi_make_href(fnStudentsByProgram, 'students', &
                     A1=CurrProgCode(targetCurriculum), &
                     pre=' [ '//trim(CurrProgCode(targetCurriculum))//SPACE, post=' ] '))
             end if
@@ -773,20 +745,20 @@ contains
                 cdx = CollegeIdxUSER
             end if
             tCollege =College(cdx)%Code
-            write(device,AFORMAT) trim(cgi_make_href(fnCollegeLinks, targetUser, 'links', &
+            write(device,AFORMAT) trim(cgi_make_href(fnCollegeLinks, 'links', &
                 A1=tCollege, pre=' [ '//tCollege, post=' ] '))
         end if
 
         write(device,AFORMAT) '<small>'//endtd//tdalignright//'<small>'
 
-        write(device,AFORMAT) trim(UniversityCode)//' colleges:'
+        write(device,AFORMAT) 'Colleges:'
         do gdx = 1,NumColleges
             if (.not. College(gdx)%hasInfo) cycle
             ! my college links already printed above?
             if (gdx==CollegeIdxUser) cycle
             ! fnCollegeLinks requested already printed above?
             if (REQUEST==fnCollegeLinks .and. gdx==targetCollege) cycle
-            write(device,AFORMAT) trim(cgi_make_href(fnCollegeLinks, targetUser, College(gdx)%Code, &
+            write(device,AFORMAT) trim(cgi_make_href(fnCollegeLinks, College(gdx)%Code, &
                 A1=College(gdx)%Code, pre=nbsp))
         end do
         write(device,AFORMAT) '</small>'//endtd//endtr
@@ -796,7 +768,7 @@ contains
             if (errmsg/=SPACE) write(device,AFORMAT) begintr//'<td colspan="2">'// &
                 red//'<i>'//trim(errmsg)//'</i>'//black//endtd//endtr
         end if
-        write(device,AFORMAT) '</table></form><hr>'
+        write(device,AFORMAT) '</table><hr>'
 
         ! start of body
         if (len_trim(header)>0) write(device,AFORMAT) '<b>'//trim(header)//nbsp//nbsp// &
@@ -810,24 +782,22 @@ contains
 
         integer, intent(in) :: device
 
-        if (REQUEST/=fnPrintableWorkload+fnOFFSET .and. REQUEST/=fnPrintableSchedule) then
+        if (REQUEST/=fnStopProgram .and. REQUEST/=fnStopUser .and. &
+            REQUEST/=fnPrintableWorkload+fnOFFSET .and. &
+            REQUEST/=fnPrintableSchedule) then
             ! last piece of info on the page
             call date_and_time (date=currentDate,time=currentTime)
             write(device,AFORMAT) &
-                '<small><i>Generated '//currentDate(1:4)//fslash//currentDate(5:6)//fslash//currentDate(7:8)// &
-                dash//currentTime(1:2)//':'//currentTime(3:4)//'.'// &
-                nbsp//nbsp//' Please report errors to '//trim(UniversityCode)//space//trim(REGISTRAR)//'.'
+                '<small><i>Generated '//currentDate(1:4)//FSLASH//currentDate(5:6)//FSLASH//currentDate(7:8)// &
+                DASH//currentTime(1:2)//':'//currentTime(3:4)//' by '//trim(fileExecutable)// &
+                '. Please report errors to the '//trim(REGISTRAR)//'.'
             if (noWrites) then ! training mode
-                write(device,AFORMAT) nbsp//nbsp//'<b>'//red//PROGNAME// &
-                    ' is in training mode. Any changes made will be lost after the program exits.'//black//'</b>'
+                write(device,AFORMAT) '<br><b>'//red//trim(fileExecutable)// &
+                    ' is in training mode. Any changes made will be lost when the program exits.'//black//'</b>'
             end if
-            write(device,AFORMAT) &
-                nbsp//nbsp//' <a target="0" href="http://code.google.com/p/heeds/">Help</a>.', &
-                '</i></small>'
+            write(device,AFORMAT) '</i></small>'
         end if
         write(device,AFORMAT) '</body></html>'
-
-        close(device)
 
         return
     end subroutine html_write_footer
@@ -878,27 +848,27 @@ contains
 
 
         if (REQUEST/=fnSubjectList .and. available(fnSubjectList)) then
-            write(device,AFORMAT) trim(cgi_make_href(fnSubjectList, targetUser, 'Subjects', &
+            write(device,AFORMAT) trim(cgi_make_href(fnSubjectList, 'Subjects', &
             A1=tDepartment, pre=nbsp))
         end if
 
         if (REQUEST/=fnOFFSET+fnTeachersByDept .and. available(fnOFFSET+fnTeachersByDept)) then
-            write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnTeachersByDept, targetUser, 'Teachers', &
+            write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnTeachersByDept, 'Teachers', &
             A1=tDepartment, pre=nbsp))
         end if
 
         if (REQUEST/=fnOFFSET+fnRoomList .and. available(fnOFFSET+fnRoomList)) then
-            write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnRoomList, targetUser, 'Rooms', &
+            write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnRoomList, 'Rooms', &
             A1=tDepartment, pre=nbsp))
         end if
 
         if (REQUEST/=fnOFFSET+fnScheduleOfClasses .and. available(fnOFFSET+fnScheduleOfClasses)) then
-            write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnScheduleOfClasses, targetUser, 'Classes', &
+            write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnScheduleOfClasses, 'Classes', &
             A1=tDepartment, pre=nbsp))
         end if
 
         if (REQUEST/=fnDemandForSubjects .and. available(fnDemandForSubjects)) then
-            write(device,AFORMAT) trim(cgi_make_href(fnDemandForSubjects, targetUser, 'Demand', &
+            write(device,AFORMAT) trim(cgi_make_href(fnDemandForSubjects, 'Demand', &
             A1=tDepartment, pre=nbsp))
         end if
 
@@ -944,28 +914,14 @@ contains
 
         if (isRoleAdmin .and. coll==CollegeIdxUSER) then
 
-            write(device,AFORMAT) '<li><b>Logout a user</b>', &
-                trim(cgi_make_href(fnCollegeLinks, targetUSER, &
-                'refresh', A1=College(CollegeIdxUSER)%Code, pre=' ( ', post=' list )')), &
-                '<table border="0" width="100%">', &
-                begintr//thalignleft//'User code'//endtd// &
-                thalignleft//'Last action: Time-IPaddress?QUERY_STRING'//endtd//endtr
-            ldx = 0
-            do cdx=1,NumUsers
-                if (UserList(cdx)%Session==-1) cycle
-                ldx = ldx+1
-                write(device,AFORMAT) trim(cgi_make_href(fnStopUSERbyAdmin, targetUSER, UserList(cdx)%Code, &
-                    A1=UserList(cdx)%Code, &
-                    pre=begintr//begintd//trim(itoa(ldx))//'.'//nbsp, post=endtd)), &
-                    begintd//trim(UserList(cdx)%lastQUERY)//endtd//endtr
-            end do
-            write(device,AFORMAT) '</table></li>'
+            write(device,AFORMAT) trim(cgi_make_href(fnStopProgram, 'Stop', &
+                pre='<li><b>', post='</b> the '//PROGNAME//' program</li>'))
 
             if (noWrites) then ! training mode
-                write(device,AFORMAT) trim(cgi_make_href(fnToggleTrainingMode, targetUSER, 'Turn it OFF', &
+                write(device,AFORMAT) trim(cgi_make_href(fnToggleTrainingMode, 'Turn it OFF', &
                     pre='<li><b>Training mode is '//red//'ON'//black//'</b>. ', post='</li>'))
             else
-                write(device,AFORMAT) trim(cgi_make_href(fnToggleTrainingMode, targetUSER, 'Turn it ON', &
+                write(device,AFORMAT) trim(cgi_make_href(fnToggleTrainingMode, 'Turn it ON', &
                     pre='<li><b>Training mode is '//green//'OFF'//black//'</b>. ', post='</li>'))
             end if
 
@@ -974,9 +930,9 @@ contains
         if (coll==NumColleges) then
 
             if (available(fnStudentsDistribution)) then
-                write(device,AFORMAT) trim(cgi_make_href(fnStudentsDistribution, targetUser, 'Distribution', &
+                write(device,AFORMAT) trim(cgi_make_href(fnStudentsDistribution, 'Distribution', &
                     A1=ADMINISTRATION, pre='<li><b>', post=' of students in '//trim(UniversityCode)//'</b>'))
-                write(device,AFORMAT) trim(cgi_make_href(fnStudentAddPrompt, targetUser, 'Add', &
+                write(device,AFORMAT) trim(cgi_make_href(fnStudentAddPrompt, 'Add', &
                     A1=tCollege, pre=' (', post=' a student)</li>'))
             end if
 
@@ -984,17 +940,17 @@ contains
 
                 write(device,AFORMAT) '<li><b>Summary of overall enlistment</b><ul>'
                 if (available(fnBottleneck)) then
-                    write(device,AFORMAT) trim(cgi_make_href(fnBottleneck, targetUser, 'demand > available seats', &
+                    write(device,AFORMAT) trim(cgi_make_href(fnBottleneck, 'demand > available seats', &
                         A1=tCollege, pre='<li>Top 100 subjects for which ', post='</li>'))
                 end if
 
                 if (available(fnExtraSlots)) then
-                    write(device,AFORMAT) trim(cgi_make_href(fnExtraSlots, targetUser, 'available seats > demand', &
+                    write(device,AFORMAT) trim(cgi_make_href(fnExtraSlots, 'available seats > demand', &
                         A1=tCollege, pre='<li>Top 100 subjects for which ', post='</li>'))
                 end if
 
                 if (available(fnUnderloadSummary)) then
-                    write(device,AFORMAT) trim(cgi_make_href(fnUnderloadSummary, targetUser, 'underloads', &
+                    write(device,AFORMAT) trim(cgi_make_href(fnUnderloadSummary, 'underloads', &
                         A1=tCollege, pre='<li>Summary of ', post='</li>'))
                 end if
 
@@ -1025,7 +981,7 @@ contains
                       !exit
                     end do
                     if (n_count > 0) then
-                        write(device,AFORMAT) trim(cgi_make_href(fnStudentsByName, targetUser, ch, &
+                        write(device,AFORMAT) trim(cgi_make_href(fnStudentsByName, ch, &
                             A1=tCollege, A2=ch, &
                             post='('//trim(itoa(n_count))//')'//nbsp))
                     !else
@@ -1035,25 +991,33 @@ contains
                 write(device,AFORMAT) '</li>'
             end if
 
-            !      if (available(fnStudentsByYear)) then
-            !        write(device,AFORMAT) '<li><b>By number</b> : '
-            !        do ldx=1960,currentYear+1
-            !          tYear = itoa(ldx)
-            !          n_count = 0
-            !          do std=1,NumStudents
-            !            if (Curriculum(Student(std)%CurriculumIdx)%CollegeIdx /= coll) cycle
-            !            if (tYear == Student(std)%StdNo(1:StdNoYearLen)) then
-            !              n_count = n_count+1
-            !              !exit
-            !            end if
-            !          end do
-            !          if (n_count == 0) cycle
-            !          write(device,AFORMAT) trim(cgi_make_href(fnStudentsByYear, targetUser, tYear, &
-            !              A1=tCollege, A2=tYear, &
-            !              post='('//trim(itoa(n_count))//')'//nbsp))
-            !        end do
-            !        write(device,AFORMAT) '</li>'
-            !      end if
+            if (available(fnStudentsByYear)) then
+                write(device,AFORMAT) '<li><b>By number</b> : '
+                do ldx=len_trim(StdNoPrefix),1,-1
+                    if (StdNoPrefix(ldx:ldx)/=':') cycle ! do ldx=
+                    cdx = ldx-1
+                    if (cdx==0) exit ! do ldx=
+                    do while (cdx>0)
+                        if (StdNoPrefix(cdx:cdx)/=':') then
+                            cdx = cdx-1
+                        else
+                            exit ! while (cdx>0)
+                        end if
+                    end do
+                    tYear = StdNoPrefix(cdx+1:ldx-1)
+                    cdx = len_trim(tYear)
+                    n_count = 0
+                    do std=1,NumStudents
+                        if (Curriculum(Student(std)%CurriculumIdx)%CollegeIdx/=coll) cycle
+                        if (tYear(:cdx)==Student(std)%StdNo(:cdx)) n_count = n_count+1
+                    end do
+                    if (n_count == 0) cycle
+                    write(device,AFORMAT) trim(cgi_make_href(fnStudentsByYear, tYear, &
+                        A1=tCollege, A2=tYear, &
+                        post='('//trim(itoa(n_count))//')'//nbsp))
+                end do
+                write(device,AFORMAT) '</li>'
+            end if
 
             if (available(fnStudentsByProgram)) then
                 write(device,AFORMAT) '<li><b>By curriculum</b> : '
@@ -1068,7 +1032,7 @@ contains
                       !exit
                     end do
                     if (n_count > 0) then
-                        write(device,AFORMAT) trim(cgi_make_href(fnStudentsByProgram, targetUser, CurrProgCode(cdx), &
+                        write(device,AFORMAT) trim(cgi_make_href(fnStudentsByProgram, CurrProgCode(cdx), &
                             A1=CurrProgCode(cdx), &
                             post='('//trim(itoa(n_count))//')'//nbsp))
                         do ldx=cdx+1,NumCurricula
@@ -1076,7 +1040,7 @@ contains
                         end do
                     end if
                 end do
-                write(device,AFORMAT) trim(cgi_make_href(fnStudentsDistribution, targetUser, 'Distribution among curricula', &
+                write(device,AFORMAT) trim(cgi_make_href(fnStudentsDistribution, 'Distribution among curricula', &
                     A1=tCollege))
                 write(device,AFORMAT) '</li>'
             end if
@@ -1097,7 +1061,7 @@ contains
                 do cdx=1,NumCurricula
                     if (Curriculum(cdx)%CollegeIdx /= coll) cycle
                     if (done(cdx)) cycle
-                    write(device,AFORMAT) trim(cgi_make_href(fnCurriculumList, targetUser, CurrProgCode(cdx), &
+                    write(device,AFORMAT) trim(cgi_make_href(fnCurriculumList, CurrProgCode(cdx), &
                         A1=CurrProgCode(cdx), post=nbsp))
                     do ldx=cdx+1,NumCurricula
                         if (CurrProgCode(ldx) == CurrProgCode(cdx)) done(ldx) = .true.
@@ -1112,7 +1076,7 @@ contains
      
         ! CURRENT SEMESTER
         write(device,AFORMAT) &
-            '<li><b>'//trim(txtSemester(currentTerm+3)//' Semester, SY '//trim(itoa(currentYear))//dash// &
+            '<li><b>'//trim(txtSemester(currentTerm+3)//' Semester, SY '//trim(itoa(currentYear))//DASH// &
             trim(itoa(currentYear+1))//' '//txtPeriod(Period))//'</b><ul>'
 
         ! blocks
@@ -1136,10 +1100,10 @@ contains
             ! NEXT SEMESTER blocks
             write(device,AFORMAT) '<hr>', &
             '<li><b>'//green//trim(txtSemester(targetTerm+3))//' Semester, SY '// &
-            trim(itoa(targetYear))//dash//itoa(targetYear+1)//black//'</b><ul>'
+            trim(itoa(targetYear))//DASH//itoa(targetYear+1)//black//'</b><ul>'
 
             if (available(fnDemandFreshmen) .and. tLen>0 ) then
-                write(device,AFORMAT) trim(cgi_make_href(fnDemandFreshmen, targetUser, 'new freshmen', &
+                write(device,AFORMAT) trim(cgi_make_href(fnDemandFreshmen, 'new freshmen', &
                     A1=tCollege, pre='<li><b>Demand for subjects by ', post='</b></li>'))
             end if
 
@@ -1193,7 +1157,7 @@ contains
 #endif
             if (n_count==0) cycle
             tDepartment = Department(dept)%Code
-            write(device,AFORMAT) trim(cgi_make_href(fn, targetUser, tDepartment, A1=tDepartment, post=nbsp))
+            write(device,AFORMAT) trim(cgi_make_href(fn, tDepartment, A1=tDepartment, post=nbsp))
         end do
         write(device,AFORMAT) '</li>'
 
@@ -1230,12 +1194,12 @@ contains
 #endif
             if (n_count==0) cycle
             tDepartment = Department(dept)%Code
-            write(device,AFORMAT) trim(cgi_make_href(fnSubjectList, targetUser, tDepartment, A1=tDepartment, post=nbsp))
+            write(device,AFORMAT) trim(cgi_make_href(fnSubjectList, tDepartment, A1=tDepartment, post=nbsp))
         end do
         write(device,AFORMAT) '</li><li><b>Subjects by area</b> : '
         do dept=1,numAreas
             tSubject = SubjectArea(AreaList(dept))%Code
-            write(device,AFORMAT) trim(cgi_make_href(fnSubjectList, targetUser, tSubject, A1=tSubject, post=nbsp))
+            write(device,AFORMAT) trim(cgi_make_href(fnSubjectList, tSubject, A1=tSubject, post=nbsp))
         end do
         write(device,AFORMAT) '</li><hr>'
         return
@@ -1273,16 +1237,16 @@ contains
 #endif
             if (n_count==0) cycle
             tDepartment = Department(dept)%Code
-            write(device,AFORMAT) trim(cgi_make_href(OFFSET+fnScheduleOfClasses, targetUser, tDepartment, &
+            write(device,AFORMAT) trim(cgi_make_href(OFFSET+fnScheduleOfClasses, tDepartment, &
                 A1=tDepartment, post=nbsp))
         end do
         write(device,AFORMAT) '; '//nbsp//' Classes with ', &
-        trim(cgi_make_href(OFFSET+fnTBATeachers, targetUser, 'TBA teachers', A1=tCollege, pre=nbsp//'<b>')), &
-        trim(cgi_make_href(OFFSET+fnTBARooms, targetUser, 'TBA rooms', A1=tCollege, pre=nbsp, post='</b></li>'))
+        trim(cgi_make_href(OFFSET+fnTBATeachers, 'TBA teachers', A1=tCollege, pre=nbsp//'<b>')), &
+        trim(cgi_make_href(OFFSET+fnTBARooms, 'TBA rooms', A1=tCollege, pre=nbsp, post='</b></li>'))
         write(device,AFORMAT) '<li><b>Class schedules by subject area</b> : '
         do dept=1,numAreas
             tSubject = SubjectArea(AreaList(dept))%Code
-            write(device,AFORMAT) trim(cgi_make_href(OFFSET+fnScheduleByArea, targetUser, tSubject, &
+            write(device,AFORMAT) trim(cgi_make_href(OFFSET+fnScheduleByArea, tSubject, &
             A1=tCollege, A2=tSubject, post=nbsp))
         end do
         write(device,AFORMAT) '</li>'
@@ -1302,19 +1266,19 @@ contains
         if (OFFSET>0) then
             do blk=1,NumNextBlocks
                 if (Curriculum(NextBlock(blk)%CurriculumIdx)%CollegeIdx/=coll) cycle
-                write(device,AFORMAT) trim(cgi_make_href(fnNextBlockSchedule, targetUser, NextBlock(blk)%BlockID, &
+                write(device,AFORMAT) trim(cgi_make_href(fnNextBlockSchedule, NextBlock(blk)%BlockID, &
                 A1=NextBlock(blk)%BlockID, post=nbsp))
             end do
         else
             do blk=1,NumCurrentBlocks
                 if (Curriculum(CurrentBlock(blk)%CurriculumIdx)%CollegeIdx/=coll) cycle
-                write(device,AFORMAT) trim(cgi_make_href(fnBlockSchedule, targetUser, CurrentBlock(blk)%BlockID, &
+                write(device,AFORMAT) trim(cgi_make_href(fnBlockSchedule, CurrentBlock(blk)%BlockID, &
                 A1=CurrentBlock(blk)%BlockID, post=nbsp))
             end do
         end if
         if (isRoleChair) tCollege = College(CollegeIdxUser)%Code
         if (isRoleChair .or. isRoleAdmin) then
-            write(device,AFORMAT) trim(cgi_make_href(OFFSET+fnBlockNewSelect, targetUser, 'Add', &
+            write(device,AFORMAT) trim(cgi_make_href(OFFSET+fnBlockNewSelect, 'Add', &
             A1=tCollege, pre=nbsp//' <b>(', post=' block)</b>'))
         end if
         write(device,AFORMAT) '</li>'
@@ -1350,11 +1314,11 @@ contains
             end do
             if (n_count==0) cycle
             tDepartment = Department(dept)%Code
-            write(device,AFORMAT) trim(cgi_make_href(OFFSET+fnTeachersByDept, targetUser, tDepartment, &
+            write(device,AFORMAT) trim(cgi_make_href(OFFSET+fnTeachersByDept, tDepartment, &
             A1=tDepartment, pre=nbsp, post='('//trim(itoa(n_count))//')'))
         end do
         if (available(OFFSET+fnTeacherConflicts)) then
-            write(device,AFORMAT) trim(cgi_make_href(OFFSET+fnTeacherConflicts, targetUser, 'conflicts', &
+            write(device,AFORMAT) trim(cgi_make_href(OFFSET+fnTeacherConflicts, 'conflicts', &
             A1=tCollege, pre='; Schedule'//nbsp//'<b>', post='</b>'))
         end if
         write(device,AFORMAT) '</li><li><b>Teachers by last name</b> : '
@@ -1367,7 +1331,7 @@ contains
                 n_count = n_count+1
             end do
             if (n_count==0) cycle
-            write(device,AFORMAT) trim(cgi_make_href(OFFSET+fnTeachersByName, targetUser, ch, &
+            write(device,AFORMAT) trim(cgi_make_href(OFFSET+fnTeachersByName, ch, &
             A1=tCollege, A2=ch, pre=nbsp, post='('//trim(itoa(n_count))//')'))
         end do
         write(device,AFORMAT) '</li>'
@@ -1403,11 +1367,11 @@ contains
             end do
             if (n_count==0) cycle
             tDepartment = Department(dept)%Code
-            write(device,AFORMAT) trim(cgi_make_href(OFFSET+fnRoomList, targetUser, tDepartment, &
+            write(device,AFORMAT) trim(cgi_make_href(OFFSET+fnRoomList, tDepartment, &
             A1=tDepartment, pre=nbsp, post='('//trim(itoa(n_count))//')'))
         end do
         if (available(OFFSET+fnRoomConflicts)) then
-            write(device,AFORMAT) trim(cgi_make_href(OFFSET+fnRoomConflicts, targetUser, 'conflicts', &
+            write(device,AFORMAT) trim(cgi_make_href(OFFSET+fnRoomConflicts, 'conflicts', &
             A1=tCollege, pre='; Schedule'//nbsp//'<b>', post='</b>'))
         end if
         write(device,AFORMAT) '</li>'
@@ -1424,7 +1388,7 @@ contains
             do jdx=1,Block(idx)%NumClasses
                 if (Block(idx)%Section(jdx)/=sect) cycle
                 if (available(fn)) then
-                    write(device,AFORMAT) trim(cgi_make_href(fn, targetUser, Block(idx)%BlockID, A1=Block(idx)%BlockID))
+                    write(device,AFORMAT) trim(cgi_make_href(fn, Block(idx)%BlockID, A1=Block(idx)%BlockID))
                 else
                     write(device,AFORMAT) trim(Block(idx)%BlockID)
                 end if

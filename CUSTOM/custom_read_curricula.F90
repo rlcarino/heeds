@@ -62,12 +62,12 @@ subroutine custom_read_curricula(path, errNo)
         !1  2    3 4                                         5 6     7 8        9
         call index_to_delimiters('"', line, ndels, pos)
 
-        ! remove non-alphabetic, non-dash
+        ! remove non-alphabetic, non-DASH
         tCurriculum = SPACE
         j = 0
         do i=pos(2)+1,pos(3)-1
             ch = line(i:i)
-            if ((ch>='A' .and. ch<='Z') .or. index(DECDIGITS,ch)>0 .or. ch==dash) then
+            if ((ch>='A' .and. ch<='Z') .or. index(DECDIGITS,ch)>0 .or. ch==DASH) then
                 j = j+1
                 tCurriculum(j:j) = ch
             end if

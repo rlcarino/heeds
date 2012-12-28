@@ -291,10 +291,7 @@ contains
         ! read additional info
         call xml_read_subjects_other(path, errNo)
         if (errNo/=0) then
-            call custom_read_subjects_prerequisites(path, errNo)
-            noXML = errNo==0
-            call SIAS_read_assessment(path, errNo)
-            errNo = 0
+            call custom_read_subjects_other(path, errNo)
         end if
 
         ! write the XML subjects file?
@@ -718,7 +715,7 @@ contains
         character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
         integer :: i,f,l,num
         tSubject = Subject(subj)%Name
-        i = index(tSubject,dash)
+        i = index(tSubject,DASH)
         if (i>0) then
             l = i-1
         else
@@ -900,7 +897,7 @@ contains
             if (eof<0) exit
             if (line(1:1)=='#' .or. line(1:3)=='   ') cycle
             !write(*,*) trim(line)
-            call index_to_delimiters(comma, line, ndels, pos)
+            call index_to_delimiters(COMMA, line, ndels, pos)
             if (ndels<7) cycle ! not enough data on line
             token = line(:pos(2)-1)
             cdx = index_to_subject(token)
@@ -947,7 +944,7 @@ contains
             select case (trim(tag))
 
                 case ('Failrate')
-                    call index_to_delimiters(comma, value, ndels, pos)
+                    call index_to_delimiters(COMMA, value, ndels, pos)
                     if (ndels<7) cycle ! not enough data on line
                     token = value(:pos(2)-1)
                     cdx = index_to_subject(token)

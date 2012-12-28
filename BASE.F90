@@ -32,15 +32,17 @@ module BASE
 
     implicit none
 
-    ! HEEDS root directory
-#if defined GNULINUX
+    ! HEEDS root directory and CGI script
+#if defined GLNX
     character(len=18), parameter :: dirHEEDS = '/home/heeds/HEEDS/'
+    character(len= 8), parameter :: UPDATES = 'UPDATES/'
 #else
     character(len= 7), parameter :: dirHEEDS = '\HEEDS\'
+    character(len= 8), parameter :: UPDATES = 'UPDATES\'
 #endif
 
     ! CGI script
-    character(len= 9), parameter :: CGI_SCRIPT = 'relay.php'
+    character(len= 9), parameter :: CGI_SCRIPT = 'heeds.php'
     character(len=18), parameter :: CGI_PATH = '/cgi-bin/'//CGI_SCRIPT
 
     ! flags to control generation of log files, backups
@@ -48,7 +50,7 @@ module BASE
     logical, parameter :: DO_NOT_BACKUP = .false. ! create backups?
 
     ! directory separator; delete, directory, mkdir commands
-#if defined GNULINUX
+#if defined GLNX
     character(len= 1), parameter :: DIRSEP = '/'
     character(len= 6), parameter :: delCmd = 'rm -f '
     character(len= 9), parameter :: dirCmd = 'dir -1tr '
@@ -71,14 +73,14 @@ module BASE
     character(len= 8) :: currentDate ! current date
 
     integer :: stderr = 999 ! unit number of file for error messages
-    integer :: adminPassword = 0 ! randomly generated password for REGISTRAR
-    logical :: checkPassword = .true. ! check the password
+    logical :: noWrites = .false. ! do not change data files
 
     ! Max length of file path+name
     integer, parameter :: MAX_LEN_FILE_PATH = 256
 
     ! data & output locations
     character (len=MAX_LEN_FILE_PATH) :: &
+        fileExecutable, & ! name of executable
         dirTmp, & ! directory for files to/from CGI script (must be readable/writable by HEEDS & Apache)
         dirWWW, & ! directory where web pages will be served (must be writable by HEEDS)
         dirCGI, & ! where CGI script is stored
@@ -93,25 +95,51 @@ module BASE
         dirXML, & ! directory for XML data files
         pathToCurrent, & ! path to files for currentYear+currentTerm
         pathToTarget, &  ! path to files for targetYear+targetTerm
-        pathToSections, &
-        pathToSectionUpdates
+        pathToSOURCE, &  ! pathToCurrent or pathToTarget
+        pathToUPDATES    ! path to files of changes by stand-alone users
 
     ! constants
     character(len= 1), parameter :: &
-        SPACE = ' ', comma = ',', dash ='-', fslash = '/', bslash = '\', dot = '.', prime = ''''
+        SPACE = ' ', COMMA = ',', DASH ='-', FSLASH = '/', BSLASH = '\', PRIME = ''''
     character(len= 3), parameter :: AFORMAT = '(a)'
     character(len=10), parameter :: DECDIGITS = '0123456789'
     character(len=16), parameter :: HEXDIGITS = '0123456789ABCDEF'
     character(len=24), parameter :: SPECIAL = '<>"#%{}|^~[]`;/?:=&$+().'
 
     ! software version
-    character(len= 5), parameter :: PROGNAME =  'HEEDS'
-    character(len= 8), parameter :: VERSION =   ' v.3.24'
+    character(len= 5), parameter :: PROGNAME  = 'HEEDS'
+    character(len= 8), parameter :: VERSION   = ' v.3.25 '
     character(len=38), parameter :: COPYRIGHT = 'Copyright (C) 2012 Ricolindo L. Carino'
-    character(len=38), parameter :: EMAIL =     'Ricolindo.Carino@AcademicForecasts.com'
-    character(len=76), parameter :: CONTACT =   'E-mail inquiries about '//PROGNAME//' to '//EMAIL//'.'
+    character(len=38), parameter :: EMAIL     = 'Ricolindo.Carino@AcademicForecasts.com'
+    character(len=72), parameter :: CONTACT   = 'E-mail inquiries about '//PROGNAME//' to '//EMAIL//'.'
+    character(len=31), parameter :: WEB       = 'http://code.google.com/p/heeds/'
+
+    ! University name
+    integer, parameter :: &
+        MAX_LEN_UNIVERSITY_CODE=20, & ! length of college codes
+        MAX_LEN_UNIVERSITY_NAME=60, & ! length of college names
+        MAX_LEN_COLLEGE_CODE=10, & ! length of college codes
+        MAX_LEN_DEPARTMENT_CODE=10 ! length of dept codes
+    character (len= MAX_LEN_UNIVERSITY_CODE) :: UniversityCode = SPACE
+    character (len=MAX_LEN_UNIVERSITY_NAME) :: &
+        UniversityName = '(Specify NAME in UNIVERSITY.XML)', &
+        UniversityAddress = '(Specify ADDRESS in UNIVERSITY.XML)', &
+        UniversityPresident = 'Firstname MI LastName, Title', &
+        DeanOfInstruction = 'Firstname MI LastName, Title'
+
+    ! 'Administrative' college, for data not under the academic colleges
+    character (len=MAX_LEN_COLLEGE_CODE) :: ADMINISTRATION = 'ADMIN'
+
+    ! 'Administrative' department, for data not under the academic departments
+    character (len=MAX_LEN_DEPARTMENT_CODE) :: REGISTRAR = 'Registrar'
+
+    integer :: baseYear = 2008 ! year that records usable by HEEDS are available in the database
+    integer :: StdNoYearLen ! no. of characters in StdNo to use for directory name
+    integer, parameter :: StdNoChars = 2 ! no. of characters in StdNo to use for directory name
+
 
 contains
+
 
     subroutine blank_to_underscore (inString, outString)
         character(len=*), intent(in) :: inString
@@ -143,7 +171,7 @@ contains
         ! change string to upper case
         character(len=*), intent (inout) :: string
         integer :: i,length
-        length=len(string)
+        length=len_trim(string)
         do i=1,length
             if (string(i:i) .lt. 'a') cycle
             if (string(i:i) .gt. 'z') cycle
@@ -151,6 +179,20 @@ contains
         end do
         return
     end subroutine upper_case
+
+
+    subroutine lower_case(string)
+        ! change string to lower case
+        character(len=*), intent (inout) :: string
+        integer :: i,length
+        length=len_trim(string)
+        do i=1,length
+            if (string(i:i) .lt. 'A') cycle
+            if (string(i:i) .gt. 'Z') cycle
+            string(i:i) = char(ichar(string(i:i))+32)
+        end do
+        return
+    end subroutine lower_case
 
 
     function atoi(inString)
@@ -164,7 +206,7 @@ contains
         string = adjustl(inString)
         ll = len_trim(string)
         if (ll > 0) then
-            if (string(1:1) == dash) then
+            if (string(1:1) == DASH) then
                 start = 2
                 pref = -1
             else
@@ -198,7 +240,7 @@ contains
         string = adjustl(inString)
         ll = len_trim(string)
         if (ll > 0) then
-            if (string(1:1) == dash) then
+            if (string(1:1) == DASH) then
                 start = 2
                 pref = -1.0
             else
@@ -244,7 +286,7 @@ contains
             str10 = DECDIGITS(j:j)//str10
             if (k == 0) exit
         end do
-        if (num < 0) str10 = dash//str10
+        if (num < 0) str10 = DASH//str10
         itoa = str10
         return
     end function itoa
@@ -276,7 +318,7 @@ contains
             if (frac==0.0 .or. i==dadp .or. l==10) exit
         end do
         if (l<10 .and. str10(l:l)=='.') str10(l+1:l+1) = '0' ! add 0 after decimal point
-        if (num < 0) str10 = dash//str10
+        if (num < 0) str10 = DASH//str10
         ftoa = str10
 
         return
@@ -416,7 +458,7 @@ contains
     subroutine write_lock_file(fname)
         character (len=*), intent (in) :: fname
         call open_for_write(4, trim(fname)//'.lock')
-        write(4,AFORMAT) 'If '//PROGNAME//' is NOT running, it is safe to delete this lock file.'
+        write(4,AFORMAT) 'If '//trim(fileExecutable)//' is NOT running, it is safe to delete this lock file.'
         close(4)
         return
     end subroutine write_lock_file
@@ -428,7 +470,7 @@ contains
         integer :: iStat, first!, last
         logical :: flagIsUp
 
-        if (DO_NOT_BACKUP) return ! no backups
+        if (DO_NOT_BACKUP .or. noWrites) return ! no backups
 
         first = index(fname, DIRSEP//'xml'//DIRSEP) + index(fname, DIRSEP//'raw'//DIRSEP)
         if (first==0) return ! do not backup files not in 'xml' or 'raw' directory
@@ -437,7 +479,7 @@ contains
         if (.not. flagIsUp) return ! does not exist anyway
 
         call date_and_time (date=currentDate,time=currentTime)
-        path = trim(fname)//dash//currentDate//dash//currentTime(1:6)
+        path = trim(fname)//DASH//currentDate//DASH//currentTime(1:6)
         path(first:first+4) = DIRSEP//'bak'//DIRSEP
         call rename (fname, path, iStat)
         if (iStat/=0) then ! create directory

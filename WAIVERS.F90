@@ -310,11 +310,11 @@ contains
                 cycle loop_waiver
             end if
             ! check for duplicates
-            i = index(tSubject, dash)
+            i = index(tSubject, DASH)
             if (i>0) tSubject(i:) = SPACE
             do i=1,cList(std)%lenSubject
                 token = Subject(cList(std)%Subject(i))%Name
-                j = index(token, dash)
+                j = index(token, DASH)
                 if (j>0) token(j:) = SPACE
                 if (tSubject==token) then ! move to front
                     !         write(*,*) tSubject//' - already predicted; moving to front...'

@@ -63,7 +63,7 @@ subroutine SIAS_read_classes(fName, NumSections, Section, errNo)
 
     character (len=1) :: ch
     integer :: kdx, rdx, tdx, i, j, subj
-    integer :: btime, dayidx(6), etime, ndays, iidx, pdash
+    integer :: btime, dayidx(6), etime, ndays, iidx, pDASH
     character (len=MAX_LEN_TEXT_TIME) :: strBTime, strETime
 
     open (unit=unitNum, file=fName, status='old', iostat=errNo)
@@ -92,7 +92,7 @@ subroutine SIAS_read_classes(fName, NumSections, Section, errNo)
         j = 0
         do i=pos(18)+1,pos(19)-1
             ch = line(i:i)
-            if (ch==comma .or. index(SPECIAL,ch)>0) cycle
+            if (ch==COMMA .or. index(SPECIAL,ch)>0) cycle
             j = j+1
             tTeacher(j:j) = ch
         end do
@@ -107,7 +107,7 @@ subroutine SIAS_read_classes(fName, NumSections, Section, errNo)
         kdx = pos(4)+1 ! position of '-'
         do i=pos(4)+1,pos(5)-1
             ch = line(i:i)
-            if (ch==dash) then
+            if (ch==DASH) then
                 kdx = i
                 exit
             end if
@@ -153,14 +153,14 @@ subroutine SIAS_read_classes(fName, NumSections, Section, errNo)
         ndays = 0
         dayidx = 0
         if (line(pos(2)+1:pos(3)-1)/='TBA') then
-            pdash = -1
+            pDASH = -1
             do i=pos(2)+1,pos(3)-1
                 ch = line(i:i)
                 iidx = 0
                 if (ch=='M') then
                     iidx = 1
                 else if (ch=='-') then
-                    pdash = i
+                    pDASH = i
                 else if (ch=='T') then
                     if (line(i+1:i+1)=='h' .or. line(i+1:i+1)=='H') then
                         iidx = 4
@@ -177,7 +177,7 @@ subroutine SIAS_read_classes(fName, NumSections, Section, errNo)
                 if (iidx>0) then
                     ndays = ndays+1
                     dayidx(ndays) = iidx
-                    if (pdash==i-1) then
+                    if (pDASH==i-1) then
                         do j=dayidx(ndays-1)+1,iidx
                             dayidx(ndays) = j
                             ndays = ndays+1
@@ -207,7 +207,7 @@ subroutine SIAS_read_classes(fName, NumSections, Section, errNo)
         Section(NumSections)%eTimeIdx(1:ndays) = etime
         Section(NumSections)%RoomIdx(1:ndays) = rdx
         Section(NumSections)%TeacherIdx(1:ndays) = tdx
-        if (is_lecture_lab_subject(subj) .and. index(tSection,dash)==0) then ! no blockname for lecture class
+        if (is_lecture_lab_subject(subj) .and. index(tSection,DASH)==0) then ! no blockname for lecture class
             Section(NumSections)%BlockID = SPACE
         else
             Section(NumSections)%BlockID = tBlock
@@ -284,7 +284,7 @@ subroutine ValidateSection (NumSections, Section, line, wrk, ier)
     integer, intent (out) :: ier
     character (len=255), intent (in) :: line
     !     integer :: TimeTable(60,6)
-    integer :: btime, dayidx(6), etime, ndays, iidx, pdash
+    integer :: btime, dayidx(6), etime, ndays, iidx, pDASH
     integer :: i, j, sect, crse, rmidx, tidx
     integer :: ndels, pos(30)
     character (len = 1) :: ch
@@ -359,14 +359,14 @@ subroutine ValidateSection (NumSections, Section, line, wrk, ier)
     ndays = 0
     dayidx = 0
     if (line(pos(5)+1:pos(6)-1)/='TBA') then
-        pdash = -1
+        pDASH = -1
         do i=pos(5)+1,pos(6)-1
             ch = line(i:i)
             iidx = 0
             if (ch=='M') then
                 iidx = 1
             else if (ch=='-') then
-                pdash = i
+                pDASH = i
             else if (ch=='T') then
                 if (line(i+1:i+1)=='h' .or. line(i+1:i+1)=='H') then
                     iidx = 4
@@ -391,7 +391,7 @@ subroutine ValidateSection (NumSections, Section, line, wrk, ier)
                     exit
                 end if
                 dayidx(ndays) = iidx
-                if (pdash==i-1) then
+                if (pDASH==i-1) then
                     do j=dayidx(ndays-1)+1,iidx
                         dayidx(ndays) = j
                         ndays = ndays+1
@@ -423,7 +423,7 @@ subroutine ValidateSection (NumSections, Section, line, wrk, ier)
         !do i=1,len_trim(tTeacher)
         !  ch = tTeacher(i:i)
         !  if ( ('a'<=ch .and. ch<='z') .or. ('A'<=ch .and. ch<='Z') .or. ('0'<=ch .and. ch<='9')) cycle
-        !  tTeacher(i:i) = dash
+        !  tTeacher(i:i) = DASH
         !end do
         tidx = index_to_teacher (tTeacher)
         if (tidx==0) then
@@ -433,7 +433,7 @@ subroutine ValidateSection (NumSections, Section, line, wrk, ier)
     end if
     ! block
     if (ndels>7) then
-        if (is_lecture_lab_subject(wrk%SubjectIdx) .and. index(wrk%Code,dash)==0) then ! no blockname for lecture class
+        if (is_lecture_lab_subject(wrk%SubjectIdx) .and. index(wrk%Code,DASH)==0) then ! no blockname for lecture class
             wrk%BlockID = SPACE
         else
             wrk%BlockID = line(pos(8)+1:pos(9)-1)

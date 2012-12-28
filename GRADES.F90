@@ -34,13 +34,16 @@ module GRADES
 
     implicit none
 
+    integer, private :: iTmp
+
     ! grade types
     character (len=10), dimension(0:3) :: txtGradeType = (/ &
         'APE       ', 'FINALGRADE', 'REMOVAL   ', 'COMPLETION' /)
 
     ! grades
     integer, parameter :: MAX_LEN_TEXT_GRADE = 4
-    character (len = MAX_LEN_TEXT_GRADE), dimension(0:49) :: txtGrade = (/  &
+    integer, parameter :: ZERO_PERCENT_GRADE = 49
+    character (len = MAX_LEN_TEXT_GRADE), dimension(0:ZERO_PERCENT_GRADE+100) :: txtGrade = (/  &
         '____',                             & !  0, 0
         '1.00',  '1.0 ',  '1   ',           & !  1, 1-3
         '1.25',                             & !  2, 4
@@ -61,12 +64,14 @@ module GRADES
         'LOA ',  'LOA.',  'Loa ',  'Loa.',  & ! 17, 42-45
         'REGD',                             & ! 18, 46
         'FAIL',  'Fail',                    & ! 19, 47-48
-        '****' /)                             ! 20, 49
+        '****',                             & ! 20, 49
+        ('    ',  iTmp=1,100) /)
 
     ! pointer to grade
-    integer, dimension(0:20) :: pGrade = (/ &
+    integer, dimension(0:ZERO_PERCENT_GRADE+100) :: pGrade = (/ &
         0,  1,  4,  5,  7,  8, 11, 12, 14, 15, &
-        18, 21, 25, 28, 32, 36, 40, 42, 46, 47, 49/)
+        18, 21, 25, 28, 32, 36, 40, 42, 46, 47, 49, &
+        (0, iTmp=21,ZERO_PERCENT_GRADE+100) /)
 
     ! shorcuts to certain grades
     integer ::  &
@@ -74,13 +79,14 @@ module GRADES
         gdxS    = 14, gdxU    = 15, gdxPASS  = 16, gdxLOA = 17, &
         gdxREGD = 18, gdxFAIL = 19, gdxRECOM = 20
 
-    real, dimension(0:20) :: fGrade = (/  & ! float value for grades
+    real, dimension(0:ZERO_PERCENT_GRADE+100) :: fGrade = (/  & ! float value for grades
         0.00,                   & ! error
         1.00, 1.25, 1.50, 1.75, & ! 1, 1.25, 1.5, 1.75
         2.00, 2.25, 2.50, 2.75, & ! 2, 2.25, 2.5, 2.75
         3.00, 4.00, 0.00, 5.00, & ! 3, 4, INC, 5
         0.00, 0.00, 0.00, 0.00, & ! DRP, S, U, PASS
-        0.00, 0.00, 0.00, 0.00 /) ! LOA, REGD, FAIL, ****
+        0.00, 0.00, 0.00, 0.00, & ! LOA, REGD, FAIL, ****
+        (0.0, iTmp=21,ZERO_PERCENT_GRADE+100) /)
 
 
     ! scholastic standing
@@ -97,7 +103,6 @@ module GRADES
 contains
 
 
-
     function is_grade_numeric_pass(GradeIdx, checkREGD)
         logical :: is_grade_numeric_pass
         integer, intent (in) :: GradeIdx
@@ -108,10 +113,12 @@ contains
         else
             includeREGD = .true.
         end if
-        is_grade_numeric_pass = (GradeIdx > 0 .and. GradeIdx < 10) .or. &
-        GradeIdx == gdxPASS .or. (GradeIdx == 18 .and. includeREGD)
+        is_grade_numeric_pass = GradeIdx>=(ZERO_PERCENT_GRADE+75) .or. &
+            (GradeIdx>0 .and. GradeIdx<10) .or. &
+            GradeIdx==gdxPASS .or. (GradeIdx==18 .and. includeREGD)
         return
     end function is_grade_numeric_pass
+
 
     function is_grade_passing(GradeIdx, checkREGD)
         logical :: is_grade_passing
@@ -123,19 +130,23 @@ contains
         else
             includeREGD = .true.
         end if
-        is_grade_passing = GradeIdx == gdxS .or. &
-        (GradeIdx > 0 .and. GradeIdx < 10) .or. &
-        GradeIdx == gdxPASS .or. (GradeIdx == 18 .and. includeREGD)
+        is_grade_passing = GradeIdx>=(ZERO_PERCENT_GRADE+75) .or. &
+            GradeIdx==gdxS .or. &
+            (GradeIdx>0 .and. GradeIdx<10) .or. &
+            GradeIdx==gdxPASS .or. (GradeIdx==18 .and. includeREGD)
         return
     end function is_grade_passing
+
 
     function is_grade_failing(GradeIdx)
         logical :: is_grade_failing
         integer, intent (in) :: GradeIdx
         is_grade_failing = GradeIdx==gdx5 .or. GradeIdx==gdxU .or. &
-        GradeIdx==gdxDRP .or. GradeIdx==gdxLOA .or. GradeIdx==gdxFAIL
+            GradeIdx==gdxDRP .or. GradeIdx==gdxLOA .or. GradeIdx==gdxFAIL .or. &
+            (GradeIdx>ZERO_PERCENT_GRADE .and. GradeIdx<(ZERO_PERCENT_GRADE+75))
         return
     end function is_grade_failing
+
 
     function is_grade_conditional(GradeIdx)
         logical :: is_grade_conditional
@@ -144,43 +155,50 @@ contains
         return
     end function is_grade_conditional
 
+
     function index_to_grade (Token)
         integer :: index_to_grade
         character (len=MAX_LEN_TEXT_GRADE), intent (in) :: Token
         integer :: i, j, Idx
-        idx = -99
-        do i = 0, 19
-            do j=pGrade(i), pGrade(i+1)-1
-                if (txtGrade(j)==Token) then
-                    Idx = i
-                    exit
-                end if
+        Idx = atoi(Token)
+        if (Idx>=50 .and. Idx<=100) then
+            Idx = Idx+ZERO_PERCENT_GRADE
+        else
+            Idx = -99
+            do i = 0, 19
+                do j=pGrade(i), pGrade(i+1)-1
+                    if (txtGrade(j)==Token) then
+                        Idx = i
+                        exit
+                    end if
+                end do
+                if (Idx>=0) exit
             end do
-        end do
-        if (Idx<0) then
-            i = atoi(Token)
-            select case (i)
-                case (99:100) ! 1.0
-                    Idx = 1
-                case (96:98) ! 1.25
-                    Idx = 2
-                case (93:95) ! 1.5
-                    Idx = 3
-                case (90:92) ! 1.75
-                    Idx = 4
-                case (87:89) ! 2.0
-                    Idx = 5
-                case (84:86) ! 2.25
-                    Idx = 6
-                case (81:83) ! 2.5
-                    Idx = 7
-                case (78:80) ! 2.75
-                    Idx = 8
-                case (75:77) ! 3.0
-                    Idx = 9
-                case default ! 5.0
-                    Idx = 12
-            end select
+            if (Idx<0) Idx = 0
+            if (UniversityCode(1:3)=='CSU') then ! convert to percentage
+                select case (Idx)
+                    case (1) ! 1.0
+                        Idx = ZERO_PERCENT_GRADE+99 !99:100
+                    case (2) ! 1.25
+                        Idx = ZERO_PERCENT_GRADE+97 ! 96:98
+                    case (3) ! 1.5
+                        Idx = ZERO_PERCENT_GRADE+94 ! 93:95
+                    case (4) ! 1.75
+                        Idx = ZERO_PERCENT_GRADE+91 ! 90:92
+                    case (5) ! 2.0
+                        Idx = ZERO_PERCENT_GRADE+88 ! 87:89
+                    case (6) ! 2.25
+                        Idx = ZERO_PERCENT_GRADE+85 ! 84:86
+                    case (7) ! 2.5
+                        Idx = ZERO_PERCENT_GRADE+82 ! 81:83
+                    case (8) ! 2.75
+                        Idx = ZERO_PERCENT_GRADE+79 ! 78:80
+                    case (9) ! 3.0
+                        Idx = ZERO_PERCENT_GRADE+76 ! 75:77
+                    case (12) ! 5.0
+                        Idx = ZERO_PERCENT_GRADE+70
+                end select
+            end if
         end if
         index_to_grade = Idx
         return

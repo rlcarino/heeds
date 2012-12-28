@@ -97,7 +97,7 @@ contains
                 !write(device,AFORMAT) &
                 !   begintr//'<td width="10%"><small><a href="#'//trim(College(gdx)%Code)//'">'//trim(College(gdx)%Code)//'</a></small>'//endtd
                 if (available(fnStudentsDistribution)) then
-                    write(device,AFORMAT) trim(cgi_make_href(fnStudentsDistribution, targetUser, College(gdx)%Code, &
+                    write(device,AFORMAT) trim(cgi_make_href(fnStudentsDistribution, College(gdx)%Code, &
                         A1=College(gdx)%Code, &
                         pre=begintr//'<td width="10%"><small>', post='</small>'//endtd))
                 else
@@ -238,7 +238,7 @@ contains
                     if (CurrProgNum(ldx) /= cdx) cycle
                     ! code
                     write(device,AFORMAT) &
-                        trim(cgi_make_href(fnCurriculum, targetUser, Curriculum(ldx)%Code, &
+                        trim(cgi_make_href(fnCurriculum, Curriculum(ldx)%Code, &
                         A1=Curriculum(ldx)%Code, &
                         pre=begintr//'<td width="10%"><small>', post='</small>'//endtd))
                     ! bar chart
@@ -256,7 +256,7 @@ contains
                     ! count
                     !write(device,AFORMAT) tdalignright//trim(itoa(CurriculumCount(ldx)))//endtd
                     if (CurriculumCount(ldx) .gt. 0) then
-                        write(device,AFORMAT) trim(cgi_make_href(fnStudentsByCurriculum, targetUser, itoa(CurriculumCount(ldx)), &
+                        write(device,AFORMAT) trim(cgi_make_href(fnStudentsByCurriculum, itoa(CurriculumCount(ldx)), &
                             A1=Curriculum(ldx)%Code, &
                             pre=tdalignright, post=endtd))
                     else
@@ -297,10 +297,10 @@ contains
         targetDepartment = Subject(targetSubject)%DeptIdx
         targetCollege = Department(targetDepartment)%CollegeIdx
         call html_write_header (device, 'Students not accommodated in priority subject '// &
-            trim(Subject(targetSubject)%Name)//SPACE//dash//SPACE//trim(Subject(targetSubject)%Title))
+            trim(Subject(targetSubject)%Name)//SPACE//DASH//SPACE//trim(Subject(targetSubject)%Title))
             !'<b>Students not accommodated in priority subject '//trim(Subject(targetSubject)%Name)//' - '// &
             !  trim(Subject(targetSubject)%Title)//'</b><br>', Department(targetDepartment)%Name// &
-            !trim(txtSemester(currentTerm+3))//' Semester, SY '//trim(itoa(currentYear))//dash//itoa(currentYear+1)// &
+            !trim(txtSemester(currentTerm+3))//' Semester, SY '//trim(itoa(currentYear))//DASH//itoa(currentYear+1)// &
             !'<hr>'
         ! collect students
         n_count = 0
@@ -401,7 +401,7 @@ contains
 
                 !write(device,AFORMAT) '<b>Enlistment summary</b> for subjects in '// &
                 !  trim(Department(targetDepartment)%Name)//', '//trim(College(targetCollege)%Code)// &
-                !  trim(txtSemester(currentTerm+3))//' Semester, SY '//trim(itoa(currentYear))//dash//itoa(currentYear+1)//'<br>'// &
+                !  trim(txtSemester(currentTerm+3))//' Semester, SY '//trim(itoa(currentYear))//DASH//itoa(currentYear+1)//'<br>'// &
                 !  '<hr><br>'
                 do i=1,NumSubjects+NumAdditionalSubjects
                     SubjectRank(i) = i
@@ -424,7 +424,7 @@ contains
                 end do
                 call html_write_header(device, 'Top 100 subjects for which demand > available seats')
                 !write(device,AFORMAT) '<b>Top 100 subjects for which demand > available seats</b>, ', &
-                !   trim(txtSemester(currentTerm+3))//' Semester, SY '//trim(itoa(currentYear))//dash//itoa(currentYear+1)//'<hr><br>'
+                !   trim(txtSemester(currentTerm+3))//' Semester, SY '//trim(itoa(currentYear))//DASH//itoa(currentYear+1)//'<hr><br>'
                 call enlistment_write_summary(device, Offering, 0, 100)
                 targetCollege = NumColleges
 
@@ -444,7 +444,7 @@ contains
                 end do
                 call html_write_header(device, 'Top 100 subjects for which available seats > demand')
                 !write(device,AFORMAT) '<b>Top 100 subjects for which available seats > demand</b>, ', &
-                !   trim(txtSemester(currentTerm+3))//' Semester, SY '//trim(itoa(currentYear))//dash//itoa(currentYear+1)//'<hr><br>'
+                !   trim(txtSemester(currentTerm+3))//' Semester, SY '//trim(itoa(currentYear))//DASH//itoa(currentYear+1)//'<hr><br>'
                 call enlistment_write_summary(device, Offering, 0, 100)
                 targetCollege = NumColleges
 
@@ -453,7 +453,7 @@ contains
 
                 call html_write_header(device, 'Summary of underloading/overloading')
                 !write(device,AFORMAT) '<b>Summary of underloading/overloading</b>, ', &
-                !   trim(txtSemester(currentTerm+3))//' Semester, SY '//trim(itoa(currentYear))//dash//itoa(currentYear+1)//'<hr><br>'
+                !   trim(txtSemester(currentTerm+3))//' Semester, SY '//trim(itoa(currentYear))//DASH//itoa(currentYear+1)//'<hr><br>'
 
                 write(device,AFORMAT) 'Note: Entry at position (<i>row</i>, <i>column</i>) indicates the number '// &
                     ' of students who were allowed <i>column</i> units but were underloaded(-)/overloaded(+) by '// &
@@ -496,7 +496,7 @@ contains
                     write(device,AFORMAT) begintr//'<td align="center">'//trim(itoa(-l))//endtd
                     do j=MaxLoad,0,-1
                         if (pos(j)>0) then
-                            write(device,AFORMAT) trim(cgi_make_href(fnUnderloadedStudents, targetUser, itoa(pos(j)), &
+                            write(device,AFORMAT) trim(cgi_make_href(fnUnderloadedStudents, itoa(pos(j)), &
                                 A1=trim(itoa(j)), A2=trim(itoa(l)), pre=tdalignright, post=endtd))
                         else
                             write(device,AFORMAT) tdalignright//'.'//endtd
@@ -530,7 +530,7 @@ contains
                     itoa(underloaded_by))
                 !write(device,AFORMAT) '<b>Students allowed '//itoa(allowed_units)//' units, but underloaded by '// &
                 !   itoa(underloaded_by)//'</b>, ', &
-                !   trim(txtSemester(currentTerm+3))//' Semester, SY '//trim(itoa(currentYear))//dash//itoa(currentYear+1)//')<hr><br>'
+                !   trim(txtSemester(currentTerm+3))//' Semester, SY '//trim(itoa(currentYear))//DASH//itoa(currentYear+1)//')<hr><br>'
 
                 write(device,AFORMAT) '<table border="0" width="100%">', &
                     begintr//thalignleft//'Count'//endth// &
@@ -564,17 +564,17 @@ contains
                         begintd//trim(Curriculum(Student(std)%CurriculumIdx)%Code)//endtd//begintd
 
                     if (available(fnChangeMatriculation) ) then
-                        write(device,AFORMAT) trim(cgi_make_href(fnChangeMatriculation, targetUser, 'schedule', &
+                        write(device,AFORMAT) trim(cgi_make_href(fnChangeMatriculation, 'schedule', &
                             A1=Student(std)%StdNo, &
                             pre=' [ ', post=' ]'))
                     end if
                     if (available(fnEditCheckList) ) then
-                        write(device,AFORMAT) trim(cgi_make_href(fnEditCheckList, targetUser, 'checklist', &
+                        write(device,AFORMAT) trim(cgi_make_href(fnEditCheckList, 'checklist', &
                             A1=Student(std)%StdNo, &
                             pre=' [ ', post=' ]'))
                     end if
                     if (available(fnStudentPerformance) ) then
-                        write(device,AFORMAT) trim(cgi_make_href(fnStudentPerformance, targetUser, 'performance', &
+                        write(device,AFORMAT) trim(cgi_make_href(fnStudentPerformance, 'performance', &
                             A1=Student(std)%StdNo, &
                             pre=' [ ', post=' ]'))
                     end if
@@ -590,112 +590,6 @@ contains
 
         return
     end subroutine enlistment_summarize
-
-
-    subroutine enlistment_write_summary(device, Offering, idxDEPT, maxSubjects)
-        integer, intent (in) :: device, idxDEPT, maxSubjects
-        type (TYPE_OFFERED_SUBJECTS), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS), intent (in) :: Offering
-        integer :: crse, cdx, nlines, nSubjects
-#if defined UPLB
-#else
-        integer :: idxCOLL
-#endif
-        character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
-        character (len=4) :: tNote
-
-        nlines = 0
-        nSubjects = 0
-        write(device,AFORMAT) '<table border="1" width="87%">'
-        do cdx=1,NumSubjects+NumAdditionalSubjects
-            crse = SubjectRank(cdx)
-            !write(*,*) cdx, Subject(crse)%Name, Offering(crse)%Demand
-            if (Offering(crse)%Demand == 0) cycle
-
-            if (idxDEPT/=0) then
-#if defined UPLB
-                ! Subject administered by departments
-                if (Subject(crse)%DeptIdx/=idxDEPT) cycle
-#else
-                ! Subjects administered by program
-                idxCOLL = Department(idxDEPT)%CollegeIdx
-                if (.not. is_used_in_college_subject(idxCOLL, crse) ) cycle
-#endif
-            end if
-            if (mod(nlines,20)==0) &
-            write(device,AFORMAT) begintr//'<td width="15%"><i><p>Subject<br></p></i>'//endtd, & ! subject
-                '<td width="8%" align="right"><i><p>No. of<br>sections</p></i>'//endtd, & ! no. of sections
-                '<td width="8%" align="right"><i><p>Total<br>seats</p></i>'//endtd, & ! total seats
-                '<td width="8%" align="right"><i><p>Total<br>accom</p></i>'//endtd, & ! total accom
-                '<td width="8%" align="right"><i><p>Open<br>seats</p></i>'//endtd, & !  open seats
-                '<td width="4%">'//nbsp//endtd// &
-                '<td width="8%" align="right"><i><p>Priority<br>demand</p></i>'//endtd, & ! priority demand
-                '<td width="8%" align="right"><i><p>Priority<br>not acc</p></i>'//endtd//endtr ! priority not accom
-                    !'<td width="8%" align="right"><i><p>Excess<br>seats</p></i>'//endtd, & ! excess seats
-                    !'<td width="8%" align="right"><i><p>Priority<br>accom</p></i>'//endtd, & ! priority accom
-                    !'<td width="8%" align="right"><i><p>Open<br>sects</p></i>'//endtd, & !  open sections
-                    !'<td width="8%" align="right"><i>Penalty</i>'//endtd//endtr ! penalty
-
-            tSubject = Subject(crse)%Name
-
-            ! subject
-            if (Offering(crse)%NSections>0) then
-                tNote = ' ' 
-            else
-                tNote = ' (*)'
-            end if
-            write(device,AFORMAT)  begintr//'<td width="15%">'//trim(tSubject)//tNote//endtd
-            ! no. of sections, total seats
-            write(device,AFORMAT) tdalignright//trim(itoa(Offering(crse)%NSections))//endtd, &
-            tdalignright//trim(itoa(Offering(crse)%TotalSlots))//endtd
-            ! total accom
-#if defined UPLB
-            ! Subject administered by departments
-            write(device,AFORMAT) trim(cgi_make_href(fnScheduleOfClasses, targetUser, &
-                itoa(Offering(crse)%Accommodated), &
-                A1=Department(Subject(crse)%DeptIdx)%Code, &
-                pre=tdalignright, post=endtd, anchor=tSubject))
-#else
-            ! Subjects administered by program
-            write(device,AFORMAT) tdalignright//itoa(Offering(crse)%Accommodated)//endtd
-#endif
-
-            ! open seats
-            write(device,AFORMAT) tdalignright//trim(itoa(Offering(crse)%OpenSlots))//endtd//tdnbspendtd
-            ! priority demand
-            write(device,AFORMAT) tdalignright//trim(itoa(Offering(crse)%Demand))//endtd
-            ! priority not accom
-            if (Offering(crse)%PriorityNotAccommodated>0) then
-                write(device,AFORMAT) trim(cgi_make_href(fnNotAccommodated, targetUser, &
-                    itoa(Offering(crse)%PriorityNotAccommodated), &
-                    A1=tSubject, pre=tdalignright, post=endtd//endtr ))
-            else
-                write(device,AFORMAT) tdalignright//'0'//endtd//endtr
-            end if
-            !write(device,AFORMAT)  &
-            !  tdalignright//trim(itoa(Offering(crse)%OpenSections))//endtd , &
-            !  tdalignright//trim(itoa(Offering(crse)%OpenSlots))//endtd
-            !  !tdalignright//trim(itoa(min(Offering(crse)%OpenSlots,  &
-            !  !       -Offering(crse)%Accommodated+Offering(crse)%Demand)))//endtd
-
-            nlines = nlines+1
-
-            nSubjects = nSubjects+1
-            if (nSubjects>=maxSubjects) exit
-        end do
-        write(device,AFORMAT) '</table>', &
-            '<br>Legends:', &
-            '<br><i>No. of sections</i> = sections/labs open', &
-            '<br><i>Total seats</i> = Total number of seats, all sections', &
-            '<br><i>Total accom</i> = No. of students accommodated in the subject', &
-            '<br><i>Priority demand</i> = No. of students who need the subject as specified in their curriculum, '// &
-            ' or as a back subject', &
-            '<br><i>Priority not accom</i> = priority demand not satisfied', &
-            '<br>(*) = no sections open, or subject is needed by graduating students'
-                  !'<i>Priority accom</i> = priority demand satisfied', &
-                  !'<td width="60%"><i>Penalty</i> = unusable seats due to schedule conflicts'//endtd//&
-        write(device,AFORMAT) '<hr>'
-        return
-    end subroutine enlistment_write_summary
 
 
 end module REPORTS

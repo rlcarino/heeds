@@ -106,8 +106,8 @@ contains
         integer, intent (in) :: sect
         type (TYPE_SECTION), intent(in), dimension (0:) :: Section
         logical :: is_lecture_class
-        ! returns true if sect is a lecture class (no dash in section code)
-        is_lecture_class = index(Section(sect)%Code,dash)==0 .or. &
+        ! returns true if sect is a lecture class (no DASH in section code)
+        is_lecture_class = index(Section(sect)%Code,DASH)==0 .or. &
            Subject(Section(sect)%SubjectIdx)%Name(1:3)=='PE '
         return
     end function is_lecture_class
@@ -356,7 +356,7 @@ contains
         numEntries = NumSections
         ! check for classes edited by departments
         do ddx=2,NumDepartments-1
-            fileName = trim(dirXML)//'updates-to-classes'//DIRSEP//trim(path)//'CLASSES-'//trim(Department(ddx)%Code)//'.XML'
+            fileName = trim(dirXML)//UPDATES//trim(path)//'CLASSES-'//trim(Department(ddx)%Code)//'.XML'
             call xml_read_classes(fileName, NumSections, Section, ierr, QUIETLY)
             partialEntries = NumSections - numEntries
             numEntries = NumSections
@@ -396,7 +396,7 @@ contains
         character(len=MAX_LEN_XML_LINE) :: value
         character(len=MAX_LEN_XML_TAG) :: tag
         type(TYPE_SECTION) :: wrkSection
-        integer :: btime, dayidx(6), etime, ndays, iidx, pdash
+        integer :: btime, dayidx(6), etime, ndays, iidx, pDASH
         integer :: subj, rmidx, tidx
         character (len = 1) :: ch
         character (len=5) :: strBTime, strETime
@@ -481,14 +481,14 @@ contains
                     dayidx = 0
                     k = len_trim(value)
                     if (value(:k)/='TBA') then
-                        pdash = -1
+                        pDASH = -1
                         do i=1,k
                             ch = value(i:i)
                             iidx = 0
                             if (ch=='M') then
                                 iidx = 1
                             else if (ch=='-') then
-                                pdash = i
+                                pDASH = i
                             else if (ch=='T') then
                                 if (value(i+1:i+1)=='h' .or. value(i+1:i+1)=='H') then
                                     iidx = 4
@@ -513,7 +513,7 @@ contains
                                     exit
                                 end if
                                 dayidx(ndays) = iidx
-                                if (pdash==i-1) then
+                                if (pDASH==i-1) then
                                     do j=dayidx(ndays-1)+1,iidx
                                         dayidx(ndays) = j
                                         ndays = ndays+1
@@ -546,7 +546,7 @@ contains
                         !do i=1,len_trim(tTeacher)
                         !  ch = tTeacher(i:i)
                         !  if ( ('a'<=ch .and. ch<='z') .or. ('A'<=ch .and. ch<='Z') .or. ('0'<=ch .and. ch<='9')) cycle
-                        !  tTeacher(i:i) = dash
+                        !  tTeacher(i:i) = DASH
                         !end do
                         tidx = index_to_teacher (tTeacher)
                         if (tidx==0) then

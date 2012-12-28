@@ -152,7 +152,7 @@ contains
                 mesg = SPACE
                 do idx=1,Curriculum(idxCURR)%NSubjects
                     if (Curriculum(idxCURR)%SubjectTerm(idx) == tdx) then
-                        mesg = trim(mesg)//comma//Subject(Curriculum(idxCURR)%SubjectIdx(idx))%Name
+                        mesg = trim(mesg)//COMMA//Subject(Curriculum(idxCURR)%SubjectIdx(idx))%Name
                     end if
                 end do
                 if (mesg==SPACE) cycle
@@ -166,7 +166,7 @@ contains
                 if (Substitution(SubstIdx(tdx))==idxCURR) then
                     mesg = SPACE
                     do idx=SubstIdx(tdx)+1, SubstIdx(tdx+1)-1
-                        mesg = trim(mesg)//comma//Subject(Substitution(idx))%Name
+                        mesg = trim(mesg)//COMMA//Subject(Substitution(idx))%Name
                     end do
                     call xml_write_character(unitNo, indent1, 'Substitution', mesg(2:))
                 end if
@@ -340,7 +340,7 @@ contains
             if (Substitution(SubstIdx(tdx))>NumCurricula) then
                 mesg = SPACE
                 do idx=SubstIdx(tdx)+1, SubstIdx(tdx+1)-1
-                    mesg = trim(mesg)//comma//Subject(Substitution(idx))%Name
+                    mesg = trim(mesg)//COMMA//Subject(Substitution(idx))%Name
                 end do
                 call xml_write_character(unitNo, indent0, 'Equivalence', mesg(2:))
             end if
@@ -479,7 +479,7 @@ contains
 !        end do
 
         ! write the XML CURRICULA file?
-        if (noXML) then
+        if (noXML .and. NumCurricula>0) then
             call xml_write_curricula(path)
             call xml_write_equivalencies(path)
         end if
@@ -575,7 +575,7 @@ contains
         end do
 
         ! find last code whose first few characters (up to the '-') match
-        tCurriculum = trim(token)//dash
+        tCurriculum = trim(token)//DASH
         do i=1,NumCurricula
             if (index(Curriculum(i)%Code,trim(tCurriculum))==1) then
                 index_to_curriculum = -i
@@ -842,7 +842,7 @@ contains
         tmp = COMMA//SPACE//trim(Curriculum(idxCURR)%Remark)//tmp
         if (Curriculum(idxCURR)%Specialization/=SPACE)  &
         tmp = COMMA//SPACE//trim(Curriculum(idxCURR)%Specialization)//tmp
-        tmp = trim(Curriculum(idxCURR)%Code)//SPACE//dash//SPACE// &
+        tmp = trim(Curriculum(idxCURR)%Code)//SPACE//DASH//SPACE// &
         trim(Curriculum(idxCURR)%Title)//tmp
         text_curriculum_info = tmp
         return
@@ -907,7 +907,7 @@ contains
             select case (trim(tag))
 
                 case ('Intake')
-                    call index_to_delimiters(comma, value, ndels, pos)
+                    call index_to_delimiters(COMMA, value, ndels, pos)
                     tCurriculum = value(:pos(2)-1)
                     idxCURR = index_to_curriculum(tCurriculum)
                     if (idxCURR == 0) then

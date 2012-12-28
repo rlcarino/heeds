@@ -78,7 +78,7 @@ contains
                 n_count = n_count+2
                 exit
             elseif (Preenlisted(std)%Subject(ncol)==crse .and. is_lecture_lab_subject(crse)) then
-                ldx = index(Section(sect)%ClassId,dash)
+                ldx = index(Section(sect)%ClassId,DASH)
                 if (ldx>0) then ! student is accommodated in a lab section
                    if (trim(tClassId)==Section(sect)%ClassId(:ldx-1)) then ! lab of lecture 
                       call cgi_get_named_integer(QUERY_STRING, trim(Student(std)%StdNo), idx_select, ierr)
@@ -107,7 +107,6 @@ contains
 
       write(device,AFORMAT) &
         '<form name="input" method="post" action="'//CGI_PATH//'">', &
-        '<input type="hidden" name="U" value="'//trim(itoa(targetUser))//'">', &
         '<input type="hidden" name="F" value="'//trim(itoa(fnGradeSheet))//'">', &
         '<input type="hidden" name="A1" value="'//trim(tClassId)//'">'
 
@@ -354,7 +353,7 @@ contains
       end if
     
     call html_write_header(device, trim(Student(targetStudent)%StdNo)//SPACE//trim(Student(targetStudent)%Name)// &
-      SPACE//dash//SPACE//trim(Curriculum(Student(targetStudent)%CurriculumIdx)%Code), mesg)
+      SPACE//DASH//SPACE//trim(Curriculum(Student(targetStudent)%CurriculumIdx)%Code), mesg)
 
     ! collect classes for student 
     call timetable_meetings_of_student(NumSections, Section, targetStudent, Preenlisted, 0, tLen1, tArray, TimeTable, conflicted)
@@ -363,7 +362,7 @@ contains
     !write(device,AFORMAT) '<hr>'
 
     call list_sections_to_edit(device, Section, tLen1, tArray, fnChangeMatriculation, tStdNo, 'Del', allowed_to_edit, &
-      '<b>Enlisted subjects</b> '//nbsp//trim(cgi_make_href(fnPrintableSchedule, targetUser, 'Printable', &
+      '<b>Enlisted subjects</b> '//nbsp//trim(cgi_make_href(fnPrintableSchedule, 'Printable', &
       A1=tStdNo, pre='<small>(', post=')</small>')) )
     call timetable_display(device, Section, TimeTable)
 
@@ -411,7 +410,7 @@ contains
           idx_opt = NumSections + n_opts + 1
           Section(idx_opt) = Section(sect)
           if (is_lecture_lab_subject(crse)) then ! find the lecture section
-            pos = index(Section(sect)%ClassId, dash)
+            pos = index(Section(sect)%ClassId, DASH)
             tClassId = Section(sect)%ClassId(:pos-1)
             lect = index_to_section(tClassId, NumSections, Section)
             if (is_conflict_timetable_with_section(NumSections, Section, lect, TimeTable)) then ! lecture class is not OK
@@ -477,7 +476,7 @@ contains
           call list_sections_to_edit(device, Section, tLen2, tArray(tLen1+1), fnChangeMatriculation, tStdNo, 'Prerog', &
             allowed_to_edit, '<a name="'//trim(tSubject)//'"></a><br><b>"TEACHER''S PREROGATIVE" sections in '// &
             trim(tSubject)//' that fit existing schedule, sorted by undesirability.</b>')
-          write(device,AFORMAT) trim(cgi_make_href(fnScheduleOfClasses, targetUser, &
+          write(device,AFORMAT) trim(cgi_make_href(fnScheduleOfClasses, &
               'here', A1=Department(Subject(crse)%DeptIdx)%Code, &
               pre='(The '//trim(tSubject)//' sections are ', post=')<br>', anchor=tSubject))
 
@@ -782,7 +781,7 @@ contains
     call recalculate_available_seats(Section)
 
     call html_write_header(device, trim(Student(targetStudent)%StdNo)//SPACE//trim(Student(targetStudent)%Name)// &
-      SPACE//dash//SPACE//trim(Curriculum(targetCurriculum)%Code))
+      SPACE//DASH//SPACE//trim(Curriculum(targetCurriculum)%Code))
 
     write(device,AFORMAT) '<table border="0" width="100%">'//begintr, &
         thalignleft//'Block ID'//endth// &
@@ -808,8 +807,8 @@ contains
       !  n_matches, '/'(blk)%NumClasses, ' matches, from ', &
       !  Preenlisted(targetStudent)%lenSubject, ' feasible subjects of '//Student(targetStudent)%StdNo
       write(device,AFORMAT) begintr// &
-        begintd//trim(cgi_make_href(fnBlockSchedule, targetUser, Block(blk)%BlockID, A1=Block(blk)%BlockID))//endtd// &
-        begintd//trim(itoa(n_matches))//SPACE//fslash//SPACE//trim(itoa(Block(blk)%NumClasses))//endtd// &
+        begintd//trim(cgi_make_href(fnBlockSchedule, Block(blk)%BlockID, A1=Block(blk)%BlockID))//endtd// &
+        begintd//trim(itoa(n_matches))//SPACE//FSLASH//SPACE//trim(itoa(Block(blk)%NumClasses))//endtd// &
         begintd
       matched = .false.
       do bdx=1,Block(blk)%NumClasses
@@ -838,7 +837,7 @@ contains
                   begintr//tdnbspendtd//tdnbspendtd//begintd ! new row with first 2 columns empty
         end if
       end do
-      write(device,AFORMAT) trim(cgi_make_href(fnChangeMatriculation, targetUser, 'Enlist', A1=tStdNo, A2='Block', &
+      write(device,AFORMAT) trim(cgi_make_href(fnChangeMatriculation, 'Enlist', A1=tStdNo, A2='Block', &
         A3=Block(blk)%BlockID, pre=nbsp, post=endtd//endtr))
     end do
     if (n_blks==0) then
@@ -860,8 +859,8 @@ contains
     real :: totalUnits, classUnits, totalHours, classHours, totalTuition, classTuition, totalLabFee, classLabFee
 
     write(device,AFORMAT) '<b>'//trim(Student(std)%StdNo)//SPACE//trim(Student(std)%Name)// &
-      SPACE//dash//SPACE//trim(Curriculum(Student(std)%CurriculumIdx)%Code)//'<br>'// &
-      trim(txtSemester(currentTerm+3))//' Semester, SY '//trim(itoa(currentYear))//dash// &
+      SPACE//DASH//SPACE//trim(Curriculum(Student(std)%CurriculumIdx)%Code)//'<br>'// &
+      trim(txtSemester(currentTerm+3))//' Semester, SY '//trim(itoa(currentYear))//DASH// &
       trim(itoa(currentYear+1))//'</b><hr>'
 
     if (lenSL < 3) then
@@ -1017,7 +1016,7 @@ contains
 
             if (is_lecture_lab_subject(crse)) then ! subject is lecture-lab
                 ! add lecture
-                j = index(Section(sect)%Code,dash)
+                j = index(Section(sect)%Code,DASH)
                 tClassId = trim(Subject(crse)%Name)//SPACE//Section(sect)%Code(:j-1)
                 lect = index_to_section(tClassId, NumSections, Section)
                 do i=1,Section(lect)%NMeets

@@ -56,6 +56,8 @@ module STUDENTS
     logical :: isDirtySTUDENTS = .false.
 
     integer :: MaxLoad
+    character (len=4) :: tYear
+    character (len=MAX_LEN_XML_LINE) :: StdNoPrefix
 
 
     ! private tokens
@@ -98,11 +100,22 @@ contains
         if (numEntries==0) then ! no XML student files; try the custom format
             call custom_read_students(path, numEntries, ierr)
         end if
+
         if (NumStudents>previous) call sort_alphabetical_students()
 
         if ((noXML .and. numEntries>0) .or. numUpdates>0) then ! students were added; write the XML students file
             call xml_write_students(path, 0)
         end if
+
+        ! collect student number prefix
+        StdNoPrefix = ':'
+        do i=1,NumStudents
+            iCurr = index(Student(i)%StdNo,DASH)-1
+            if (iCurr<=0) iCurr = StdNoChars
+            ierr = index(StdNoPrefix, ':'//Student(i)%StdNo(:iCurr))
+            if (ierr==0) StdNoPrefix = trim(StdNoPrefix)//Student(i)%StdNo(:iCurr)//':'
+        end do
+        !write(*,*) trim(StdNoPrefix)
 
         return
     end subroutine read_students
@@ -229,7 +242,7 @@ contains
         tmp = COMMA//SPACE//trim(Curriculum(idxCURR)%Remark)//tmp
         if (Curriculum(idxCURR)%Specialization/=SPACE)  &
         tmp = COMMA//SPACE//trim(Curriculum(idxCURR)%Specialization)//tmp
-        tmp = trim(Student(std)%StdNo)//SPACE//trim(Student(std)%Name)//SPACE//dash//SPACE// &
+        tmp = trim(Student(std)%StdNo)//SPACE//trim(Student(std)%Name)//SPACE//DASH//SPACE// &
             trim(Curriculum(idxCURR)%Title)//tmp
         text_student_curriculum = tmp
 
