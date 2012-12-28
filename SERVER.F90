@@ -763,7 +763,7 @@ contains
             '', &
             '    // create mailbox name from timestamp and IP address of user', &
             '    $timestamp = gettimeofday();', &
-            '    $fname = "'//trim(dirTmp)//'" . $timestamp["sec"] . $timestamp["usec"] . "-" . $_SERVER["REMOTE_ADDR"];', &
+            '    $fname = "'//trim(wrkDir)//'" . $timestamp["sec"] . $timestamp["usec"] . "-" . $_SERVER["REMOTE_ADDR"];', &
             '', &
             '    $handle = fopen($fname . ".mbox", "wt"); // open mailbox for writing', &
             '', &
@@ -826,7 +826,7 @@ contains
             '', &
             '    // create mailbox name from timestamp and IP address of user', &
             '    $timestamp = gettimeofday();', &
-            '    $fname = "'//trim(dirTmp)//'" . $timestamp["sec"] . $timestamp["usec"] . "-" . $_SERVER["REMOTE_ADDR"];', &
+            '    $fname = "'//trim(wrkDir)//'" . $timestamp["sec"] . $timestamp["usec"] . "-" . $_SERVER["REMOTE_ADDR"];', &
             '    $handle = fopen($fname . ".mbox", "wt"); // open mailbox for writing', &
             '', &
             '    // write GET/POST data to mailbox', &

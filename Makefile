@@ -81,17 +81,13 @@ all:	GLNX_PERSONAL_APACHE_PHP
 # For USAGE=GROUP, a MySQL database 'heeds' with a table 'users' is required
 #
 
-# Windows+Apache (for deployment on a personal Windows laptop or desktop)
-MSWIN_APACHE_BATCH:
-	make HEEDS RAWDATA=CUSTOM BIN=/c/HEEDS/bin USAGE=PERSONAL OS=MSWIN HTTP=APACHE CGI=BATCH LIB=
+# Windows+Apache (for deployment on a personal Windows laptop or desktop; no database of users)
+MSWIN_PERSONAL_APACHE_PHP:
+	make HEEDS RAWDATA=CUSTOM BIN=/c/HEEDS/bin USAGE=PERSONAL OS=MSWIN HTTP=APACHE CGI=PHP LIB=
 
-# Windows+Apache+PHP (for deployment on a Windows desktop acting as departmental server)
-MSWIN_APACHE_PHP:
+# Windows+Apache+PHP (for deployment on a Windows desktop acting as departmental server; requires a database of users)
+MSWIN_GROUP_APACHE_PHP:
 	make HEEDS RAWDATA=CUSTOM BIN=/c/HEEDS/bin USAGE=GROUP OS=MSWIN HTTP=APACHE CGI=PHP LIB=
-
-# GNU/Linux+Apache (for deployment on a personal GNU/Linux laptop or desktop)
-GLNX_APACHE_BASH:
-	make HEEDS RAWDATA=CUSTOM BIN=/home/heeds/HEEDS/bin USAGE=PERSONAL OS=GLNX HTTP=APACHE CGI=BASH LIB=
 
 # GNU/Linux+Apache+PHP (for deployment on a personal GNU/Linux laptop or desktop; no database of users)
 GLNX_PERSONAL_APACHE_PHP:
