@@ -66,10 +66,10 @@ contains
         ! make the landing page and the page that communicates with the back-end
 #if defined GROUP
         call cgi_write_index_php(trim(dirWWW)//DIRSEP//'index.php')
-        call cgi_write_heeds_php(trim(dirCGI)//CGI_SCRIPT, trim(QUERY_STRING), '30') ! ('NN' seconds to timeout)
+        call cgi_write_heeds_php(trim(dirCGI)//CGI_SCRIPT, trim(QUERY_STRING), '15') ! ('NN' seconds to timeout)
 #else
         call html_login(trim(dirWWW)//DIRSEP//'index.html')
-        call cgi_write_script_php(trim(dirCGI)//CGI_SCRIPT, trim(QUERY_STRING), '30') ! ('NN' seconds to timeout)
+        call cgi_write_script_php(trim(dirCGI)//CGI_SCRIPT, trim(QUERY_STRING), '15') ! ('NN' seconds to timeout)
 #endif
 
         call file_log_message('# cgi script ='//trim(dirCGI)//CGI_SCRIPT)
