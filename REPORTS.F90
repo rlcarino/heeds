@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -300,7 +300,7 @@ contains
             trim(Subject(targetSubject)%Name)//SPACE//DASH//SPACE//trim(Subject(targetSubject)%Title))
             !'<b>Students not accommodated in priority subject '//trim(Subject(targetSubject)%Name)//' - '// &
             !  trim(Subject(targetSubject)%Title)//'</b><br>', Department(targetDepartment)%Name// &
-            !trim(txtSemester(currentTerm+3))//' Semester, SY '//trim(itoa(currentYear))//DASH//itoa(currentYear+1)// &
+            !trim(txtSemester(currentTerm+3))//' Term, SY '//trim(itoa(currentYear))//DASH//itoa(currentYear+1)// &
             !'<hr>'
         ! collect students
         n_count = 0
@@ -401,7 +401,7 @@ contains
 
                 !write(device,AFORMAT) '<b>Enlistment summary</b> for subjects in '// &
                 !  trim(Department(targetDepartment)%Name)//', '//trim(College(targetCollege)%Code)// &
-                !  trim(txtSemester(currentTerm+3))//' Semester, SY '//trim(itoa(currentYear))//DASH//itoa(currentYear+1)//'<br>'// &
+                !  trim(txtSemester(currentTerm+3))//' Term, SY '//trim(itoa(currentYear))//DASH//itoa(currentYear+1)//'<br>'// &
                 !  '<hr><br>'
                 do i=1,NumSubjects+NumAdditionalSubjects
                     SubjectRank(i) = i
@@ -424,7 +424,7 @@ contains
                 end do
                 call html_write_header(device, 'Top 100 subjects for which demand > available seats')
                 !write(device,AFORMAT) '<b>Top 100 subjects for which demand > available seats</b>, ', &
-                !   trim(txtSemester(currentTerm+3))//' Semester, SY '//trim(itoa(currentYear))//DASH//itoa(currentYear+1)//'<hr><br>'
+                !   trim(txtSemester(currentTerm+3))//' Term, SY '//trim(itoa(currentYear))//DASH//itoa(currentYear+1)//'<hr><br>'
                 call enlistment_write_summary(device, Offering, 0, 100)
                 targetCollege = NumColleges
 
@@ -444,7 +444,7 @@ contains
                 end do
                 call html_write_header(device, 'Top 100 subjects for which available seats > demand')
                 !write(device,AFORMAT) '<b>Top 100 subjects for which available seats > demand</b>, ', &
-                !   trim(txtSemester(currentTerm+3))//' Semester, SY '//trim(itoa(currentYear))//DASH//itoa(currentYear+1)//'<hr><br>'
+                !   trim(txtSemester(currentTerm+3))//' Term, SY '//trim(itoa(currentYear))//DASH//itoa(currentYear+1)//'<hr><br>'
                 call enlistment_write_summary(device, Offering, 0, 100)
                 targetCollege = NumColleges
 
@@ -453,7 +453,7 @@ contains
 
                 call html_write_header(device, 'Summary of underloading/overloading')
                 !write(device,AFORMAT) '<b>Summary of underloading/overloading</b>, ', &
-                !   trim(txtSemester(currentTerm+3))//' Semester, SY '//trim(itoa(currentYear))//DASH//itoa(currentYear+1)//'<hr><br>'
+                !   trim(txtSemester(currentTerm+3))//' Term, SY '//trim(itoa(currentYear))//DASH//itoa(currentYear+1)//'<hr><br>'
 
                 write(device,AFORMAT) 'Note: Entry at position (<i>row</i>, <i>column</i>) indicates the number '// &
                     ' of students who were allowed <i>column</i> units but were underloaded(-)/overloaded(+) by '// &
@@ -530,7 +530,7 @@ contains
                     itoa(underloaded_by))
                 !write(device,AFORMAT) '<b>Students allowed '//itoa(allowed_units)//' units, but underloaded by '// &
                 !   itoa(underloaded_by)//'</b>, ', &
-                !   trim(txtSemester(currentTerm+3))//' Semester, SY '//trim(itoa(currentYear))//DASH//itoa(currentYear+1)//')<hr><br>'
+                !   trim(txtSemester(currentTerm+3))//' Term, SY '//trim(itoa(currentYear))//DASH//itoa(currentYear+1)//')<hr><br>'
 
                 write(device,AFORMAT) '<table border="0" width="100%">', &
                     begintr//thalignleft//'Count'//endth// &

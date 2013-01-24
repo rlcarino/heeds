@@ -2,7 +2,7 @@
 #
 #    HEEDS (Higher Education Enrollment Decision Support) - A program
 #      to create enrollment scenarios for 'next term' in a university
-#    Copyright (C) 2012 Ricolindo L Carino
+#    Copyright (C) 2012, 2013 Ricolindo L Carino
 #
 #    This file is part of the HEEDS program.
 #
@@ -71,7 +71,8 @@ help:
 	echo 'Usage: make HEEDS RAWDATA=data_format_code USAGE=PERSONAL|GROUP OS=GLNX|MSWIN HTTP=APACHE|NGINX CGI=PHP|BATCH|BASH'
 
 # default target
-all:	GLNX_PERSONAL_APACHE_PHP
+all:	MSWIN_PERSONAL_APACHE_PHP
+#GLNX_PERSONAL_APACHE_PHP
 #GLNX_PERSONAL_APACHE_PHP
 #GLNX_GROUP_APACHE_PHP
 
@@ -105,7 +106,7 @@ GLNX_NGINX_FCGI:
 HEEDS:	$(COMMON) $(INTERACTIVE)
 	$(FC) $(COMMON) $(INTERACTIVE) -o $(BIN)/HEEDS-$(USAGE)-$(OS)-$(HTTP)-$(CGI) $(LIB)
 
-BASE.o:	Makefile
+#BASE.o:	Makefile
 
 CGI.o:	BASE.o
 

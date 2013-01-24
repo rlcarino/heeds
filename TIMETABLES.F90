@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -320,6 +320,9 @@ contains
             n15 = n15 + tSection%eTimeIdx(idx) - tSection%bTimeIdx(idx)
         end do
         if (n15==0.0) return ! assume TBA is OK
+        ! disable check for summer schedules
+        if ( (fnOFFSET==0 .and. currentTerm==0) .or. &
+             (fnOFFSET>0 .and. currentTerm==2) ) return
 
         ! figure out how many hours based on subject type and section code
         idx = tSection%SubjectIdx

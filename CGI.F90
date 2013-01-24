@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L Carino
 !
 !    This file is part of the HEEDS program.
 !

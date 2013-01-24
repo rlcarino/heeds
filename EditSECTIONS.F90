@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -886,8 +886,10 @@ contains
         nbsp//nbsp//'<i>change to </i>&nbsp<input size="'//trim(itoa(tLen))//'" name="code" value="'// &
         trim(tSection%Code)//'">', &
         nbsp//nbsp//nbsp//nbsp//nbsp//nbsp//'<b>NO. OF STUDENTS</b> '//trim(itoa(Section(sect)%Slots))// &
-        nbsp//nbsp//'<i>change to </i>&nbsp<input size="3" name="slots" value="'//trim(itoa(tSection%Slots))//'">', &
-        '<br><i>(Note: Class meetings must total <b>'//trim(tHours)//'</b>) :</i>'
+        nbsp//nbsp//'<i>change to </i>&nbsp<input size="3" name="slots" value="'//trim(itoa(tSection%Slots))//'">'
+    if ( (fnOFFSET==0 .and. currentTerm/=0) .or. &
+         (fnOFFSET>0 .and. currentTerm/=2) ) write(device,AFORMAT) & ! not summer
+            '<br><i>(Note: Class meetings must total <b>'//trim(tHours)//'</b>) :</i>'
 
     write(device,AFORMAT) '<table border="0" width="100%">'//begintr, &
         '<td align="left"><b>Meeting</b>'//endtd//&

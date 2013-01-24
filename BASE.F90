@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -108,8 +108,8 @@ module BASE
 
     ! software version
     character(len= 5), parameter :: PROGNAME  = 'HEEDS'
-    character(len= 8), parameter :: VERSION   = ' v.3.25 '
-    character(len=38), parameter :: COPYRIGHT = 'Copyright (C) 2012 Ricolindo L. Carino'
+    character(len= 8), parameter :: VERSION   = ' v.3.26 '
+    character(len=44), parameter :: COPYRIGHT = 'Copyright (C) 2012, 2013 Ricolindo L. Carino'
     character(len=38), parameter :: EMAIL     = 'Ricolindo.Carino@AcademicForecasts.com'
     character(len=72), parameter :: CONTACT   = 'E-mail inquiries about '//PROGNAME//' to '//EMAIL//'.'
     character(len=31), parameter :: WEB       = 'http://code.google.com/p/heeds/'
@@ -124,8 +124,10 @@ module BASE
     character (len=MAX_LEN_UNIVERSITY_NAME) :: &
         UniversityName = '(Specify NAME in UNIVERSITY.XML)', &
         UniversityAddress = '(Specify ADDRESS in UNIVERSITY.XML)', &
-        UniversityPresident = 'Firstname MI LastName, Title', &
-        DeanOfInstruction = 'Firstname MI LastName, Title'
+        UniversityPresident = 'Firstname MI LastName, PhD', &
+        VPAcademicAffairs = 'Firstname MI LastName, PhD', &
+        DeanOfCampus = 'Firstname MI LastName, PhD', &
+        DeanOfInstruction = 'Firstname MI LastName, PhD'
 
     ! 'Administrative' college, for data not under the academic colleges
     character (len=MAX_LEN_COLLEGE_CODE) :: ADMINISTRATION = 'ADMIN'

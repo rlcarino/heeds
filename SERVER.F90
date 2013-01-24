@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -223,7 +223,7 @@ contains
         ! set TermQualifier to next semester if REQUEST uses data for next semester
         if (REQUEST>=fnNextScheduleOfClasses) then
             fnOFFSET = fnNextOffset
-            TermQualifier = green//trim(txtSemester(targetTerm+3))//' Semester, SY '// &
+            TermQualifier = green//trim(txtSemester(targetTerm+3))//' Term, SY '// &
                 trim(itoa(targetYear))//DASH//itoa(targetYear+1)//black
             pathToSOURCE = pathToTarget
             pathToUPDATES = UPDATES//pathToTarget

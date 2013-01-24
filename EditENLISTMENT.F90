@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -860,7 +860,7 @@ contains
 
     write(device,AFORMAT) '<b>'//trim(Student(std)%StdNo)//SPACE//trim(Student(std)%Name)// &
       SPACE//DASH//SPACE//trim(Curriculum(Student(std)%CurriculumIdx)%Code)//'<br>'// &
-      trim(txtSemester(currentTerm+3))//' Semester, SY '//trim(itoa(currentYear))//DASH// &
+      trim(txtSemester(currentTerm+3))//' Term, SY '//trim(itoa(currentYear))//DASH// &
       trim(itoa(currentYear+1))//'</b><hr>'
 
     if (lenSL < 3) then

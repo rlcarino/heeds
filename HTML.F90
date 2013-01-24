@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -640,7 +640,7 @@ contains
         write(device,AFORMAT) &
             '<table border="0" width="100%" cellpadding="0" cellspacing="0">', &
             begintr//begintd//'<b>'//trim(UniversityName)//', '// &
-            trim(txtSemester(currentTerm+3))//' Semester, SY '//trim(itoa(currentYear))//dash// &
+            trim(txtSemester(currentTerm+3))//' Term, SY '//trim(itoa(currentYear))//dash// &
             trim(itoa(currentYear+1))//' '//trim(txtPeriod(Period))//'</b>'//endtd
 
         write(device,AFORMAT) &
@@ -1076,7 +1076,7 @@ contains
      
         ! CURRENT SEMESTER
         write(device,AFORMAT) &
-            '<li><b>'//trim(txtSemester(currentTerm+3)//' Semester, SY '//trim(itoa(currentYear))//DASH// &
+            '<li><b>'//trim(txtSemester(currentTerm+3)//' Term, SY '//trim(itoa(currentYear))//DASH// &
             trim(itoa(currentYear+1))//' '//txtPeriod(Period))//'</b><ul>'
 
         ! blocks
@@ -1099,7 +1099,7 @@ contains
         if (Period>1) then
             ! NEXT SEMESTER blocks
             write(device,AFORMAT) '<hr>', &
-            '<li><b>'//green//trim(txtSemester(targetTerm+3))//' Semester, SY '// &
+            '<li><b>'//green//trim(txtSemester(targetTerm+3))//' Term, SY '// &
             trim(itoa(targetYear))//DASH//itoa(targetYear+1)//black//'</b><ul>'
 
             if (available(fnDemandFreshmen) .and. tLen>0 ) then

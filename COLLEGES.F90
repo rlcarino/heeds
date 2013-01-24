@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -118,6 +118,12 @@ contains
                 case ('DEANOFINSTRUCTION')
                     DeanOfInstruction = adjustl(value)
 
+                case ('VPACADEMICAFFAIRS')
+                    VPAcademicAffairs = adjustl(value)
+
+                case ('DEANOFCAMPUS')
+                    DeanOfCampus = adjustl(value)
+
                 case ('ADMINISTRATION')
                     ADMINISTRATION = adjustl(value)
 
@@ -153,12 +159,16 @@ contains
         '        NAME - University name', &
         '        ADDRESS - University address', &
         '        PRESIDENT - signatory for Office of the President', &
+        '        VPACADEMICAFFAIRS - signatory for Office of the VP for Academic Affairs', &
+        '        DEANOFCAMPUS - signatory for Dean of Campus', &
         '        DEANOFINSTRUCTION - signatory for Dean of Instruction', &
         '    </comment>'
 
         call xml_write_character(unitNum, indent0, 'NAME', UniversityName)
         call xml_write_character(unitNum, indent0, 'ADDRESS', UniversityAddress)
         call xml_write_character(unitNum, indent0, 'PRESIDENT', UniversityPresident)
+        call xml_write_character(unitNum, indent0, 'VPACADEMICAFFAIRS', VPAcademicAffairs)
+        call xml_write_character(unitNum, indent0, 'DEANOFCAMPUS', DeanOfCampus)
         call xml_write_character(unitNum, indent0, 'DEANOFINSTRUCTION', DeanOfInstruction)
         call xml_write_character(unitNum, indent0, 'ADMINISTRATION', ADMINISTRATION)
         call xml_write_character(unitNum, indent0, 'REGISTRAR', REGISTRAR)
@@ -308,7 +318,7 @@ contains
                     FSLASH//currentDate(5:6)//FSLASH//currentDate(7:8), &
         '        Code - college code', &
         '        Name - long name of college', &
-        '        Dean - signatory for college (Firstname MI Lastname, Title)', &
+        '        Dean - signatory for college (Firstname MI Lastname, PhD)', &
         '    </comment>'
 
         do ldx = 1,NumColleges-1 ! exclude ADMINISTRATION

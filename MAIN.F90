@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -66,7 +66,7 @@ program MAIN
             '  where', &
             'univ      - university code', &
             'year      - the year when current Academic Year started', &
-            'term      - 1=first sem, 2=second sem', &
+            'term      - 0=summer, 1=first sem, 2=second sem', &
             'period    - 1=enrollment period, 2=mid-term, 3=end-of-term (grades are available)', &
             'action    - checklists, advise, schedule, server, training', &
             'group     - priority group to schedule, if action=schedule'
@@ -149,8 +149,8 @@ program MAIN
     if (currentTerm==1) then
         prevYearYear = currentYear-1
         prevYearTerm = 1
-        prevTermYear = currentYear-1
-        prevTermTerm = 2
+        prevTermYear = currentYear
+        prevTermTerm = 0
         nextYear = currentYear
         nextTerm = 2
     else if (currentTerm==2) then
@@ -159,10 +159,14 @@ program MAIN
         prevTermYear = currentYear
         prevTermTerm = 1
         nextYear = currentYear+1
-        nextTerm = 1
+        nextTerm = 0
     else
-        write(*,*) 'Current term must be 1 (1st sem) or 2 (2nd sem)'
-        stop
+        prevYearYear = currentYear-1
+        prevYearTerm = 0
+        prevTermYear = currentYear-1
+        prevTermTerm = 2
+        nextYear = currentYear
+        nextTerm = 1
     end if
 
     ! predict for which term?

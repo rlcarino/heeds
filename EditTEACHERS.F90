@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -646,7 +646,7 @@ contains
         begintr//begintd//'<br>'//endtd//endtr, &
         begintr//tdaligncenter//trim(College(targetCollege)%Name)//endtd//endtr, &
         begintr//tdaligncenter//'<b>INDIVIDUAL FACULTY TEACHING LOAD</b>'//endtd//endtr, &
-        begintr//tdaligncenter//trim(txtSemester(currentTerm+6))//' Semester, SY '// &
+        begintr//tdaligncenter//trim(txtSemester(currentTerm+6))//' Term, SY '// &
             trim(itoa(currentYear))//DASH//trim(itoa(currentYear+1))//endtd//endtr, &
         begintr//begintd//'<br>'//endtd//endtr, &
         '</table>'
@@ -671,11 +671,6 @@ contains
 
     call teacher_workload(device, Section, tLen1, tArray, NumBlocks, Block)
 
-    write(device,AFORMAT) &
-      '<form name="input" method="post" action="'//CGI_PATH//'">', &
-      '<input type="hidden" name="F" value="0'//trim(itoa(fnPrintableWorkload+fnOFFSET))//'">'// &
-      '<input type="hidden" name="A1" value="'//trim(tTeacher)//'">'
-
     write(device,AFORMAT) '<br><br><br><br><table border="0" width="100%">', &
         begintr//'<td width="50%">Prepared by:<br><br><br><br><br><br>'// &
                  trim(College(targetCollege)%Dean)// &
@@ -684,15 +679,19 @@ contains
                  trim(Teacher(targetTeacher)%Name)// &
                  '<br>Faculty<br><br><br>'//endtd//endtr
     write(device,AFORMAT) &
-        begintr//'<td width="50%">'//nbsp//endtd, &
+        begintr//'<td width="50%">Recommending Approval:<br><br><br><br><br><br>'// &
+                 trim(DeanOfCampus)// &
+                 '<br>Dean of Campus<br><br><br>'//endtd, &
                  '<td width="50%">Recommending Approval:<br><br><br><br><br><br>'// &
                  trim(DeanOfInstruction)// &
                  '<br>Dean of Instruction<br><br><br>'//endtd//endtr
     write(device,AFORMAT) &
-        begintr//'<td width="50%">Approved by:<br><br><br><br><br><br>'// &
+        begintr//'<td width="50%">Recommending Approval:<br><br><br><br><br><br>'// &
+                 trim(VPAcademicAffairs)// &
+                 '<br>Vice President for Academic Affairs'//endtd, &
+                 '<td width="50%">Approved by:<br><br><br><br><br><br>'// &
                  trim(UniversityPresident)// &
-                 '<br>Office of the President'//endtd, &
-                 '<td width="50%">'//nbsp//endtd//endtr
+                 '<br>President'//endtd//endtr
     write(device,AFORMAT) '</table>'
 
     return
