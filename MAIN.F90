@@ -159,14 +159,14 @@ program MAIN
         prevYearTerm = 2
         prevTermYear = currentYear
         prevTermTerm = 1
-        nextYear = currentYear+1
+        nextYear = currentYear
         nextTerm = 0
     else
         prevYearYear = currentYear-1
         prevYearTerm = 0
-        prevTermYear = currentYear-1
+        prevTermYear = currentYear
         prevTermTerm = 2
-        nextYear = currentYear
+        nextYear = currentYear+1
         nextTerm = 1
     end if
 
