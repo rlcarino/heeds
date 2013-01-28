@@ -70,6 +70,7 @@ program MAIN
             'period    - 1=enrollment period, 2=mid-term, 3=end-of-term (grades are available)', &
             'action    - checklists, advise, schedule, server, training', &
             'group     - priority group to schedule, if action=schedule'
+        write(*,AFORMAT) ' ', 'You are running '//PROGNAME//VERSION
         stop
     end if
 
@@ -237,7 +238,7 @@ program MAIN
         open(unit=stderr, file=trim(dirLOG)//currentDate//'.log', status='replace')
     end if
     write(stderr,AFORMAT) '-------', 'Begins '//currentDate//DASH//currentTime, '-------', &
-        'Executable is : '//trim(fileExecutable)
+        'Executable is : '//trim(fileExecutable)//SPACE//DASH//SPACE//PROGNAME//VERSION
 
     ! read the university name
     call read_university(pathToCurrent, errNo)
