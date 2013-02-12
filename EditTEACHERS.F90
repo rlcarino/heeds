@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -182,6 +182,7 @@ contains
             
             write(device,AFORMAT) '<table border="0" width="90%">'//&
               begintr//thalignleft//'Name (Specialization)'//endth// &
+                       thaligncenter//PROGNAME//' Role'//endth// &
                        thaligncenter//'No. of<br>classes'//endth// &
                        thaligncenter//'Lect<br>hours'//endth// &
                        thaligncenter//'Lab<br>hours'//endth// &
@@ -222,18 +223,24 @@ contains
               call cgi_url_encode(Teacher(fac)%TeacherID, QUERY_put)
 #endif
 
-              write(device,AFORMAT) begintr//begintd//trim(Teacher(fac)%Name)//' ('//trim(Teacher(fac)%Specialization)//')'
-              if (isRoleAdmin .or. (isRoleChair .and.  DeptIdxUser==Teacher(fac)%DeptIdx)) then
-                write(device,AFORMAT) trim(cgi_make_href(fnEditTeacher, 'Edit', &
+              write(device,AFORMAT) begintr//begintd//trim(itoa(tdx))//'. '//trim(Teacher(fac)%Name)// &
+                  ' ('//trim(Teacher(fac)%Specialization)//')'
+              if (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==Teacher(fac)%DeptIdx) ) then
+                write(device,AFORMAT) trim(make_href(fnEditTeacher, 'Edit', &
                   A1=QUERY_put, pre=nbsp//'<small>', post='</small>'))
               end if
-              write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnTeacherSchedule, 'Edit', &
-                  A1=QUERY_put, pre=endtd//tdaligncenter//itoa(nsect)//'<small>', post='</small>'//endtd))
-              write(device,'(2(a,f5.1), a,f5.2,a)') tdaligncenter, totalLect, &
+              write(device,AFORMAT) endtd//tdaligncenter//trim(Teacher(fac)%Role)//endtd, &
+                tdaligncenter//itoa(nsect)//trim(make_href(fnOFFSET+fnTeacherSchedule, 'Edit', &
+                      A1=QUERY_put, pre=' <small>', post='</small>'))
+              !if (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==Teacher(fac)%DeptIdx)) then
+              !    write(device,AFORMAT) trim(make_href(fnOFFSET+fnTeacherSchedule, 'Edit', &
+              !        A1=QUERY_put, pre='<small>', post='</small>'))
+              !end if
+              write(device,'(2(a,f5.1), a,f5.2,a)') endtd//tdaligncenter, totalLect, &
                     endtd//tdaligncenter, totalLab, &
                     endtd//tdaligncenter, totalUnits, &
                     '/'//trim(itoa(Teacher(fac)%MaxLoad))// &
-                    trim(cgi_make_href(fnPrintableWorkload+fnOFFSET, 'Printable', &
+                    trim(make_href(fnPrintableWorkload+fnOFFSET, 'Printable', &
                     A1=QUERY_put, pre=nbsp//'<small>', post='</small>'))//endtd// &
                     tdaligncenter//trim(mesg)//endtd//endtr
             end do
@@ -298,8 +305,9 @@ contains
             end if
     end if
 
-    call html_write_header(device, cgi_make_href(fnPrintableWorkload+fnOFFSET, 'Printable', &
-        A1=tTeacher, post=' teaching schedule of '//Teacher(targetTeacher)%Name), mesg)
+    call html_write_header(device, make_href(fnPrintableWorkload+fnOFFSET, 'printable', &
+        A1=tTeacher, pre='Teaching schedule of '//trim(Teacher(targetTeacher)%Name)//' (', &
+        post=')'), mesg)
 
     ! collect meetings of teacher targetTeacher
     call timetable_meetings_of_teacher(NumSections, Section, targetTeacher, 0, tLen1, tArray, TimeTable, conflicted)
@@ -307,7 +315,7 @@ contains
     !if (conflicted) write(*,*) 'Conflict in schedule '//trim(Teacher(targetTeacher)%Name)
     call list_sections_to_edit(device, Section, tLen1, tArray, fnOFFSET+fnTeacherSchedule, tTeacher, 'Del', allowed_to_edit)
     !write(*, '(3i6)') (tArray(mdx), mdx=1,tLen1)
-    call timetable_display(device, Section, TimeTable)
+    if (tLen1>0) call timetable_display(device, Section, TimeTable)
 
     write(device,AFORMAT) '<hr>'
     ! make list of TBA sections LoadSource that fit the schedule of teacher
@@ -353,11 +361,7 @@ contains
     end if
 
     ! search for feasible classes in another department?
-    write(device,AFORMAT) &
-        '<br><form name="input" method="post" action="'//CGI_SCRIPT//'">', &
-        '<input type="hidden" name="F" value="'//trim(itoa(fnOFFSET+fnTeacherSchedule))//'">', &
-        '<input type="hidden" name="A1" value="'//trim(tTeacher)//'">'
-
+    call make_form_start(device, fnOFFSET+fnTeacherSchedule, tTeacher)
 
     write(device,AFORMAT) '<br>Search for feasible classes in : <select name="A4">'
     do mdx=2,NumDepartments
@@ -367,9 +371,9 @@ contains
                 ierr = 1
       end if
       write(device,AFORMAT) '<option value="'//trim(Department(mdx)%Code)//'"'//trim(selected(ierr))//'> '// &
-        trim(Department(mdx)%Code)//dash//trim(Department(mdx)%Name)
+        trim(Department(mdx)%Code)//DASH//trim(Department(mdx)%Name)
     end do
-    write(device,AFORMAT) '</select>'//nbsp//'<input type="submit" value="Find classes"><hr>'
+    write(device,AFORMAT) '</select>'//nbsp//'<input type="submit" value="Find classes"></form><hr>'
     return
   end subroutine teacher_schedule
 
@@ -382,8 +386,10 @@ contains
     character (len=255) :: mesg, remark
     type (TYPE_TEACHER) :: wrk
     logical :: isDirtyTEACHERS
+    character (len=MAX_LEN_PASSWORD) :: Password
+    integer :: lenP
 
-    ! which subject ?
+    ! which teacher ?
     call cgi_get_named_string(QUERY_STRING, 'A1', tTeacher, tdx)
     if (tdx/=0 .or. tTeacher==SPACE) then
             mesg = 'Teacher record to edit not specified?'
@@ -391,7 +397,7 @@ contains
             tdx = index_to_teacher(tTeacher)
             mesg = 'Teacher code '//tTeacher//' is invalid?'
     end if
-    if (tdx<=0) then ! subject code is invalid
+    if (tdx<=0) then ! teacher code is invalid
             targetCollege = CollegeIdxUser
             targetDepartment = DeptIdxUser
             call html_write_header(device, 'Edit teacher record', '<br><hr>'//trim(mesg))
@@ -458,6 +464,14 @@ contains
                 remark = trim(remark)//': Specialization changed to '//wrk%Specialization
             end if
 
+            call cgi_get_named_string(QUERY_STRING, 'Role', wrk%Role, ierr)
+            !write(*,*) 'ierr=', ierr, ', Role=', wrk%Role
+            if (ierr/=0) wrk%Role = Teacher(tdx)%Role
+            if (wrk%Role /= Teacher(tdx)%Role) then
+                isDirtyTEACHERS = .true.
+                remark = trim(remark)//': Role changed to '//wrk%Role
+            end if
+
             call cgi_get_named_integer(QUERY_STRING, 'Load', wrk%MaxLoad, ierr)
             !write(*,*) 'ierr=', ierr, ', MaxLoad=', wrk%MaxLoad
             if (ierr/=0 .or. wrk%MaxLoad<=0) wrk%MaxLoad = Teacher(tdx)%MaxLoad
@@ -496,10 +510,22 @@ contains
                             ! add new teacher?
                             j = index_to_teacher(wrk%TeacherID)
                             if (j==0) then
+
+                                    wrk%Password = SPACE
+                                    Password = wrk%TeacherID
+                                    ! use first 16 characters only
+                                    Password(17:) = SPACE
+                                    lenP = len_trim(Password)
+                                    call encrypt(passwordEncryptionKey, Password)
+                                    wrk%Password = Password
+                                    wrk%Role = GUEST
+                                    
                                     NumAdditionalTeachers = NumAdditionalTeachers+1
                                     Teacher(NumTeachers+NumAdditionalTeachers) = wrk
                                     tdx = NumTeachers+NumAdditionalTeachers
+                                    TeacherRank(tdx) = tdx
                                     tTeacher = wrk%TeacherID
+
                                     remark = ': Added new teacher '//wrk%TeacherID
                             else
                                     remark = ': Add new teacher failed; "'//trim(wrk%TeacherID)//'" already exists.'
@@ -519,8 +545,8 @@ contains
     
     if (isDirtyTEACHERS) then
             call xml_write_teachers(pathToCurrent)
-            call html_college_links(device, Department(wrk%DeptIdx)%CollegeIdx, trim(tTeacher)//remark)
-            return
+            !call html_college_links(device, Department(wrk%DeptIdx)%CollegeIdx, trim(tTeacher)//remark)
+            !return
     end if
 
 
@@ -529,13 +555,9 @@ contains
 
     call html_write_header(device, 'Edit teacher '//tTeacher, remark(3:))
 
-    write(device,AFORMAT) &
-      '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
-      '<input type="hidden" name="F" value="'//trim(itoa(fnEditTeacher))//'">'// &
-      '<input type="hidden" name="A1" value="'//trim(tTeacher)//'">', &
-      '<table border="0" width="100%">'
+    call make_form_start(device, fnEditTeacher, tTeacher)
 
-    write(device,AFORMAT) &
+    write(device,AFORMAT) '<table border="0" width="100%">', &
       begintr//begintd//'Login name '//endtd//begintd//'<input name="Login" size="'//trim(itoa(MAX_LEN_TEACHER_CODE))// &
         '" value="'//trim(tTeacher)//'"> (A new teacher record will be created if login name is changed)'//endtd//endtr, &
       begintr//begintd//'Teacher name '//endtd//begintd//'<input name="Name" size="'//trim(itoa(MAX_LEN_TEACHER_NAME))// &
@@ -599,6 +621,11 @@ contains
     write(device,AFORMAT) &
       begintr//begintd//'Max load '//endtd//begintd//'<input name="Load" size="3" value="'// &
         trim(itoa(Teacher(tdx)%MaxLoad))//'">'//endtd//endtr
+    ! Role
+    write(device,AFORMAT) &
+      begintr//begintd//'Role '//endtd//begintd//'<input name="Role" size="'// &
+        trim(itoa(MAX_LEN_TEACHER_NAME))//'" value="'//trim(Teacher(tdx)%Role)// &
+        '"> (Guest, or Department code, or Curriculum code'//endtd//endtr
 
     write(device,AFORMAT) '</table><br>'//nbsp//'<input name="action" type="submit" value="Update"></form><hr>'
 
@@ -646,8 +673,8 @@ contains
         begintr//begintd//'<br>'//endtd//endtr, &
         begintr//tdaligncenter//trim(College(targetCollege)%Name)//endtd//endtr, &
         begintr//tdaligncenter//'<b>INDIVIDUAL FACULTY TEACHING LOAD</b>'//endtd//endtr, &
-        begintr//tdaligncenter//trim(txtSemester(currentTerm+6))//' Semester, SY '// &
-            trim(itoa(currentYear))//dash//trim(itoa(currentYear+1))//endtd//endtr, &
+        begintr//tdaligncenter//trim(txtSemester(currentTerm+3))//' Term, SY '// &
+            trim(itoa(currentYear))//DASH//trim(itoa(currentYear+1))//endtd//endtr, &
         begintr//begintd//'<br>'//endtd//endtr, &
         '</table>'
 
@@ -671,36 +698,28 @@ contains
 
     call teacher_workload(device, Section, tLen1, tArray, NumBlocks, Block)
 
-    write(device,AFORMAT) &
-      '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
-      '<input type="hidden" name="F" value="0'//trim(itoa(fnPrintableWorkload+fnOFFSET))//'">'// &
-      '<input type="hidden" name="A1" value="'//trim(tTeacher)//'">'
-
     write(device,AFORMAT) '<br><br><br><br><table border="0" width="100%">', &
         begintr//'<td width="50%">Prepared by:<br><br><br><br><br><br>'// &
-                 '<input name="Dean" size="'//trim(itoa(MAX_LEN_TEACHER_NAME))// &
-                 '" value="(College Dean)">'// &
+                 trim(College(targetCollege)%Dean)// &
                  '<br>College Dean<br><br><br>'//endtd, &
                  '<td width="50%">Received by:<br><br><br><br><br><br>'// &
-                 '<input name="DeanCollege" size="'//trim(itoa(MAX_LEN_TEACHER_NAME))// &
-                 '" value="'//trim(Teacher(targetTeacher)%Name)//'">'// &
+                 trim(Teacher(targetTeacher)%Name)// &
                  '<br>Faculty<br><br><br>'//endtd//endtr
     write(device,AFORMAT) &
-        begintr//'<td width="50%">'//nbsp//endtd, &
+        begintr//'<td width="50%">Recommending Approval:<br><br><br><br><br><br>'// &
+                 trim(DeanOfCampus)// &
+                 '<br>Dean of Campus<br><br><br>'//endtd, &
                  '<td width="50%">Recommending Approval:<br><br><br><br><br><br>'// &
-                 '<input name="DeanInstruction" size="'//trim(itoa(MAX_LEN_TEACHER_NAME))// &
-                 '" value="(Dean of Instruction)">'// &
+                 trim(DeanOfInstruction)// &
                  '<br>Dean of Instruction<br><br><br>'//endtd//endtr
     write(device,AFORMAT) &
-        begintr//'<td width="50%">Approved by:<br><br><br><br><br><br>'// &
-                 '<input name="President" size="'//trim(itoa(MAX_LEN_TEACHER_NAME))// &
-                 '" value="(President)">'// &
-                 '<br>Office of the President'//endtd, &
-                 '<td width="50%">'//nbsp//endtd//endtr
+        begintr//'<td width="50%">Recommending Approval:<br><br><br><br><br><br>'// &
+                 trim(VPAcademicAffairs)// &
+                 '<br>Vice President for Academic Affairs'//endtd, &
+                 '<td width="50%">Approved by:<br><br><br><br><br><br>'// &
+                 trim(UniversityPresident)// &
+                 '<br>President'//endtd//endtr
     write(device,AFORMAT) '</table>'
-
-    !call timetable_display(device, Section, TimeTable)
-    !write(device,AFORMAT) '<hr>'
 
     return
   end subroutine teacher_schedule_printable
@@ -714,6 +733,7 @@ contains
         integer :: crse, idx, mdx, rdx, sdx, previous
         real :: totalUnits, meetingUnits
         real :: lectHours, labHours, totalLect, totalLab
+        logical :: sectionDone
 
         if (lenSL < 3) then
             write(device,AFORMAT) '<br>No teaching load?<br>'
@@ -739,6 +759,7 @@ contains
             endtr
 
         previous = 0
+        sectionDone = .false.
         do idx=1,lenSL,3
             sdx=SectionList(idx)
             mdx=SectionList(idx+1)
@@ -748,6 +769,7 @@ contains
             if (sdx/=previous) then
 
                 previous = sdx
+                sectionDone = .false.
 
                 !  subject
                 write(device,AFORMAT) begintr//begintd//trim(Subject(crse)%Name)//endtd
@@ -763,6 +785,9 @@ contains
                 write(device,AFORMAT) begintd//trim(itoa(Section(sdx)%Slots))//endtd
 
             else
+
+                if (sectionDone) cycle
+
                 write(device,AFORMAT) begintr// &
                     tdnbspendtd// & ! subject code
                     tdnbspendtd// & ! title, credit
@@ -772,8 +797,16 @@ contains
 
             end if
 
-            ! day
-            write(device,AFORMAT) begintd//txtDay(Section(sdx)%DayIdx(mdx))//endtd
+            ! day(s)
+            if (is_regular_schedule(sdx, Section)) then
+                write(device,AFORMAT) begintd//text_days_of_section(sdx, 0, Section)//endtd
+                call class_hours_and_load(-1, sdx, Section, meetingUnits, lectHours, labHours)
+                sectionDone = .true.
+            else
+                write(device,AFORMAT) begintd//txtDay(Section(sdx)%DayIdx(mdx))//endtd
+                call class_hours_and_load(mdx, sdx, Section, meetingUnits, lectHours, labHours)
+            end if
+
             ! time
             write(device,AFORMAT) begintd//trim(text_time_period(Section(sdx)%bTimeIdx(mdx), &
                 Section(sdx)%eTimeIdx(mdx)))//endtd
@@ -785,7 +818,6 @@ contains
                 write(device,AFORMAT) begintd//'TBA'//endtd
             end if
 
-            call class_hours_and_load(mdx, sdx, Section, meetingUnits, lectHours, labHours)
             totalLect = totalLect + lectHours
             totalLab = totalLab + labHours
             totalUnits = totalUnits + meetingUnits
@@ -833,25 +865,51 @@ contains
         real :: meetingHours
 
         crse = Section(sdx)%SubjectIdx
-        meetingHours = (Section(sdx)%eTimeIdx(mdx) - Section(sdx)%bTimeIdx(mdx))/4.0
-        if (is_lecture_lab_subject(crse)) then
-            if (is_lecture_class(sdx, Section)) then ! lecture of lecture-lab
+        if (mdx/=-1) then
+            meetingHours = (Section(sdx)%eTimeIdx(mdx) - Section(sdx)%bTimeIdx(mdx))/4.0
+            if (is_lecture_lab_subject(crse)) then
+                if (is_lecture_class(sdx, Section)) then ! lecture of lecture-lab
+                    meetingUnits = meetingHours*Subject(crse)%LectLoad/Subject(crse)%LectHours
+                    lectHours = meetingHours
+                    labHours = 0.0
+                else ! lab of lecture-lab
+                    meetingUnits = meetingHours*Subject(crse)%LabLoad/Subject(crse)%LabHours
+                    lectHours = 0.0
+                    labHours = meetingHours
+                end if
+            else if (Subject(crse)%LectHours>0.0) then ! lecture-only
                 meetingUnits = meetingHours*Subject(crse)%LectLoad/Subject(crse)%LectHours
                 lectHours = meetingHours
                 labHours = 0.0
-            else ! lab of lecture-lab
+            else if (Subject(crse)%LabHours>0.0) then ! lab-only
                 meetingUnits = meetingHours*Subject(crse)%LabLoad/Subject(crse)%LabHours
                 lectHours = 0.0
                 labHours = meetingHours
             end if
-        else if (Subject(crse)%LectHours>0.0) then ! lecture-only
-            meetingUnits = meetingHours*Subject(crse)%LectLoad/Subject(crse)%LectHours
-            lectHours = meetingHours
-            labHours = 0.0
-        else if (Subject(crse)%LabHours>0.0) then ! lab-only
-            meetingUnits = meetingHours*Subject(crse)%LabLoad/Subject(crse)%LabHours
-            lectHours = 0.0
-            labHours = meetingHours
+        else ! assume schedule is correct
+            if (is_lecture_lab_subject(crse)) then
+                if (is_lecture_class(sdx, Section)) then ! lecture of lecture-lab
+                    meetingUnits = Subject(crse)%LectLoad
+                    lectHours = Subject(crse)%LectHours
+                    labHours = 0.0
+                    meetingHours = lectHours
+                else ! lab of lecture-lab
+                    meetingUnits = Subject(crse)%LabLoad
+                    lectHours = 0.0
+                    labHours = Subject(crse)%LabHours
+                    meetingHours = labHours
+                end if
+            else if (Subject(crse)%LectHours>0.0) then ! lecture-only
+                    meetingUnits = Subject(crse)%LectLoad
+                    lectHours = Subject(crse)%LectHours
+                    labHours = 0.0
+                    meetingHours = lectHours
+            else if (Subject(crse)%LabHours>0.0) then ! lab-only
+                    meetingUnits = Subject(crse)%LabLoad
+                    lectHours = 0.0
+                    labHours = Subject(crse)%LabHours
+                    meetingHours = labHours
+            end if
         end if
 
         return

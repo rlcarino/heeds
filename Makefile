@@ -2,7 +2,7 @@
 #
 #    HEEDS (Higher Education Enrollment Decision Support) - A program
 #      to create enrollment scenarios for 'next term' in a university
-#    Copyright (C) 2012 Ricolindo L Carino
+#    Copyright (C) 2012, 2013 Ricolindo L. Carino
 #
 #    This file is part of the HEEDS program.
 #
@@ -29,25 +29,9 @@
 
 # Makefile for HEEDS
 
-#---------------------------------------------------------------
-# OS dependent symbols 
-#---------------------------------------------------------------
-
-# assume MSYS
-#OS = WINDOWS
-#DESTDIR = /C/HEEDS/bin
-#EXT = WIN.EXE
-#DELCMD = del
-##DELCMD = rm -f
-#URLENCODE = -DDO_NOT_ENCODE
-#FCGIOPTS = 
-
-OS = GNULINUX
-DESTDIR = /home/heeds/HEEDS/bin
-EXT = GLNX
-DELCMD = rm -f
-URLENCODE = -DDO_NOT_ENCODE
-FCGIOPTS = /home/heeds/fcgi-2.4.1/libfcgi/.libs/libfcgi.so -lnsl -Wl,--rpath -Wl,/usr/local/lib
+#
+# The Windows build-PC must have MinGW/MSYS installed
+#
 
 #---------------------------------------------------------------
 # raw data format & debugging flags 
@@ -55,16 +39,18 @@ FCGIOPTS = /home/heeds/fcgi-2.4.1/libfcgi/.libs/libfcgi.so -lnsl -Wl,--rpath -Wl
 RAWDATA = CUSTOM
 DEBUG = 
 #-DDBsubst 
-#-DDBprereq -DDBcoreq -DDBconcpreq
+#-DDBprereq 
+#-DDBcoreq 
+#-DDBconcpreq
+URLENCODE = -DDO_NOT_ENCODE
 
 #---------------------------------------------------------------
 # Fortran compiler and flags
 #---------------------------------------------------------------
-FFLAGS = -ffree-form -fbounds-check
-OPTIONS = $(DEBUG) $(URLENCODE) -D$(OS) -I$(RAWDATA) -D$(RAWDATA)
-
-FC = gfortran -Wunused $(FFLAGS) $(OPTIONS) 
-#FC = g95 -Wunused-vars -ftrace=frame -ftrace=full $(FFLAGS) $(OPTIONS) 
+FFLAGS = -Wunused -ffree-form 
+#-fbounds-check
+OPTIONS = $(DEBUG) $(URLENCODE) -D$(RAWDATA) -D$(OS) -I$(RAWDATA)
+FC = gfortran $(FFLAGS) $(OPTIONS)
 
 #---------------------------------------------------------------
 # object files
@@ -76,25 +62,38 @@ COMMON = BASE.o XML.o TIMES.o CGI.o COLLEGES.o DEPARTMENTS.o \
 	CHECKLISTS.o PRE_ENLISTMENT.o WAIVERS.o BLOCKS.o \
 	ADVISING.o SCHEDULING.o
 
-INTERACTIVE = USERFUNCTIONS.o HTML.o \
+INTERACTIVE = HTML.o \
 	EditSUBJECTS.o EditSECTIONS.o EditBLOCKS.o EditCURRICULA.o \
 	EditROOMS.o EditTEACHERS.o EditPREDICTIONS.o EditENLISTMENT.o \
 	REPORTS.o DEMAND.o \
-	SERVER.o MAIN.o
+	WEBSERVER.o MAIN.o
 
 #---------------------------------------------------------------
 # targets
 #---------------------------------------------------------------
 
 help:
-	echo 'Usage: make HEEDS RAWDATA=data_format_code OS=GNULINUX|WINDOWS'
+	echo 'Usage: make HEEDS_MSWIN | HEEDS_GLNX'
 
-all:	HEEDS
+# default target
+all:	HEEDS_MSWIN
+#HEEDS_MSWIN
+#HEEDS_GLNX
 
+
+# MS Windows
+HEEDS_MSWIN:
+	make HEEDS BIN=/c/HEEDS/bin OS=MSWIN
+
+# GNU/Linux
+HEEDS_GLNX:
+	make HEEDS BIN=/home/heeds/HEEDS/bin OS=GLNX
+
+#	
 HEEDS:	$(COMMON) $(INTERACTIVE)
-	$(FC) $(COMMON) $(INTERACTIVE) -o $(DESTDIR)/HEEDS-$(EXT) $(FCGIOPTS)
+	$(FC) $(COMMON) $(INTERACTIVE) -o $(BIN)/HEEDS_$(OS) -lfcgi
 
-BASE.o:	Makefile
+#BASE.o:	Makefile
 
 CGI.o:	BASE.o
 
@@ -130,11 +129,9 @@ CHECKLISTS.o:	PRE_ENLISTMENT.o $(RAWDATA)/custom_checklists.F90
 
 ADVISING.o:	WAIVERS.o CHECKLISTS.o CGI.o $(RAWDATA)/custom_advising.F90
 
-USERFUNCTIONS.o:	ADVISING.o TIMETABLES.o BLOCKS.o
-
 SCHEDULING.o:	ADVISING.o TIMETABLES.o
 
-HTML.o:	USERFUNCTIONS.o 
+HTML.o:	ADVISING.o TIMETABLES.o BLOCKS.o
 
 EditSUBJECTS.o:	HTML.o
 
@@ -152,11 +149,11 @@ DEMAND.o:	HTML.o $(RAWDATA)/custom_demand.F90
 
 REPORTS.o:	HTML.o $(RAWDATA)/custom_reports.F90
 
-SERVER.o:	EditSUBJECTS.o EditSECTIONS.o EditBLOCKS.o EditCURRICULA.o \
+WEBSERVER.o:	EditSUBJECTS.o EditSECTIONS.o EditBLOCKS.o EditCURRICULA.o \
 	EditPREDICTIONS.o EditENLISTMENT.o \
-	REPORTS.o  DEMAND.o
+	REPORTS.o  DEMAND.o 
 
-MAIN.o:	SERVER.o
+MAIN.o:	WEBSERVER.o
 
 .F90.o:
 	$(FC) -c $<
@@ -166,7 +163,4 @@ MAIN.o:	SERVER.o
 .SUFFIXES:	 .F90
 
 clean:
-	$(DELCMD) *.mod *.o *~ *.exe
-
-
-
+	rm -f *.mod *.o *~ *.exe

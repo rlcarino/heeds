@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -85,6 +85,7 @@ contains
         isDirtySubstitutions = .false. ! no changes yet
         isDirtyPREDICTIONS = .false. ! no changes yet
         isDirtyWAIVERCOI = .false. ! no changes yet
+        isDirtyGrades = .false. ! no changes yet
         call read_student_records (targetStudent)
 
         call date_and_time (date=currentDate,time=currentTime) ! timetamp for change
@@ -277,7 +278,7 @@ contains
                     rank = Curriculum(targetCurriculum)%SubjectTerm(idx)
 
                     call blank_to_underscore(Subject(crse_required)%Name, input_name1)
-                    input_name1 = trim(input_name1)//dash//trim(itoa(rank))//':'
+                    input_name1 = trim(input_name1)//DASH//trim(itoa(rank))//':'
                     !write(*,*) 'Looking for '//input_name1
                     call cgi_get_wild_name_value(QUERY_STRING, input_name1, input_name2, input_value, ierr)
                     if (ierr/=0) cycle ! not found
@@ -615,7 +616,7 @@ contains
         end do
 
         call html_write_header(device, Student(targetStudent)%StdNo//nbsp// &
-        trim(Student(targetStudent)%Name)//SPACE//dash//SPACE//Curriculum(targetCurriculum)%Code, mesg)
+        trim(Student(targetStudent)%Name)//SPACE//DASH//SPACE//Curriculum(targetCurriculum)%Code, mesg)
 
         call advise_student (targetStudent, UseClasses, Offering, WaiverCOI(targetStudent), Advice, MissingPOCW, NRemaining)
         lenSubject = Advice%NPriority+Advice%NAlternates+Advice%NCurrent
@@ -627,25 +628,27 @@ contains
         ! make copy of updated checklist for upload
         if (isDirtyMCL) then
             checklistout = stderr-3
-            StdNoYearLen = index(Student(targetStudent)%StdNo,dash)-1
+            StdNoYearLen = index(Student(targetStudent)%StdNo,DASH)-1
             if (StdNoYearLen<=0) StdNoYearLen = StdNoChars
-            call open_for_write(checklistout, trim(dirUploadCHECKLISTS)// &
-                DIRSEP//Student(targetStudent)%StdNo(1:StdNoYearLen)//DIRSEP//trim(Student(targetStudent)%StdNo)//'.html')
+            open(unit=checklistout, file=trim(dirUploadCHECKLISTS)// &
+                DIRSEP//Student(targetStudent)%StdNo(1:StdNoYearLen)//DIRSEP//trim(Student(targetStudent)%StdNo)//'.html', &
+                form='formatted', status='unknown')
             write(checklistout,AFORMAT) '<b>MINI-CHECKLIST for '//Student(targetStudent)%StdNo//nbsp// &
-                trim(Student(targetStudent)%Name)//SPACE//dash//SPACE//Curriculum(targetCurriculum)%Code
+                trim(Student(targetStudent)%Name)//SPACE//DASH//SPACE//Curriculum(targetCurriculum)%Code
 
             call checklist_display (checklistout, targetStudent, Advice, MissingPOCW, NRemaining)
             close(checklistout)
         end if
 
 
-        !write(*,*) 'user='//trim(USER), ' Unit='//trim(CurrProgCode(targetCurriculum)), &
-        !  ' curriculum='//trim(Curriculum(targetCurriculum)%Code)
-        !if (isRoleAdmin .or. (isRoleSRE .and. CollegeIdxUser==Curriculum(targetCurriculum)%CollegeIdx) ) then
         if (isRoleAdmin .or. (isRoleSRE .and. CurrProgCode(CurriculumIdxUser)==CurrProgCode(targetCurriculum) ) ) then
             if (lenSubject>0) then
+                if (Period==1) then ! change mat; switch to subjects from new analysis
+                    call make_form_start(device, fnChangeMatriculation, Student(targetStudent)%StdNo, 'Switch')
+                else ! Period=2 or 3
+                    call make_form_start(device, fnEditCheckList, Student(targetStudent)%StdNo)
+                end if
                 write(device,AFORMAT) &
-                    '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
                     '<input type="hidden" name="earned" value="'//trim(itoa(Advice%UnitsEarned))//'">', &
                     '<input type="hidden" name="classification" value="'//trim(itoa(Advice%StdClassification))//'">', &
                     '<input type="hidden" name="year" value="'//trim(itoa(Advice%StdYear))//'">', &
@@ -664,19 +667,14 @@ contains
                 if (Period==1) then ! change mat; switch to subjects from new analysis
 
                     write(device,AFORMAT) &
-                    '<input type="hidden" name="F" value="'//trim(itoa(fnChangeMatriculation))//'">'// &
-                    '<input type="hidden" name="A1" value="'//trim(Student(targetStudent)%StdNo)//'">'// &
-                    '<input type="hidden" name="A2" value="Switch">', &
-                    '<br>Use <b>FEASIBLE</b> subjects '// &
-                    '<input type="submit" name="action" value="For ENLISTMENT"></form>'
+                        '<br>Use <b>FEASIBLE</b> subjects '// &
+                        '<input type="submit" name="action" value="For ENLISTMENT"></form>'
 
                 else ! Period=2 or 3
 
                     write(device,AFORMAT) &
-                    '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">'// &
-                    '<input type="hidden" name="A1" value="'//trim(Student(targetStudent)%StdNo)//'">'// &
-                    '<br>Use <b>FEASIBLE</b> subjects '// &
-                    '<input type="submit" name="action" value="For PREDICTION"></form>'
+                        '<br>Use <b>FEASIBLE</b> subjects '// &
+                        '<input type="submit" name="action" value="For PREDICTION"></form>'
 
                 end if
 
@@ -697,10 +695,8 @@ contains
             write(device,AFORMAT) '<a name="Revise PREDICTION"></a><hr>'// &
                 trim(text_student_curriculum(targetStudent))// &
                 '<br><b>REVISE PREDICTION for '//txtSemester(targetTerm+6)// &
-                ' Semester '//trim(itoa(targetYear))//dash//trim(itoa(targetYear+1))//'</b>', &
-                '<form name="input" method="post" action="'//CGI_SCRIPT//'">'// &
-                '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">'// &
-                '<input type="hidden" name="A1" value="'//trim(Student(targetStudent)%StdNo)//'">'
+                ' Semester '//trim(itoa(targetYear))//DASH//trim(itoa(targetYear+1))//'</b>'
+            call make_form_start(device, fnEditCheckList, Student(targetStudent)%StdNo)
             write(device,AFORMAT) &
                 '<br><i>Allowed load </i> '//nbsp//' <input type="text" name="allowed" size="5" value="'// &
                 trim(itoa(Advice%AllowedLoad))//'">'// &
@@ -790,12 +786,10 @@ contains
         end if
 
         ! change curriculum
+        write(device,AFORMAT) '<a name="Change CURRICULUM"></a><hr>'// &
+            trim(text_student_curriculum(targetStudent))
+        call make_form_start(device, fnEditCheckList, Student(targetStudent)%StdNo)
         write(device,AFORMAT) &
-            '<a name="Change CURRICULUM"></a><hr>'// &
-            trim(text_student_curriculum(targetStudent))// &
-            '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
-            '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">', &
-            '<input type="hidden" name="A1" value="'//trim(Student(targetStudent)%StdNo)//'">', &
             '<b>CHANGE CURRICULUM</b> from '//trim(Curriculum(Student(targetStudent)%CurriculumIdx)%Code)//' to: <br>', &
             '<select name="A2">', &
             '<option value="0"> (select curriculum)'
@@ -833,7 +827,8 @@ contains
         !    write(device,AFORMAT) &
         !      '<a name="ADDITIONAL subject"></a><hr>'// &
         !      trim(text_student_curriculum(targetStudent))// &
-        !      '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
+        !      '<form name="input" method="post" action="'//CGI_PATH//'">', &
+        !'<input type="hidden" name="N" value="'//trim(USERNAME)//'">', &
         !      '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">'// &
         !      '<input type="hidden" name="A1" value="'//trim(Student(targetStudent)%StdNo)//'">', &
         !      '<b>ADDITIONAL subject</b>: '//nbsp//' Subject <input name="subject" value="">'//nbsp//, &
@@ -848,7 +843,8 @@ contains
         !    write(device,AFORMAT) &
         !      '<a name="Cancel ADDITIONAL"></a><hr>'// &
         !      trim(text_student_curriculum(targetStudent))// &
-        !      '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
+        !      '<form name="input" method="post" action="'//CGI_PATH//'">', &
+        !'<input type="hidden" name="N" value="'//trim(USERNAME)//'">', &
         !      '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">'// &
         !      '<input type="hidden" name="A1" value="'//trim(Student(targetStudent)%StdNo)//'">', &
         !      '<b>Cancel ADDITIONAL subject</b> '//nbsp//' <input type="text" name="subject" value="">'//nbsp//, &
@@ -857,12 +853,10 @@ contains
         !    call checklist_page_links(device) !, .true.)
 
         ! subject substitution
+        write(device,AFORMAT) '<a name="Subject SUBSTITUTION"></a><hr>'// &
+            trim(text_student_curriculum(targetStudent))
+        call make_form_start(device, fnEditCheckList, Student(targetStudent)%StdNo)
         write(device,AFORMAT) &
-            '<a name="Subject SUBSTITUTION"></a><hr>'// &
-            trim(text_student_curriculum(targetStudent))// &
-            '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
-            '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">'// &
-            '<input type="hidden" name="A1" value="'//trim(Student(targetStudent)%StdNo)//'">', &
             '<b>Subject SUBSTITUTION</b>: Enter the required and substitute subjects'// &
             '<table border="0" width="100%">'// &
             begintr//begintd//'Required :'//endtd// &
@@ -883,19 +877,18 @@ contains
         call checklist_page_links(device) !, .true.)
 
         ! cancel subject substitution
+        write(device,AFORMAT) '<a name="Cancel SUBSTITUTION"></a><hr>'// &
+            trim(text_student_curriculum(targetStudent))
+        call make_form_start(device, fnEditCheckList, Student(targetStudent)%StdNo)
         write(device,AFORMAT) &
-            '<a name="Cancel SUBSTITUTION"></a><hr>'// &
-            trim(text_student_curriculum(targetStudent))// &
-            '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
-            '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">'// &
-            '<input type="hidden" name="A1" value="'//trim(Student(targetStudent)%StdNo)//'">', &
             '<b>Cancel SUBSTITUTION for subject</b> '//nbsp//' <input type="text" name="subject" value="">'//nbsp, &
             nbsp//nbsp//'<input type="submit" name="action" value="Cancel SUBSTITUTION">', &
             '</form><hr>'
         call checklist_page_links(device) !, .true.)
 
         !    ! change grade
-        !    write(device,AFORMAT) '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
+        !    write(device,AFORMAT) '<form name="input" method="post" action="'//CGI_PATH//'">', &
+        !'<input type="hidden" name="N" value="'//trim(USERNAME)//'">', &
         !      '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">'// &
         !      '<input type="hidden" name="A1" value="'//trim(Student(targetStudent)%StdNo)//'">', &
         !      '<b>Change grade</b>: '//nbsp//' Subject <input name="subject" value="">'//nbsp//, &
@@ -915,11 +908,9 @@ contains
         integer :: idx, tdx, Year, Term, m, n, rank
         integer, dimension(MAX_LEN_STUDENT_RECORD) :: p, q
 
+        write(device,AFORMAT) '<a name="Change GRADE"></a><hr>'
+        call make_form_start(device, fnEditCheckList, Student(std)%StdNo)
         write(device,AFORMAT) &
-            '<a name="Change GRADE"></a><hr>'// &
-            '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
-            '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">'// &
-            '<input type="hidden" name="A1" value="'//trim(Student(std)%StdNo)//'">', &
             '<b>CHANGE OF GRADE</b> for '// trim(text_student_curriculum(std)), &
             '<br><i>Enter or modify contents of the edit boxes below, then click "Change GRADE"</i>'// &
             '<table border="0" width="90%">'
@@ -1011,11 +1002,9 @@ contains
         integer :: idx, tdx, Year, Term, m, n, rank
         integer, dimension(MAX_LEN_STUDENT_RECORD) :: p, q
 
+        write(device,AFORMAT) '<a name="Update ELECTIVE"></a><hr>'
+        call make_form_start(device, fnEditCheckList, Student(std)%StdNo)
         write(device,AFORMAT) &
-            '<a name="Update ELECTIVE"></a><hr>'// &
-            '<form name="input" method="post" action="'//CGI_SCRIPT//'">'// &
-            '<input type="hidden" name="F" value="'//trim(itoa(fnEditCheckList))//'">'// &
-            '<input type="hidden" name="A1" value="'//trim(Student(std)%StdNo)//'">', &
             '<b>PLAN OF STUDY update form</b> for '// trim(text_student_curriculum(std)), &
             '<br><i>Enter or modify contents of the edit boxes below, then click "Update ELECTIVE"</i>'// &
             '<table border="0" width="90%">'
@@ -1245,7 +1234,7 @@ contains
 
         call get_scholastic_three_terms (prevYearYear, prevYearTerm, UnitsPaid, UnitsDropped, UnitsPassed, Standing)
         write(device,AFORMAT) '<br><br><b>SUMMARY for '//txtSemester(prevYearTerm+6)// &
-            ' Semester '//trim(itoa(prevYearYear))//dash//trim(itoa(prevYearYear+1)), &
+            ' Semester '//trim(itoa(prevYearYear))//DASH//trim(itoa(prevYearYear+1)), &
             '</b>: Units registered='//trim(itoa(UnitsPaid)), &
             ': '//nbsp//' Dropped='//trim(itoa(UnitsDropped)), &
             ': '//nbsp//' Earned='//trim(itoa(UnitsPassed)), &
@@ -1253,7 +1242,7 @@ contains
 
         call get_scholastic_three_terms (prevTermYear, prevTermTerm, UnitsPaid, UnitsDropped, UnitsPassed, Standing)
         write(device,AFORMAT) '<br><b>SUMMARY for '//txtSemester(prevTermTerm+6)// &
-            ' Semester '//trim(itoa(prevTermYear))//dash//trim(itoa(prevTermYear+1)), &
+            ' Semester '//trim(itoa(prevTermYear))//DASH//trim(itoa(prevTermYear+1)), &
             '</b>: Units registered='//trim(itoa(UnitsPaid)), &
             ': '//nbsp//' Dropped='//trim(itoa(UnitsDropped)), &
             ': '//nbsp//' Earned='//trim(itoa(UnitsPassed)), &
@@ -1261,7 +1250,7 @@ contains
 
         call get_scholastic_three_terms (currentYear, currentTerm, UnitsPaid, UnitsDropped, UnitsPassed, Standing)
         write(device,AFORMAT) '<br><b>SUMMARY for '//txtSemester(currentTerm+6)// &
-            ' Semester '//trim(itoa(currentYear))//dash//trim(itoa(currentYear+1)), &
+            ' Semester '//trim(itoa(currentYear))//DASH//trim(itoa(currentYear+1)), &
             '</b>: Units registered='//trim(itoa(UnitsPaid)), &
             ': '//nbsp//' Dropped='//trim(itoa(UnitsDropped)), &
             ': '//nbsp//' Earned='//trim(itoa(UnitsPassed)), &
@@ -1274,7 +1263,7 @@ contains
 
         if (Period>1) then
             write(device,AFORMAT) '<br><br><b>ASSUMPTION at the end of '//txtSemester(currentTerm+6)// &
-                ' Semester '//trim(itoa(currentYear))//dash//trim(itoa(currentYear+1)), &
+                ' Semester '//trim(itoa(currentYear))//DASH//trim(itoa(currentYear+1)), &
                 '</b>: Units earned='//trim(itoa(Advice%UnitsEarned)), &
                 ': '//nbsp//' Classification='//trim(txtStanding(Advice%StdClassification)), &
                 ': '//nbsp//' Year in curriculum='//trim(txtYear(Advice%StdYear))
@@ -1328,13 +1317,13 @@ contains
                 if (n > 0) then
                     write(device,AFORMAT) '<br><br><b>EXTRA subjects</b>, or subjects not specified in Plan Of Study'
                     do m=1,n
-                        write(device,AFORMAT) ' : '//Subject(TCG(q(m))%Subject)%Name//dash//txtGrade(pGrade(TCG(q(m))%Grade))
+                        write(device,AFORMAT) ' : '//Subject(TCG(q(m))%Subject)%Name//DASH//txtGrade(pGrade(TCG(q(m))%Grade))
                     end do
                     write(device,AFORMAT) '<br>'
                 end if
 
                 write(device,AFORMAT) '<br><b>FEASIBLE subjects for '//txtSemester(targetTerm+6)// &
-                    ' Semester '//trim(itoa(targetYear))//dash//trim(itoa(targetYear+1)), &
+                    ' Semester '//trim(itoa(targetYear))//DASH//trim(itoa(targetYear+1)), &
                     '</b> (ALLOWED load = '//trim(itoa(Advice%AllowedLoad))//') <br><table border="0" width="80%">'
                 if (Advice%NPriority>0) then
                     write(device,AFORMAT) &

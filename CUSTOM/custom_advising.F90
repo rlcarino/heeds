@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -282,7 +282,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
     !                CLExt(kdx)%Disp_Subject = tSubject(1:4)
     !                CLExt(kdx)%Disp_Comment = token
     !                CLExt(kdx)%Disp_Input_Elective = '<input type="text" size="12" name="'// &
-    !                    'PE_2'//dash//trim(itoa(CheckList%SubjectTerm(kdx)))//':'// &
+    !                    'PE_2'//DASH//trim(itoa(CheckList%SubjectTerm(kdx)))//':'// &
     !                    trim(input_name2)//'" value="'//trim(token)//'">'
     !
     !                TCG(tdx)%Used = .true.
@@ -300,7 +300,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
     !            if (tSubject /= Subject(CheckList%SubjectIdx(kdx))%Name) cycle
     !            CLExt(kdx)%Disp_Comment = SPACE
     !            CLExt(kdx)%Disp_Input_Elective = '<input type="text" size="12" name="'// &
-    !                trim(input_name1)//dash//trim(itoa(CheckList%SubjectTerm(kdx)))//':">'
+    !                trim(input_name1)//DASH//trim(itoa(CheckList%SubjectTerm(kdx)))//':">'
     !            CLExt(kdx)%Disp_Remarks = '*'
     !        end do
     !
@@ -358,7 +358,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                     CLExt(k)%Disp_Subject = token
                     CLExt(k)%Disp_Comment = input_value
                     CLExt(k)%Disp_Input_Elective = '<input type="text" size="12" name="'// &
-                    trim(input_name1)//dash//trim(itoa(CheckList%SubjectTerm(k)))//':'// &
+                    trim(input_name1)//DASH//trim(itoa(CheckList%SubjectTerm(k)))//':'// &
                     trim(input_name2)//'" value="'//trim(input_value)//'">'
                     TCG(tdx)%Used = .true.
                 else ! postpone binding
@@ -397,7 +397,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                         !call blank_to_underscore(token, input_name1)
                         !CLExt(i+j-1)%Disp_Subject = 'SUBST FOR '//token
                         !CLExt(i+j-1)%Disp_Input_Elective = '<input type="text" size="12" name="'// &
-                        !  trim(input_name1)//dash//trim(itoa(CheckList%SubjectTerm(k)))//':'// &
+                        !  trim(input_name1)//DASH//trim(itoa(CheckList%SubjectTerm(k)))//':'// &
                         !  trim(input_name2)//'" value="'//trim(input_value)//'">'
                     end do
                     TCG(tdx)%Used = .true.
@@ -483,7 +483,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                             CLExt(kdx)%Disp_Subject = Subject(p(i-1))%Name
                             CLExt(kdx)%Disp_Comment = input_value
                             CLExt(kdx)%Disp_Input_Elective = '<input type="text" size="12" name="'// &
-                            trim(input_name1)//dash//trim(itoa(CheckList%SubjectTerm(kdx)))//':'// &
+                            trim(input_name1)//DASH//trim(itoa(CheckList%SubjectTerm(kdx)))//':'// &
                             trim(input_name2)//'" value="'//trim(input_value)//'">'
                             p(i) = 0
                             p(i-1) = 0
@@ -513,7 +513,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                             CLExt(kdx)%Disp_Subject = Subject(p(i-1))%Name
                             CLExt(kdx)%Disp_Comment = input_value
                             CLExt(kdx)%Disp_Input_Elective = '<input type="text" size="12" name="'// &
-                            trim(input_name1)//dash//trim(itoa(CheckList%SubjectTerm(kdx)))//':'// &
+                            trim(input_name1)//DASH//trim(itoa(CheckList%SubjectTerm(kdx)))//':'// &
                             trim(input_name2)//'" value="'//trim(input_value)//'">'
                             p(i) = 0
                             p(i-1) = 0
@@ -536,7 +536,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                         CLExt(kdx)%Disp_Subject = Subject(p(i-1))%Name
                         CLExt(kdx)%Disp_Comment = input_value
                         CLExt(kdx)%Disp_Input_Elective = '<input type="text" size="12" name="'// &
-                        trim(input_name1)//dash//trim(itoa(CheckList%SubjectTerm(kdx)))//':'// &
+                        trim(input_name1)//DASH//trim(itoa(CheckList%SubjectTerm(kdx)))//':'// &
                         trim(input_name2)//'" value="'//trim(input_value)//'">'
                         p(i) = 0
                         p(i-1) = 0
@@ -560,7 +560,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
             CLExt(idx)%Disp_Subject = Subject(crse)%Name
             CLExt(idx)%Disp_Comment = SPACE
             CLExt(idx)%Disp_Input_Elective = '<input type="text" size="12" name="'// &
-            trim(input_name1)//dash//trim(itoa(CheckList%SubjectTerm(idx)))//':">'
+            trim(input_name1)//DASH//trim(itoa(CheckList%SubjectTerm(idx)))//':">'
             CLExt(idx)%Disp_Remarks = '*'
         else
             do i=1,lenTCG
@@ -720,9 +720,9 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
     write(*,'(a,20i4)')    '       Unit load by term :', (TermUnits(j), j=1,Curriculum(idxCURR)%NumTerms)
     write(*,'(a,20i4)')    ' Cumulative units by term:', (SpecifiedUnits(j), j=1,Curriculum(idxCURR)%NumTerms)
     write(*,'(a,7(a,i3))') ' Cumulative units by year:', &
-    (SPACE//trim(txtYear(j))//dash,SpecifiedUnits(3*j), j=1,(Curriculum(idxCURR)%NumTerms+1)/3)
+    (SPACE//trim(txtYear(j))//DASH,SpecifiedUnits(3*j), j=1,(Curriculum(idxCURR)%NumTerms+1)/3)
     write(*,'(a,4(a,f7.2))') '     Classification units:', &
-    (SPACE//trim(txtStanding(j))//dash,(0.25*j)*UnitsTarget, j=1,4)
+    (SPACE//trim(txtStanding(j))//DASH,(0.25*j)*UnitsTarget, j=1,4)
 #endif
     do i=Curriculum(idxCURR)%NumTerms,1,-1
         if (UnitsEarned < SpecifiedUnits(i)) StdTerm = i

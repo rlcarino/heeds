@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -52,6 +52,7 @@ module XML
     character(len=21), parameter :: XML_ROOT_EQUIVALENCIES = 'LIST_OF_EQUIVALENCIES'
     character(len=14), parameter :: XML_ROOT_BLOCKS        = 'LIST_OF_BLOCKS'
     character(len=16), parameter :: XML_ROOT_STUDENTS      = 'LIST_OF_STUDENTS'
+    character(len=13), parameter :: XML_ROOT_LOGIN         = 'LIST_OF_LOGINS'
     character(len=11), parameter :: XML_ROOT_PREDICTIONS   = 'PREDICTIONS'
     character(len=11), parameter :: XML_ROOT_WAIVERS       = 'WAIVERS_COI'
     character(len=10), parameter :: XML_ROOT_ENLISTMENT    = 'ENLISTMENT'
@@ -72,7 +73,7 @@ module XML
         indent5 = INDENT_INCR*6
     character(len=80)  :: indentation = ' '
 
-    logical            :: forReading = .true., QUIETLY = .true., noWrites = .false.
+    logical            :: forReading = .true., QUIETLY = .true.
 
 contains
 
@@ -83,7 +84,7 @@ contains
         integer, intent (in out) :: errNo
         logical, intent (in), optional :: readOnly, openQuietly
         character(len=MAX_LEN_XML_LINE) :: xmlLine
-        logical :: asInput, beQuiet, rootFound
+        logical :: asInput, beQuiet, found, fileExists
         integer :: eof
 
         errNo = 0
@@ -98,32 +99,38 @@ contains
             beQuiet = .false.
         end if
 
+        ! check if file already exists
+        inquire(file=fileName, exist=fileExists)
+
         if (.not. asInput) then ! for writing
-            call file_io_log('Writing '//trim(fileName), beQuiet)
-            call open_for_write(device, fileName)
+            if (fileExists) then ! move to backup
+                    call move_to_backup(fileName)
+            end if
+
+            write(stderr+1,AFORMAT) trim(fileName) ! write filename to user's log
+
+            open(unit=device, file=fileName, form='formatted', status='new')
             write(device,AFORMAT) '<?xml version="1.0" encoding="ISO-8859-1" ?>', '<'//rootName//'>'
 
         else ! for reading
-            ! file exists ?
-            inquire(file=fileName, exist=asInput)
-            if (.not. asInput) then ! not there
+            if (.not. fileExists) then ! not there
                 errNo = -1
-                call file_io_log('File not found: '//fileName, beQuiet)
+                call file_log_message('File not found: '//fileName)
             else ! open & look for rootName in file
                 open (unit=device, file=fileName, status='old', iostat=eof)
-                call file_io_log('Status='//trim(itoa(eof))//' in reading '//fileName, beQuiet)
-                rootFound = .false.
+                call file_log_message('Status='//trim(itoa(eof))//' in reading '//fileName)
+                found = .false.
                 do
                     read(device, AFORMAT, iostat=eof) xmlLine
                     if (eof<0) exit
                     if (index(xmlLine, '<'//rootName//'>') > 0) then
-                        rootFound = .true.
+                        found = .true.
                         exit
                     end if
                 end do
-                if (.not. rootFound) then
+                if (.not. found) then
                     errNo = 1
-                    call file_io_log('Not in file: <'//rootName//'>', beQuiet)
+                    call file_log_message('Not in file: <'//rootName//'>')
                 end if
             end if
         end if

@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -68,9 +68,8 @@ contains
         ! training only?
         if (noWrites) return
 
-        ! make backup & open new file
+        ! write file
         fileName = trim(dirXML)//trim(path)//'WAIVER-COI.XML'
-        call move_to_backup(fileName)
         call xml_open_file(unitNo, XML_ROOT_WAIVERS, fileName, eof)
         write(unitNo,AFORMAT) &
         '    <comment>', &
@@ -310,11 +309,11 @@ contains
                 cycle loop_waiver
             end if
             ! check for duplicates
-            i = index(tSubject, dash)
+            i = index(tSubject, DASH)
             if (i>0) tSubject(i:) = SPACE
             do i=1,cList(std)%lenSubject
                 token = Subject(cList(std)%Subject(i))%Name
-                j = index(token, dash)
+                j = index(token, DASH)
                 if (j>0) token(j:) = SPACE
                 if (tSubject==token) then ! move to front
                     !         write(*,*) tSubject//' - already predicted; moving to front...'
@@ -333,7 +332,7 @@ contains
             end do
 
             tSection = adjustl(line(pos(5)+1:pos(6)-1))
-            if (tSection=='') then ! not accommodated
+            if (tSection==SPACE) then ! not accommodated
                 sdx = 0
               !write(*,*)  'Waiver/COI: '//tSubject//trim(text_student_info(std))
             else

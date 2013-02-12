@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -69,8 +69,8 @@ subroutine custom_read_teachers(path, errNo)
         j = 0
         do i=pos(4)+1,pos(5)-1
             ch = line(i:i)
-            if (index(SPECIAL,ch)>0 .or. ch==comma) cycle
-            !if ((ch>='A' .and. ch<='Z') .or. (ch>='a' .and. ch<='z') .or. ch==SPACE .or. ch==dash) then
+            if (index(SPECIAL,ch)>0 .or. ch==COMMA) cycle
+            !if ((ch>='A' .and. ch<='Z') .or. (ch>='a' .and. ch<='z') .or. ch==SPACE .or. ch==DASH) then
             j = j+1
             tTeacher(j:j) = ch
         !end if

@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -115,13 +115,12 @@ contains
         ! generate file name
         fileName = trim(dirXML)//trim(path)//basename
         if (filter>0) then
-            fileName = trim(fileName)//dash//trim(CurrProgCode(filter))//'.XML'
+            fileName = trim(fileName)//DASH//trim(CurrProgCode(filter))//'.XML'
         else
             fileName = trim(fileName)//'.XML'
         end if
 
-        ! make backup & open new file
-        call move_to_backup(fileName)
+        ! write file
         call xml_open_file(unitNo, XML_ROOT_ENLISTMENT, fileName, i)
         write(unitNo,AFORMAT) &
         '    <comment>', &
@@ -365,11 +364,11 @@ contains
         if (noXML) then
             ! try each priority group
             do grp=firstGrp,lastGrp
-                call xml_read_pre_enlistment(path, trim(basename)//dash//itoa(grp), NumSections, Section, eList, &
+                call xml_read_pre_enlistment(path, trim(basename)//DASH//itoa(grp), NumSections, Section, eList, &
                     partialEntries, ierr, QUIETLY)
                 numEntries = numEntries + partialEntries
                 if (partialEntries>0) then ! not empty; move to backup
-                    call move_to_backup(trim(dirXML)//trim(path)//trim(basename)//dash//itoa(grp))
+                    call move_to_backup(trim(dirXML)//trim(path)//trim(basename)//DASH//itoa(grp))
                 end if
             end do
         end if
@@ -378,7 +377,7 @@ contains
             if (numEntries==0) then
                 ! try each priority group
                 do grp=firstGrp,lastGrp
-                    call custom_read_pre_enlistment(path, trim(basename)//dash//itoa(grp), NumSections, Section, eList, &
+                    call custom_read_pre_enlistment(path, trim(basename)//DASH//itoa(grp), NumSections, Section, eList, &
                         partialEntries, ierr)
                     numEntries = numEntries + partialEntries
                 end do
@@ -507,7 +506,7 @@ contains
             preRegistered%Subject(k) = cdx
             ! section
             tSection = adjustl(line(pos(5)+1:pos(6)-1))
-            if (tSection=='') then ! not accommodated
+            if (tSection==SPACE) then ! not accommodated
                 sdx = 0
             else
                 tSection = trim(tSubject)//SPACE//tSection
@@ -519,7 +518,7 @@ contains
             preRegistered%Section(k) = sdx
             ! grade
             tGrade = line(pos(7)+1:pos(8)-1)
-            if (tGrade=='') then ! not forced
+            if (tGrade==SPACE) then ! not forced
                 gdx = 0
             else
                 gdx = index_to_grade(tGrade)

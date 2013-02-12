@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -30,32 +30,63 @@
 
 program MAIN
 
-    use SERVER
+    use WEBSERVER
     use SCHEDULING
 
     implicit none
 
-    integer :: itmp, errNo
+    integer :: itmp, jtmp, errNo
     integer :: idxGrp=-1, maxAlternates=-1
     character (len=MAX_LEN_FILE_PATH) :: dataSource
     character (len=40) :: argString
 
+    ! program starts
+    call date_and_time (date=currentDate,time=currentTime)
+    startDateTime = currentDate//DASH//currentTime(:6)
+
+    ! initialize random seed
+    call initialize_random_seed()
+
+    ! initialize QUERY_STRING encryption key
+    do iTmp=1,MAX_LEN_QUERY_STRING
+        call random_number(harvest)
+        errNo = 1 + int(255*harvest)
+        queryEncryptionKey(iTmp:iTmp) = achar(errNo)
+    end do
+
+    ! string representation of percentage grade, float value, reference
+    do iTmp=1,100
+        txtGrade(ZERO_PERCENT_GRADE+iTmp) = itoa(iTmp)
+        fGrade(ZERO_PERCENT_GRADE+iTmp) = 1.0*iTmp
+        pGrade(ZERO_PERCENT_GRADE+iTmp) = ZERO_PERCENT_GRADE+iTmp
+    end do
+
+    ! the executable
+    call getarg(0, fileExecutable)
+    iTmp = len_trim(fileExecutable)
+    do while (iTmp>0)
+        if (fileExecutable(iTmp:iTmp)/=DIRSEP) then
+            iTmp = iTmp-1
+        else
+            exit
+        end if
+    end do
+    fileExecutable = fileExecutable(iTmp+1:)
+
     ! 4+ arguments ?
     iTmp = iargc()
     if (iTmp<4) then
-        write(*,AFORMAT) 'Usage: '//PROGNAME//' univ year term period action group', &
+        write(*,AFORMAT) 'Usage: '//trim(fileExecutable)//' univ year term period action group', &
             '  where', &
             'univ      - university code', &
             'year      - the year when current Academic Year started', &
-            'term      - 1=first sem, 2=second sem', &
+            'term      - 0=summer, 1=first sem, 2=second sem', &
             'period    - 1=enrollment period, 2=mid-term, 3=end-of-term (grades are available)', &
             'action    - checklists, advise, schedule, server, training', &
             'group     - priority group to schedule, if action=schedule'
+        write(*,AFORMAT) ' ', 'You are running '//PROGNAME//VERSION
         stop
     end if
-
-    ! program starts
-    call date_and_time (date=currentDate,time=currentTime)
 
     ! get arguments
     call getarg(1, UniversityCode)
@@ -108,6 +139,9 @@ program MAIN
 
             case ('TRAINING')
 
+            case ('RESETPASSWORDS')
+                noWrites = .false.
+
             case default
                 write(*,AFORMAT) &
                     'Action "'//trim(argString)//'" not recognized', &
@@ -119,14 +153,14 @@ program MAIN
 
     end if
 
-    write(*,*) PROGNAME//VERSION//' started '//currentDate//dash//currentTime
+    write(*,*) trim(fileExecutable)//VERSION//' started '//currentDate//DASH//currentTime
     write(*,*) trim(UniversityCode), currentYear, currentTerm, Period, trim(argString), idxGrp, maxAlternates
 
     if (currentTerm==1) then
         prevYearYear = currentYear-1
         prevYearTerm = 1
-        prevTermYear = currentYear-1
-        prevTermTerm = 2
+        prevTermYear = currentYear
+        prevTermTerm = 0
         nextYear = currentYear
         nextTerm = 2
     else if (currentTerm==2) then
@@ -134,11 +168,15 @@ program MAIN
         prevYearTerm = 2
         prevTermYear = currentYear
         prevTermTerm = 1
+        nextYear = currentYear
+        nextTerm = 0
+    else
+        prevYearYear = currentYear-1
+        prevYearTerm = 0
+        prevTermYear = currentYear
+        prevTermTerm = 2
         nextYear = currentYear+1
         nextTerm = 1
-    else
-        write(*,*) 'Current term must be 1 (1st sem) or 2 (2nd sem)'
-        stop
     end if
 
     ! predict for which term?
@@ -155,13 +193,13 @@ program MAIN
 
     if (trim(argString)=='SCHEDULE') then ! use data from pathToTarget
         pathToCurrent = pathToTarget
-        write(*,*) 'Creating schedules for SY '//trim(itoa(targetYear))//dash//trim(itoa(targetYear+1))// &
-             comma//space//trim(txtSemester(targetTerm))//' Semester, group ', idxGrp
+        write(*,*) 'Creating schedules for SY '//trim(itoa(targetYear))//DASH//trim(itoa(targetYear+1))// &
+             COMMA//space//trim(txtSemester(targetTerm))//' Term, group ', idxGrp
     end if
 
     ! fixed directories
-    dirBak                 = dirHEEDS//'bak'//DIRSEP ! for backup files
-    dirLog                 = dirHEEDS//'log'//DIRSEP ! for log files
+    dirWWW                 = dirHEEDS//'web'//DIRSEP ! DocumentRoot in for webserver
+    dirLog                 = dirHEEDS//'log'//DIRSEP//trim(startDateTime)//DIRSEP ! for log files
     dirUploadCHECKLISTS    = dirHEEDS//'web'//DIRSEP//'static'//DIRSEP//'upload-checklists'//DIRSEP ! individual checklists for upload
     dirUploadENLISTMENT    = dirHEEDS//'web'//DIRSEP//'static'//DIRSEP//'upload-enlistment'//DIRSEP ! enlisted classes by student
 
@@ -173,36 +211,37 @@ program MAIN
     dirRAW    = dirHEEDS//'raw'//DIRSEP//trim(UniversityCode)//DIRSEP
 
     ! directories for XML input/ouput data
-    dirXML                 = dirHEEDS//'xml'//DIRSEP//trim(UniversityCode)//DIRSEP !//currentDate//dash//currentTime(:6)//DIRSEP
+    dirXML                 = dirHEEDS//'xml'//DIRSEP//trim(UniversityCode)//DIRSEP !//currentDate//DASH//currentTime(:6)//DIRSEP
     dirSUBSTITUTIONS       = trim(dirXML)//'substitutions'//DIRSEP ! directory for input/UNEDITED checklists from Registrar
     dirTRANSCRIPTS         = trim(dirXML)//'transcripts'//DIRSEP ! directory for raw transcripts
     dirEditedCHECKLISTS    = trim(dirXML)//'edited-checklists'//DIRSEP ! for output/EDITED checklists from College Secretaries
 
     call system (mkdirCmd//trim(dirXML)//trim(pathToCurrent))
-    call system (mkdirCmd//trim(dirXML)//'UPDATES'//DIRSEP//trim(pathToCurrent))
+    call system (mkdirCmd//trim(dirXML)//UPDATES//trim(pathToCurrent))
     if (currentTerm/=targetTerm) then
         call system (mkdirCmd//trim(dirXML)//trim(pathToTarget))
-        call system (mkdirCmd//trim(dirXML)//'UPDATES'//DIRSEP//trim(pathToTarget))
+        call system (mkdirCmd//trim(dirXML)//UPDATES//trim(pathToTarget))
     end if
-    call system (mkdirCmd//trim(dirSUBSTITUTIONS))
-    call system (mkdirCmd//trim(dirTRANSCRIPTS))
-    call system (mkdirCmd//trim(dirEditedCHECKLISTS))
+    call system (mkdirCmd//trim(dirXML)//'substitutions')
+    call system (mkdirCmd//trim(dirXML)//'transcripts')
+    call system (mkdirCmd//trim(dirXML)//'edited-checklists')
 
     ! backup directories
-    dataSource = trim(dirBak)//trim(UniversityCode)//DIRSEP ! //currentDate//dash//currentTime(:6)//DIRSEP
-    call system (mkdirCmd//trim(dataSource)//trim(pathToCurrent) )
-    call system (mkdirCmd//trim(dataSource)//'UPDATES'//DIRSEP//trim(pathToCurrent) )
+    dirBak                 = dirHEEDS//'bak'//DIRSEP//trim(UniversityCode)//DIRSEP
+    call system (mkdirCmd//trim(dirBak)//trim(pathToCurrent) )
+    call system (mkdirCmd//trim(dirBak)//UPDATES//trim(pathToCurrent) )
     if (currentTerm/=targetTerm) then
-        call system (mkdirCmd//trim(dataSource)//trim(pathToTarget) )
-        call system (mkdirCmd//trim(dataSource)//'UPDATES'//DIRSEP//trim(pathToTarget) )
+        call system (mkdirCmd//trim(dirBak)//trim(pathToTarget) )
+        call system (mkdirCmd//trim(dirBak)//UPDATES//trim(pathToTarget) )
     end if
+    call system (mkdirCmd//trim(dirBak)//'substitutions')
+    call system (mkdirCmd//trim(dirBak)//'transcripts')
+    call system (mkdirCmd//trim(dirBak)//'edited-checklists')
 
-    if (MANY_LOG_FILES) then
-        open(unit=stderr, file=trim(dirLOG)//currentDate//dash//currentTime(:7)//'log', status='replace')
-    else
-        open(unit=stderr, file=trim(dirLOG)//currentDate//'.log', status='replace')
-    end if
-    write(stderr,AFORMAT) '-------', 'Begins '//currentDate//dash//currentTime, '-------'
+    ! log file
+    open(unit=stderr, file=trim(dirLog)//trim(fileExecutable)//'.log', status='unknown')
+    write(stderr,AFORMAT) '-------', 'Begins '//currentDate//DASH//currentTime, '-------', &
+        'Executable is : '//trim(fileExecutable)//SPACE//DASH//SPACE//PROGNAME//VERSION
 
     ! read the university name
     call read_university(pathToCurrent, errNo)
@@ -254,7 +293,7 @@ program MAIN
             call xml_write_student_grades(iTmp)
             if (mod(iTmp,1000)==0) write(*,*) iTmp,  ' done...'
         end do
-        call server_end(PROGNAME//space//trim(argString)//'-mode is complete.')
+        call server_end(trim(fileExecutable)//space//trim(argString)//'-mode is complete.')
     end if
 
 #if defined UPLB
@@ -316,7 +355,7 @@ program MAIN
     ! scheduling-mode?
     if (trim(argString)=='SCHEDULE') then
         call generate_initial_schedules(idxGrp, maxAlternates)
-        call server_end(PROGNAME//space//trim(argString)//'-mode is complete.')
+        call server_end(trim(fileExecutable)//space//trim(argString)//'-mode is complete.')
     end if
 
     ! read the blocks
@@ -389,6 +428,23 @@ program MAIN
 
     end if
 
+    ! create student directories
+    itmp = 1
+    do jtmp=2,len_trim(StdNoPrefix)
+        if (StdNoPrefix(jtmp:jtmp)/=':') cycle
+        call system (mkdirCmd//trim(dirUploadCHECKLISTS)//StdNoPrefix(itmp+1:jtmp-1) )
+        call system (mkdirCmd//trim(dirUploadENLISTMENT)//StdNoPrefix(itmp+1:jtmp-1) )
+        call system (mkdirCmd//trim(dirXML)//'substitutions'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
+        call system (mkdirCmd//trim(dirXML)//'transcripts'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
+        call system (mkdirCmd//trim(dirXML)//'edited-checklists'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
+        call system (mkdirCmd//trim(dirBak)//'substitutions'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
+        call system (mkdirCmd//trim(dirBak)//'transcripts'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
+        call system (mkdirCmd//trim(dirBak)//'edited-checklists'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
+        itmp = jtmp
+    end do
+
+
+    
     select case (trim(argString))
 
         case ('ADVISE')
@@ -404,7 +460,7 @@ program MAIN
                 dataSource = trim(dirXML)//trim(pathToTarget)//'ENLISTMENT'
                 call move_to_backup(trim(dataSource)//'.XML')
                 do iTmp=2,7
-                    call move_to_backup(trim(dataSource)//dash//trim(itoa(iTmp))//'.XML')
+                    call move_to_backup(trim(dataSource)//DASH//trim(itoa(iTmp))//'.XML')
                 end do
 
             end if
@@ -417,20 +473,19 @@ program MAIN
             ! set available functions
             call set_feature_availability()
 
-            call file_log_message('The '//PROGNAME//' back-end program is ready.')
-            if (noWrites) then ! training mode
-                call file_log_message(PROGNAME//' is in training mode. Any made changes will be lost after the program exits.')
-            end if
-
             ! start of server loop
-            call server_loop()
+            call server_start()
+
             ! server loop has exited
+
+        case ('RESETPASSWORDS')
+
+            call reset_passwords()
 
         case default
 
     end select
 
-    call server_end(PROGNAME//space//trim(argString)//'-mode is complete.')
-
+    call server_end(trim(fileExecutable)//space//trim(argString)//'-mode is complete.')
 
 end program MAIN

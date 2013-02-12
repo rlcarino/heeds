@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -28,7 +28,7 @@
 !======================================================================
 
 
-module SERVER
+module WEBSERVER
 
     use EditSUBJECTS
     use EditROOMS
@@ -41,101 +41,99 @@ module SERVER
     use DEMAND
     use REPORTS
 
-    use ISO_C_BINDING
-
     implicit none
-
-
-    interface
-
-        ! The function to accept a request from the webserver
-        function FCGI_Accept () bind(C, NAME='FCGI_Accept')
-            use ISO_C_BINDING
-            implicit none
-            integer(C_INT) :: FCGI_Accept
-        end function FCGI_Accept
-
-        ! The function to retrieve POSTed data
-        function FCGI_getchar () bind(C, NAME='FCGI_getchar')
-            use ISO_C_BINDING
-            implicit none
-            character(C_CHAR) :: FCGI_getchar
-        end function FCGI_getchar
-
-        ! The function to write back to the webserver
-        function FCGI_puts (s) bind(C, NAME='FCGI_puts')
-            use ISO_C_BINDING
-            implicit none
-            integer(C_INT) :: FCGI_puts
-            character(C_CHAR), dimension(*) :: s
-        end function FCGI_puts
-
-    end interface
 
 contains
 
+    subroutine server_start()
 
-    subroutine server_loop()
+        integer :: device, iTmp, kStart
+        character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
+        character(len=MAX_LEN_FILE_PATH) :: logTeacher
+        logical :: logExists
 
-        ! for POSTed data
-        character(len=1) :: ch
-        character(len=10) :: contentLength
 
-        integer :: nChars, ierr, device, nHits
+        ! delete existing pages
+        call system(delCmd//trim(dirWWW)//'index.*', iTmp)
 
-        ! Counter for requests
-        nHits = 0
+        ! make landing page
+        call html_login(trim(dirWWW)//DIRSEP//'index.html', SPACE)
 
+        ! make error page
+        call html_login(trim(dirWWW)//DIRSEP//'50x.html', &
+            'The '//PROGNAME//' program is not running. Contact the '//REGISTRAR)
+
+        ! notes
+        call file_log_message(trim(fileExecutable)//' is ready.')
+        if (noWrites) then ! training mode
+            call file_log_message(trim(fileExecutable)//' is in training mode. '// &
+                'Any made changes will be lost after the program exits.')
+        end if
         ! open a 'scratch' response file
-        device = max(10, getpid()) ! unit number for response file
-        open(unit=device, form='formatted', file='/tmp/'//itoa(device)) !status='scratch')
+        device = stderr - 1
+        open(unit=device, form='formatted', status='scratch')
+        !open(unit=device, file='WRK.HTML', form='formatted', status='unknown')
 
         do while (FCGI_Accept() >= 0)
+        
+            ! timestamp of request
+            call date_and_time (date=currentDate, time=currentTime)
+
+            ! tell the webserver to expect text/html
+            iTmp = FCGI_puts ('Content-type: text/html'//CRLF//NUL)
 
             ! rewind the response file
             rewind (device)
 
-            ! Tell the webserver to expect text/html
-            nChars = FCGI_puts ('Content-type: text/html'//CRLF//NUL)
+            ! Retrieve DOCUMENT_URI and QUERY_STRING/CONTENT
+            call FCGI_getquery(device)
 
-            ! Request method was GET ?
-            call get_environment_variable('QUERY_STRING', QUERY_STRING)
-            nChars = len_trim(QUERY_STRING)
-            if (nChars==0) then
-                ! Request method was POST ?
-                call get_environment_variable('CONTENT_LENGTH', contentLength)
-                nChars = len_trim(contentLength)
-                QUERY_STRING = SPACE
-                if (nChars>0) then
-                    nChars = atoi(contentLength)
-                    do ierr=1,nChars
-                        ch = FCGI_getchar()
-                        QUERY_STRING(ierr:ierr) = ch
-                    end do
-                !else  ! not GET nor POST
+            ! encrypted query ?
+            call cgi_get_named_string(QUERY_STRING, 'q', cipher, iTmp)
+            if (iTmp==0) then
+                iTmp = len_trim(cipher)
+                kStart = atoi( cipher(iTmp-3:iTmp) )
+                if (kStart>MAX_LEN_QUERY_STRING/2 .and. kStart<MAX_LEN_QUERY_STRING) then
+                    cipher(iTmp-3:iTmp) = SPACE
+                    call decrypt(queryEncryptionKey(:kStart), cipher)
+                    QUERY_STRING = trim(cipher)//'&'//QUERY_STRING
+                else
+                    QUERY_STRING = '(invalid)'
                 end if
             end if
 
-            ! append query to log file
-            nHits = nHits + 1
-            call file_log_message ('Request '//trim(itoa(nHits))//': '//trim(QUERY_STRING))
+            ! make copy of QUERY_STRING
+            cipher = QUERY_STRING
 
+            ! Establish USERNAME/ROLE and REQUEST
+            loginCheckMessage = SPACE
+            call get_user_request(targetLogin)
+
+            ! open user's log file, create if necessary
+            call blank_to_underscore(USERNAME, tTeacher)
+            logTeacher = trim(dirLOG)//trim(tTeacher)//'.log'
+            inquire(file=trim(logTeacher), exist=logExists)
+            if (.not. logExists) then
+                open(unit=stderr+1, file=trim(logTeacher), status='new')
+            else
+                open(unit=stderr+1, file=trim(logTeacher), status='old', position='append')
+            end if
+
+            ! append query to user log file
+            write(stderr+1,AFORMAT) SPACE, trim(REMOTE_ADDR)//' : '//currentDate//DASH//currentTime//' : '// &
+                trim(fnDescription(REQUEST))
+            if (REQUEST>4) then ! no passwords
+                write(stderr+1,AFORMAT) trim(cipher)
+            end if
+
+            ! compose response
             call server_respond(device)
 
-            ! Flush all writes to the response file
-            flush(device)
+            ! send response to server
+            call FCGI_putfile(device)
 
-            ! copy to FCGI's stdout
-            rewind(device)
-            do while (.true.)
-
-                read(device ,AFORMAT,iostat=ierr) QUERY_STRING
-                if (ierr < 0) exit ! no more lines
-
-                ! FCGI expects NULL terminated strings
-                nChars = FCGI_puts (trim(QUERY_STRING)//NUL)
-
-            end do
+            ! close user log file
+            close(stderr+1)
 
             if (REQUEST==fnStopProgram) exit
 
@@ -145,37 +143,36 @@ contains
         end do ! while (FCGI_Accept() >= 0)
         close(device)
 
+        ! make 'Sorry!' landing page
+        call html_login(trim(dirWWW)//DIRSEP//'index.html', &
+            'The '//PROGNAME//' program is not running. Contact the '//REGISTRAR)
+
+        ! wait for next query before NGINX raises error
+        iTmp = FCGI_Accept()
+
         return
 
-    end subroutine server_loop
+    end subroutine server_start
 
 
     subroutine server_respond (device)
         integer, intent (in) :: device
 
-        integer :: ierr
-
-        ! Establish REQUESTed function; initialize arguments
-        call cgi_get_named_integer(QUERY_STRING, 'F', REQUEST, ierr)
-
-        ! if no REQUESTED funtion, return the landing page
-        if (ierr==-1) REQUEST = fnLogin
-
         ! set TermQualifier to next semester if REQUEST uses data for next semester
         if (REQUEST>=fnNextScheduleOfClasses) then
             fnOFFSET = fnNextOffset
-            TermQualifier = green//trim(txtSemester(targetTerm+3))//' Semester, SY '// &
-                trim(itoa(targetYear))//dash//itoa(targetYear+1)//black
+            TermQualifier = green//trim(txtSemester(targetTerm+3))//' Term, SY '// &
+                trim(itoa(targetYear))//DASH//itoa(targetYear+1)//black
             pathToSOURCE = pathToTarget
-            pathToUPDATES = 'UPDATES'//DIRSEP//pathToTarget
+            pathToUPDATES = UPDATES//pathToTarget
         else
             fnOFFSET = 0
             TermQualifier = SPACE
             pathToSOURCE = pathToCurrent
-            pathToUPDATES = 'UPDATES'//DIRSEP//pathToCurrent
+            pathToUPDATES = UPDATES//pathToCurrent
         end if
 
-        ! target object of REQUESTed function
+        ! target object of REQUEST
         targetStudent = 0
         targetSubject = 0
         targetSection = 0
@@ -183,19 +180,18 @@ contains
         targetCurriculum =0
         targetCollege = 0
         targetRoom = 0
+        targetTeacher = 0
         targetBlock = 0
 
-        ! Establish ROLE
-        !call cgi_get_named_integer(QUERY_STRING, 'U', USER, ierr)
-        ! hardcode USER to Registrar for now
-        USER = REGISTRAR
-        call get_user_info()
-
-        ! Write response to REQUEST
         select case (REQUEST)
 
             case (fnLogin)
-                call html_college_links(device, CollegeIdxUser)
+                Teacher(targetLogin)%Status = 1
+                call html_college_links(device, CollegeIdxUser, mesg=loginCheckMessage)
+
+            case (fnChangeInitialPassword, fnChangePassword)
+                Teacher(targetLogin)%Status = 1
+                call change_current_password(device)
 
             case (fnToggleTrainingMode)
                 noWrites = .not. noWrites
@@ -387,23 +383,29 @@ contains
                 call block_add(device, nextTerm, NumNextSections, NextSection, NextOffering, &
                     NumNextBlocks, NextBlock)
 
-            case (fnStopProgram)
-                if (isDirtySTUDENTS) then
-                    call xml_write_students(pathToCurrent, 0)
-                end if
-                targetCollege = CollegeIdxUser
-                targetDepartment = DeptIdxUser
-                TermQualifier = SPACE
+            case (fnStopUser)
+                Teacher(targetLogin)%Status = 0
+                call html_landing_page(device, SPACE)
 
-                call html_write_header(device, SPACE, &
-                    '<hr>The stop signal was sent to the '//PROGNAME//' program.')
+            case (fnStopProgram)
+                if (isRoleAdmin) then
+                    if (isDirtySTUDENTS) then
+                        call xml_write_students(pathToCurrent, 0)
+                    end if
+                    loginCheckMessage = 'The '//PROGNAME//' program will stop.'
+                else
+                    REQUEST = fnStopUser
+                    Teacher(targetLogin)%Status = 0
+                    loginCheckMessage = SPACE
+                end if
+                call html_landing_page(device, loginCheckMessage)
 
             case default
                 targetCollege = CollegeIdxUser
                 targetDepartment = DeptIdxUser
                 TermQualifier = SPACE
                 call html_write_header(device, SPACE, &
-                    '<hr>The functionality you requested is not available in this version of '//PROGNAME//'.')
+                    '<hr>The functionality you requested is not available in '//PROGNAME//VERSION)
 
         end select
 
@@ -417,10 +419,9 @@ contains
 
         character(len=*), intent (in) :: msg
 
-        call date_and_time (date=currentDate,time=currentTime)
-        call file_log_message(msg, 'Ends '//currentDate//dash//currentTime(1:4) )
+        call file_log_message(msg, 'Ends '//currentDate//DASH//currentTime )
         close(stderr)
-        write(*,*) 'Check the latest .log file in '//trim(dirLog)//' for other messages.'
+        write(*,*) 'Check .log files '//trim(dirLog)//' for other messages.'
         stop
     end subroutine server_end
 
@@ -444,7 +445,7 @@ contains
 
                 case (2) ! Section
                     call section_list_all (device, NumCurrentSections, CurrentSection, CurrentOffering, &
-                    NumCurrentBlocks, CurrentBlock, REQUEST, dept)
+                        NumCurrentBlocks, CurrentBlock, REQUEST, dept)
 
                 case (3) ! Teacher
                     call teacher_list_all (device, NumCurrentSections, CurrentSection, REQUEST)
@@ -454,7 +455,7 @@ contains
 
                 case (5) ! Section
                     call section_list_all (device, NumNextSections, NextSection, NextOffering, &
-                    NumNextBlocks, NextBlock, REQUEST, dept)
+                        NumNextBlocks, NextBlock, REQUEST, dept)
 
                 case (6) ! Teacher
                     call teacher_list_all (device, NumNextSections, NextSection, REQUEST)
@@ -506,6 +507,9 @@ contains
                 Subject(targetSubject)%TermOffered = reqd
             end if
         end do
+        do targetSubject=NumDummySubjects,-2
+            Subject(targetSubject)%TermOffered = 7
+        end do
 
         return
     end subroutine set_term_offered_accg_to_curricula
@@ -516,36 +520,25 @@ contains
         integer :: ldx
 
         call html_write_header(device, 'Add a student')
+        call make_form_start(device, fnStudentAdd)
         write(device,AFORMAT) &
-            '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
-            '<input type="hidden" name="F" value="'//trim(itoa(fnStudentAdd))//'">', &
-            '<table border="0" width="100%" cellpadding="0" cellspacing="0">'
-        ! student number
-        write(device,AFORMAT) &
-            begintr//begintd//'Student Number:'//endtd//begintd// &
-            '<input name="StdNo" value="StdNo">'//endtd//endtr
-        ! name
-        write(device,AFORMAT) &
+            '<table border="0" width="100%" cellpadding="0" cellspacing="0">', &
+            begintr//begintd//'Student Number:'//endtd//begintd// &  ! student number
+            '<input name="StdNo" value="StdNo">'//endtd//endtr, & ! name
             begintr//begintd//'Lastname Firstname MI:'//endtd//begintd// &
-            '<input name="Name" size="40" value="Lastname Firstname MI">'//endtd//endtr
-        ! gender
-        write(device,AFORMAT) &
+            '<input name="Name" size="40" value="Lastname Firstname MI">'//endtd//endtr, & ! gender
             begintr//begintd//'Gender:'//endtd//begintd//'<select name="Gender">', &
             '<option value=""> (select) <option value="F"> Female <option value="M"> Male', &
-            '</select>'//endtd//endtr
-        ! country index
-        write(device,AFORMAT) &
+            '</select>'//endtd//endtr, & ! country index
             begintr//begintd//'Country:'//endtd//begintd//'<select name="CountryIdx">', &
             '<option value="1"> Philippines <option value="0"> Other ', &
-            '</select>'//endtd//endtr
-        ! curriculum
-        write(device,AFORMAT) &
+            '</select>'//endtd//endtr, & ! curriculum
             begintr//begintd//'Curriculum:'//endtd//begintd//'<select name="CurriculumIdx">', &
             '<option value=""> (select curriculum)'
         do ldx=1,NumCurricula
             if (.not. Curriculum(ldx)%Active) cycle
             write(device,AFORMAT) '<option value="'//trim(Curriculum(ldx)%Code)//'"> '// &
-            trim(Curriculum(ldx)%Code)//' - '//trim(Curriculum(ldx)%Title)
+                trim(Curriculum(ldx)%Code)//' - '//trim(Curriculum(ldx)%Title)
         end do
         write(device,AFORMAT) '</select>'//endtd//endtr
         ! classification
@@ -553,7 +546,7 @@ contains
             begintr//begintd//'Year level:'//endtd//begintd//'<select name="Classification">'
         do ldx=1,8
             write(device,AFORMAT) '<option value="'//trim(itoa(ldx))//'"> '// &
-            trim(txtYear(ldx+9))
+                trim(txtYear(ldx+9))
         end do
         write(device,AFORMAT) '</select>'//endtd//endtr
         ! Add button
@@ -613,4 +606,273 @@ contains
     end subroutine student_add
 
 
-end module SERVER
+    subroutine reset_passwords()
+        character (len=MAX_LEN_PASSWORD) :: Password
+        integer :: i, k, lenP
+
+        ! the teachers
+        do i=1,NumTeachers
+            Teacher(i)%Password = SPACE
+            Password = Teacher(i)%TeacherID
+            ! use first 16 characters only
+            Password(17:) = SPACE
+            lenP = len_trim(Password)
+            call encrypt(passwordEncryptionKey, Password)
+            Teacher(i)%Password = Password
+            if (trim(Teacher(i)%TeacherID)/=trim(Department(Teacher(i)%DeptIdx)%Code)) then
+                Teacher(i)%Role = GUEST
+            else
+                Teacher(i)%Role = Department(Teacher(i)%DeptIdx)%Code
+            end if
+        end do
+        ! create default scheduler roles
+        do k=2,NumDepartments
+            i = NumTeachers+k-1
+            Teacher(i)%TeacherID = Department(k)%Code
+            Teacher(i)%DeptIdx = NumDepartments
+            Teacher(i)%Role = Teacher(i)%TeacherID
+            Teacher(i)%Name = trim(Teacher(i)%TeacherID)//' Teaching Load Scheduler'
+            Teacher(i)%MaxLoad = 0
+            Teacher(i)%Specialization = 'Load scheduling'
+            Password = Teacher(i)%TeacherID
+            ! use first 16 characters only
+            Password(17:) = SPACE
+            lenP = len_trim(Password)
+            call encrypt(passwordEncryptionKey, Password)
+            Teacher(i)%Password = Password
+        end do
+        NumTeachers = NumDepartments + NumTeachers -1
+        ! create default adviser roles
+        done = .false.
+        do k=1,NumCurricula
+            if (done(k)) cycle
+            i = NumTeachers + 1
+            NumTeachers = i
+
+            Teacher(i)%TeacherID = CurrProgCode(k)
+            Teacher(i)%DeptIdx = NumDepartments
+            Teacher(i)%Role = Teacher(i)%TeacherID
+            Teacher(i)%Name = trim(Teacher(i)%TeacherID)//' Adviser'
+            Teacher(i)%MaxLoad = 0
+            Teacher(i)%Specialization = 'Student advising'
+            Password = Teacher(i)%TeacherID
+            ! use first 16 characters only
+            Password(17:) = SPACE
+            lenP = len_trim(Password)
+            call encrypt(passwordEncryptionKey, Password)
+            Teacher(i)%Password = Password
+
+            do i = k+1,NumCurricula
+                if (CurrProgCode(k)==CurrProgCode(i)) done(i) = .true.
+            end do
+        end do
+        ! the Guest account
+        i = NumTeachers + 1
+        NumTeachers = i
+        Teacher(i)%TeacherID = GUEST
+        Teacher(i)%Name = 'Guest Account'
+        Password = Teacher(i)%TeacherID
+        ! use first 16 characters only
+        Password(17:) = SPACE
+        lenP = len_trim(Password)
+        call encrypt(passwordEncryptionKey, Password)
+        Teacher(i)%Password = Password
+        Teacher(i)%Role = GUEST
+
+        ! update  TEACHERS.XML
+        call xml_write_teachers(pathToCurrent)
+
+        return
+    end subroutine reset_passwords
+
+
+    subroutine change_current_password(device)
+        integer, intent(in) :: device
+
+        character (len=MAX_LEN_PASSWORD) :: t0Password, t1Password, t2Password
+        integer :: ierr
+        logical :: flagIsUp
+
+        flagIsUp = .false.
+        if (REQUEST==fnChangePassword) then
+            call cgi_get_named_string(QUERY_STRING, 'C', t0Password, ierr)
+            if ( len_trim(t0Password)>0 ) then
+                t0Password(17:) = SPACE
+                call encrypt(passwordEncryptionKey, t0Password)
+                if (Teacher(targetLogin)%Password/=t0Password) then
+                    loginCheckMessage = 'Current password is incorrect.'
+                    flagIsUp = .true.
+                else
+                    loginCheckMessage = 'Change current password.'
+                end if
+            else
+                loginCheckMessage = ''
+                flagIsUp = .true.
+            end if
+        end if
+        if (.not. flagIsUp) then
+            call cgi_get_named_string(QUERY_STRING, 'P', t1Password, ierr)
+            call cgi_get_named_string(QUERY_STRING, 'R', t2Password, ierr)
+            if ( len_trim(t1Password)>0 .and. len_trim(t2Password)>0 ) then
+                if ( t1Password==t2Password ) then
+                    t1Password(17:) = SPACE
+                    call encrypt(passwordEncryptionKey, t1Password)
+                    if (Teacher(targetLogin)%Password/=t1Password .and. &
+                            Teacher(targetLogin)%TeacherID/=t2Password) then
+                        Teacher(targetLogin)%Password = t1Password
+                        call xml_write_teachers(pathToCurrent)
+                        loginCheckMessage = 'Successfully changed password for '//USERNAME
+                        call html_college_links(device, CollegeIdxUser, mesg=loginCheckMessage)
+                        return
+                    else
+                        loginCheckMessage = 'New password is the same as the old password or username'
+                    end if
+                else
+                    loginCheckMessage = 'New password and repeat do not match'
+                end if
+            else
+                loginCheckMessage = ''
+            end if
+        end if
+
+        write(device,AFORMAT) &
+            '<html><head><title>'//PROGNAME//VERSION//'</title></head><body>', &
+            '<h1>'//trim(UniversityCode)//nbsp//PROGNAME//' Password Service</h1>'
+        if (len_trim(loginCheckMessage)>0) write(device,AFORMAT) &
+            red//trim(loginCheckMessage)//black
+
+        write(device,AFORMAT) '<br>'//&
+            '<form name="input" method="post" action="'//CGI_PATH//'">', &
+            '<input type="hidden" name="F" value="'//trim(itoa(REQUEST))//'">', &
+            '<input type="hidden" name="N" value="'//trim(USERNAME)//'">', &
+            '<h2>Change password for '//trim(USERNAME)//'</h2><br>'
+        if (REQUEST==fnChangePassword) write(device,AFORMAT) &
+            '<b>Old password:</b><br>', &
+            '<input size="20" type="password" name="C" value="">', &
+            '<br><br>'
+        write(device,AFORMAT) &
+            '<b>New password:</b><br>', &
+            '<input size="20" type="password" name="P" value="">', &
+            '<br><br>', &
+            '<b>Repeat new password:</b><br>', &
+            '<input size="20" type="password" name="R" value="">', &
+            '<br><br>', &
+            '<input type="submit" value="Update"></form><hr>'
+
+        return
+    end subroutine change_current_password
+
+
+    subroutine get_user_request(idxUser)
+
+        integer, intent(out) :: idxUser ! index to USERNAME in Teachers()
+
+        character (len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
+        character (len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
+        character (len=MAX_LEN_PASSWORD) :: tPassword, cPassword
+        integer :: ierr
+
+        isRoleAdmin = .false.
+        isRoleSRE = .false.
+        isRoleChair = .false.
+        isRoleStudent = .false.
+        isRoleGuest = .false.
+
+        DeptIdxUser = 0
+        CollegeIdxUser = 0
+        CurriculumIdxUser = 0
+
+        ! Get USERNAME
+        call cgi_get_named_string(QUERY_STRING, 'N', USERNAME, ierr)
+        idxUser = index_to_teacher(USERNAME)
+
+        if (idxUser>0) then
+            ROLE = Teacher(idxUser)%Role
+        else ! not in Teachers(); assume Guest
+            USERNAME = GUEST
+            ROLE = GUEST
+        end if
+
+        if (trim(ROLE)==GUEST) then ! Guest
+            isRoleGuest = .true.
+            if (trim(USERNAME)/=GUEST) then
+                DeptIdxUser = Teacher(idxUser)%DeptIdx
+                CollegeIdxUser = Department(DeptIdxUser)%CollegeIdx
+            end if
+        elseif (trim(ROLE)==REGISTRAR) then ! Administrator
+            isRoleAdmin = .true.
+            DeptIdxUser = NumDepartments
+            CollegeIdxUser = Department(DeptIdxUser)%CollegeIdx
+        else ! Chair or Adviser ?
+            tDepartment = ROLE
+            targetDepartment = index_to_dept(tDepartment)
+            if (targetDepartment/=0) then ! Chair
+                isRoleChair = .true.
+                DeptIdxUser = targetDepartment
+                CollegeIdxUser = Department(targetDepartment)%CollegeIdx
+            else
+                tCurriculum = ROLE
+                targetCurriculum = abs(index_to_curriculum(tCurriculum))
+                if (targetCurriculum/=0) then ! adviser
+                    isRoleSRE = .true.
+                    ROLE = CurrProgCode(targetCurriculum)
+                    CurriculumIdxUser = targetCurriculum
+                    CollegeIdxUser = Curriculum(targetCurriculum)%CollegeIdx
+                    DeptIdxUser = 0
+                else
+                    isRoleGuest = .true.
+                end if
+            end if
+        end if
+
+        ! Establish REQUESTed function if any, else return the landing page
+        call cgi_get_named_integer(QUERY_STRING, 'F', REQUEST, ierr)
+        if (ierr==-1) then
+            REQUEST = fnStopUser
+            return
+        end if
+        if (REQUEST/=fnLogin) then ! not logging in
+            ! previously logged out?  force user to login
+            if (Teacher(idxUser)%Status==0 .and. .not. isRoleGuest) REQUEST = fnStopUser
+            return
+        end if
+        ! request is login; validate POSTed data
+
+        ! Always allow Guest account
+        if (trim(USERNAME)==GUEST) then ! Guest
+            loginCheckMessage = &
+                ' You are logged in as Guest. Contact the '//REGISTRAR//' to obtain an account.'
+            return
+        end if
+
+        ! Return login page if password not provided
+        call cgi_get_named_string(QUERY_STRING, 'P', tPassword, ierr)
+        if (ierr==-1) then
+            REQUEST = fnStopUser
+            loginCheckMessage = 'Username and/or Password not valid.'
+            return
+        end if
+
+        ! Return login page if password not correct for user
+        cPassword = tPassword
+        call encrypt(passwordEncryptionKey, cPassword)
+        if ( trim(Teacher(idxUser)%Password)/=trim(cPassword) ) then
+            REQUEST = fnStopUser
+            loginCheckMessage = 'Username and/or Password not valid.'
+            return
+        end if
+        ! password matched
+
+        ! password same as username?
+        if ( trim(USERNAME)/=trim(tPassword) ) then
+            loginCheckMessage = 'Successful login for '//USERNAME
+        else ! first time to login
+            REQUEST = fnChangeInitialPassword ! initial login; force change password
+            loginCheckMessage = 'Password not set.'
+        end if
+
+        return
+    end subroutine get_user_request
+
+
+end module WEBSERVER

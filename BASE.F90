@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -32,49 +32,54 @@ module BASE
 
     implicit none
 
-#if defined GNULINUX
-    ! HEEDS root directory
+    ! Pasword encryption key (16 characters)                 1234567890123456
+    character(len=16), parameter :: passwordEncryptionKey = 'r3pL@c3w!thUr0wn'
+
+#if defined GLNX
+    ! HEEDS root directory and CGI script
     character(len=18), parameter :: dirHEEDS = '/home/heeds/HEEDS/'
-#else
-    ! HEEDS root directory
-    character(len= 9), parameter :: dirHEEDS = 'C:\HEEDS\'
-#endif
-
-    ! CGI script
-    character(len= 9), parameter :: CGI_SCRIPT = 'heeds.cgi'
-
-    ! flags to control generation of log files, backups
-    logical, parameter :: MANY_LOG_FILES = .false. ! a log file for every run?
-    logical, parameter :: DO_NOT_BACKUP = .true. ! no backups?
-
-    ! directory separator; delete, directory, mkdir commands
-#if defined GNULINUX
+    character(len= 8), parameter :: UPDATES = 'UPDATES/'
+    ! file separator; delete, directory, mkdir commands
     character(len= 1), parameter :: DIRSEP = '/'
     character(len= 6), parameter :: delCmd = 'rm -f '
     character(len= 9), parameter :: mkdirCmd = 'mkdir -p '
     character(len= 6), parameter :: mvCmd = 'mv -f '
 #else
+    ! HEEDS root directory and CGI script
+    character(len= 7), parameter :: dirHEEDS = '\HEEDS\'
+    character(len= 8), parameter :: UPDATES = 'UPDATES\'
+    ! file separator; delete, directory, mkdir commands
     character(len= 1), parameter :: DIRSEP = '\'
     character(len= 7), parameter :: delCmd = 'del /q '
     character(len= 6), parameter :: mkdirCmd = 'mkdir '
     character(len= 8), parameter :: mvCmd = 'move /y '
 #endif
 
+    ! CGI script
+    character(len= 6), parameter :: CGI_PATH = '/heeds'
+
+    ! flag to control generation of backups
+    logical, parameter :: DO_NOT_BACKUP = .false. ! .false. ! create backups?
+
     integer :: currentYear ! year of start of Academic Year
-    integer :: currentTerm ! current term 1=1st sem, 2=2nd sem; summer not yet allowed
+    integer :: currentTerm ! current term 1=1st sem, 2=2nd sem; 3=summer
     integer :: nextYear, nextTerm, targetTerm, targetYear
     integer :: prevTermYear, prevTermTerm, prevYearYear, prevYearTerm
 
     character(len=10) :: currentTime ! current time
     character(len= 8) :: currentDate ! current date
+    character(len=18) :: startDateTime ! program start date & time
 
     integer :: stderr = 999 ! unit number of file for error messages
+    logical :: noWrites = .false. ! do not change data files
 
     ! Max length of file path+name
     integer, parameter :: MAX_LEN_FILE_PATH = 256
 
     ! data & output locations
     character (len=MAX_LEN_FILE_PATH) :: &
+        fileExecutable, & ! name of executable
+        dirWWW, & ! directory where web pages will be served (must be writable by HEEDS)
         dirBak, & ! directory for backup files
         dirLog, & ! directory for log files
         dirSUBSTITUTIONS, & ! directory for input/UNEDITED checklists from Registrar
@@ -86,29 +91,59 @@ module BASE
         dirXML, & ! directory for XML data files
         pathToCurrent, & ! path to files for currentYear+currentTerm
         pathToTarget, &  ! path to files for targetYear+targetTerm
-        pathToSOURCE, &
-        pathToUPDATES
+        pathToSOURCE, &  ! pathToCurrent or pathToTarget
+        pathToUPDATES    ! path to files of changes by stand-alone users
+
+    ! random number
+    real :: harvest
 
     ! constants
     character(len= 1), parameter :: &
-        SPACE = ' ', comma = ',', dash ='-', fslash = '/', bslash = '\', dot = '.', prime = ''''
+        SPACE = ' ', COMMA = ',', DASH ='-', FSLASH = '/', BSLASH = '\', PRIME = ''''
+    character(len= 1), parameter :: NUL = achar(0)
+    character(len= 2), parameter :: CRLF = achar(10)//achar(13)
     character(len= 3), parameter :: AFORMAT = '(a)'
+    character(len= 8), parameter :: ZFORMAT = '(16z0.2)'
     character(len=10), parameter :: DECDIGITS = '0123456789'
     character(len=16), parameter :: HEXDIGITS = '0123456789ABCDEF'
     character(len=24), parameter :: SPECIAL = '<>"#%{}|^~[]`;/?:=&$+().'
-    character(len= 2), parameter :: CRLF = achar(13)//achar(10)
-    character(len= 1), parameter :: NUL = achar(0)
 
     ! software version
-    character(len= 5), parameter :: PROGNAME =  'HEEDS'
-    character(len= 6), parameter :: VERSION =   ' v.4.0'
-    character(len=38), parameter :: COPYRIGHT = 'Copyright (C) 2012 Ricolindo L. Carino'
-    character(len=38), parameter :: EMAIL =     'Ricolindo.Carino@AcademicForecasts.com'
-    character(len=76), parameter :: CONTACT =   'E-mail inquiries about '//PROGNAME//' to '//EMAIL//'.'
-    character(len=31), parameter :: WEB       = 'http://code.google.com/p/heeds/'
+    character(len= 5), parameter :: PROGNAME  = 'HEEDS'
+    character(len= 8), parameter :: VERSION   = ' v.4.02 '
+    character(len=45), parameter :: COPYRIGHT = 'Copyright (C) 2012, 2013 Ricolindo L. Carino'
+    character(len=38), parameter :: EMAIL     = 'Ricolindo.Carino@AcademicForecasts.com'
+    character(len=72), parameter :: CONTACT   = 'E-mail inquiries about '//PROGNAME//' to '//EMAIL//'.'
+    character(len=32), parameter :: WEB       = 'http://code.google.com/p/heeds/'
+
+    ! University name
+    integer, parameter :: &
+        MAX_LEN_UNIVERSITY_CODE=20, & ! length of college codes
+        MAX_LEN_UNIVERSITY_NAME=60, & ! length of college names
+        MAX_LEN_COLLEGE_CODE=10, & ! length of college codes
+        MAX_LEN_DEPARTMENT_CODE=10 ! length of dept codes
+    character (len= MAX_LEN_UNIVERSITY_CODE) :: UniversityCode = SPACE
+    character (len=MAX_LEN_UNIVERSITY_NAME) :: &
+        UniversityName = '(Specify NAME in UNIVERSITY.XML)', &
+        UniversityAddress = '(Specify ADDRESS in UNIVERSITY.XML)', &
+        UniversityPresident = 'Firstname MI LastName, PhD', &
+        VPAcademicAffairs = 'Firstname MI LastName, PhD', &
+        DeanOfCampus = 'Firstname MI LastName, PhD', &
+        DeanOfInstruction = 'Firstname MI LastName, PhD'
+
+    ! 'Administrative' college, for data not under the academic colleges
+    character (len=MAX_LEN_COLLEGE_CODE) :: ADMINISTRATION = 'ADMIN'
+
+    ! 'Administrative' department, for data not under the academic departments
+    character (len=MAX_LEN_DEPARTMENT_CODE) :: REGISTRAR = 'Registrar'
+
+    integer :: baseYear = 2008 ! year that records usable by HEEDS are available in the database
+    integer :: StdNoYearLen ! no. of characters in StdNo to use for directory name
+    integer, parameter :: StdNoChars = 2 ! no. of characters in StdNo to use for directory name
 
 
 contains
+
 
     subroutine blank_to_underscore (inString, outString)
         character(len=*), intent(in) :: inString
@@ -140,7 +175,7 @@ contains
         ! change string to upper case
         character(len=*), intent (inout) :: string
         integer :: i,length
-        length=len(string)
+        length=len_trim(string)
         do i=1,length
             if (string(i:i) .lt. 'a') cycle
             if (string(i:i) .gt. 'z') cycle
@@ -154,7 +189,7 @@ contains
         ! change string to lower case
         character(len=*), intent (inout) :: string
         integer :: i,length
-        length=len(string)
+        length=len_trim(string)
         do i=1,length
             if (string(i:i) .lt. 'A') cycle
             if (string(i:i) .gt. 'Z') cycle
@@ -162,6 +197,43 @@ contains
         end do
         return
     end subroutine lower_case
+
+
+    subroutine encrypt(key, text)
+        character(len=*), intent (in) :: key
+        character(len=*), intent (inout) :: text
+        integer :: i, j, k, lenKey, lenText
+        lenKey=len_trim(key)
+        lenText=len_trim(text)
+        i = lenKey
+        do j=lenText,1,-1
+            k = 2*j
+            write(text(k-1:k),'(z0.2)') char(ieor(ichar(key(i:i)),ichar(text(j:j))))
+            i = i-1
+            if (i==0) i = lenKey
+        end do
+        return
+    end subroutine encrypt
+
+
+    subroutine decrypt(key, text)
+        character(len=*), intent (in) :: key
+        character(len=*), intent (inout) :: text
+        integer :: i, j, k, lenKey, lenText, intText
+        lenKey = len_trim(key)
+        lenText = len_trim(text)/2
+        i = lenKey
+        do j=lenText,1,-1
+            k = 2*j
+            read(text(k-1:k), '(z2)') intText
+            text(j+lenText:j+lenText) = char( ieor(ichar(key(i:i)),intText) )
+            i = i-1
+            if (i==0) i = lenKey
+        end do
+        text = text(lenText+1:) ! discard 1st half
+        return
+    end subroutine decrypt
+
 
 
     function atoi(inString)
@@ -175,7 +247,7 @@ contains
         string = adjustl(inString)
         ll = len_trim(string)
         if (ll > 0) then
-            if (string(1:1) == dash) then
+            if (string(1:1) == DASH) then
                 start = 2
                 pref = -1
             else
@@ -209,7 +281,7 @@ contains
         string = adjustl(inString)
         ll = len_trim(string)
         if (ll > 0) then
-            if (string(1:1) == dash) then
+            if (string(1:1) == DASH) then
                 start = 2
                 pref = -1.0
             else
@@ -255,7 +327,7 @@ contains
             str10 = DECDIGITS(j:j)//str10
             if (k == 0) exit
         end do
-        if (num < 0) str10 = dash//str10
+        if (num < 0) str10 = DASH//str10
         itoa = str10
         return
     end function itoa
@@ -287,7 +359,7 @@ contains
             if (frac==0.0 .or. i==dadp .or. l==10) exit
         end do
         if (l<10 .and. str10(l:l)=='.') str10(l+1:l+1) = '0' ! add 0 after decimal point
-        if (num < 0) str10 = dash//str10
+        if (num < 0) str10 = DASH//str10
         ftoa = str10
 
         return
@@ -352,117 +424,74 @@ contains
     end subroutine index_to_delimiters
 
 
-    subroutine Pause()
-        write(*,*) 'Press the Enter key to continue'
-        read (*,*)
-        return
-    end subroutine Pause
-
-
     subroutine check_array_bound(current, limit, msg)
         character (len = *), intent (in) :: msg
         integer, intent (in) :: current, limit
         if (current > limit) then
-            write(*,*) 'Aborting due to insufficient array size; increase '//msg
-            write(*,'(1x,2(a,i5))')  'Limit is ', limit, '; currently used is ', current
-            call Pause()
+            write(stderr,AFORMAT) 'Aborting due to insufficient array size; increase '//msg
+            write(stderr,'(1x,2(a,i5))')  'Limit is ', limit, '; currently used is ', current
             stop
         end if
+
         return
     end subroutine check_array_bound
-
-
-    subroutine file_io_log(mesg, silent)
-        character (len=*), intent (in) :: mesg
-        logical, intent (in), optional :: silent
-
-        if (.not. present(silent)) write(*,*) trim(mesg)
-        write(stderr,AFORMAT) trim(mesg)
-
-        return
-    end subroutine file_io_log
 
 
     subroutine file_log_message(mesg1, mesg2, mesg3)
         character (len=*), intent (in) :: mesg1
         character (len=*), intent (in), optional :: mesg2, mesg3
-        write(*,*) trim(mesg1)
         write(stderr,AFORMAT) trim(mesg1)
         if (present(mesg2)) then
-            write(*,*) trim(mesg2)
             write(stderr,AFORMAT) trim(mesg2)
         end if
         if (present(mesg3)) then
-            write(*,*) trim(mesg3)
             write(stderr,AFORMAT) trim(mesg3)
         end if
+        flush(stderr)
+
         return
     end subroutine file_log_message
-
-
-    subroutine open_for_write(iounit, filename)
-        integer, intent (in) :: iounit
-        character (len=*), intent (in) :: filename
-        integer :: i, ier, n, pdel
-        character (len=MAX_LEN_FILE_PATH) :: fname
-
-        fname = filename
-        n = len_trim(fname)-1
-        pdel = 0
-        do i=1,n
-            if (index('=+\/',fname(i:i))==0) cycle
-            fname(i:i) = DIRSEP ! directory separator
-            pdel = i-1
-        end do
-        open(unit=iounit,file=fname,form='formatted', status='replace', iostat=ier)
-        if (ier>0) then ! create directory
-            !write(stderr,AFORMAT) 'Creating '//fname(:pdel)
-            call system (mkdirCmd//fname(:pdel))
-            open(unit=iounit,file=fname,form='formatted')
-        end if
-        return
-    end subroutine open_for_write
-
-
-    subroutine write_lock_file(fname)
-        character (len=*), intent (in) :: fname
-        call open_for_write(4, trim(fname)//'.lock')
-        write(4,AFORMAT) 'If '//PROGNAME//' is NOT running, it is safe to delete this lock file.'
-        close(4)
-        return
-    end subroutine write_lock_file
 
 
     subroutine move_to_backup(fname)
         character (len=*), intent (in) :: fname
         character (len=MAX_LEN_FILE_PATH) :: path
-        integer :: iStat, first!, last
-        logical :: flagIsUp
+        integer :: iStat, first
 
-        if (DO_NOT_BACKUP) return ! no backups
+        if (DO_NOT_BACKUP .or. noWrites) return ! no backups
 
         first = index(fname, DIRSEP//'xml'//DIRSEP) + index(fname, DIRSEP//'raw'//DIRSEP)
         if (first==0) return ! do not backup files not in 'xml' or 'raw' directory
 
-        inquire(file=fname, exist=flagIsUp)
-        if (.not. flagIsUp) return ! does not exist anyway
-
-        call date_and_time (date=currentDate,time=currentTime)
-        path = trim(fname)//dash//currentDate//dash//currentTime(1:6)
+        path = trim(fname)//DASH//currentDate//DASH//currentTime(1:6)
         path(first:first+4) = DIRSEP//'bak'//DIRSEP
+
         call rename (fname, path, iStat)
-        if (iStat/=0) then ! create directory
-            first = len_trim(path)
-            do while (path(first:first)/=DIRSEP)
-                first = first-1
-            end do
-            call system (mkdirCmd//path(:first))
-            call rename (fname, path, iStat)
-        end if
-        call file_io_log('Status='//trim(itoa(iStat))//' in moving '//trim(fname)//' to '//trim(path) )
+        call file_log_message('Status='//trim(itoa(iStat))//' in moving '//trim(fname)//' to '//trim(path) )
+
         return
     end subroutine move_to_backup
 
 
+    subroutine initialize_random_seed()
+
+        integer :: i, n, clock
+        integer, dimension(:), allocatable :: seed
+
+        ! initialize the random seed based on the system's time.
+        ! (example from http://gcc.gnu.org/onlinedocs/gfortran/RANDOM_005fSEED.html#RANDOM_005fSEED)
+        call random_seed(size = n)
+        allocate(seed(n))
+
+        call system_clock(count=clock)
+
+        seed = clock + 37 * (/ (i - 1, i = 1, n) /)
+        call random_seed(put = seed)
+
+        deallocate(seed)
+
+        return
+    end subroutine initialize_random_seed
+  
 end module BASE
 

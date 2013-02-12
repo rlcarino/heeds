@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -81,11 +81,9 @@ subroutine generate_initial_schedules(idxGrp, MaxAlternates)
             if (CurrentSection(sect)%RemSlots < -5) then  ! really overbooked
                 call file_log_message(trim(CurrentSection(sect)%ClassId)//' is overbooked by '// &
                 itoa(-CurrentSection(sect)%RemSlots))
-                !call Pause()
             else
                 call file_log_message(trim(CurrentSection(sect)%ClassId)//' is overbooked by <=5; adjusted')
                 CurrentSection(sect)%Slots = CurrentSection(sect)%Slots-CurrentSection(sect)%RemSlots
-                !call Pause()
             end if
         else if (CurrentSection(sect)%RemSlots == 0) then
             if (CurrentSection(sect)%Slots > 0) then  ! section is full

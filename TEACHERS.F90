@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -36,24 +36,27 @@ module TEACHERS
 
     ! faculty variables
     integer, parameter :: &
-        MAX_ALL_TEACHERS = 2000, & ! maximum number of eachers
+        MAX_ALL_TEACHERS = 2000, & ! maximum number of teachers
         MAX_LEN_TEACHER_CODE=20, & ! length of login name
         MAX_LEN_TEACHER_NAME=40, & ! length of Teacher name
         MAX_LEN_TEACHER_DEGREE=40, & ! length of string for Teacher degrees
         MAX_LEN_ACADEMIC_RANK=19, & ! length of string for academic rank
-        MAX_LEN_STEP_IN_RANK=6 ! length of string for step in academic rank
+        MAX_LEN_STEP_IN_RANK=6, & ! length of string for step in academic rank
+        MAX_LEN_PASSWORD=32
 
     type :: TYPE_TEACHER
-        character (len=MAX_LEN_TEACHER_CODE) :: TeacherId
-        character (len=MAX_LEN_TEACHER_NAME) :: Name
-        integer :: DeptIdx, MaxLoad, Rank, Step
+        character (len=MAX_LEN_TEACHER_CODE)   :: TeacherId
+        character (len=MAX_LEN_TEACHER_NAME)   :: Name
+        integer                                :: DeptIdx, MaxLoad, Rank, Step
         character (len=MAX_LEN_TEACHER_DEGREE) :: Bachelor, Master, Doctorate, Specialization
+        character (len=MAX_LEN_PASSWORD)       :: Password ! Encrypted user-selected password
+        character (len=MAX_LEN_TEACHER_NAME)   :: Role     ! Guest; set by Admin
+        integer                                :: Status   ! 0=logged out, 1=logged in
     end type TYPE_TEACHER
-
-    integer :: NumTeachers, NumAdditionalTeachers
 
     type (TYPE_TEACHER), dimension(0:MAX_ALL_TEACHERS) :: Teacher
     integer, dimension(0:MAX_ALL_TEACHERS) :: TeacherRank
+    integer :: NumTeachers, NumAdditionalTeachers
 
     character (len=MAX_LEN_ACADEMIC_RANK), dimension(0:4) :: AcademicRank = (/ &
         '(Specify Rank)     ', &
@@ -76,6 +79,11 @@ module TEACHERS
         'X     ', &
         'XI    ', &
         'XII   ' /)
+
+    ! Users
+    character (len=MAX_LEN_TEACHER_CODE) :: USERNAME, GUEST = 'Guest'
+    character (len=MAX_LEN_TEACHER_NAME) :: ROLE
+    integer :: DeptIdxUser, CollegeIdxUser, CurriculumIdxUser
 
     ! private tokens
     character (len=MAX_LEN_FILE_PATH), private :: fileName
@@ -121,23 +129,12 @@ contains
     end subroutine read_teachers
 
 
-
-    subroutine initialize_teacher (wrkTeacher, tCode, tName, iDept, iLoad, iRank, iStep, &
-            tBachelor, tMaster, tDoctorate, tSpecialization)
+    subroutine initialize_teacher (wrkTeacher)
 
         type(TYPE_TEACHER), intent (out) :: wrkTeacher
-        character(len=*), intent (in), optional :: tCode, tName
-        integer, intent (in), optional :: iDept, iLoad, iRank, iStep
-        character(len=*), intent (in), optional :: tBachelor, tMaster, tDoctorate, tSpecialization
 
-        if (present(tCode)) then
-            wrkTeacher = TYPE_TEACHER(tCode, tName, iDept, iLoad, iRank, iStep, &
-                tBachelor, tMaster, tDoctorate, tSpecialization)
-
-        else ! place teacher under REGISTRAR
-            wrkTeacher = TYPE_TEACHER(SPACE, SPACE, NumDepartments, 12, 0, 0, SPACE, SPACE, SPACE, SPACE)
-
-        end if
+        wrkTeacher = TYPE_TEACHER(SPACE, SPACE, NumDepartments, 0, 0, 0, SPACE, SPACE, SPACE, SPACE, &
+                SPACE, GUEST, 0)
 
         return
     end subroutine initialize_teacher
@@ -151,7 +148,7 @@ contains
         integer :: i, j, tdx
 
         tdx = 0
-        if (token==Teacher(tdx)%TeacherId) then
+        if (len_trim(token)==0 .or. token==Teacher(tdx)%TeacherId) then
             index_to_teacher = tdx
             return
         end if
@@ -267,6 +264,7 @@ contains
         call xml_close_file(unitNum, XML_ROOT_TEACHERS)
 
         ! additional info
+        unitNum = unitNum-1
         fileName = trim(dirXML)//trim(path)//'TEACHERS-OTHER.XML'
         call xml_open_file(unitNum, XML_ROOT_TEACHERS, fileName, ldx)
 
@@ -282,13 +280,16 @@ contains
         '        Master - MSc degree', &
         '        Doctorate - PhD degree', &
         '        Specialization - Area of specialization', &
+        '        Password - Encrypted user-selected password', &
+        '        Role     - Guest; set by Admin', &
         '    </comment>'
 
         do ldx = 1,NumTeachers+NumAdditionalTeachers
 
             call xml_write_character(unitNum, indent0, 'Teacher')
             call xml_write_character(unitNum, indent1, 'TeacherId', Teacher(ldx)%TeacherId)
-            call xml_write_integer(unitNum, indent1, 'MaxLoad', Teacher(ldx)%MaxLoad)
+            if (Teacher(ldx)%MaxLoad>0) &
+                call xml_write_integer(unitNum, indent1, 'MaxLoad', Teacher(ldx)%MaxLoad)
             if (Teacher(ldx)%Rank>0) &
                 call xml_write_character(unitNum, indent1, 'Rank', AcademicRank(Teacher(ldx)%Rank))
             if (Teacher(ldx)%Step>0) &
@@ -301,6 +302,10 @@ contains
                 call xml_write_character(unitNum, indent1, 'Doctorate', Teacher(ldx)%Doctorate)
             if (Teacher(ldx)%Specialization/=SPACE)  &
                 call xml_write_character(unitNum, indent1, 'Specialization', Teacher(ldx)%Specialization)
+            if (Teacher(ldx)%Password/=SPACE)  &
+                call xml_write_character(unitNum, indent1, 'Password', Teacher(ldx)%Password)
+            if (Teacher(ldx)%Role/=SPACE)  &
+                call xml_write_character(unitNum, indent1, 'Role', Teacher(ldx)%Role)
             call xml_write_character(unitNum, indent0, '/Teacher')
 
         end do
@@ -345,7 +350,6 @@ contains
                     call initialize_teacher(wrkTeacher)
 
                 case ('TeacherId')
-                    call upper_case(value)
                     wrkTeacher%TeacherId = adjustl(value)
 
                 case ('Name')
@@ -394,6 +398,12 @@ contains
                 case ('Specialization')
                     wrkTeacher%Specialization = adjustl(value)
 
+                case ('Password')
+                    wrkTeacher%Password = adjustl(value)
+
+                case ('Role')
+                    wrkTeacher%Role = adjustl(value)
+
                 case ('/Teacher') ! add/merge temporary teacher data to Teacher()
                     ! teacher encountered previously?
                     i = 0
@@ -409,7 +419,7 @@ contains
                         NumTeachers = NumTeachers + 1
                         call check_array_bound (NumTeachers, MAX_ALL_TEACHERS, 'MAX_ALL_TEACHERS')
                         Teacher(NumTeachers) = wrkTeacher
-                        Department(wrkTeacher%DeptIdx)%hasInfo = .true.
+                        if (wrkTeacher%TeacherID/=wrkTeacher%Role) Department(wrkTeacher%DeptIdx)%hasInfo = .true.
                     end if
 
                 case default
@@ -460,7 +470,6 @@ contains
                     ! ignore
 
                 case ('TeacherId') ! copy teacher data
-                    call upper_case(value)
                     wrkTeacher%TeacherId = adjustl(value)
                     j = index_to_teacher(wrkTeacher%TeacherId)
                     wrkTeacher = Teacher(j)
@@ -499,6 +508,12 @@ contains
 
                 case ('Specialization')
                     wrkTeacher%Specialization = adjustl(value)
+
+                case ('Password')
+                    wrkTeacher%Password = adjustl(value)
+
+                case ('Role')
+                    wrkTeacher%Role = adjustl(value)
 
                 case ('/Teacher') ! update  Teacher() with temporary teacher data
                     j = index_to_teacher(wrkTeacher%TeacherId)

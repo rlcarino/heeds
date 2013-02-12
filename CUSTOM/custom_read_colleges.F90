@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -44,7 +44,7 @@ subroutine custom_read_university(path, errNo)
         if (eof<0) exit
         if (line==SPACE .or. line(1:1)=='#') cycle
 
-        call index_to_delimiters(comma, line, ndels, pos)
+        call index_to_delimiters(COMMA, line, ndels, pos)
         select case (line(:pos(2)-1))
             case ('NAME')
                 UniversityName = line(pos(2)+1:)

@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -126,7 +126,7 @@ subroutine demand_for_subjects (device)
         tdalignright//trim(itoa(NextOffering(crse)%NSections))//endtd// & ! no. of sections, total seats
         tdalignright//trim(itoa(NextOffering(crse)%TotalSlots))//endtd// & ! total seats
         !tdalignright//trim(itoa(NextOffering(crse)%Demand))//endtd//endtr ! priority demand
-        trim(cgi_make_href(fnPotentialStudents, itoa(NextOffering(crse)%Demand), &
+        trim(make_href(fnPotentialStudents, itoa(NextOffering(crse)%Demand), &
         A1=tSubject, A2=Department(targetDepartment)%Code, pre=tdalignright, post=endtd//endtr ))
         nlines = nlines+1
     end do

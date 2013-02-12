@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -128,8 +128,7 @@ contains
                 end if
             end do
         else if (sect<0) then
-            write(*,*) 'Invalid section', sect, ' in timetable_add_section(); called from', loc
-            call Pause()
+            write(stderr,*) 'Invalid section', sect, ' in timetable_add_section(); called from', loc
         end if
         return
     end subroutine timetable_add_section
@@ -277,7 +276,7 @@ contains
                 if (jdx==0) cycle
                 do idx = Section(sect)%bTimeIdx(mdx), Section(sect)%eTimeIdx(mdx)-1
                     if (TimeTable(idx, jdx)/=sect) then
-                        write(*,*)  'ERROR detected in timetable_remove_section(); called from', loc
+                        write(stderr,*)  'ERROR detected in timetable_remove_section(); called from', loc
                         loc = TimeTable(idx,jdx)
                         return
                     end if
@@ -320,11 +319,14 @@ contains
             n15 = n15 + tSection%eTimeIdx(idx) - tSection%bTimeIdx(idx)
         end do
         if (n15==0.0) return ! assume TBA is OK
+        ! disable check for summer schedules
+        if ( (fnOFFSET==0 .and. currentTerm==0) .or. &
+             (fnOFFSET>0 .and. currentTerm==2) ) return
 
         ! figure out how many hours based on subject type and section code
         idx = tSection%SubjectIdx
         if (is_lecture_lab_subject(idx)) then
-            if (index(tSection%ClassId,dash)==0) then
+            if (index(tSection%ClassId,DASH)==0) then
                 SectionHours = Subject(idx)%LectHours
             else
                 SectionHours = Subject(idx)%LabHours
@@ -358,7 +360,7 @@ contains
         else ! lab section conflicts with lecture section?
             if (is_lecture_lab_subject(tSection%SubjectIdx)) then ! subject is lecture-lab
                 ! a lab section ?
-                i = index(tSection%ClassId,dash)
+                i = index(tSection%ClassId,DASH)
                 if (i>0) then
                     ! find lecture section
                     tClassId = tSection%ClassId(:i-1)
@@ -418,7 +420,7 @@ contains
             !tSection = trim(tSubject)//SPACE//Section(sect)%Code(:j-1)
             tSection = Section(sect)%ClassId
             j = len_trim(tSection)
-            do while (tSection(j:j)/=dash)
+            do while (tSection(j:j)/=DASH)
                 j = j-1
             end do
             tSection(j:) = SPACE
@@ -442,9 +444,6 @@ contains
             else
                 nconflicts = nconflicts + 1
                 call file_log_message('Lecture class '//tSection//'not found!')
-                !#ifdef DEBUG
-                call Pause()
-            !#endif
             end if
         end do
         !
@@ -455,7 +454,7 @@ contains
             !if (Subject(crse)%LectHours * Subject(crse)%LabHours==0) cycle
             if (.not. is_lecture_lab_subject(crse)) cycle
             ! subject is lecture-lab
-            j = index(Section(sect)%Code,dash)
+            j = index(Section(sect)%Code,DASH)
             if (j==0) then
                 Section(sect)%SubjectIdx = -(crse-NumDummySubjects)
             ! a lecture section
@@ -501,7 +500,7 @@ contains
                 n15 = n15 + Section(sdx)%eTimeIdx(i) - Section(sdx)%bTimeIdx(i)
             end do
             if (n15 .gt. 0 .and. 4*tHours .ne. n15) then
-                write(*,*) Section(sdx)%ClassId//': scheduled hours ('// &
+                write(stderr,*) Section(sdx)%ClassId//': scheduled hours ('// &
                     trim(itoa(n15/4))//') is inconsistent with subject parameter hours ('//trim(itoa(tHours))//')'
                 if (.not. ignore) nconflicts = nconflicts + 1
             end if

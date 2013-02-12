@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -110,7 +110,7 @@ contains
         ! collect student number prefix
         StdNoPrefix = ':'
         do i=1,NumStudents
-            iCurr = index(Student(i)%StdNo,dash)-1
+            iCurr = index(Student(i)%StdNo,DASH)-1
             if (iCurr<=0) iCurr = StdNoChars
             ierr = index(StdNoPrefix, ':'//Student(i)%StdNo(:iCurr))
             if (ierr==0) StdNoPrefix = trim(StdNoPrefix)//Student(i)%StdNo(:iCurr)//':'
@@ -242,7 +242,7 @@ contains
         tmp = COMMA//SPACE//trim(Curriculum(idxCURR)%Remark)//tmp
         if (Curriculum(idxCURR)%Specialization/=SPACE)  &
         tmp = COMMA//SPACE//trim(Curriculum(idxCURR)%Specialization)//tmp
-        tmp = trim(Student(std)%StdNo)//SPACE//trim(Student(std)%Name)//SPACE//dash//SPACE// &
+        tmp = trim(Student(std)%StdNo)//SPACE//trim(Student(std)%Name)//SPACE//DASH//SPACE// &
             trim(Curriculum(idxCURR)%Title)//tmp
         text_student_curriculum = tmp
 
@@ -267,8 +267,7 @@ contains
             fileName = trim(dirXML)//trim(path)//'STUDENTS.XML'
         end if
 
-        ! make backup & open new file
-        call move_to_backup(fileName)
+        ! write file
         call xml_open_file(unitNo, XML_ROOT_STUDENTS, fileName, std)
         write(unitNo,AFORMAT) &
         '    <comment>', &

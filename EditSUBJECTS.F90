@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -127,7 +127,7 @@ contains
 
                 write(device,AFORMAT) begintr//begintd//'<a name="'//trim(tSubject)//'"><b>Name:</b> '
                 if (isRoleAdmin) then
-                    write(device,AFORMAT) trim(cgi_make_href(fnEditSubject, tSubject, A1=tSubject))
+                    write(device,AFORMAT) trim(make_href(fnEditSubject, tSubject, A1=tSubject))
                 else
                     write(device,AFORMAT) trim(tSubject)
                 end if
@@ -408,19 +408,13 @@ contains
     j = index(tSubject,SPACE)
     if ( j<len_trim(tSubject) ) then
         write(device,AFORMAT) &
-          trim(cgi_make_href(fnSubjectList, tSubject(:j-1), A1=tSubject(:j-1), &
+          trim(make_href(fnSubjectList, tSubject(:j-1), A1=tSubject(:j-1), &
           pre='<small><i>Edit another '//nbsp, post=' subject</i></small>'))
-          
     end if
 
-    write(device,AFORMAT) &
-      '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
-      '<input type="hidden" name="F" value="'//trim(itoa(fnEditSubject))//'">'// &
-      '<input type="hidden" name="A1" value="'//trim(tSubject)//'">', &
-      '<table border="0" width="100%">'
-
-    write(device,AFORMAT) &
-      begintr//begintd//'Subject code'//endtd//begintd//'<input name="Name" size="'//trim(itoa(MAX_LEN_SUBJECT_CODE))// &
+    call make_form_start(device, fnEditSubject, tSubject)
+    write(device,AFORMAT)  '<table border="0" width="100%">', &
+        begintr//begintd//'Subject code'//endtd//begintd//'<input name="Name" size="'//trim(itoa(MAX_LEN_SUBJECT_CODE))// &
         '" value="'//trim(tSubject)//'"> (A new subject will be created if this is changed)'//endtd//endtr
       !begintr//begintd//'Subject code'//endtd//begintd//trim(tSubject)//' (Cannot be changed)'//endtd//endtr
     write(device,AFORMAT) &

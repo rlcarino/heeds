@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -101,7 +101,7 @@ contains
     write(device,AFORMAT) '<ol>'
     do ldx=1,NumCurricula
       if (CurrProgCode(ldx) /= tCurriculum) cycle
-      write(device,AFORMAT) trim(cgi_make_href(fnCurriculum, Curriculum(ldx)%Code, &
+      write(device,AFORMAT) trim(make_href(fnCurriculum, Curriculum(ldx)%Code, &
         A1=Curriculum(ldx)%Code, &
         pre='<li>', post=' - '//trim(Curriculum(ldx)%Title)//SPACE// &
         trim(Curriculum(ldx)%Specialization)//SPACE//trim(Curriculum(ldx)%Remark)))
@@ -116,9 +116,9 @@ contains
       end if
       write(device,AFORMAT) nbsp//'<i> '//tStatus//'</i>'//nbsp
       if (isRoleAdmin) then
-          write(device,AFORMAT) trim(cgi_make_href(fnAction, tAction, A1=Curriculum(ldx)%Code, &
+          write(device,AFORMAT) trim(make_href(fnAction, tAction, A1=Curriculum(ldx)%Code, &
               pre=nbsp//'<small>', post=nbsp))
-          write(device,AFORMAT) trim(cgi_make_href(fnEditCurriculum, 'Edit', A1=Curriculum(ldx)%Code, &
+          write(device,AFORMAT) trim(make_href(fnEditCurriculum, 'Edit', A1=Curriculum(ldx)%Code, &
               pre=nbsp, post='</small>'))
       end if
       write(device,AFORMAT) '</li>'
@@ -172,9 +172,9 @@ contains
     end if
     write(device,AFORMAT) nbsp//'<i> '//tStatus//'</i>'//nbsp
     if (isRoleAdmin) then
-        write(device,AFORMAT) trim(cgi_make_href(fnAction, tAction, A1=Curriculum(targetCurriculum)%Code, &
+        write(device,AFORMAT) trim(make_href(fnAction, tAction, A1=Curriculum(targetCurriculum)%Code, &
             pre=nbsp//'<small>', post=nbsp))
-        write(device,AFORMAT) trim(cgi_make_href(fnEditCurriculum, 'Edit', A1=Curriculum(targetCurriculum)%Code, &
+        write(device,AFORMAT) trim(make_href(fnEditCurriculum, 'Edit', A1=Curriculum(targetCurriculum)%Code, &
             pre=nbsp, post='</small>'))
     end if
 
@@ -211,7 +211,7 @@ contains
           n = Curriculum(targetCurriculum)%SubjectIdx(idx)
           write(device,AFORMAT) begintr
           if (isRoleAdmin) then
-            write(device,AFORMAT) trim(cgi_make_href(fnEditSubject, Subject(n)%Name, &
+            write(device,AFORMAT) trim(make_href(fnEditSubject, Subject(n)%Name, &
               A1=Subject(n)%Name, A2=College(targetCollege)%Code, pre=begintd, post=endtd))
           else
             write(device,AFORMAT) begintd//trim(Subject(n)%Name)//endtd
@@ -274,7 +274,7 @@ contains
             if ( wrk%Code /= Curriculum(targetCurriculum)%Code) then
                 changed = .true.
                 remark = trim(remark)//': Code changed to '//wrk%Code
-                write(*,*) trim(remark)
+                write(stderr,*) trim(remark)
             end if
 
             call cgi_get_named_string(QUERY_STRING, 'College', tCollege, ierr)
@@ -283,7 +283,7 @@ contains
             if ( wrk%CollegeIdx /= Curriculum(targetCurriculum)%CollegeIdx) then
                 changed = .true.
                 remark = trim(remark)//': College changed to '//College(wrk%CollegeIdx)%Code
-                write(*,*) trim(remark)
+                write(stderr,*) trim(remark)
             end if
 
             call cgi_get_named_string(QUERY_STRING, 'Title', wrk%Title, ierr)
@@ -291,7 +291,7 @@ contains
             if ( wrk%Title /= Curriculum(targetCurriculum)%Title) then
                 changed = .true.
                 remark = trim(remark)//': Title changed to '//wrk%Title
-                write(*,*) trim(remark)
+                write(stderr,*) trim(remark)
             end if
 
             call cgi_get_named_string(QUERY_STRING, 'Specialization', wrk%Specialization, ierr)
@@ -299,7 +299,7 @@ contains
             if ( wrk%Specialization /= Curriculum(targetCurriculum)%Specialization) then
                 changed = .true.
                 remark = trim(remark)//': Specialization changed to '//wrk%Specialization
-                write(*,*) trim(remark)
+                write(stderr,*) trim(remark)
             end if
 
             call cgi_get_named_string(QUERY_STRING, 'Remark', wrk%Remark, ierr)
@@ -307,7 +307,7 @@ contains
             if ( wrk%Remark /= Curriculum(targetCurriculum)%Remark) then
                 changed = .true.
                 remark = trim(remark)//': Remark changed to '//wrk%Remark
-                write(*,*) trim(remark)
+                write(stderr,*) trim(remark)
             end if
 
             call cgi_get_named_string(QUERY_STRING, 'Status', tStatus, ierr)
@@ -316,7 +316,7 @@ contains
             if ( wrk%Active .neqv. Curriculum(targetCurriculum)%Active) then
                 changed = .true.
                 remark = trim(remark)//': Status changed to '//tStatus
-                write(*,*) trim(remark)
+                write(stderr,*) trim(remark)
             end if
 
             wrk%NumTerms = 0
@@ -324,42 +324,52 @@ contains
             wrk%SubjectIdx = 0
             wrk%SubjectTerm = 0
             j = 0 ! number changed/reordered subjects
-            do tdx=1,Curriculum(targetCurriculum)%NumTerms
+            do tdx=1,Curriculum(targetCurriculum)%NumTerms+6
               Year = tdx/3+1
               Term = mod(tdx,3)
               if (Term == 0) Year = Year-1
               call cgi_get_named_string(QUERY_STRING, 'Subjects'//trim(itoa(tdx)), mesg, ierr)
 
-              if (mesg==SPACE .or. ierr/=0) cycle
+              if (len_trim(mesg)==0) then ! erase
+                  do i=1,Curriculum(targetCurriculum)%NumTerms
+                      if (wrk%SubjectTerm(i)==tdx) then ! term matches
+                          j = j + 1
+                          wrk%SubjectIdx(i) = 0
+                          wrk%SubjectTerm(i) = 0
+                      end if
+                  end do
+                  cycle
+              end if
 
               call tokenize_subjects(mesg, COMMA, MAX_SECTION_MEETINGS, m, subjectList, ierr)
-              write(*,*) 'TOKENIZE TERM: ierr=',ierr, ('; '//trim(Subject(subjectList(i))%Name),i=1,m)
               if (ierr==0) then
+                    write(stderr,*) 'TOKENIZE TERM: ierr=',ierr, ('; '//trim(Subject(subjectList(i))%Name),i=1,m)
                     do i=1,m
+                        if (subjectList(i)==INDEX_TO_NONE) cycle
                         idx = wrk%NSubjects + i
                         wrk%SubjectIdx(idx) = subjectList(i)
                         wrk%SubjectTerm(idx) = tdx
                         if (wrk%SubjectIdx(idx)/=Curriculum(targetCurriculum)%SubjectIdx(idx) .or. &
                             wrk%SubjectTerm(idx)/=Curriculum(targetCurriculum)%SubjectTerm(idx)) then  
                           j = j + 1
-                          write(*,*) j, ':', txtYear(Year), ', ', txtSemester(Term), ', ', Subject(subjectList(i))%Name
+                          write(stderr,*) j, ':', txtYear(Year), ', ', txtSemester(Term), ', ', Subject(subjectList(i))%Name
                         end if
                     end do
                     wrk%NSubjects = wrk%NSubjects + m
                     wrk%NumTerms = tdx
               end if
             end do
-            if (j>0) then
+            if (j>0 .or. Curriculum(targetCurriculum)%NumTerms/=wrk%NumTerms) then
                     changed = .true.
-                    remark = trim(remark)//': '//trim(itoa(j))//' subject changes.'
-                    write(*,*) trim(remark)
+                    remark = trim(remark)//': curriculum changed.'
+                    write(stderr,*) trim(remark)
             end if
 
             ptrS = 0 ! non-zero later means a substitution rule was added
             call cgi_get_named_string(QUERY_STRING, 'Substitution', mesg, ierr)
             if (index(mesg,COMMA)>0 .and. ierr==0) then
               call tokenize_subjects(mesg, COMMA, MAX_SECTION_MEETINGS, m, subjectList, ierr)
-              write(*,*) 'TOKENIZE SUBS: ierr=',ierr, ('; '//trim(Subject(subjectList(i))%Name),i=1,m)
+              write(stderr,*) 'TOKENIZE SUBS: ierr=',ierr, ('; '//trim(Subject(subjectList(i))%Name),i=1,m)
               if (ierr==0) then
                       ptrS = SubstIdx(NumSubst+1)-1
 
@@ -375,7 +385,7 @@ contains
 
                       changed = .true.
                       remark = trim(remark)//': New substitution rule'
-                      write(*,*) trim(remark)
+                      write(stderr,*) trim(remark)
               end if
             end if
 
@@ -385,7 +395,7 @@ contains
                             j = index_to_curriculum(wrk%Code)
                             if (j>0) then
                                     remark = 'Add new curriculum failed; "'//trim(wrk%Code)//'" already exists.'
-                                    write(*,*) trim(remark)
+                                    write(stderr,*) trim(remark)
                             else
                                     ! redirect global substitution rules before incrementing NumCurricula
                                     do i=1,NumSubst
@@ -399,13 +409,14 @@ contains
                                     targetCollege = wrk%CollegeIdx
                                     tCurriculum = wrk%Code
                                     remark = 'Added new curriculum '//wrk%Code
-                                    write(*,*) trim(remark)
+                                    write(stderr,*) trim(remark)
                                     ! redirect new substitution rule
                                     if (ptrS>0) then
-write(*,*) 'NumSubst=', NumSubst, ' SubstIdx(.)=', SubstIdx(NumSubst), &
+write(stderr,*) 'NumSubst=', NumSubst, ' SubstIdx(.)=', SubstIdx(NumSubst), &
   'Substitution(.)=', Substitution(SubstIdx(NumSubst))
                                             Substitution(SubstIdx(NumSubst)) = targetCurriculum
                                     end if
+                                    call make_curriculum_groups()
                             end if
                     else
                             ! update existing
@@ -422,15 +433,9 @@ write(*,*) 'NumSubst=', NumSubst, ' SubstIdx(.)=', SubstIdx(NumSubst), &
     end if
 
     call html_write_header(device, 'Edit curriculum '//tCurriculum, remark(3:))
-
-    write(device,AFORMAT) &
-      '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
-      '<input type="hidden" name="F" value="'//trim(itoa(fnEditCurriculum))//'">'// &
-      '<input type="hidden" name="A1" value="'//trim(tCurriculum)//'">', &
-      '<table border="0" width="100%">'
-    
-    write(device,AFORMAT) &
-      begintr//begintd//'<b>Curriculum code</b>'//endtd//begintd//'<input name="Code" size="'// &
+    call make_form_start(device, fnEditCurriculum, tCurriculum)
+    write(device,AFORMAT) '<table border="0" width="100%">', &
+        begintr//begintd//'<b>Curriculum code</b>'//endtd//begintd//'<input name="Code" size="'// &
         trim(itoa(MAX_LEN_CURRICULUM_CODE))// &
         '" value="'//trim(tCurriculum)//'"> (A new curriculum will be created if this is changed)'//endtd//endtr
 
@@ -473,7 +478,7 @@ write(*,*) 'NumSubst=', NumSubst, ' SubstIdx(.)=', SubstIdx(NumSubst), &
       begintd//'<b>Comma-separated subject codes</b>'//endtd//endtr
 
     tunits = 0
-    do tdx=1,Curriculum(targetCurriculum)%NumTerms
+    do tdx=1,Curriculum(targetCurriculum)%NumTerms+6
       Year = tdx/3+1
       Term = mod(tdx,3)
       if (Term == 0) Year = Year-1
@@ -492,7 +497,7 @@ write(*,*) 'NumSubst=', NumSubst, ' SubstIdx(.)=', SubstIdx(NumSubst), &
       !if (Term==0) write(device,AFORMAT) begintr//'<td colspan="2">'//nbsp//endtd//endtr
       write(device,AFORMAT) begintr//begintd// &
         trim(txtYear(Year+9))//' Year, '//trim(txtSemester(Term+6))//' Term ('// &
-        trim(itoa(n))//fslash//trim(itoa(tUnits))//')'//endtd, &
+        trim(itoa(n))//FSLASH//trim(itoa(tUnits))//')'//endtd, &
         begintd//'<input name="Subjects'//trim(itoa(tdx))//'" size="'//trim(itoa(MAX_LEN_CURRICULUM_NAME))// &
         '" value="'//trim(mesg(3:))//'">'//endtd//endtr
     end do
@@ -523,3 +528,4 @@ write(*,*) 'NumSubst=', NumSubst, ' SubstIdx(.)=', SubstIdx(NumSubst), &
 
 
 end module EditCURRICULA
+

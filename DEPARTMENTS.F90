@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -45,7 +45,7 @@ module DEPARTMENTS
     type (typeDEPARTMENT), dimension (0:MAX_ALL_DEPARTMENTS) :: Department
     integer :: NumDepartments
 
-    integer, dimension(1:3,MAX_ALL_DEPARTMENTS) :: ScheduleCount ! last section in department
+    integer, dimension(0:2,MAX_ALL_DEPARTMENTS) :: ScheduleCount ! last section in department
 
     ! private tokens
     character (len=MAX_LEN_FILE_PATH), private :: fileName

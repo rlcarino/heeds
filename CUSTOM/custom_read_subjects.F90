@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -45,6 +45,21 @@ subroutine custom_read_subjects(path, errNo)
     end if
     return
 end subroutine custom_read_subjects
+
+
+subroutine custom_read_subjects_other(path, errNo)
+
+    character(len=*), intent(in) :: path
+    integer, intent (out) :: errNo
+
+    ! fees
+    call SIAS_read_assessment(path, errNo)
+    ! prerequisites
+    call custom_read_subjects_prerequisites(path, errNo)
+    errNo = 0
+
+    return
+end subroutine custom_read_subjects_other
 
 
 subroutine SIAS_read_subjects(path, errNo)
@@ -150,7 +165,7 @@ subroutine SIAS_read_subjects(path, errNo)
         Subject(NumSubjects)%Title = line(pos(6)+1:pos(7)-1)
 
         subline = line(pos(7)+2:)
-        call index_to_delimiters(comma, subline, ndels, pos)
+        call index_to_delimiters(COMMA, subline, ndels, pos)
 
         !strUnits = subline(pos(1)+1:pos(2)-1)
         !read(strUnits, '(f4.1)') Subject(NumSubjects)%Units
@@ -230,7 +245,7 @@ subroutine SIAS_read_assessment(path, errNo)
         if (eof<0) exit
         if (len_trim(line)==0 .or. line(1:1)=='#') cycle
 
-        call index_to_delimiters(comma, line, ndels, pos)
+        call index_to_delimiters(COMMA, line, ndels, pos)
 
         tSubject = line(pos(18)+2:pos(19)-2)
         if (tSubject==SPACE) cycle
@@ -278,7 +293,7 @@ subroutine custom_read_subjects_prerequisites(path, errNo)
         if (eof<0) exit
         if (len_trim(line)==0 .or. line(1:1)=='#') cycle
 
-        call index_to_delimiters(comma, line, ndels, pos)
+        call index_to_delimiters(COMMA, line, ndels, pos)
 
         tSubject = line(:pos(2)-1)
         cdx = index_to_subject(tSubject)
@@ -332,7 +347,7 @@ subroutine custom_read_prerequisites(path, errNo)
         !            ACCTG 58 ,ACCTG 57 ,,,,
         !            ACCTG 59 ,ACCTG 55 ,ACCTG 56 ,,,
 
-        call index_to_delimiters(comma, line, ndels, pos)
+        call index_to_delimiters(COMMA, line, ndels, pos)
 
         tSubject = line(:pos(2)-1)
         cdx = index_to_subject(tSubject)

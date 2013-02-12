@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -114,10 +114,7 @@ contains
             end do
         end do
         ! enable edit
-        write(device,AFORMAT) &
-        '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
-        '<input type="hidden" name="F" value="'//trim(itoa(fnUpdateDemandFreshmen))//'">', &
-        '<input type="hidden" name="A1" value="'//trim(tCollege)//'">'
+        call make_form_start(device, fnUpdateDemandFreshmen, tCollege)
         do idxCURR=1,NumCurricula
             if (NFintake(idxCURR)/=0) then
                 write(device,AFORMAT) '<input type="hidden" name="'//trim(Curriculum(idxCURR)%Code)// &

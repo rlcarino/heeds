@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -176,14 +176,14 @@ contains
 #endif
               write(device,AFORMAT) begintr//begintd//trim(Room(rdx)%Code)
               if (isRoleAdmin .or. (isRoleChair .and. Room(rdx)%DeptIdx==DeptIdxUser)) then
-                write(device,AFORMAT) trim(cgi_make_href(fnEditRoom, 'Edit', &
+                write(device,AFORMAT) trim(make_href(fnEditRoom, 'Edit', &
                   A1=QUERY_put, pre=nbsp//'<small>', post='</small>'))
               end if
               write(device,AFORMAT) &
                 endtd//tdaligncenter//trim(itoa(Room(rdx)%Cluster))//endtd// &
                 tdaligncenter//trim(itoa(Room(rdx)%MaxCapacity))//endtd
               !if (nsect>0) then
-                write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnRoomSchedule, itoa(nsect), &
+                write(device,AFORMAT) trim(make_href(fnOFFSET+fnRoomSchedule, itoa(nsect), &
                   A1=QUERY_put, pre=tdaligncenter, post=endtd))
               !else
               !  write(device,AFORMAT) tdaligncenter//trim(itoa(nsect))//endtd
@@ -251,7 +251,7 @@ contains
 
     ! collect classes in room rdx
     call timetable_meetings_in_room(NumSections, Section, targetRoom, 0, tLen1, tArray, TimeTable, conflicted)
-    call timetable_display(device, Section, TimeTable)
+    if (tLen1>0) call timetable_display(device, Section, TimeTable)
     call list_sections_to_edit(device, Section, tLen1, tArray, fnOFFSET+fnRoomSchedule, tRoom, 'Del', allowed_to_edit)
     write(device,AFORMAT) '<hr>'
 
@@ -297,12 +297,7 @@ contains
     end if
 
     ! search for feasible classes in another department?
-    write(device,AFORMAT) &
-        '<br><form name="input" method="post" action="'//CGI_SCRIPT//'">', &
-        '<input type="hidden" name="F" value="'//trim(itoa(fnOFFSET+fnRoomSchedule))//'">', &
-        '<input type="hidden" name="A1" value="'//trim(tRoom)//'">'
-
-
+    call make_form_start(device, fnOFFSET+fnRoomSchedule, tRoom)
     write(device,AFORMAT) '<br>Search for feasible classes in : <select name="A4">'
     do mdx=2,NumDepartments
       if (mdx/=LoadFromDept) then
@@ -311,9 +306,9 @@ contains
                 ierr = 1
       end if
       write(device,AFORMAT) '<option value="'//trim(Department(mdx)%Code)//'"'//trim(selected(ierr))//'> '// &
-        trim(Department(mdx)%Code)//dash//trim(Department(mdx)%Name)
+        trim(Department(mdx)%Code)//DASH//trim(Department(mdx)%Name)
     end do
-    write(device,AFORMAT) '</select>'//nbsp//'<input type="submit" value="Find classes"><hr>'
+    write(device,AFORMAT) '</select>'//nbsp//'<input type="submit" value="Find classes"></form><hr>'
 
     return
   end subroutine room_schedule
@@ -427,15 +422,9 @@ contains
     targetDepartment = Room(rdx)%DeptIdx
 
     call html_write_header(device, 'Edit room '//tRoom, remark(3:))
-
-    write(device,AFORMAT) &
-      '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
-      '<input type="hidden" name="F" value="'//trim(itoa(fnEditRoom))//'">'// &
-      '<input type="hidden" name="A1" value="'//trim(tRoom)//'">', &
-      '<table border="0" width="100%">'
-
-    write(device,AFORMAT) &
-      begintr//begintd//'Room code'//endtd//begintd//'<input name="Code" size="'//trim(itoa(MAX_LEN_ROOM_CODE))// &
+    call make_form_start(device, fnEditRoom, tRoom)
+    write(device,AFORMAT) '<table border="0" width="100%">', &
+        begintr//begintd//'Room code'//endtd//begintd//'<input name="Code" size="'//trim(itoa(MAX_LEN_ROOM_CODE))// &
         '" value="'//trim(tRoom)//'"> (A new room will be created if this is changed)'//endtd//endtr
     write(device,AFORMAT) &
       begintr//begintd//'Responsible department'//endtd//begintd//'<select name="Department">'

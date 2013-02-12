@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -185,8 +185,7 @@ contains
             fileName = trim(dirXML)//trim(path)//'BLOCKS.XML'
         end if
 
-        ! make backup & open new file
-        call move_to_backup(fileName)
+        ! write file
         call xml_open_file(unitNUMBER, XML_ROOT_BLOCKS, fileName, i)
         write(unitNUMBER,AFORMAT) &
         '    <comment>', &
@@ -264,7 +263,7 @@ contains
         noXML = mainEntries==0
         ! check for blocks edited by departments
         do ddx=2,NumDepartments-1
-            fileName = trim(dirXML)//'UPDATES'//DIRSEP//trim(path)//'BLOCKS-'//trim(Department(ddx)%Code)//'.XML'
+            fileName = trim(dirXML)//UPDATES//trim(path)//'BLOCKS-'//trim(Department(ddx)%Code)//'.XML'
             call xml_read_blocks(fileName, NumBlocks, Block, NumSections, Section, ierr, QUIETLY)
             partialEntries = NumBlocks-numEntries
             numEntries = NumBlocks
@@ -439,25 +438,25 @@ contains
             if (line(1:1)=='#' .or. line(1:3)=='   ') cycle block_loop
             !     write(device,AFORMAT) '#', &
             !       ! from Block()
-            !1      trim(Block(blk)%BlockID)//comma// &
-            !2      trim(Block(blk)%Name)//comma// &
-            !3      trim(Block(blk)%Gender)//comma// &
-            !4      trim(Department(Block(blk)%DeptIdx)%Code)//comma// &
-            !5      trim(Curriculum(i)%Code)//comma// &
-            !6      trim(College(Curriculum(i)%CollegeIdx)%Code)//comma// &
-            !7      trim(itoa(Block(blk)%Year))//comma// &
-            !8      trim(itoa(Block(blk)%Term))//comma// &
+            !1      trim(Block(blk)%BlockID)//COMMA// &
+            !2      trim(Block(blk)%Name)//COMMA// &
+            !3      trim(Block(blk)%Gender)//COMMA// &
+            !4      trim(Department(Block(blk)%DeptIdx)%Code)//COMMA// &
+            !5      trim(Curriculum(i)%Code)//COMMA// &
+            !6      trim(College(Curriculum(i)%CollegeIdx)%Code)//COMMA// &
+            !7      trim(itoa(Block(blk)%Year))//COMMA// &
+            !8      trim(itoa(Block(blk)%Term))//COMMA// &
             !       ! from Block()
-            !9      trim(itoa(Block(blk)%UnitsEarned))//comma// &
-            !10     trim(itoa(Block(blk)%StdClassification))//comma// &
-            !11     trim(itoa(Block(blk)%StdYear))//comma// &
-            !12     trim(itoa(Block(blk)%AllowedLoad))//comma// &
-            !13     trim(itoa(Block(blk)%StdPriority))//comma// &
-            !14     trim(itoa(Block(blk)%NumClasses))//comma// &
-            !15     trim(itoa(Block(blk)%NAlternates))//comma// &
+            !9      trim(itoa(Block(blk)%UnitsEarned))//COMMA// &
+            !10     trim(itoa(Block(blk)%StdClassification))//COMMA// &
+            !11     trim(itoa(Block(blk)%StdYear))//COMMA// &
+            !12     trim(itoa(Block(blk)%AllowedLoad))//COMMA// &
+            !13     trim(itoa(Block(blk)%StdPriority))//COMMA// &
+            !14     trim(itoa(Block(blk)%NumClasses))//COMMA// &
+            !15     trim(itoa(Block(blk)%NAlternates))//COMMA// &
             !16     trim(itoa(Block(blk)%NumClasses))
 
-            call index_to_delimiters(comma, line, ndels, pos)
+            call index_to_delimiters(COMMA, line, ndels, pos)
 
             NumBlocks = NumBlocks+1
             Block(NumBlocks)%BlockID = line(1:pos(2)-1)
@@ -485,14 +484,14 @@ contains
             do i=1,Block(NumBlocks)%NumClasses
                 read (unitNUMBER, AFORMAT) line
 
-                call index_to_delimiters(comma, line, ndels, pos)
+                call index_to_delimiters(COMMA, line, ndels, pos)
                 ! subject
                 tSubject = line(pos(4)+1:pos(5)-1)
                 call check_array_bound (i, MAX_SUBJECTS_PER_TERM, 'MAX_SUBJECTS_PER_TERM')
                 Block(NumBlocks)%Subject(i) = index_to_subject(tSubject)
                 ! section
                 tSection = adjustl(line(pos(5)+1:pos(6)-1))
-                if (tSection=='') then ! not accommodated
+                if (tSection==SPACE) then ! not accommodated
                     Block(NumBlocks)%Section(i) = 0
                 else
                     tSection = trim(tSubject)//SPACE//tSection

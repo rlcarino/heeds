@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -112,7 +112,7 @@ contains
                 do while (.true.)
                     call cgi_get_wild_name_value(QUERY_STRING, input_name1, input_name2, input_value, ierr)
                     if (ierr/=0) exit ! no more REPL: in QUERY
-                    !write(*,*) input_name2//' <- '//input_value
+                    !write(stderr,*) input_name2//' <- '//input_value
 
                     call underscore_to_blank(input_name2, tSubject)
                     crse = index_to_subject(tSubject) ! current subject in list
@@ -232,7 +232,7 @@ contains
                   if (sect>0) then
                     crse = Block(targetBlock)%Subject(fdx)
                     if (is_lecture_lab_subject(crse)) then ! count how many lab sections
-                          pos = index(Section(sect)%ClassId, dash)
+                          pos = index(Section(sect)%ClassId, DASH)
                           tClassId = Section(sect)%ClassId(:pos)
                           tLen1 = 0
                           do jdx=1,NumSections
@@ -328,7 +328,7 @@ contains
                         if (sect>0) then ! target of action is indexed by sect
                                 crse = Section(sect)%SubjectIdx
                 
-                                !write(*,*) targetBlock, trim(tAction), sect, tClassId, crse
+                                !write(stderr,*) targetBlock, trim(tAction), sect, tClassId, crse
 
                                 do fdx=1,Block(targetBlock)%NumClasses
                                   if (Block(targetBlock)%Subject(fdx)==crse) then 
@@ -337,7 +337,7 @@ contains
                                           mesg = 'Added '//tClassId
                                           updateBLOCKS = .true.
                                           updateCLASSES = .true.
-                                          write(*,*) trim(mesg)
+                                          write(stderr,*) trim(mesg)
                                           exit
                                   end if
                                 end do
@@ -348,7 +348,7 @@ contains
                         sect = index_to_section(tClassId, NumSections, Section)
                         if (sect>0) then ! target of action is indexed by sect
 
-                                !write(*,*) targetBlock, trim(tAction), sect, tClassId
+                                !write(stderr,*) targetBlock, trim(tAction), sect, tClassId
 
                                 do fdx=1,Block(targetBlock)%NumClasses
                                   if (sect==Block(targetBlock)%Section(fdx)) then 
@@ -357,7 +357,7 @@ contains
                                           mesg = 'Deleted '//tClassId
                                           updateBLOCKS = .true.
                                           updateCLASSES = .true.
-                                          write(*,*) trim(mesg)
+                                          write(stderr,*) trim(mesg)
                                           exit
                                   end if
                                 end do
@@ -409,10 +409,8 @@ contains
       write(device,AFORMAT) '<br><table border="0" width="100%" cellpadding="0" cellspacing="0">', &
       ! actions on individual subjects 
         begintr//'<td valign="top" size="50%"><b>Actions on subjects</b>', &
-        '<table border="0" cellpadding="0" cellspacing="0">', &
-        '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
-        '<input type="hidden" name="F" value="'//trim(itoa(fnOFFSET+fnBlockEditSubject))//'">'// &
-        '<input type="hidden" name="A1" value="'//trim(tBlock)//'">'
+        '<table border="0" cellpadding="0" cellspacing="0">'
+      call make_form_start(device, fnOFFSET+fnBlockEditSubject, tBlock)
       do fdx=1,Block(targetBlock)%NumClasses
         crse = Block(targetBlock)%Subject(fdx) ! index to subject
         sect = Block(targetBlock)%Section(fdx)
@@ -424,17 +422,14 @@ contains
           begintd//' with '//endtd// &
           begintd//nbsp//' <input type="text" name="REPL:'//trim(input_name2)// &
           '" value="'//trim(tSubject)//'">'//endtd//endtr
-
       end do
       write(device,AFORMAT) &
         begintr//'<td colspan="3">'//nbsp//nbsp//'<input type="submit" name="action" value="Replace"> ', &
         nbsp//' <i>(Section is deleted from block if subject is replaced.</i>)'//endtd//endtr, &
         begintr//'<td colspan="3">'//nbsp//endtd//endtr//'</form>'
 
+      call make_form_start(device, fnOFFSET+fnBlockEditSubject, tBlock)
       write(device,AFORMAT) &
-        '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
-        '<input type="hidden" name="F" value="'//trim(itoa(fnOFFSET+fnBlockEditSubject))//'">'// &
-        '<input type="hidden" name="A1" value="'//trim(tBlock)//'">'// &
         begintr//'<td colspan="2"> Add subject '//endtd// &
         begintd//nbsp//' <input name="add" value="">'//endtd//endtr, &
         begintr//'<td colspan="3">'//nbsp//nbsp//'<input type="submit" name="action" value="Add, create new section"> ', &
@@ -444,22 +439,21 @@ contains
       ! action on whole block
       write(device,AFORMAT) '<td valign="top" size="50%"><b>Actions on block</b>', &
         '<table border="0" cellpadding="0" cellspacing="0">', &
-        begintr//begintd// &
-        '<form name="input" method="post" action="'//CGI_SCRIPT//'">'// &
-        '<input type="hidden" name="F" value="'//trim(itoa(fnOFFSET+fnBlockCopy))//'">'// &
-        '<input type="hidden" name="A1" value="'//trim(tBlock)//'">'// &
+        begintr//begintd
+      call make_form_start(device, fnOFFSET+fnBlockCopy, tBlock)
+      write(device,AFORMAT) &
         'Copy block with new sections, to '//nbsp//endtd//begintd//'<input name="BlockID" value="'//trim(newBlock)//'">'// &
         endtd//begintd//nbsp//' <input type="submit" name="action" value="Copy">'//endtd// &
-        '</form>'//endtr, &
-        begintr//begintd//'<form name="input" method="post" action="'//CGI_SCRIPT//'">'// &
-        '<input type="hidden" name="F" value="'//trim(itoa(fnOFFSET+fnBlockEditName))//'">'// &
-        '<input type="hidden" name="A1" value="'//trim(tBlock)//'">'// &
+        '</form>'//endtr
+
+      call make_form_start(device, fnOFFSET+fnBlockEditName, tBlock)
+      write(device,AFORMAT) &
         'Rename block, same sections, to '//nbsp//endtd//begintd//'<input name="BlockID" value="'//trim(newBlock)//'">'// &
         endtd//begintd//nbsp//' <input type="submit" name="action" value="Rename">'//endtd// &
         '</form>'//endtr, &
-        trim(cgi_make_href(fnOFFSET+fnBlockDeleteName, 'KEEP', A1=tBlock, &
+        trim(make_href(fnOFFSET+fnBlockDeleteName, 'KEEP', A1=tBlock, &
         pre=begintr//'<td colspan="3">Delete block, but '//nbsp, post=nbsp//' its sections.'//endtd//endtr)), &
-        trim(cgi_make_href(fnOFFSET+fnBlockDeleteAll, 'DELETE', A1=tBlock, &
+        trim(make_href(fnOFFSET+fnBlockDeleteAll, 'DELETE', A1=tBlock, &
         pre=begintr//'<td colspan="3">Delete block, and '//nbsp, post=nbsp//' its sections.'//endtd//endtr)), &
         '</table>', &
         endtd//endtr//'</table><br>'
@@ -503,18 +497,18 @@ contains
           end if
           ! check for conflict
           if (is_conflict_timetable_with_section(NumSections, Section, sect, TimeTable)) then
-                  !write(*,*) '   Available, but schedule conflict - '//Section(sect)%ClassId
+                  !write(stderr,*) '   Available, but schedule conflict - '//Section(sect)%ClassId
                   cycle
           end if
           ! lab section of lect+lab subject or lab-only subject, or section of lect-only subject, is OK
           ! if lab section of lect+lab subject, check if lecture schedule also fits
 
           if (is_lecture_lab_subject(crse)) then ! find the lecture section
-            pos = index(Section(sect)%ClassId, dash)
+            pos = index(Section(sect)%ClassId, DASH)
             tClassId = Section(sect)%ClassId(:pos-1)
             lect = index_to_section(tClassId, NumSections, Section)
             if (is_conflict_timetable_with_section(NumSections, Section, lect, TimeTable)) then ! lecture class is not OK
-              !write(*,*) '   Available, but lecture class schedule conflict - '//Section(lect)%ClassId
+              !write(stderr,*) '   Available, but lecture class schedule conflict - '//Section(lect)%ClassId
               cycle
             end if
           end if
@@ -543,7 +537,7 @@ contains
         fdx = tArray(jdx)
         crse = Block(targetBlock)%Subject(fdx) ! index to subject
         tSubject = Subject(crse)%Name
-        !write(*,*) 'Alternate subject - '//tSubject
+        !write(stderr,*) 'Alternate subject - '//tSubject
         !tLen2 = 0
         n_opts = 0
         
@@ -555,7 +549,7 @@ contains
           end if
           ! check for conflict
           if (is_conflict_timetable_with_section(NumSections, Section, sect, TimeTable)) then
-                  !write(*,*) '   Available, but schedule conflict - '//Section(sect)%ClassId
+                  !write(stderr,*) '   Available, but schedule conflict - '//Section(sect)%ClassId
                   cycle
           end if
           ! lab section of lect+lab subject or lab-only subject, or section of lect-only subject, is OK
@@ -565,14 +559,14 @@ contains
           idx_opt = NumSections + n_opts + 1
           Section(idx_opt) = Section(sect)
           if (is_lecture_lab_subject(crse)) then ! find the lecture section
-            pos = index(Section(sect)%ClassId, dash)
+            pos = index(Section(sect)%ClassId, DASH)
             tClassId = Section(sect)%ClassId(:pos-1)
             lect = index_to_section(tClassId, NumSections, Section)
             if (is_conflict_timetable_with_section(NumSections, Section, lect, TimeTable)) then ! lecture class is not OK
-              !write(*,*) '   Available, but lecture class schedule conflict - '//Section(lect)%ClassId
+              !write(stderr,*) '   Available, but lecture class schedule conflict - '//Section(lect)%ClassId
               cycle
             end if
-            !write(*,*) 'OPTION IS - '//tClassId
+            !write(stderr,*) 'OPTION IS - '//tClassId
             ! add lecture schedule to lab schedule
             do mdx=1,Section(lect)%NMeets
                 pos = Section(idx_opt)%NMeets + 1 
@@ -595,7 +589,7 @@ contains
         do sect=1,n_opts
           idx_opt = UndesirabilityRank(sect)
           !if (Section(NumSections+idx_opt)%RemSlots==0) cycle ! section not available
-          !write(*,*) sect, idx_opt, Section(NumSections+idx_opt)%ClassId, -Undesirability(idx_opt)
+          !write(stderr,*) sect, idx_opt, Section(NumSections+idx_opt)%ClassId, -Undesirability(idx_opt)
           do mdx=1,Section(NumSections+idx_opt)%NMeets
             tArray(tLen1+unassigned+tLen2+1) = NumSections+idx_opt
             tArray(tLen1+unassigned+tLen2+2) = mdx
@@ -645,13 +639,11 @@ contains
     call html_write_header(device, 'Add block(s) in '//tCollege)
 
     ! add block
-    write(device,AFORMAT) &
-      '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
-      '<input type="hidden" name="F" value="'//trim(itoa(fnOFFSET+fnBlockNewAdd))//'">'
+    call make_form_start(device, fnOFFSET+fnBlockNewAdd)
     if (fnOFFSET==0) then
-            mesg = trim(txtSemester(currentTerm+3))//' (current) Semester'
+            mesg = trim(txtSemester(currentTerm+3))//' (current) Term'
     else
-            mesg = green//trim(txtSemester(nextTerm+3))//' (next) Semester'//black
+            mesg = green//trim(txtSemester(nextTerm+3))//' (next) Term'//black
     end if
     write(device,AFORMAT) '<table border="0" width="100%" cellpadding="0" cellspacing="0">', &
       begintr//begintd//'Curriculum:'//endtd//begintd//'<select name="A1">', &
@@ -686,7 +678,7 @@ contains
     type (TYPE_SECTION), intent(in out), dimension (0:) :: Section
     type (TYPE_BLOCK), dimension(0:), intent(in out) :: Block
     type (TYPE_OFFERED_SUBJECTS), intent(in out), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS) :: Offering
-    integer :: ierr, blk, copy, crse, idx, jdx, ncopies, Rank, Year, YearFirst, YearLast
+    integer :: ierr, blk, copy, crse, idx, jdx, ncopies, Rank, Year, YearFirst, YearLast, adjTerm
     character (len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
     character (len=MAX_LEN_BLOCK_CODE) :: tBlock
     character (len=MAX_LEN_TEXT_YEAR) :: tYear
@@ -749,18 +741,21 @@ contains
     targetDepartment = index_to_dept(tDepartment)
 #endif
 
+    ! adjust term==0 to 3
+    adjTerm = Term
+    if (Term==0) adjTerm = 3
     do Year=YearFirst,YearLast
 
-      Rank = (Year-1)*3+Term
+      Rank = (Year-1)*3+adjTerm
 
       do copy=1,ncopies
 
         ! the block
-        tBlock = trim(CurrProgCode(targetCurriculum))//dash//itoa(Year)
+        tBlock = trim(CurrProgCode(targetCurriculum))//DASH//itoa(Year)
         blk = index_to_block(tBlock, NumBlocks, Block)
         if (blk>0) then
           do idx=iachar('A'), iachar('Z')
-            tBlock = trim(CurrProgCode(targetCurriculum))//dash//trim(itoa(Year))//achar(idx)
+            tBlock = trim(CurrProgCode(targetCurriculum))//DASH//trim(itoa(Year))//achar(idx)
             blk = index_to_block(tBlock, NumBlocks, Block)
             if (blk==0) exit
           end do
@@ -773,7 +768,7 @@ contains
         end do
         targetBlock = jdx+1
         call initialize_block(Block(targetBlock))
-        write(*,*) 'Adding '//tBlock
+        write(stderr,*) 'Adding '//tBlock
 
         Block(targetBlock)%Name = trim(Curriculum(targetCurriculum)%Code)//SPACE// &
           trim(txtYear(Year))//' Year '//trim(txtSemester(Term))//' Term'
@@ -790,7 +785,7 @@ contains
         do jdx=1,Curriculum(targetCurriculum)%NSubjects
           if (Curriculum(targetCurriculum)%SubjectTerm(jdx)/=Rank) cycle
           crse = Curriculum(targetCurriculum)%SubjectIdx(jdx) 
-          !write(*,*) jdx, rank, Subject(crse)%Name
+          !write(stderr,*) jdx, rank, Subject(crse)%Name
           !Block(targetBlock)%AllowedLoad = Block(targetBlock)%AllowedLoad + Subject(crse)%Units
           idx = Block(targetBlock)%NumClasses + 1
           Block(targetBlock)%NumClasses = idx
@@ -917,7 +912,7 @@ contains
       if (tCurriculum==SPACE) cycle
       idx = index(tCurriculum, SPACE)
       Year = atoi(tCurriculum(idx+1:idx+1))
-      if (tCurriculum(idx+2:idx+2)==dash) then
+      if (tCurriculum(idx+2:idx+2)==DASH) then
               copy = atoi(tCurriculum(idx+3:))
       else
               copy = 1
@@ -945,7 +940,7 @@ contains
         Block(targetBlock)%Year = Year
         Block(targetBlock)%Term = Term
         NumBlocks = targetBlock
-        write(*,*) Section(sect)%BlockID, Curriculum(targetCurriculum)%Code, Year, copy
+        write(stderr,*) Section(sect)%BlockID, Curriculum(targetCurriculum)%Code, Year, copy
       end if
       crse = Section(sect)%SubjectIdx
       ! do not add lecture section of lect-lab subject
@@ -986,7 +981,7 @@ contains
 
             if (is_lecture_lab_subject(crse)) then ! subject is lecture-lab
                 ! add lecture
-                j = index(Section(sect)%Code,dash)
+                j = index(Section(sect)%Code,DASH)
                 tClassId = trim(Subject(crse)%Name)//SPACE//Section(sect)%Code(:j-1)
                 lect = index_to_section(tClassId, NumSections, Section)
                 do i=1,Section(lect)%NMeets

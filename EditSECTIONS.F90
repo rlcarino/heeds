@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -73,7 +73,7 @@ contains
               ch = SPACE
       end if
       write(device,AFORMAT) nbsp//txtDay(wrk%DayIdx(i))//nbsp// &
-        txtTime(wrk%bTimeIdx(i))//dash//trim(txtTime(wrk%eTimeIdx(i)))//ch
+        txtTime(wrk%bTimeIdx(i))//DASH//trim(txtTime(wrk%eTimeIdx(i)))//ch
     end do
     write(device,AFORMAT) '<table border="0" width="100%">', &
       begintr//'<th align="left">Teacher</th><th align="left">Assigned classes</th>'//endtr
@@ -98,7 +98,7 @@ contains
       end do
       if (skip) cycle ! done with this teacher
       teacher_count = teacher_count+1
-      write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnTeacherSchedule, Teacher(tdx)%Name, &
+      write(device,AFORMAT) trim(make_href(fnOFFSET+fnTeacherSchedule, Teacher(tdx)%Name, &
           A1=Teacher(tdx)%TeacherID, &
           pre=begintr//begintd, &
           post=endtd//begintd//'['//trim(itoa(ncol))//']'))
@@ -148,7 +148,7 @@ contains
               ch = SPACE
       end if
       write(device,AFORMAT) nbsp//txtDay(wrk%DayIdx(i))//nbsp// &
-        txtTime(wrk%bTimeIdx(i))//dash//trim(txtTime(wrk%eTimeIdx(i)))//ch
+        txtTime(wrk%bTimeIdx(i))//DASH//trim(txtTime(wrk%eTimeIdx(i)))//ch
     end do
     write(device,AFORMAT) '<table border="0" width="100%">', &
       begintr//'<th align="left">Room</th><th align="left">[Count]: Scheduled classes</th>'//endtr
@@ -181,7 +181,7 @@ contains
 #else
       call cgi_url_encode(Room(rdx)%Code, QUERY_put)
 #endif
-      write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnRoomSchedule, Room(rdx)%Code, &
+      write(device,AFORMAT) trim(make_href(fnOFFSET+fnRoomSchedule, Room(rdx)%Code, &
           A1=QUERY_put, &
           pre=begintr//begintd, &
           post=endtd//begintd//'['//trim(itoa(ncol))//']'))
@@ -375,7 +375,7 @@ contains
     ncol = 0
     do idx=1,nopen
         tSubject = Subject(tArray(nsections+idx))%Name
-        i = index(tSubject, dash)
+        i = index(tSubject, DASH)
         if (tSubject(1:3) /= 'PE ' .and. i > 0) cycle
         ncol = ncol + 1
         if (ncol == 1) then
@@ -416,10 +416,8 @@ contains
 
     ! offer to open sections
     if (nclosed>0 .and. (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==targetDepartment))) then
+            call make_form_start(device, fnOFFSET+fnScheduleOfferSubject, A2=Department(targetDepartment)%Code)
             write(device,AFORMAT) &
-              '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
-              '<input type="hidden" name="F" value="'//trim(itoa(fnOFFSET+fnScheduleOfferSubject))//'">', &
-              '<input type="hidden" name="A2" value="'//trim(Department(targetDepartment)%Code)//'">', &
               '<table border="0" width="100%">'//begintr//'<td colspan="'//trim(itoa(maxcol))//'" align="right">', &
               'Open a section in <select name="A1"> <option value=""> (select subject)'
             do idx=1,nclosed
@@ -480,7 +478,7 @@ contains
 
       write(device,AFORMAT) '('//trim(text_term_offered_separated(Subject(cdx)%TermOffered))//')'
       if (isRoleAdmin) then
-           write(device,AFORMAT) trim(cgi_make_href(fnEditSubject, 'Edit', A1=Subject(cdx)%Name, &
+           write(device,AFORMAT) trim(make_href(fnEditSubject, 'Edit', A1=Subject(cdx)%Name, &
                   pre=nbsp//'<small>[ ', post=' ]</small>'))
       end if
       write(device,AFORMAT) endtd//endtr, &
@@ -495,7 +493,7 @@ contains
 
       if (okToAdd) then
           write(device,AFORMAT) begintd//'<small>', &
-              trim(cgi_make_href(fnOFFSET+fnScheduleOfferSubject, 'Add '//tDepartment, &
+              trim(make_href(fnOFFSET+fnScheduleOfferSubject, 'Add '//tDepartment, &
                 A1=QUERY_put, A2=Department(targetDepartment)%Code, &
                 post='</small>'//endtd//endtr)) 
       else
@@ -515,7 +513,7 @@ contains
                 write(device,AFORMAT) begintr//'<td colspan="9">'//nbsp//endtd//endtr
                 tSeats = itoa(Section(sdx)%Slots)
         else
-                tSeats = trim(itoa(Section(sdx)%Slots))//fslash//trim(itoa(Section(sdx)%RemSlots))
+                tSeats = trim(itoa(Section(sdx)%Slots))//FSLASH//trim(itoa(Section(sdx)%RemSlots))
         end if
 #if defined DO_NOT_ENCODE
         QUERY_put = Section(sdx)%ClassId
@@ -528,7 +526,7 @@ contains
         ! section code, link to gradesheet entry form
         if (fnOFFSET==0 .and. available(fnGradeSheet) .and. &
             (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==owner_dept))) then
-          write(device,AFORMAT) trim(cgi_make_href(fnGradeSheet, trim(Section(sdx)%Code), &
+          write(device,AFORMAT) trim(make_href(fnGradeSheet, trim(Section(sdx)%Code), &
           A1=QUERY_PUT, pre=begintd, post=endtd))
         else
           write(device,AFORMAT) begintd//trim(Section(sdx)%Code)//endtd
@@ -541,7 +539,7 @@ contains
 
         ! seats, link to classlist
         if (fnOFFSET==0 .and. available(fnClassList)) then
-          write(device,AFORMAT) trim(cgi_make_href(fnClassList, tSeats, &
+          write(device,AFORMAT) trim(make_href(fnClassList, tSeats, &
           A1=QUERY_PUT, pre=begintd, post=endtd))
         else
           write(device,AFORMAT) begintd//trim(tSeats)//endtd
@@ -594,12 +592,12 @@ contains
         end if
         write(device,AFORMAT) begintd//'<small>'
         if (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==owner_dept)) then
-            write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnScheduleEdit, ' Edit', &
+            write(device,AFORMAT) trim(make_href(fnOFFSET+fnScheduleEdit, ' Edit', &
                 A1=QUERY_put))
-            write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnScheduleDelete, ' Del', &
+            write(device,AFORMAT) trim(make_href(fnOFFSET+fnScheduleDelete, ' Del', &
                 A1=QUERY_put))
             if (isLecture) then
-              write(device,AFORMAT) trim(cgi_make_href(fnOFFSET+fnScheduleAddLab, 'Add lab', &
+              write(device,AFORMAT) trim(make_href(fnOFFSET+fnScheduleAddLab, 'Add lab', &
                 A1=QUERY_put))
             end if
         else
@@ -689,7 +687,7 @@ contains
     end if
     if (Subject(crse)%LabHours>0) then ! subject has lab/recitation
             NumSections = NumSections+1
-            tSection = trim(tSection)//dash//'0L'
+            tSection = trim(tSection)//DASH//'0L'
             Section(NumSections) = TYPE_SECTION (trim(Subject(crse)%Name)//' '//tSection, tSection, SPACE, &
               targetDepartment, crse, Subject(crse)%MaxLabSize, Subject(crse)%MaxLabSize, 1, 0, 0, 0, 0, 0)
     end if
@@ -733,7 +731,7 @@ contains
     crse = Section(sect)%SubjectIdx
 
     l = len_trim(Section(sect+1)%Code) ! last letter is L(ab) or R(ecit)
-    tSection = trim(Section(sect)%Code)//dash//'0'//Section(sect+1)%Code(l:l)
+    tSection = trim(Section(sect)%Code)//DASH//'0'//Section(sect+1)%Code(l:l)
     NumSections = NumSections+1
     Section(NumSections) = TYPE_SECTION (trim(Subject(crse)%Name)//' '//tSection, tSection, SPACE, &
               targetDepartment, crse, Subject(crse)%MaxLabSize, Subject(crse)%MaxLabSize, 1, 0, 0, 0, 0, 0)
@@ -784,7 +782,7 @@ contains
             if (is_lecture_class(sect, Section)) then ! remove lecture and lab sections
                     write(*,*) 'Deleted '//tClassId
                     Call delete_section_from_blocks(sect, NumSections, Section, NumBlocks, Block)
-                    tClassId = trim(tClassId)//dash
+                    tClassId = trim(tClassId)//DASH
                     i = len_trim(tClassId)
                     !write(*,*) 'Sections to remove: '//tClassId
                     do pos=1,NumSections
@@ -868,10 +866,7 @@ contains
             tHours = trim(ftoa(Subject(Section(sect)%SubjectIdx)%LabHours,2))//' laboratory hours'
     end if
     ! write input form to capture edits to Section(sect); previous inputs are in tSection
-    write(device,AFORMAT) &
-        '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
-        '<input type="hidden" name="F" value="'//trim(itoa(fnOFFSET+fnScheduleValidate))//'">'// &
-        '<input type="hidden" name="A1" value="'//trim(Section(sect)%ClassId)//'">'
+    call make_form_start(device, fnOFFSET+fnScheduleValidate, Section(sect)%ClassId)
 
     !write(*,*) 'section_write_edit_form()'
     !write(*,*) 'ORIGINAL: Code=', Section(sect)%Code, ', slots=', Section(sect)%Slots, &
@@ -886,8 +881,10 @@ contains
         nbsp//nbsp//'<i>change to </i>&nbsp<input size="'//trim(itoa(tLen))//'" name="code" value="'// &
         trim(tSection%Code)//'">', &
         nbsp//nbsp//nbsp//nbsp//nbsp//nbsp//'<b>NO. OF STUDENTS</b> '//trim(itoa(Section(sect)%Slots))// &
-        nbsp//nbsp//'<i>change to </i>&nbsp<input size="3" name="slots" value="'//trim(itoa(tSection%Slots))//'">', &
-        '<br><i>(Note: Class meetings must total <b>'//trim(tHours)//'</b>) :</i>'
+        nbsp//nbsp//'<i>change to </i>&nbsp<input size="3" name="slots" value="'//trim(itoa(tSection%Slots))//'">'
+    if ( (fnOFFSET==0 .and. currentTerm/=0) .or. &
+         (fnOFFSET>0 .and. currentTerm/=2) ) write(device,AFORMAT) & ! not summer
+            '<br><i>(Note: Class meetings must total <b>'//trim(tHours)//'</b>) :</i>'
 
     write(device,AFORMAT) '<table border="0" width="100%">'//begintr, &
         '<td align="left"><b>Meeting</b>'//endtd//&
@@ -1228,10 +1225,8 @@ contains
     end do
 
     ! common form inputs
+    call make_form_start(device, fnOFFSET+fnScheduleValidate, Section(sect)%ClassId)
     write(device,AFORMAT) &
-        '<form name="input" method="post" action="'//CGI_SCRIPT//'">', &
-        '<input type="hidden" name="F" value="'//trim(itoa(fnOFFSET+fnScheduleValidate))//'">', &
-        '<input type="hidden" name="A1" value="'//trim(Section(sect)%ClassId)//'">', &
         '<input type="hidden" name="code" value="'//trim(wrk%Code)//'">'// &
         '<input type="hidden" name="slots" value="'//trim(itoa(wrk%Slots))//'">'
     do idx=1,wrk%NMeets
@@ -1261,7 +1256,7 @@ contains
                 idx_select = 1
       end if
       write(device,AFORMAT) '<option value="'//trim(Department(ddx)%Code)//'"'//trim(selected(idx_select))//'> '// &
-        trim(Department(ddx)%Code)//dash//trim(Department(ddx)%Name)
+        trim(Department(ddx)%Code)//DASH//trim(Department(ddx)%Name)
     end do
     write(device,AFORMAT) '</select>'//nbsp//'<input type="submit" name="action" value="Find rooms"><hr>'
 
@@ -1277,7 +1272,7 @@ contains
                 idx_select = 1
       end if
       write(device,AFORMAT) '<option value="'//trim(Department(ddx)%Code)//'"'//trim(selected(idx_select))//'> '// &
-        trim(Department(ddx)%Code)//dash//trim(Department(ddx)%Name)
+        trim(Department(ddx)%Code)//DASH//trim(Department(ddx)%Name)
     end do
     write(device,AFORMAT) '</select>'//nbsp//'<input type="submit" name="action" value="Find teachers"><hr>'
 
@@ -1345,7 +1340,7 @@ contains
                       end do
               end if
             end do
-            call timetable_display(device, Section, TimeTable)
+            if (tLen>0) call timetable_display(device, Section, TimeTable)
             write(device,AFORMAT) '<hr>'
         end if
       end if
@@ -1389,7 +1384,7 @@ contains
                       end do
               end if
             end do
-            call timetable_display(device, Section, TimeTable)
+            if (tLen>0) call timetable_display(device, Section, TimeTable)
             write(device,AFORMAT) '<hr>'
         end if
       end if

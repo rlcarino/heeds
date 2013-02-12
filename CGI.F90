@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -82,18 +82,57 @@ module CGI
     character(len=14), parameter :: checked(0:1) = (/ '              ', ' checked="yes"' /)
 
     ! string lengths
-    integer, parameter :: MAX_QUERY_STRING_LEN = 4096
+    integer, parameter :: MAX_LEN_QUERY_STRING = 4096
     integer, parameter :: MAX_CGI_WRK_LEN = 2048
     integer, parameter :: MAX_CGI_INT_LEN = 10
     integer, parameter :: MAX_CGI_FLT_LEN = 12
+
+    ! the script
+    character (len=MAX_LEN_FILE_PATH)    :: DOCUMENT_URI
+
+    ! the IP address xxx.xxx.xxx.xxx
+    character (len=16)                   :: REMOTE_ADDR
+
+    ! the QUERY, encryption key, cipher text
+    character (len=MAX_LEN_QUERY_STRING) :: QUERY_STRING, queryEncryptionKey, cipher
+
+    ! login check message, user role
+    character(len=MAX_LEN_FILE_PATH) :: loginCheckMessage
+    logical :: isRoleSRE = .false., isRoleChair = .false., isRoleAdmin = .false.
+    logical :: isRoleStudent = .false., isRoleGuest = .false.
 
     ! local work areas
     character(len=MAX_CGI_WRK_LEN), private :: cgi_wrk
     character(len=MAX_CGI_INT_LEN), private :: cgi_int
     character(len=MAX_CGI_FLT_LEN), private :: cgi_flt
 
-    logical :: isRoleSRE = .false., isRoleChair = .false., isRoleAdmin = .false.
-    logical :: isRoleStudent = .false., isRoleGuest = .false.
+    ! interface to FastCGI routines in C
+    interface
+
+        ! The function to accept a request from the webserver
+        function FCGI_Accept () bind(C, NAME='FCGI_Accept')
+            use ISO_C_BINDING
+            implicit none
+            integer(C_INT) :: FCGI_Accept
+        end function FCGI_Accept
+
+        ! The function to retrieve POSTed data
+        function FCGI_getchar () bind(C, NAME='FCGI_getchar')
+            use ISO_C_BINDING
+            implicit none
+            character(C_CHAR) :: FCGI_getchar
+        end function FCGI_getchar
+
+        ! The function to write back to the webserver
+        function FCGI_puts (s) bind(C, NAME='FCGI_puts')
+            use ISO_C_BINDING
+            implicit none
+            integer(C_INT) :: FCGI_puts
+            character(C_CHAR), dimension(*) :: s
+        end function FCGI_puts
+
+    end interface
+
 
 contains
 
@@ -122,7 +161,7 @@ contains
 
             if (index(SPECIAL,ch)/=0) encode = .true. ! special, unsafe, reserved
 
-            if (ch==bslash .or. ch==prime) encode = .true. ! \, '
+            if (ch==BSLASH .or. ch==PRIME) encode = .true. ! \, '
 
             if (ch==SPACE) then  ! encode as +
                 str_out(idx_out:idx_out) = '+'
@@ -343,64 +382,79 @@ contains
     end subroutine cgi_get_wild_name_value
 
 
-    function cgi_make_href(fn, label, pre, post, A1, A2, A3, A4, A5, anchor, newtab)
-    ! build HTML href, like:
-    !   pre<a href="CGI_SCRIPT?F=fn&A1=A1...&A5=A5#anchor target=newtab">label</a>post
+    subroutine FCGI_getquery( unitNo )
+        ! Retrieve FastCGI environment variables DOCUMENT_URI and QUERY_STRING
+        ! Invoked after FCGI_Accept() has completed
+        ! Write debugging information to file unit number 'unitNo', which must already be open
+        ! Debugging information should be <!-- HTML remark -->
 
-        integer, intent (in) :: fn
-        character(len=*), intent (in) :: label
-        character(len=*), intent (in), optional :: A1, A2, A3, A4, A5
-        character(len=*), intent (in), optional :: pre, post, anchor, newtab
+        integer, intent(in)               :: unitNo
 
-        character(len=MAX_QUERY_STRING_LEN) :: cgi_make_href, tmp
+        integer                           :: i
+        integer                           :: iLen
+        character(len=1)                  :: ch
+        character(len=7)                  :: cLen
 
-        ! the function
-        tmp = 'F='//itoa(fn)
+        ! write to the beginning of file unitNo
+        rewind (unitNo)
 
-        ! the arguments to the function
-        if (present(A1)) then
-            call cgi_url_encode(A1,cgi_wrk)
-            tmp = trim(tmp)//'&A1='//cgi_wrk
-        end if
-        if (present(A2)) then
-            call cgi_url_encode(A2,cgi_wrk)
-            tmp = trim(tmp)//'&A2='//cgi_wrk
-        end if
-        if (present(A3)) then
-            call cgi_url_encode(A3,cgi_wrk)
-            tmp = trim(tmp)//'&A3='//cgi_wrk
-        end if
-        if (present(A4)) then
-            call cgi_url_encode(A4,cgi_wrk)
-            tmp = trim(tmp)//'&A4='//cgi_wrk
-        end if
-        if (present(A5)) then
-            call cgi_url_encode(A5,cgi_wrk)
-            tmp = trim(tmp)//'&A5='//cgi_wrk
-        end if
+        ! the remote IP
+        call get_environment_variable('REMOTE_ADDR', REMOTE_ADDR)
+        write(unitNo, AFORMAT) '<!-- REMOTE_ADDR='//REMOTE_ADDR//' -->'
 
-        ! begin href
-        tmp = '<a href="'//CGI_SCRIPT//'?'//tmp
+        ! the requested script ('/' if none)
+        call get_environment_variable('DOCUMENT_URI', DOCUMENT_URI)
+        iLen = len_trim(DOCUMENT_URI)
+        if ( iLen == 0 ) then
+            ! default is /
+            DOCUMENT_URI = '/'
+        endif
+        iLen = len_trim(DOCUMENT_URI)
+        write(unitNo, AFORMAT) '<!-- DOCUMENT_URI='//DOCUMENT_URI(:iLen)//' -->'
 
-        ! preamble (text before href)
-        if (present(pre)) tmp = pre//tmp
+        ! QUERY_STRING (request method was GET) ?
+        call get_environment_variable( "QUERY_STRING", value=QUERY_STRING, length=iLen )
+        if ( iLen > 0 ) then
+                write(unitNo, AFORMAT) '<!-- QUERY_STRING='//QUERY_STRING(:iLen)//' -->'
+        else
+            ! anything in CONTENT_LENGTH (request method was POST) ?
+            call get_environment_variable( "CONTENT_LENGTH", value=cLen, length=iLen )
+            write(unitNo, AFORMAT) '<!-- CONTENT_LENGTH='//trim(cLen)//' -->'
+            if ( iLen > 0 ) then
+                read( cLen, * ) iLen
+                do i=1,iLen
+                    ch = FCGI_getchar()
+                    QUERY_STRING( i:i ) = ch
+                end do
+                QUERY_STRING( iLen+1: ) = ' '
+                write(unitNo, AFORMAT) '<!-- CONTENT='//QUERY_STRING(:10)//'... -->'
+            end if
+        endif
 
-        ! the anchor
-        if (present(anchor)) tmp = trim(tmp)//'#'//anchor
+        ! for other environment variables, see <nginx directory>/conf/fastcgi_params
 
-        ! the target
-        if (present(newtab)) tmp = trim(tmp)//' target='//newtab
+    end subroutine FCGI_getquery
 
-        ! end href & the label
-        tmp = trim(tmp)//'">'//trim(label)//'</a>'
 
-        ! the text after the href
-        if (present(post)) tmp = trim(tmp)//post
+    subroutine FCGI_putfile ( unitNo )
+        ! Copy file 'unitNo' line by line to the webserver via FCGI_puts()
+        ! File must already exist, expected to contain the response to some query
 
-        cgi_make_href = tmp
+        integer, intent(in) :: unitNo
+        integer :: iStat
 
-        return
-    end function cgi_make_href
+        ! flush any pending writes
+        flush(unitNo)
+
+        ! copy line by line to webserver, except those starting with %REMARK%
+        rewind(unitNo)
+        do while (.true.)
+            read(unitNo, AFORMAT, iostat=iStat) QUERY_STRING
+            if (iStat < 0) exit ! no more lines
+            iStat = FCGI_puts (trim(QUERY_STRING)//NUL) ! FCGI_puts expects NULL terminated strings
+        end do
+
+    end subroutine FCGI_putfile
 
 
 end module CGI

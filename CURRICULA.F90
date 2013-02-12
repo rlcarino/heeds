@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012 Ricolindo L Carino
+!    Copyright (C) 2012, 2013 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -151,8 +151,9 @@ contains
                 if (Term == 0) Year = Year-1
                 mesg = SPACE
                 do idx=1,Curriculum(idxCURR)%NSubjects
+                    if (INDEX_TO_NONE==Curriculum(idxCURR)%SubjectIdx(idx)) cycle
                     if (Curriculum(idxCURR)%SubjectTerm(idx) == tdx) then
-                        mesg = trim(mesg)//comma//Subject(Curriculum(idxCURR)%SubjectIdx(idx))%Name
+                        mesg = trim(mesg)//COMMA//Subject(Curriculum(idxCURR)%SubjectIdx(idx))%Name
                     end if
                 end do
                 if (mesg==SPACE) cycle
@@ -166,7 +167,7 @@ contains
                 if (Substitution(SubstIdx(tdx))==idxCURR) then
                     mesg = SPACE
                     do idx=SubstIdx(tdx)+1, SubstIdx(tdx+1)-1
-                        mesg = trim(mesg)//comma//Subject(Substitution(idx))%Name
+                        mesg = trim(mesg)//COMMA//Subject(Substitution(idx))%Name
                     end do
                     call xml_write_character(unitNo, indent1, 'Substitution', mesg(2:))
                 end if
@@ -260,6 +261,7 @@ contains
                         idxTerm = (year-1)*3 + term
                         tmpCurriculum%NumTerms = idxTerm
                         do k = 1,nLoad
+                            if (INDEX_TO_NONE==loadArray(k)) cycle
                             token = Subject(loadArray(k))%Name
                             i = index_to_new_subject(loadArray(k))
                             !if (i/=loadArray(k)) &
@@ -340,7 +342,7 @@ contains
             if (Substitution(SubstIdx(tdx))>NumCurricula) then
                 mesg = SPACE
                 do idx=SubstIdx(tdx)+1, SubstIdx(tdx+1)-1
-                    mesg = trim(mesg)//comma//Subject(Substitution(idx))%Name
+                    mesg = trim(mesg)//COMMA//Subject(Substitution(idx))%Name
                 end do
                 call xml_write_character(unitNo, indent0, 'Equivalence', mesg(2:))
             end if
@@ -475,7 +477,6 @@ contains
 !                    (trim(Subject(Substitution(j))%Name)//SPACE, &
 !                    j=SubstIdx(i)+1, SubstIdx(i+1)-1)
 !            end if
-!            !call Pause()
 !        end do
 
         ! write the XML CURRICULA file?
@@ -575,7 +576,7 @@ contains
         end do
 
         ! find last code whose first few characters (up to the '-') match
-        tCurriculum = trim(token)//dash
+        tCurriculum = trim(token)//DASH
         do i=1,NumCurricula
             if (index(Curriculum(i)%Code,trim(tCurriculum))==1) then
                 index_to_curriculum = -i
@@ -842,7 +843,7 @@ contains
         tmp = COMMA//SPACE//trim(Curriculum(idxCURR)%Remark)//tmp
         if (Curriculum(idxCURR)%Specialization/=SPACE)  &
         tmp = COMMA//SPACE//trim(Curriculum(idxCURR)%Specialization)//tmp
-        tmp = trim(Curriculum(idxCURR)%Code)//SPACE//dash//SPACE// &
+        tmp = trim(Curriculum(idxCURR)%Code)//SPACE//DASH//SPACE// &
         trim(Curriculum(idxCURR)%Title)//tmp
         text_curriculum_info = tmp
         return
@@ -907,7 +908,7 @@ contains
             select case (trim(tag))
 
                 case ('Intake')
-                    call index_to_delimiters(comma, value, ndels, pos)
+                    call index_to_delimiters(COMMA, value, ndels, pos)
                     tCurriculum = value(:pos(2)-1)
                     idxCURR = index_to_curriculum(tCurriculum)
                     if (idxCURR == 0) then
