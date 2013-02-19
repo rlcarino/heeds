@@ -807,7 +807,14 @@ contains
                 end if
 
             else ! time, day only
-                if (sectionDone) cycle
+
+                if (sectionDone) then ! conflict ?
+                    if (conflict>0) write(device,AFORMAT) &
+                        begintr//'<td align="center" colspan="8">'//red//'CONFLICT between '//trim(Section(sdx)%ClassId)// &
+                        ' and '//trim(Section(conflict)%ClassId)//black//endtd//endtr
+                    cycle
+                end if
+
                 write(device,AFORMAT) &
                     begintd//txtDay(Section(sdx)%DayIdx(mdx))//endtd// &
                     begintd//trim(text_time_period(Section(sdx)%bTimeIdx(mdx), Section(sdx)%eTimeIdx(mdx)))//endtd
