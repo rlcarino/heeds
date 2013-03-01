@@ -110,7 +110,7 @@ module BASE
 
     ! software version
     character(len= 5), parameter :: PROGNAME  = 'HEEDS'
-    character(len= 8), parameter :: VERSION   = ' v.4.02 '
+    character(len= 8), parameter :: VERSION   = ' v.4.03 '
     character(len=45), parameter :: COPYRIGHT = 'Copyright (C) 2012, 2013 Ricolindo L. Carino'
     character(len=38), parameter :: EMAIL     = 'Ricolindo.Carino@AcademicForecasts.com'
     character(len=72), parameter :: CONTACT   = 'E-mail inquiries about '//PROGNAME//' to '//EMAIL//'.'
@@ -464,10 +464,10 @@ contains
         if (first==0) return ! do not backup files not in 'xml' or 'raw' directory
 
         path = trim(fname)//DASH//currentDate//DASH//currentTime(1:6)
-        path(first:first+4) = DIRSEP//'bak'//DIRSEP
+        !path(first:first+4) = DIRSEP//'bak'//DIRSEP
 
         call rename (fname, path, iStat)
-        call file_log_message('Status='//trim(itoa(iStat))//' in moving '//trim(fname)//' to '//trim(path) )
+        call file_log_message('Status='//trim(itoa(iStat))//' in renaming to '//trim(path) )
 
         return
     end subroutine move_to_backup

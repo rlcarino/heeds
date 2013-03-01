@@ -101,7 +101,7 @@ XML.o:	BASE.o
 
 TIMES.o:	BASE.o
 
-COLLEGES.o:	BASE.o  $(RAWDATA)/custom_read_colleges.F90
+COLLEGES.o:	XML.o  $(RAWDATA)/custom_read_colleges.F90
 
 DEPARTMENTS.o:	COLLEGES.o $(RAWDATA)/custom_read_departments.F90
 
