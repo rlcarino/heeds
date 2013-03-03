@@ -45,14 +45,14 @@ subroutine custom_read_curricula(path, errNo)
     character (len=1) :: ch
 
     fileName = trim(dirRAW)//trim(path)//'CURRICULA.CSV'
-    open (unit=1, file=fileName, status='old', iostat=errNo)
+    open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
     if (errNo/=0) return
 
     call file_log_message('Retrieving curricular programs from '//fileName)
     ! skip first line
-    read(1, AFORMAT) line
+    read(unitRAW, AFORMAT) line
     do
-        read(1, AFORMAT, iostat=eof) line
+        read(unitRAW, AFORMAT, iostat=eof) line
         if (eof<0) exit
         if (line(1:1)=='#' .or. line=='   ') cycle
 
@@ -182,7 +182,7 @@ subroutine custom_read_curricula(path, errNo)
     !----------------------------------------------------------------------------
 
     end do
-    close(1)
+    close(unitRAW)
 
     return
 end subroutine custom_read_curricula

@@ -128,7 +128,7 @@ contains
                 end if
             end do
         else if (sect<0) then
-            write(stderr,*) 'Invalid section', sect, ' in timetable_add_section(); called from', loc
+            write(unitLOG,*) 'Invalid section', sect, ' in timetable_add_section(); called from', loc
         end if
         return
     end subroutine timetable_add_section
@@ -276,7 +276,7 @@ contains
                 if (jdx==0) cycle
                 do idx = Section(sect)%bTimeIdx(mdx), Section(sect)%eTimeIdx(mdx)-1
                     if (TimeTable(idx, jdx)/=sect) then
-                        write(stderr,*)  'ERROR detected in timetable_remove_section(); called from', loc
+                        write(unitLOG,*)  'ERROR detected in timetable_remove_section(); called from', loc
                         loc = TimeTable(idx,jdx)
                         return
                     end if
@@ -500,7 +500,7 @@ contains
                 n15 = n15 + Section(sdx)%eTimeIdx(i) - Section(sdx)%bTimeIdx(i)
             end do
             if (n15 .gt. 0 .and. 4*tHours .ne. n15) then
-                write(stderr,*) Section(sdx)%ClassId//': scheduled hours ('// &
+                write(unitLOG,*) Section(sdx)%ClassId//': scheduled hours ('// &
                     trim(itoa(n15/4))//') is inconsistent with subject parameter hours ('//trim(itoa(tHours))//')'
                 if (.not. ignore) nconflicts = nconflicts + 1
             end if

@@ -88,7 +88,6 @@ contains
         isDirtyGrades = .false. ! no changes yet
         call read_student_records (targetStudent)
 
-        call date_and_time (date=currentDate,time=currentTime) ! timetamp for change
         TCGline = SPACE
 
         ! check for other arguments
@@ -603,7 +602,7 @@ contains
 
         character(len=6) :: tProb
         type (TYPE_PRE_ENLISTMENT) :: Advice
-        integer :: checklistout, k, l, MissingPOCW, NRemaining, lenSubject, notSpecified
+        integer :: k, l, MissingPOCW, NRemaining, lenSubject, notSpecified ! , checklistout
 
         ! Plan of Study
         l = Student(targetStudent)%CurriculumIdx
@@ -625,20 +624,19 @@ contains
 
         call checklist_display  (device, targetStudent, Advice, MissingPOCW, NRemaining)
 
-        ! make copy of updated checklist for upload
-        if (isDirtyMCL) then
-            checklistout = stderr-3
-            StdNoYearLen = index(Student(targetStudent)%StdNo,DASH)-1
-            if (StdNoYearLen<=0) StdNoYearLen = StdNoChars
-            open(unit=checklistout, file=trim(dirUploadCHECKLISTS)// &
-                DIRSEP//Student(targetStudent)%StdNo(1:StdNoYearLen)//DIRSEP//trim(Student(targetStudent)%StdNo)//'.html', &
-                form='formatted', status='unknown')
-            write(checklistout,AFORMAT) '<b>MINI-CHECKLIST for '//Student(targetStudent)%StdNo//nbsp// &
-                trim(Student(targetStudent)%Name)//SPACE//DASH//SPACE//Curriculum(targetCurriculum)%Code
-
-            call checklist_display (checklistout, targetStudent, Advice, MissingPOCW, NRemaining)
-            close(checklistout)
-        end if
+!        ! make copy of updated checklist for upload
+!        if (isDirtyMCL) then
+!            checklistout = unitLOG-3
+!            StdNoYearLen = year_prefix(Student(targetStudent))
+!            open(unit=checklistout, file=trim(dirUploadCHECKLISTS)// &
+!                DIRSEP//Student(targetStudent)%StdNo(1:StdNoYearLen)//DIRSEP//trim(Student(targetStudent)%StdNo)//'.html', &
+!                form='formatted', status='unknown')
+!            write(checklistout,AFORMAT) '<b>MINI-CHECKLIST for '//Student(targetStudent)%StdNo//nbsp// &
+!                trim(Student(targetStudent)%Name)//SPACE//DASH//SPACE//Curriculum(targetCurriculum)%Code
+!
+!            call checklist_display (checklistout, targetStudent, Advice, MissingPOCW, NRemaining)
+!            close(checklistout)
+!        end if
 
 
         if (isRoleAdmin .or. (isRoleSRE .and. CurrProgCode(CurriculumIdxUser)==CurrProgCode(targetCurriculum) ) ) then

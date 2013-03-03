@@ -35,10 +35,12 @@ program MAIN
 
     implicit none
 
-    integer :: itmp, jtmp, errNo
-    integer :: idxGrp=-1, maxAlternates=-1
-    character (len=MAX_LEN_FILE_PATH) :: dataSource
+    integer :: jTmp, iTmp, errNo
     character (len=40) :: argString
+    character (len=MAX_LEN_FILE_PATH) :: dataSource
+    logical :: pathExists
+    integer :: idxGrp=0, MaxAlternates=1
+    real :: harvest    ! random number
 
     ! program starts
     call date_and_time (date=currentDate,time=currentTime)
@@ -46,6 +48,27 @@ program MAIN
 
     ! initialize random seed
     call initialize_random_seed()
+
+    ! OS-specific variables (declared in UTILITIES.F90)
+#if defined GLNX
+    ! HEEDS root directory and CGI script
+    dirHEEDS = '/home/heeds/HEEDS/'
+    UPDATES = 'UPDATES/'
+    ! file separator; delete, directory, mkdir commands
+    DIRSEP = '/'
+    delCmd = 'rm -f '
+    mkdirCmd = 'mkdir -p '
+    mvCmd = 'mv -f '
+#else
+    ! HEEDS root directory and CGI script
+    dirHEEDS = '\HEEDS\'
+    UPDATES = 'UPDATES\'
+    ! file separator; delete, directory, mkdir commands
+    DIRSEP = '\'
+    delCmd = 'del /q '
+    mkdirCmd = 'mkdir '
+    mvCmd = 'move /y '
+#endif
 
     ! initialize QUERY_STRING encryption key
     do iTmp=1,MAX_LEN_QUERY_STRING
@@ -79,7 +102,7 @@ program MAIN
         write(*,AFORMAT) 'Usage: '//trim(fileExecutable)//' univ year term period action group', &
             '  where', &
             'univ      - university code', &
-            'year      - the year when current Academic Year started', &
+            'year      - the year when the current School Year (SY) started', &
             'term      - 0=summer, 1=first sem, 2=second sem', &
             'period    - 1=enrollment period, 2=mid-term, 3=end-of-term (grades are available)', &
             'action    - checklists, advise, schedule, server, training', &
@@ -91,7 +114,11 @@ program MAIN
     ! get arguments
     call getarg(1, UniversityCode)
     call getarg(2, argString)
+
+    ! directory for the School Year
     currentYear = atoi(argString)
+    pathToYear = trim(itoa(currentYear))//DIRSEP
+
     call getarg(3, argString)
     currentTerm = atoi(argString)
     call getarg(4, argString)
@@ -153,6 +180,96 @@ program MAIN
 
     end if
 
+    ! directory for log files; create or start logging
+#if defined PRODUCTION
+    dirLOG = dirHEEDS//'log'//DIRSEP//trim(startDateTime)//DIRSEP
+#else
+    dirLOG = dirHEEDS//'log'//DIRSEP//'debug'//DIRSEP
+#endif
+    inquire(file=trim(dirLOG), exist=pathExists)
+    if (.not. pathExists) then
+        call system (mkdirCmd//trim(dirLOG) )
+    else
+        call system(delCmd//trim(dirLOG)//'*.log', iTmp)
+    end if
+
+    ! general log
+    open(unit=unitLOG, file=trim(dirLOG)//trim(fileExecutable)//'.log', status='unknown')
+    call file_log_message( '-------', 'Begins '//currentDate//DASH//currentTime, '-------', &
+        'Executable is : '//trim(fileExecutable)//SPACE//DASH//SPACE//PROGNAME//VERSION, &
+        'Arguments are : '//trim(UniversityCode)//SPACE//itoa(currentYear)//trim(argString) )
+
+    ! webserver HTML root directory; create, or delete existing index.*
+    dirWWW = dirHEEDS//'web'//DIRSEP
+    inquire(file=trim(dirWWW), exist=pathExists)
+    if (pathExists) then
+        call system(delCmd//trim(dirWWW)//'index.*', iTmp)
+    else
+        call system (mkdirCmd//trim(dirWWW) )
+    end if
+    ! make landing page
+    call html_login(trim(dirWWW)//DIRSEP//'index.html', &
+        'The '//PROGNAME//' program is not available. Please Wait for a few moments,'// &
+        ' before reloading this page. Or, contact the '//REGISTRAR)
+
+    ! directory for raw input data
+    dirRAW = dirHEEDS//'raw'//DIRSEP//trim(UniversityCode)//DIRSEP
+
+    ! directory for XML data
+    dirXML = dirHEEDS//'xml'//DIRSEP//trim(UniversityCode)//DIRSEP
+    inquire(file=trim(dirXML), exist=pathExists)
+    if (.not. pathExists) then
+        call system (mkdirCmd//trim(dirXML) )
+    end if
+    lenDirXML = len_trim(dirXML)
+    inquire(file=trim(dirXML)//pathToYear, exist=pathExists)
+    if (.not. pathExists) then
+        call system (mkdirCmd//trim(dirXML)//pathToYear )
+        do iTmp=1,3
+            pathToTerm = trim(pathToYear)//trim(txtSemester(iTmp))//DIRSEP
+            call system (mkdirCmd//trim(dirXML)//trim(pathToTerm) )
+            call system (mkdirCmd//trim(dirXML)//UPDATES//trim(pathToTerm) )
+        end do
+    end if
+
+    dirSUBSTITUTIONS       = trim(dirXML)//'substitutions'//DIRSEP ! directory for input/UNEDITED checklists from Registrar
+    dirTRANSCRIPTS         = trim(dirXML)//'transcripts'//DIRSEP ! directory for raw transcripts
+    dirEditedCHECKLISTS    = trim(dirXML)//'edited-checklists'//DIRSEP ! for output/EDITED checklists from College Secretaries
+    inquire(file=trim(dirTRANSCRIPTS), exist=pathExists)
+    if (.not. pathExists) then
+        call system (mkdirCmd//trim(dirSUBSTITUTIONS))
+        call system (mkdirCmd//trim(dirTRANSCRIPTS))
+        call system (mkdirCmd//trim(dirEditedCHECKLISTS))
+    end if
+
+    ! directory for backups
+#if defined PRODUCTION
+    dirBAK = dirHEEDS//'bak'//DIRSEP//trim(startDateTime)//DIRSEP
+#else
+    dirBAK = dirHEEDS//'bak'//DIRSEP//'debug'//DIRSEP
+#endif
+    inquire(file=trim(dirBAK), exist=pathExists)
+    if (.not. pathExists) then  ! create subdirectories
+        call system (mkdirCmd//trim(dirBAK)//pathToYear )
+        do iTmp=1,3
+            pathToTerm = trim(pathToYear)//trim(txtSemester(iTmp))//DIRSEP
+            call system (mkdirCmd//trim(dirBAK)//trim(pathToTerm) )
+            call system (mkdirCmd//trim(dirBAK)//UPDATES//trim(pathToTerm) )
+        end do
+    else
+        do iTmp=1,3
+            pathToTerm = trim(pathToYear)//trim(txtSemester(iTmp))//DIRSEP
+            call system(delCmd//trim(dirBAK)//trim(pathToTerm)//'*', jTmp)
+            call system(delCmd//trim(dirBAK)//UPDATES//trim(pathToTerm)//'*', jTmp)
+        end do
+    end if
+    inquire(file=trim(dirBAK)//'transcripts', exist=pathExists)
+    if (.not. pathExists) then
+        call system (mkdirCmd//trim(dirBAK)//'substitutions')
+        call system (mkdirCmd//trim(dirBAK)//'transcripts')
+        call system (mkdirCmd//trim(dirBAK)//'edited-checklists')
+    end if
+
     write(*,*) trim(fileExecutable)//VERSION//' started '//currentDate//DASH//currentTime
     write(*,*) trim(UniversityCode), currentYear, currentTerm, Period, trim(argString), idxGrp, maxAlternates
 
@@ -160,7 +277,7 @@ program MAIN
         prevYearYear = currentYear-1
         prevYearTerm = 1
         prevTermYear = currentYear
-        prevTermTerm = 0
+        prevTermTerm = 3
         nextYear = currentYear
         nextTerm = 2
     else if (currentTerm==2) then
@@ -169,10 +286,10 @@ program MAIN
         prevTermYear = currentYear
         prevTermTerm = 1
         nextYear = currentYear
-        nextTerm = 0
+        nextTerm = 3
     else
         prevYearYear = currentYear-1
-        prevYearTerm = 0
+        prevYearTerm = 3
         prevTermYear = currentYear
         prevTermTerm = 2
         nextYear = currentYear+1
@@ -197,51 +314,6 @@ program MAIN
              COMMA//space//trim(txtSemester(targetTerm))//' Term, group ', idxGrp
     end if
 
-    ! fixed directories
-    dirWWW                 = dirHEEDS//'web'//DIRSEP ! DocumentRoot in for webserver
-    dirLog                 = dirHEEDS//'log'//DIRSEP//trim(startDateTime)//DIRSEP ! for log files
-    dirUploadCHECKLISTS    = dirHEEDS//'web'//DIRSEP//'static'//DIRSEP//'upload-checklists'//DIRSEP ! individual checklists for upload
-    dirUploadENLISTMENT    = dirHEEDS//'web'//DIRSEP//'static'//DIRSEP//'upload-enlistment'//DIRSEP ! enlisted classes by student
-
-    call system (mkdirCmd//trim(dirLog))
-    call system (mkdirCmd//trim(dirUploadCHECKLISTS))
-    call system (mkdirCmd//trim(dirUploadENLISTMENT))
-
-    ! directories for raw input data
-    dirRAW    = dirHEEDS//'raw'//DIRSEP//trim(UniversityCode)//DIRSEP
-
-    ! directories for XML input/ouput data
-    dirXML                 = dirHEEDS//'xml'//DIRSEP//trim(UniversityCode)//DIRSEP !//currentDate//DASH//currentTime(:6)//DIRSEP
-    dirSUBSTITUTIONS       = trim(dirXML)//'substitutions'//DIRSEP ! directory for input/UNEDITED checklists from Registrar
-    dirTRANSCRIPTS         = trim(dirXML)//'transcripts'//DIRSEP ! directory for raw transcripts
-    dirEditedCHECKLISTS    = trim(dirXML)//'edited-checklists'//DIRSEP ! for output/EDITED checklists from College Secretaries
-
-    call system (mkdirCmd//trim(dirXML)//trim(pathToCurrent))
-    call system (mkdirCmd//trim(dirXML)//UPDATES//trim(pathToCurrent))
-    if (currentTerm/=targetTerm) then
-        call system (mkdirCmd//trim(dirXML)//trim(pathToTarget))
-        call system (mkdirCmd//trim(dirXML)//UPDATES//trim(pathToTarget))
-    end if
-    call system (mkdirCmd//trim(dirXML)//'substitutions')
-    call system (mkdirCmd//trim(dirXML)//'transcripts')
-    call system (mkdirCmd//trim(dirXML)//'edited-checklists')
-
-    ! backup directories
-    dirBak                 = dirHEEDS//'bak'//DIRSEP//trim(UniversityCode)//DIRSEP
-    call system (mkdirCmd//trim(dirBak)//trim(pathToCurrent) )
-    call system (mkdirCmd//trim(dirBak)//UPDATES//trim(pathToCurrent) )
-    if (currentTerm/=targetTerm) then
-        call system (mkdirCmd//trim(dirBak)//trim(pathToTarget) )
-        call system (mkdirCmd//trim(dirBak)//UPDATES//trim(pathToTarget) )
-    end if
-    call system (mkdirCmd//trim(dirBak)//'substitutions')
-    call system (mkdirCmd//trim(dirBak)//'transcripts')
-    call system (mkdirCmd//trim(dirBak)//'edited-checklists')
-
-    ! log file
-    open(unit=stderr, file=trim(dirLog)//trim(fileExecutable)//'.log', status='unknown')
-    write(stderr,AFORMAT) '-------', 'Begins '//currentDate//DASH//currentTime, '-------', &
-        'Executable is : '//trim(fileExecutable)//SPACE//DASH//SPACE//PROGNAME//VERSION
 
     ! read the university name
     call read_university(pathToCurrent, errNo)
@@ -287,13 +359,17 @@ program MAIN
     end do
 
     if (trim(argString)=='CHECKLISTS') then
+
         call extract_student_grades()
         write(*,*) 'Writing student records...'
+        ! create student directories
+        call make_student_directories()
         do iTmp=1,NumStudents
             call xml_write_student_grades(iTmp)
             if (mod(iTmp,1000)==0) write(*,*) iTmp,  ' done...'
         end do
         call server_end(trim(fileExecutable)//space//trim(argString)//'-mode is complete.')
+
     end if
 
 #if defined UPLB
@@ -429,21 +505,7 @@ program MAIN
     end if
 
     ! create student directories
-    itmp = 1
-    do jtmp=2,len_trim(StdNoPrefix)
-        if (StdNoPrefix(jtmp:jtmp)/=':') cycle
-        call system (mkdirCmd//trim(dirUploadCHECKLISTS)//StdNoPrefix(itmp+1:jtmp-1) )
-        call system (mkdirCmd//trim(dirUploadENLISTMENT)//StdNoPrefix(itmp+1:jtmp-1) )
-        call system (mkdirCmd//trim(dirXML)//'substitutions'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
-        call system (mkdirCmd//trim(dirXML)//'transcripts'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
-        call system (mkdirCmd//trim(dirXML)//'edited-checklists'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
-        call system (mkdirCmd//trim(dirBak)//'substitutions'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
-        call system (mkdirCmd//trim(dirBak)//'transcripts'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
-        call system (mkdirCmd//trim(dirBak)//'edited-checklists'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
-        itmp = jtmp
-    end do
-
-
+    call make_student_directories()
     
     select case (trim(argString))
 
@@ -487,5 +549,34 @@ program MAIN
     end select
 
     call server_end(trim(fileExecutable)//space//trim(argString)//'-mode is complete.')
+
+contains
+
+
+    subroutine make_student_directories()
+
+    ! create student directories
+    call collect_prefix_years()
+    itmp = 1
+    do jtmp=2,len_trim(StdNoPrefix)
+        if (StdNoPrefix(jtmp:jtmp)/=':') cycle
+        inquire(file=trim(trim(dirXML)//'transcripts'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1)), exist=pathExists)
+        if (.not. pathExists) then
+            call system (mkdirCmd//trim(dirXML)//'transcripts'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
+            call system (mkdirCmd//trim(dirXML)//'substitutions'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
+            call system (mkdirCmd//trim(dirXML)//'edited-checklists'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
+        end if
+        inquire(file=trim(trim(dirBAK)//'transcripts'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1)), exist=pathExists)
+        if (.not. pathExists) then
+            call system (mkdirCmd//trim(dirBAK)//'transcripts'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
+            call system (mkdirCmd//trim(dirBAK)//'substitutions'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
+            call system (mkdirCmd//trim(dirBAK)//'edited-checklists'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
+        end if
+        itmp = jtmp
+    end do
+
+    return
+    end
+
 
 end program MAIN

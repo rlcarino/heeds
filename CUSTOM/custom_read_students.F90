@@ -52,15 +52,15 @@ subroutine SIAS_read_students (filePath, numEntries, ier)
 
     numEntries = 0
     fileName = trim(dirRAW)//trim(filePath)//'.CSV'
-    open(unit=unitNo, file=fileName, status='old', iostat=ier)
+    open(unit=unitRAW, file=fileName, status='old', iostat=ier)
     if (ier/=0) return
 
     call file_log_message ('Retrieving list of students from '//fileName)
     ! skip first line
-    read(unitNo,AFORMAT,iostat=eof) line
+    read(unitRAW,AFORMAT,iostat=eof) line
     student_loop : &
     do
-        read(unitNo,AFORMAT,iostat=eof) line
+        read(unitRAW,AFORMAT,iostat=eof) line
         if (eof<0) exit student_loop
         if (line(1:1)=='#' .or. line(1:3)=='   ') cycle student_loop
 !        call index_to_delimiters('"', line, ndels, pos)
@@ -154,7 +154,7 @@ subroutine SIAS_read_students (filePath, numEntries, ier)
         if (indexLoc<0) numEntries = numEntries + 1
 
     end do student_loop
-    close (unitNo)
+    close (unitRAW)
     call file_log_message (itoa(numEntries)//' students in '//fileName)
 
     return
@@ -172,14 +172,14 @@ subroutine SIAS_read_students_from_enlistment (filePath, numEntries, ier)
 
     numEntries = 0
     fileName = trim(dirRAW)//trim(filePath)//'.CSV'
-    open(unit=unitNo, file=fileName, status='old', iostat=ier)
+    open(unit=unitRAW, file=fileName, status='old', iostat=ier)
     if (ier/=0) return
 
     call file_log_message ('Retrieving list of students from '//fileName)
     ! skip first line
-    read (unitNo, AFORMAT, iostat = eof) line
+    read (unitRAW, AFORMAT, iostat = eof) line
     do
-        read (unitNo, AFORMAT, iostat = eof) line
+        read (unitRAW, AFORMAT, iostat = eof) line
         if (eof < 0) exit
         if (line(1:1) == '#' .or. line(1:3) == '   ') cycle
         call index_to_delimiters('"', line, ndels, pos)
@@ -226,7 +226,7 @@ subroutine SIAS_read_students_from_enlistment (filePath, numEntries, ier)
 
         end if
     end do
-    close(unitNo)
+    close(unitRAW)
     call file_log_message (itoa(numEntries)//' students added from '//fileName)
 
     return

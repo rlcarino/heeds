@@ -274,7 +274,7 @@ contains
             if ( wrk%Code /= Curriculum(targetCurriculum)%Code) then
                 changed = .true.
                 remark = trim(remark)//': Code changed to '//wrk%Code
-                write(stderr,*) trim(remark)
+                write(unitLOG,*) trim(remark)
             end if
 
             call cgi_get_named_string(QUERY_STRING, 'College', tCollege, ierr)
@@ -283,7 +283,7 @@ contains
             if ( wrk%CollegeIdx /= Curriculum(targetCurriculum)%CollegeIdx) then
                 changed = .true.
                 remark = trim(remark)//': College changed to '//College(wrk%CollegeIdx)%Code
-                write(stderr,*) trim(remark)
+                write(unitLOG,*) trim(remark)
             end if
 
             call cgi_get_named_string(QUERY_STRING, 'Title', wrk%Title, ierr)
@@ -291,7 +291,7 @@ contains
             if ( wrk%Title /= Curriculum(targetCurriculum)%Title) then
                 changed = .true.
                 remark = trim(remark)//': Title changed to '//wrk%Title
-                write(stderr,*) trim(remark)
+                write(unitLOG,*) trim(remark)
             end if
 
             call cgi_get_named_string(QUERY_STRING, 'Specialization', wrk%Specialization, ierr)
@@ -299,7 +299,7 @@ contains
             if ( wrk%Specialization /= Curriculum(targetCurriculum)%Specialization) then
                 changed = .true.
                 remark = trim(remark)//': Specialization changed to '//wrk%Specialization
-                write(stderr,*) trim(remark)
+                write(unitLOG,*) trim(remark)
             end if
 
             call cgi_get_named_string(QUERY_STRING, 'Remark', wrk%Remark, ierr)
@@ -307,7 +307,7 @@ contains
             if ( wrk%Remark /= Curriculum(targetCurriculum)%Remark) then
                 changed = .true.
                 remark = trim(remark)//': Remark changed to '//wrk%Remark
-                write(stderr,*) trim(remark)
+                write(unitLOG,*) trim(remark)
             end if
 
             call cgi_get_named_string(QUERY_STRING, 'Status', tStatus, ierr)
@@ -316,7 +316,7 @@ contains
             if ( wrk%Active .neqv. Curriculum(targetCurriculum)%Active) then
                 changed = .true.
                 remark = trim(remark)//': Status changed to '//tStatus
-                write(stderr,*) trim(remark)
+                write(unitLOG,*) trim(remark)
             end if
 
             wrk%NumTerms = 0
@@ -343,7 +343,7 @@ contains
 
               call tokenize_subjects(mesg, COMMA, MAX_SECTION_MEETINGS, m, subjectList, ierr)
               if (ierr==0) then
-                    write(stderr,*) 'TOKENIZE TERM: ierr=',ierr, ('; '//trim(Subject(subjectList(i))%Name),i=1,m)
+                    write(unitLOG,*) 'TOKENIZE TERM: ierr=',ierr, ('; '//trim(Subject(subjectList(i))%Name),i=1,m)
                     do i=1,m
                         if (subjectList(i)==INDEX_TO_NONE) cycle
                         idx = wrk%NSubjects + i
@@ -352,7 +352,7 @@ contains
                         if (wrk%SubjectIdx(idx)/=Curriculum(targetCurriculum)%SubjectIdx(idx) .or. &
                             wrk%SubjectTerm(idx)/=Curriculum(targetCurriculum)%SubjectTerm(idx)) then  
                           j = j + 1
-                          write(stderr,*) j, ':', txtYear(Year), ', ', txtSemester(Term), ', ', Subject(subjectList(i))%Name
+                          write(unitLOG,*) j, ':', txtYear(Year), ', ', txtSemester(Term), ', ', Subject(subjectList(i))%Name
                         end if
                     end do
                     wrk%NSubjects = wrk%NSubjects + m
@@ -362,14 +362,14 @@ contains
             if (j>0 .or. Curriculum(targetCurriculum)%NumTerms/=wrk%NumTerms) then
                     changed = .true.
                     remark = trim(remark)//': curriculum changed.'
-                    write(stderr,*) trim(remark)
+                    write(unitLOG,*) trim(remark)
             end if
 
             ptrS = 0 ! non-zero later means a substitution rule was added
             call cgi_get_named_string(QUERY_STRING, 'Substitution', mesg, ierr)
             if (index(mesg,COMMA)>0 .and. ierr==0) then
               call tokenize_subjects(mesg, COMMA, MAX_SECTION_MEETINGS, m, subjectList, ierr)
-              write(stderr,*) 'TOKENIZE SUBS: ierr=',ierr, ('; '//trim(Subject(subjectList(i))%Name),i=1,m)
+              write(unitLOG,*) 'TOKENIZE SUBS: ierr=',ierr, ('; '//trim(Subject(subjectList(i))%Name),i=1,m)
               if (ierr==0) then
                       ptrS = SubstIdx(NumSubst+1)-1
 
@@ -385,7 +385,7 @@ contains
 
                       changed = .true.
                       remark = trim(remark)//': New substitution rule'
-                      write(stderr,*) trim(remark)
+                      write(unitLOG,*) trim(remark)
               end if
             end if
 
@@ -395,7 +395,7 @@ contains
                             j = index_to_curriculum(wrk%Code)
                             if (j>0) then
                                     remark = 'Add new curriculum failed; "'//trim(wrk%Code)//'" already exists.'
-                                    write(stderr,*) trim(remark)
+                                    write(unitLOG,*) trim(remark)
                             else
                                     ! redirect global substitution rules before incrementing NumCurricula
                                     do i=1,NumSubst
@@ -409,10 +409,10 @@ contains
                                     targetCollege = wrk%CollegeIdx
                                     tCurriculum = wrk%Code
                                     remark = 'Added new curriculum '//wrk%Code
-                                    write(stderr,*) trim(remark)
+                                    write(unitLOG,*) trim(remark)
                                     ! redirect new substitution rule
                                     if (ptrS>0) then
-write(stderr,*) 'NumSubst=', NumSubst, ' SubstIdx(.)=', SubstIdx(NumSubst), &
+write(unitLOG,*) 'NumSubst=', NumSubst, ' SubstIdx(.)=', SubstIdx(NumSubst), &
   'Substitution(.)=', Substitution(SubstIdx(NumSubst))
                                             Substitution(SubstIdx(NumSubst)) = targetCurriculum
                                     end if

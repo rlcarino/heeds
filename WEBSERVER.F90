@@ -47,7 +47,7 @@ contains
 
     subroutine server_start()
 
-        integer :: device, iTmp, kStart
+        integer :: iTmp, kStart
         character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
         character(len=MAX_LEN_FILE_PATH) :: logTeacher
         logical :: logExists
@@ -69,10 +69,13 @@ contains
             call file_log_message(trim(fileExecutable)//' is in training mode. '// &
                 'Any made changes will be lost after the program exits.')
         end if
+
+        ! open log for requests only
+        open(unit=unitREQ, file=trim(dirLOG)//'requests.log', status='unknown')
+
         ! open a 'scratch' response file
-        device = stderr - 1
-        open(unit=device, form='formatted', status='scratch')
-        !open(unit=device, file='WRK.HTML', form='formatted', status='unknown')
+        open(unit=unitHTML, form='formatted', status='scratch')
+        !open(unit=unitHTML, file='WRK.HTML', form='formatted', status='unknown')
 
         do while (FCGI_Accept() >= 0)
         
@@ -83,10 +86,10 @@ contains
             iTmp = FCGI_puts ('Content-type: text/html'//CRLF//NUL)
 
             ! rewind the response file
-            rewind (device)
+            rewind (unitHTML)
 
             ! Retrieve DOCUMENT_URI and QUERY_STRING/CONTENT
-            call FCGI_getquery(device)
+            call FCGI_getquery(unitHTML)
 
             ! encrypted query ?
             call cgi_get_named_string(QUERY_STRING, 'q', cipher, iTmp)
@@ -105,6 +108,18 @@ contains
             ! make copy of QUERY_STRING
             cipher = QUERY_STRING
 
+            ! initialize index to target object of REQUEST
+            targetSubject = 0
+            targetSection = 0
+            targetDepartment = 0
+            targetCurriculum = 0
+            targetCollege = 0
+            targetRoom = 0
+            targetTeacher = 0
+            targetBlock = 0
+            targetLogin = 0
+            targetStudent = 0
+
             ! Establish USERNAME/ROLE and REQUEST
             loginCheckMessage = SPACE
             call get_user_request(targetLogin)
@@ -114,26 +129,28 @@ contains
             logTeacher = trim(dirLOG)//trim(tTeacher)//'.log'
             inquire(file=trim(logTeacher), exist=logExists)
             if (.not. logExists) then
-                open(unit=stderr+1, file=trim(logTeacher), status='new')
+                open(unit=unitUSER, file=trim(logTeacher), status='new')
             else
-                open(unit=stderr+1, file=trim(logTeacher), status='old', position='append')
+                open(unit=unitUSER, file=trim(logTeacher), status='old', position='append')
             end if
 
             ! append query to user log file
-            write(stderr+1,AFORMAT) SPACE, trim(REMOTE_ADDR)//' : '//currentDate//DASH//currentTime//' : '// &
+            write(unitUSER,AFORMAT) SPACE, &
+                REMOTE_ADDR//' : '//currentDate//DASH//currentTime//' : '// &
                 trim(fnDescription(REQUEST))
             if (REQUEST>4) then ! no passwords
-                write(stderr+1,AFORMAT) trim(cipher)
+                write(unitUSER,AFORMAT) trim(cipher)
+                write(unitREQ, AFORMAT) trim(cipher)
             end if
 
             ! compose response
-            call server_respond(device)
+            call server_respond(unitHTML)
 
             ! send response to server
-            call FCGI_putfile(device)
+            call FCGI_putfile(unitHTML)
 
             ! close user log file
-            close(stderr+1)
+            close(unitUSER)
 
             if (REQUEST==fnStopProgram) exit
 
@@ -141,7 +158,6 @@ contains
             call set_feature_availability()
 
         end do ! while (FCGI_Accept() >= 0)
-        close(device)
 
         ! make 'Sorry!' landing page
         call html_login(trim(dirWWW)//DIRSEP//'index.html', &
@@ -149,6 +165,10 @@ contains
 
         ! wait for next query before NGINX raises error
         iTmp = FCGI_Accept()
+
+        ! it is good practice to close files before program termination
+        close(unitHTML)
+        close(unitREQ)
 
         return
 
@@ -171,17 +191,6 @@ contains
             pathToSOURCE = pathToCurrent
             pathToUPDATES = UPDATES//pathToCurrent
         end if
-
-        ! target object of REQUEST
-        targetStudent = 0
-        targetSubject = 0
-        targetSection = 0
-        targetDepartment = 0
-        targetCurriculum =0
-        targetCollege = 0
-        targetRoom = 0
-        targetTeacher = 0
-        targetBlock = 0
 
         select case (REQUEST)
 
@@ -420,7 +429,7 @@ contains
         character(len=*), intent (in) :: msg
 
         call file_log_message(msg, 'Ends '//currentDate//DASH//currentTime )
-        close(stderr)
+        close(unitLOG)
         write(*,*) 'Check .log files '//trim(dirLog)//' for other messages.'
         stop
     end subroutine server_end

@@ -117,15 +117,15 @@ subroutine SIAS_read_subjects(path, errNo)
     INDEX_TO_NONE = -13 ! index to NONE (the prerequisite of "No prerequisite" subjects)
 
     fileName = trim(dirRAW)//trim(path)//'SUBJECTS.CSV'
-    open (unit=unitNo, file=fileName, status='old', iostat=errNo)
+    open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
     if (errNo/=0) return
 
     call file_log_message('Retrieving subjects from '//fileName)
     ! skip first line
-    read(unitNo, AFORMAT) line
+    read(unitRAW, AFORMAT) line
     ! read subject codes
     do
-        read(unitNo, AFORMAT, iostat=eof) line
+        read(unitRAW, AFORMAT, iostat=eof) line
         if (eof<0) exit
         if (line==SPACE .or. line(1:1)=='#') cycle
 
@@ -205,7 +205,7 @@ subroutine SIAS_read_subjects(path, errNo)
     !----------------------------------------------------------------------------
 
     end do
-    close(unitNo)
+    close(unitRAW)
 
     ! sort
     do ldx=1,NumSubjects-1
@@ -234,14 +234,14 @@ subroutine SIAS_read_assessment(path, errNo)
     real :: tFee
 
     fileName = trim(dirRAW)//trim(path)//'ASSESSMENT.CSV'
-    open (unit=unitNo, file=fileName, status='old', iostat=errNo)
+    open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
     if (errNo/=0) return
 
     call file_log_message('Retrieving lab fees from '//trim(fileName))
     ! skip first line
-    read(unitNo, AFORMAT, iostat=eof) line
+    read(unitRAW, AFORMAT, iostat=eof) line
     do
-        read(unitNo, AFORMAT, iostat=eof) line
+        read(unitRAW, AFORMAT, iostat=eof) line
         if (eof<0) exit
         if (len_trim(line)==0 .or. line(1:1)=='#') cycle
 
@@ -267,7 +267,7 @@ subroutine SIAS_read_assessment(path, errNo)
                 Subject(cdx)%Tuition = Subject(cdx)%Units*tFee
         end select
     end do
-    close(unitNo)
+    close(unitRAW)
 
     return
 end subroutine SIAS_read_assessment
@@ -282,14 +282,14 @@ subroutine custom_read_subjects_prerequisites(path, errNo)
     integer :: cdx
 
     fileName = trim(dirRAW)//trim(path)//'SUBJECTS-PREREQUISITES'
-    open (unit=unitNo, file=fileName, status='old', iostat=errNo)
+    open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
     if (errNo/=0) return
 
     call file_log_message('Retrieving prerequisites from '//trim(fileName))
     ! read subject codes
     do
 
-        read(unitNo, AFORMAT, iostat=eof) line
+        read(unitRAW, AFORMAT, iostat=eof) line
         if (eof<0) exit
         if (len_trim(line)==0 .or. line(1:1)=='#') cycle
 
@@ -309,7 +309,7 @@ subroutine custom_read_subjects_prerequisites(path, errNo)
         if (eof>0) write(*,*) trim(line)
 
     end do
-    close(unitNo)
+    close(unitRAW)
 
     return
 end subroutine custom_read_subjects_prerequisites
@@ -324,14 +324,14 @@ subroutine custom_read_prerequisites(path, errNo)
     integer :: cdx, pdx1, pdx2, pdx3, rdx1, rdx2
 
     fileName = trim(dirRAW)//trim(path)//'PREREQUISITES.CSV'
-    open (unit=unitNo, file=fileName, status='old', iostat=errNo)
+    open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
     if (errNo/=0) return
 
     call file_log_message('Retrieving prerequisites from '//trim(fileName))
     ! Subject Code,Prereq1,Prereq2,Prereq3,Coreq1,Coreq2
     do
 
-        read(unitNo, AFORMAT, iostat=eof) line
+        read(unitRAW, AFORMAT, iostat=eof) line
         if (eof<0) exit
         if (len_trim(line)==0 .or. line(1:1)=='#') cycle
         !            Subject Code,Prereq1,Prereq2,Prereq3,Coreq1,Coreq2
@@ -411,7 +411,7 @@ subroutine custom_read_prerequisites(path, errNo)
         end if
 
     end do
-    close(unitNo)
+    close(unitRAW)
 
     return
 end subroutine custom_read_prerequisites

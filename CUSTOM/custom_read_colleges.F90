@@ -34,13 +34,13 @@ subroutine custom_read_university(path, errNo)
     integer, intent(out) :: errNo
 
     fileName = trim(dirRAW)//trim(path)//'UNIVERSITY'
-    open (unit=unitNum, file=fileName, status='old', iostat=errNo)
+    open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
     if (errNo/=0) return
 
     call file_log_message('Retrieving university info from '//fileName)
 
     do
-        read(unitNum, AFORMAT, iostat=eof) line
+        read(unitRAW, AFORMAT, iostat=eof) line
         if (eof<0) exit
         if (line==SPACE .or. line(1:1)=='#') cycle
 
@@ -59,7 +59,7 @@ subroutine custom_read_university(path, errNo)
         end select
 
     end do
-    close(unitNum)
+    close(unitRAW)
 
     return
 end subroutine custom_read_university
@@ -75,15 +75,15 @@ subroutine custom_read_colleges(path, errNo)
     integer, intent(out) :: errNo
 
     fileName = trim(dirRAW)//trim(path)//'COLLEGES.CSV'
-    open (unit=unitNum, file=fileName, status='old', iostat=errNo)
+    open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
     if (errNo/=0) return
 
     call file_log_message('Retrieving college codes from '//fileName)
     ! skip first line
-    read(unitNum, AFORMAT) line
+    read(unitRAW, AFORMAT) line
 
     do
-        read(unitNum, AFORMAT, iostat=eof) line
+        read(unitRAW, AFORMAT, iostat=eof) line
 
         if (eof<0) exit
         if (line==SPACE .or. line(1:1)=='#') cycle
@@ -99,7 +99,7 @@ subroutine custom_read_colleges(path, errNo)
 
     end do
 
-    close(unitNum)
+    close(unitRAW)
 
     return
 end subroutine custom_read_colleges

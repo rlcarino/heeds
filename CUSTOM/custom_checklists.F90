@@ -38,13 +38,13 @@ subroutine extract_student_grades()
     character (len=1) :: ch
     integer :: idxYear, idxTerm, idxGrd, idxCurr
     integer :: cdx, fdx, gdx, idx, std, ier, i, j
-    integer, dimension(MAX_ALL_SUBJECTS,2,0:2) :: GrandTotal
+    integer, dimension(MAX_ALL_SUBJECTS,2,1:3) :: GrandTotal
 
     GrandTotal = 0 ! grade counter
 
     do idxYear = baseYear,currentYear
         dirYear = itoa(idxYear)
-        do idxTerm = 0,2
+        do idxTerm = 1,3
 
             ! skip future records
             if (idxYear>currentYear .or. (idxYear==currentYear .and. idxTerm>currentTerm)) cycle
@@ -53,18 +53,18 @@ subroutine extract_student_grades()
                 fileName = trim(dirRAW)//dirYEAR//DIRSEP//trim(txtSemester(idxTerm))//DIRSEP// &
                 trim(txtGradeType(idxGrd))//'.CSV'
 
-                open(unit=unitNo,file=fileName,status='old', iostat=ier)
+                open(unit=unitRAW,file=fileName,status='old', iostat=ier)
                 if (ier/=0) then
                     write(*,*) 'File not found: '//trim(fileName)
                     cycle
                 end if
                 write(*,*) 'Retrieving enrolled records from '//trim(fileName)
                 ! skip first line
-                read (unitNo, AFORMAT, iostat = eof) line
+                read (unitRAW, AFORMAT, iostat = eof) line
                 call initialize_student(wrkStudent)
 
                 do
-                    read (unitNo, AFORMAT, iostat = eof) line
+                    read (unitRAW, AFORMAT, iostat = eof) line
                     if (eof < 0) exit
                     if (line(1:1) == '#' .or. line(1:3) == '   ') cycle
                     call index_to_delimiters('"', line, ndels, pos)
@@ -118,7 +118,7 @@ subroutine extract_student_grades()
                         cdx = index_to_subject(tSubject)
                         if (cdx<=0) then
                             !call file_io_log (trim(wrkStudent%Name)//' - "'//trim(tSubject)// &
-                            !'" not in catalog', QUIETLY)
+                            !'" not in catalog')
                             cycle
                         end if
                         tGrade  = adjustl(line(pos(idx+2)+1:pos(idx+3)-1))
@@ -145,7 +145,7 @@ subroutine extract_student_grades()
                     end do
 
                 end do
-                close(unitNo)
+                close(unitRAW)
                 ! last student in file
                 call update_student_info(wrkStudent, std)
                 write(*,*) NumStudents, ' students'

@@ -73,18 +73,18 @@ module XML
         indent5 = INDENT_INCR*6
     character(len=80)  :: indentation = ' '
 
-    logical            :: forReading = .true., QUIETLY = .true.
+    logical            :: forReading = .true.
 
 contains
 
 
-    subroutine xml_open_file(device, rootName, fileName, errNo, readOnly, openQuietly)
+    subroutine xml_open_file(device, rootName, fileName, errNo, readOnly)
         integer, intent (in) :: device
         character (len=*), intent (in) :: fileName, rootName
         integer, intent (in out) :: errNo
-        logical, intent (in), optional :: readOnly, openQuietly
+        logical, intent (in), optional :: readOnly
         character(len=MAX_LEN_XML_LINE) :: xmlLine
-        logical :: asInput, beQuiet, found, fileExists
+        logical :: asInput, found, fileExists
         integer :: eof
 
         errNo = 0
@@ -93,23 +93,17 @@ contains
         else
             asInput = .false.
         end if
-        if (present(openQuietly)) then
-            beQuiet = openQuietly
-        else
-            beQuiet = .false.
-        end if
 
         ! check if file already exists
         inquire(file=fileName, exist=fileExists)
 
         if (.not. asInput) then ! for writing
-            if (fileExists) then ! move to backup
-                    call move_to_backup(fileName)
+            if (fileExists) then
+                open(unit=device, file=fileName, form='formatted', status='old')
+                rewind(device)
+             else
+                open(unit=device, file=fileName, form='formatted', status='new')
             end if
-
-            write(stderr+1,AFORMAT) trim(fileName) ! write filename to user's log
-
-            open(unit=device, file=fileName, form='formatted', status='new')
             write(device,AFORMAT) '<?xml version="1.0" encoding="ISO-8859-1" ?>', '<'//rootName//'>'
 
         else ! for reading

@@ -39,17 +39,17 @@ subroutine custom_read_departments (path, errNo)
     character (len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
 
     fileName = trim(dirRAW)//trim(path)//'DEPARTMENTS.CSV'
-    open (unit=unitNum, file=fileName, status='old', iostat=errNo)
+    open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
     if (errNo/=0) return
 
     call file_log_message('Retrieving department info from '//fileName)
 
     ! skip first line
-    read(unitNum, AFORMAT) line
+    read(unitRAW, AFORMAT) line
 
     do
 
-        read(unitNum, AFORMAT, iostat=eof) line
+        read(unitRAW, AFORMAT, iostat=eof) line
         if (eof<0) exit
         if (line==SPACE .or. line(1:1)=='#') cycle
 
@@ -74,7 +74,7 @@ subroutine custom_read_departments (path, errNo)
 
     end do
 
-    close(unitNum)
+    close(unitRAW)
 
     return
 end subroutine custom_read_departments

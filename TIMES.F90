@@ -37,23 +37,23 @@ module TIMES
     ! period in an academic term, for REGIST function availabilities
     integer :: Period
     character (len=20), dimension(0:4) :: txtPeriod = (/ &
-    ' ERROR              ', ' (Enlistment period)', ' (Mid-term)         ',  &
-    ' (End of term)      ', ' (Term break)       ' /)
+        ' ERROR              ', ' (Enlistment period)', ' (Mid-term)         ',  &
+        ' (End of term)      ', ' (Term break)       ' /)
 
     ! years, year levels
     integer, parameter :: MAX_LEN_TEXT_YEAR = 7
     character (len=MAX_LEN_TEXT_YEAR), dimension(0:17) :: txtYear = (/ &
-    'ERROR  ', 'FIRST  ', 'SECOND ', 'THIRD  ', 'FOURTH ', 'FIFTH  ', 'SIXTH  ', &
-    'SEVENTH', 'EIGHTH ', &
-    '-------', 'First  ', 'Second ', 'Third  ', 'Fourth ', 'Fifth  ', 'Sixth  ', &
-    'Seventh', 'Eighth ' /)
+        'ERROR  ', 'FIRST  ', 'SECOND ', 'THIRD  ', 'FOURTH ', 'FIFTH  ', 'SIXTH  ', &
+        'SEVENTH', 'EIGHTH ', &
+        '-------', 'First  ', 'Second ', 'Third  ', 'Fourth ', 'Fifth  ', 'Sixth  ', &
+        'Seventh', 'Eighth ' /)
 
      ! academic terms
     integer, parameter :: MAX_LEN_TEXT_SEMESTER = 6
-    character (len=MAX_LEN_TEXT_SEMESTER), dimension(-1:8) :: txtSemester = (/ &
-    'ERROR ','SUMMER','FIRST ', 'SECOND', &
-    'Summer','First ', 'Second', &
-    'Summer','1st   ', '2nd   ' /)
+    character (len=MAX_LEN_TEXT_SEMESTER), dimension(0:9) :: txtSemester = (/ &
+        'ERROR ','FIRST ', 'SECOND', 'SUMMER', &
+                 'First ', 'Second', 'Summer',&
+                 '1st   ', '2nd   ', 'Summer' /)
 
     ! days
     character (len = 3), dimension (0:6) :: txtDay = (/       &
@@ -146,15 +146,15 @@ contains
         integer :: index_to_term
         character (len=MAX_LEN_TEXT_SEMESTER), intent (in) :: tTerm
         integer :: i
-        index_to_term = -1
-        do i=0,8
+        index_to_term = 0
+        do i=1,9
             if (tTerm==txtSemester(i)) then
                 index_to_term = i
                 exit
             end if
         end do
-        if (index_to_term>5) index_to_term = index_to_term - 3
-        if (index_to_term>2) index_to_term = index_to_term - 3
+        if (index_to_term>6) index_to_term = index_to_term - 3
+        if (index_to_term>3) index_to_term = index_to_term - 3
         return
     end function index_to_term
 

@@ -66,14 +66,14 @@ subroutine SIAS_read_classes(fName, NumSections, Section, errNo)
     integer :: btime, dayidx(6), etime, ndays, iidx, pDASH
     character (len=MAX_LEN_TEXT_TIME) :: strBTime, strETime
 
-    open (unit=unitNum, file=fName, status='old', iostat=errNo)
+    open (unit=unitRAW, file=fName, status='old', iostat=errNo)
     if (errNo/=0) return
 
     call file_log_message('Retrieving classes from '//fName)
     ! skip first line
-    read(unitNum, AFORMAT) line
+    read(unitRAW, AFORMAT) line
     do
-        read(unitNum, AFORMAT, iostat=eof) line
+        read(unitRAW, AFORMAT, iostat=eof) line
         if (eof<0) exit
         if (line==SPACE .or. line(1:1)=='#') cycle
         call index_to_delimiters('"', line, ndels, pos)
@@ -215,7 +215,7 @@ subroutine SIAS_read_classes(fName, NumSections, Section, errNo)
 
     end do
 
-    close(unitNum)
+    close(unitRAW)
     !call file_log_message (itoa(NumSections)//' sections after reading '//fName)
 
     return
@@ -230,12 +230,12 @@ subroutine UPLB_read_classes  (fName, NumSections, Section, errNo)
     integer :: eof, i, j, sect, ier
     type (TYPE_SECTION) :: wrk
 
-    open (unit=unitNum, file=fName, status='old', iostat=errNo)
+    open (unit=unitRAW, file=fName, status='old', iostat=errNo)
     if (errNo/=0) return
 
     call file_log_message('Retrieving classes from '//fName)
     do
-        read (unitNum, AFORMAT, iostat=eof) line
+        read (unitRAW, AFORMAT, iostat=eof) line
         if (eof<0) exit
         if (line(1:1)=='#' .or. line(1:1)==SPACE) cycle
         !write(*,*) trim(line)
@@ -270,7 +270,7 @@ subroutine UPLB_read_classes  (fName, NumSections, Section, errNo)
             end if
         end if
     end do
-    close (unitNum)
+    close (unitRAW)
     !call file_log_message (itoa(NumSections)//' sections after reading '//fName)
 
     return
@@ -410,7 +410,7 @@ subroutine ValidateSection (NumSections, Section, line, wrk, ier)
     else
         rmidx = index_to_room (tRoom)
         if (rmidx==0) then
-            write(stderr,AFORMAT) trim(line)//' - '//trim(tRoom)//' room is not valid; using TBA'
+            write(unitLOG,AFORMAT) trim(line)//' - '//trim(tRoom)//' room is not valid; using TBA'
           !call file_log_message (trim(line)//' - '//trim(tRoom)//' room is not valid; using TBA')
         end if
     end if
@@ -427,7 +427,7 @@ subroutine ValidateSection (NumSections, Section, line, wrk, ier)
         !end do
         tidx = index_to_teacher (tTeacher)
         if (tidx==0) then
-            write(stderr,AFORMAT) trim(line)//' - '//trim(tTeacher)//' teacher is not valid; using TBA'
+            write(unitLOG,AFORMAT) trim(line)//' - '//trim(tTeacher)//' teacher is not valid; using TBA'
           !call file_log_message (trim(line)//' - '//trim(tTeacher)//' teacher is not valid; using TBA')
         end if
     end if

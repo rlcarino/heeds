@@ -396,81 +396,81 @@ contains
         available = .true. ! all functions are initially available; reset below
         available(0) = .false.
 
-!        if (NumStudents==0) then
-!            available(fnStudentsByProgram) = .false.
-!            available(fnStudentsByCurriculum) = .false.
-!            available(fnStudentsByName) = .false.
-!            available(fnStudentsByYear) = .false.
-!            available(fnStudentsDistribution) = .false.
-!            available(fnEditCheckList) = .false.
-!            available(fnStudentPerformance) = .false.
-!        endif
-!        if (NumStudents==0 .or. NumEnlistmentRecords==0) then
-!            available(fnChangeMatriculation) = .false.
-!            available(fnFindBlock) = .false.
-!            available(fnBottleneck) = .false.
-!            available(fnExtraSlots) = .false.
-!            available(fnUnderLoadSummary) = .false.
-!            available(fnUnderLoadedStudents) = .false.
-!            available(fnClassList) = .false.
-!            available(fnGradeSheet) = .false.
-!            available(fnEnlistmentSummary) = .false.
-!        endif
-!        if (NumStudents==0 .or. NumPredictionRecords==0) then
-!            available(fnDemandForSubjects) = .false.
-!            available(fnPotentialStudents) = .false.
-!        endif
-!
-!        if (NumStudents==0 .or. NumPredictionRecords>0) then
-!            available(fnAdviseStudent) = .false.
-!        endif
-!
-!        if (NumTeachers<=1) then
-!            available(fnTeachersByDept) = .false.
-!            available(fnTeachersByName) = .false.
-!            available(fnTeacherSchedule) = .false.
-!        endif
-!
-!        if (NumRooms<=1) then
-!            available(fnRoomList) = .false.
-!            available(fnRoomSchedule) = .false.
-!        endif
-!
-!        if (NumCurrentSections==0) then
-!            available(fnScheduleOfClasses) = .false.
-!            available(fnTeacherSchedule) = .false.
-!            available(fnBlockSchedule) = .false.
-!            available(fnRoomSchedule) = .false.
-!            available(fnRoomConflicts) = .false.
-!            available(fnTeacherConflicts) = .false.
-!            available(fnTBARooms) = .false.
-!            available(fnTBATeachers) = .false.
-!            available(fnFindBlock) = .false.
-!        endif
-!
-!        if (NumCurricula==0) then
-!            available(fnCurriculumList) = .false.
-!            available(fnCurriculum) = .false.
-!        endif
-!
-!        if (Period==1 .or. NumNextSections==0) then
-!            available(fnNextScheduleOfClasses) = .false.
-!            available(fnNextScheduleOfferSubject) = .false.
-!            available(fnNextScheduleAddLab) = .false.
-!            available(fnNextScheduleDelete) = .false.
-!            available(fnNextScheduleEdit) = .false.
-!            available(fnNextScheduleValidate) = .false.
-!            available(fnNextTeachersByDept) = .false.
-!            available(fnNextTeachersByName) = .false.
-!            available(fnNextTeacherSchedule) = .false.
-!            available(fnNextRoomList) = .false.
-!            available(fnNextRoomSchedule) = .false.
-!            available(fnNextBlockSchedule) = .false.
-!            available(fnNextRoomConflicts) = .false.
-!            available(fnNextTeacherConflicts) = .false.
-!            available(fnNextTBARooms) = .false.
-!            available(fnNextTBATeachers) = .false.
-!        end if
+        if (NumStudents==0) then
+            available(fnStudentsByProgram) = .false.
+            available(fnStudentsByCurriculum) = .false.
+            available(fnStudentsByName) = .false.
+            available(fnStudentsByYear) = .false.
+            available(fnStudentsDistribution) = .false.
+            available(fnEditCheckList) = .false.
+            available(fnStudentPerformance) = .false.
+        endif
+        if (NumStudents==0 .or. NumEnlistmentRecords==0) then
+            available(fnChangeMatriculation) = .false.
+            available(fnFindBlock) = .false.
+            available(fnBottleneck) = .false.
+            available(fnExtraSlots) = .false.
+            available(fnUnderLoadSummary) = .false.
+            available(fnUnderLoadedStudents) = .false.
+            available(fnClassList) = .false.
+            available(fnGradeSheet) = .false.
+            available(fnEnlistmentSummary) = .false.
+        endif
+        if (NumStudents==0 .or. NumPredictionRecords==0) then
+            available(fnDemandForSubjects) = .false.
+            available(fnPotentialStudents) = .false.
+        endif
+
+        if (NumStudents==0 .or. NumPredictionRecords>0) then
+            available(fnAdviseStudent) = .false.
+        endif
+
+        if (NumTeachers<=1) then
+            available(fnTeachersByDept) = .false.
+            available(fnTeachersByName) = .false.
+            available(fnTeacherSchedule) = .false.
+        endif
+
+        if (NumRooms<=1) then
+            available(fnRoomList) = .false.
+            available(fnRoomSchedule) = .false.
+        endif
+
+        if (NumCurrentSections==0) then
+            available(fnScheduleOfClasses) = .false.
+            available(fnTeacherSchedule) = .false.
+            available(fnBlockSchedule) = .false.
+            available(fnRoomSchedule) = .false.
+            available(fnRoomConflicts) = .false.
+            available(fnTeacherConflicts) = .false.
+            available(fnTBARooms) = .false.
+            available(fnTBATeachers) = .false.
+            available(fnFindBlock) = .false.
+        endif
+
+        if (NumCurricula==0) then
+            available(fnCurriculumList) = .false.
+            available(fnCurriculum) = .false.
+        endif
+
+        if (Period==1 .or. NumNextSections==0) then
+            available(fnNextScheduleOfClasses) = .false.
+            available(fnNextScheduleOfferSubject) = .false.
+            available(fnNextScheduleAddLab) = .false.
+            available(fnNextScheduleDelete) = .false.
+            available(fnNextScheduleEdit) = .false.
+            available(fnNextScheduleValidate) = .false.
+            available(fnNextTeachersByDept) = .false.
+            available(fnNextTeachersByName) = .false.
+            available(fnNextTeacherSchedule) = .false.
+            available(fnNextRoomList) = .false.
+            available(fnNextRoomSchedule) = .false.
+            available(fnNextBlockSchedule) = .false.
+            available(fnNextRoomConflicts) = .false.
+            available(fnNextTeacherConflicts) = .false.
+            available(fnNextTBARooms) = .false.
+            available(fnNextTBATeachers) = .false.
+        end if
 
         if (Period==1) then
             ! disallow advising
@@ -1992,8 +1992,15 @@ contains
         character(len=MAX_CGI_WRK_LEN) :: cgi_wrk
         integer :: kStart
 
+        ! random number
+        real :: harvest
+
         ! the function and user name
         cipher = 'F='//trim(itoa(fn))//'&N='//USERNAME
+        ! the term if specified
+        if (targetTerm>0) then
+            cipher = trim(cipher)//'&A9='//itoa(targetTerm)
+        end if
 
         ! the arguments to the function
         if (present(A1)) then
@@ -2060,8 +2067,15 @@ contains
         character(len=MAX_CGI_WRK_LEN) :: cgi_wrk
         integer :: kStart
 
+        ! random number
+        real :: harvest
+
         ! the function and user name
         cipher = 'F='//trim(itoa(fn))//'&N='//USERNAME
+        ! the term if specified
+        if (targetTerm>0) then
+            cipher = trim(cipher)//'&A9='//itoa(targetTerm)
+        end if
 
         ! the arguments to the function
         if (present(A1)) then

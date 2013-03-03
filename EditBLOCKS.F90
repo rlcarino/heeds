@@ -112,7 +112,7 @@ contains
                 do while (.true.)
                     call cgi_get_wild_name_value(QUERY_STRING, input_name1, input_name2, input_value, ierr)
                     if (ierr/=0) exit ! no more REPL: in QUERY
-                    !write(stderr,*) input_name2//' <- '//input_value
+                    !write(unitLOG,*) input_name2//' <- '//input_value
 
                     call underscore_to_blank(input_name2, tSubject)
                     crse = index_to_subject(tSubject) ! current subject in list
@@ -328,7 +328,7 @@ contains
                         if (sect>0) then ! target of action is indexed by sect
                                 crse = Section(sect)%SubjectIdx
                 
-                                !write(stderr,*) targetBlock, trim(tAction), sect, tClassId, crse
+                                !write(unitLOG,*) targetBlock, trim(tAction), sect, tClassId, crse
 
                                 do fdx=1,Block(targetBlock)%NumClasses
                                   if (Block(targetBlock)%Subject(fdx)==crse) then 
@@ -337,7 +337,7 @@ contains
                                           mesg = 'Added '//tClassId
                                           updateBLOCKS = .true.
                                           updateCLASSES = .true.
-                                          write(stderr,*) trim(mesg)
+                                          write(unitLOG,*) trim(mesg)
                                           exit
                                   end if
                                 end do
@@ -348,7 +348,7 @@ contains
                         sect = index_to_section(tClassId, NumSections, Section)
                         if (sect>0) then ! target of action is indexed by sect
 
-                                !write(stderr,*) targetBlock, trim(tAction), sect, tClassId
+                                !write(unitLOG,*) targetBlock, trim(tAction), sect, tClassId
 
                                 do fdx=1,Block(targetBlock)%NumClasses
                                   if (sect==Block(targetBlock)%Section(fdx)) then 
@@ -357,7 +357,7 @@ contains
                                           mesg = 'Deleted '//tClassId
                                           updateBLOCKS = .true.
                                           updateCLASSES = .true.
-                                          write(stderr,*) trim(mesg)
+                                          write(unitLOG,*) trim(mesg)
                                           exit
                                   end if
                                 end do
@@ -497,7 +497,7 @@ contains
           end if
           ! check for conflict
           if (is_conflict_timetable_with_section(NumSections, Section, sect, TimeTable)) then
-                  !write(stderr,*) '   Available, but schedule conflict - '//Section(sect)%ClassId
+                  !write(unitLOG,*) '   Available, but schedule conflict - '//Section(sect)%ClassId
                   cycle
           end if
           ! lab section of lect+lab subject or lab-only subject, or section of lect-only subject, is OK
@@ -508,7 +508,7 @@ contains
             tClassId = Section(sect)%ClassId(:pos-1)
             lect = index_to_section(tClassId, NumSections, Section)
             if (is_conflict_timetable_with_section(NumSections, Section, lect, TimeTable)) then ! lecture class is not OK
-              !write(stderr,*) '   Available, but lecture class schedule conflict - '//Section(lect)%ClassId
+              !write(unitLOG,*) '   Available, but lecture class schedule conflict - '//Section(lect)%ClassId
               cycle
             end if
           end if
@@ -537,7 +537,7 @@ contains
         fdx = tArray(jdx)
         crse = Block(targetBlock)%Subject(fdx) ! index to subject
         tSubject = Subject(crse)%Name
-        !write(stderr,*) 'Alternate subject - '//tSubject
+        !write(unitLOG,*) 'Alternate subject - '//tSubject
         !tLen2 = 0
         n_opts = 0
         
@@ -549,7 +549,7 @@ contains
           end if
           ! check for conflict
           if (is_conflict_timetable_with_section(NumSections, Section, sect, TimeTable)) then
-                  !write(stderr,*) '   Available, but schedule conflict - '//Section(sect)%ClassId
+                  !write(unitLOG,*) '   Available, but schedule conflict - '//Section(sect)%ClassId
                   cycle
           end if
           ! lab section of lect+lab subject or lab-only subject, or section of lect-only subject, is OK
@@ -563,10 +563,10 @@ contains
             tClassId = Section(sect)%ClassId(:pos-1)
             lect = index_to_section(tClassId, NumSections, Section)
             if (is_conflict_timetable_with_section(NumSections, Section, lect, TimeTable)) then ! lecture class is not OK
-              !write(stderr,*) '   Available, but lecture class schedule conflict - '//Section(lect)%ClassId
+              !write(unitLOG,*) '   Available, but lecture class schedule conflict - '//Section(lect)%ClassId
               cycle
             end if
-            !write(stderr,*) 'OPTION IS - '//tClassId
+            !write(unitLOG,*) 'OPTION IS - '//tClassId
             ! add lecture schedule to lab schedule
             do mdx=1,Section(lect)%NMeets
                 pos = Section(idx_opt)%NMeets + 1 
@@ -589,7 +589,7 @@ contains
         do sect=1,n_opts
           idx_opt = UndesirabilityRank(sect)
           !if (Section(NumSections+idx_opt)%RemSlots==0) cycle ! section not available
-          !write(stderr,*) sect, idx_opt, Section(NumSections+idx_opt)%ClassId, -Undesirability(idx_opt)
+          !write(unitLOG,*) sect, idx_opt, Section(NumSections+idx_opt)%ClassId, -Undesirability(idx_opt)
           do mdx=1,Section(NumSections+idx_opt)%NMeets
             tArray(tLen1+unassigned+tLen2+1) = NumSections+idx_opt
             tArray(tLen1+unassigned+tLen2+2) = mdx
@@ -768,7 +768,7 @@ contains
         end do
         targetBlock = jdx+1
         call initialize_block(Block(targetBlock))
-        write(stderr,*) 'Adding '//tBlock
+        write(unitLOG,*) 'Adding '//tBlock
 
         Block(targetBlock)%Name = trim(Curriculum(targetCurriculum)%Code)//SPACE// &
           trim(txtYear(Year))//' Year '//trim(txtSemester(Term))//' Term'
@@ -785,7 +785,7 @@ contains
         do jdx=1,Curriculum(targetCurriculum)%NSubjects
           if (Curriculum(targetCurriculum)%SubjectTerm(jdx)/=Rank) cycle
           crse = Curriculum(targetCurriculum)%SubjectIdx(jdx) 
-          !write(stderr,*) jdx, rank, Subject(crse)%Name
+          !write(unitLOG,*) jdx, rank, Subject(crse)%Name
           !Block(targetBlock)%AllowedLoad = Block(targetBlock)%AllowedLoad + Subject(crse)%Units
           idx = Block(targetBlock)%NumClasses + 1
           Block(targetBlock)%NumClasses = idx
@@ -940,7 +940,7 @@ contains
         Block(targetBlock)%Year = Year
         Block(targetBlock)%Term = Term
         NumBlocks = targetBlock
-        write(stderr,*) Section(sect)%BlockID, Curriculum(targetCurriculum)%Code, Year, copy
+        write(unitLOG,*) Section(sect)%BlockID, Curriculum(targetCurriculum)%Code, Year, copy
       end if
       crse = Section(sect)%SubjectIdx
       ! do not add lecture section of lect-lab subject

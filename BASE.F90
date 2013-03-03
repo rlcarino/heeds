@@ -35,25 +35,25 @@ module BASE
     ! Pasword encryption key (16 characters)                 1234567890123456
     character(len=16), parameter :: passwordEncryptionKey = 'r3pL@c3w!thUr0wn'
 
+    ! OS-specific variables (set in MAIN.F90)
 #if defined GLNX
     ! HEEDS root directory and CGI script
-    character(len=18), parameter :: dirHEEDS = '/home/heeds/HEEDS/'
-    character(len= 8), parameter :: UPDATES = 'UPDATES/'
+    character(len=18) :: dirHEEDS ! = '/home/heeds/HEEDS/'
     ! file separator; delete, directory, mkdir commands
-    character(len= 1), parameter :: DIRSEP = '/'
-    character(len= 6), parameter :: delCmd = 'rm -f '
-    character(len= 9), parameter :: mkdirCmd = 'mkdir -p '
-    character(len= 6), parameter :: mvCmd = 'mv -f '
+    character(len= 6) :: delCmd ! = 'rm -f '
+    character(len= 9) :: mkdirCmd ! = 'mkdir -p '
+    character(len= 6) :: mvCmd ! = 'mv -f '
 #else
     ! HEEDS root directory and CGI script
-    character(len= 7), parameter :: dirHEEDS = '\HEEDS\'
-    character(len= 8), parameter :: UPDATES = 'UPDATES\'
+    character(len= 7) :: dirHEEDS ! = '\HEEDS\'
     ! file separator; delete, directory, mkdir commands
-    character(len= 1), parameter :: DIRSEP = '\'
-    character(len= 7), parameter :: delCmd = 'del /q '
-    character(len= 6), parameter :: mkdirCmd = 'mkdir '
-    character(len= 8), parameter :: mvCmd = 'move /y '
+    character(len= 7) :: delCmd ! = 'del /q '
+    character(len= 6) :: mkdirCmd ! = 'mkdir '
+    character(len= 8) :: mvCmd ! = 'move /y '
 #endif
+
+    character(len= 1) :: DIRSEP ! = '/' or '\'
+    character(len= 8) :: UPDATES ! = 'UPDATES/' or 'UPDATES\'
 
     ! CGI script
     character(len= 6), parameter :: CGI_PATH = '/heeds'
@@ -70,11 +70,17 @@ module BASE
     character(len= 8) :: currentDate ! current date
     character(len=18) :: startDateTime ! program start date & time
 
-    integer :: stderr = 999 ! unit number of file for error messages
-    logical :: noWrites = .false. ! do not change data files
+    integer, parameter :: MAX_LEN_FILE_PATH = 256 ! Max length of file path+name
+    integer :: unitHTML = 999   ! file unit for HTML to webserver
+    integer :: unitUSER = 998   ! file unit for user activities
+    integer :: unitXML  = 997   ! file unit for XML input/output
+    integer :: unitRAW  = 996   ! file unit for custom inputs
+    integer :: unitLOG  = 995   ! file unit for log messages
+    integer :: unitREQ  = 994   ! file unit for requests
+    integer :: unitETC  = 993   ! file unit for requests
 
-    ! Max length of file path+name
-    integer, parameter :: MAX_LEN_FILE_PATH = 256
+    ! flag to control generation of log files, backups
+    logical :: noWrites = .false. ! .true. means do not change data files
 
     ! data & output locations
     character (len=MAX_LEN_FILE_PATH) :: &
@@ -84,18 +90,18 @@ module BASE
         dirLog, & ! directory for log files
         dirSUBSTITUTIONS, & ! directory for input/UNEDITED checklists from Registrar
         dirTRANSCRIPTS, & ! directory for raw transcripts
-        dirUploadCHECKLISTS, & ! directory where individual checklists for upload will be written
-        dirUploadENLISTMENT, & ! directory where enlisted classes by student will be written
         dirEditedCHECKLISTS, & ! directory for output/EDITED checklists from College Secretaries
         dirRAW, & ! directory for raw data files
         dirXML, & ! directory for XML data files
+        pathToYear, &  ! path data files for the year
+        pathToTerm, &  ! path to updated files by stand-alone users
         pathToCurrent, & ! path to files for currentYear+currentTerm
         pathToTarget, &  ! path to files for targetYear+targetTerm
         pathToSOURCE, &  ! pathToCurrent or pathToTarget
         pathToUPDATES    ! path to files of changes by stand-alone users
 
-    ! random number
-    real :: harvest
+    ! position of last character in dirXML (to simplify derivation of path to backup)
+    integer :: lenDirXML
 
     ! constants
     character(len= 1), parameter :: &
@@ -110,7 +116,7 @@ module BASE
 
     ! software version
     character(len= 5), parameter :: PROGNAME  = 'HEEDS'
-    character(len= 8), parameter :: VERSION   = ' v.4.03 '
+    character(len= 8), parameter :: VERSION   = ' v.4.04 '
     character(len=45), parameter :: COPYRIGHT = 'Copyright (C) 2012, 2013 Ricolindo L. Carino'
     character(len=38), parameter :: EMAIL     = 'Ricolindo.Carino@AcademicForecasts.com'
     character(len=72), parameter :: CONTACT   = 'E-mail inquiries about '//PROGNAME//' to '//EMAIL//'.'
@@ -428,8 +434,8 @@ contains
         character (len = *), intent (in) :: msg
         integer, intent (in) :: current, limit
         if (current > limit) then
-            write(stderr,AFORMAT) 'Aborting due to insufficient array size; increase '//msg
-            write(stderr,'(1x,2(a,i5))')  'Limit is ', limit, '; currently used is ', current
+            write(unitLOG,AFORMAT) 'Aborting due to insufficient array size; increase '//msg
+            write(unitLOG,'(1x,2(a,i5))')  'Limit is ', limit, '; currently used is ', current
             stop
         end if
 
@@ -437,37 +443,40 @@ contains
     end subroutine check_array_bound
 
 
-    subroutine file_log_message(mesg1, mesg2, mesg3)
+    subroutine file_log_message(mesg1, mesg2, mesg3, mesg4, mesg5)
         character (len=*), intent (in) :: mesg1
-        character (len=*), intent (in), optional :: mesg2, mesg3
-        write(stderr,AFORMAT) trim(mesg1)
+        character (len=*), intent (in), optional :: mesg2, mesg3, mesg4, mesg5
+
+        write(unitLOG,AFORMAT) trim(mesg1)
         if (present(mesg2)) then
-            write(stderr,AFORMAT) trim(mesg2)
+            write(unitLOG,AFORMAT) trim(mesg2)
+            if (present(mesg3)) then
+                write(unitLOG,AFORMAT) trim(mesg3)
+                if (present(mesg4)) then
+                    write(unitLOG,AFORMAT) trim(mesg4)
+                    if (present(mesg5)) then
+                        write(unitLOG,AFORMAT) trim(mesg5)
+                    end if
+                end if
+            end if
         end if
-        if (present(mesg3)) then
-            write(stderr,AFORMAT) trim(mesg3)
-        end if
-        flush(stderr)
+
+        flush(unitLOG)
 
         return
     end subroutine file_log_message
 
 
     subroutine move_to_backup(fname)
-        character (len=*), intent (in) :: fname
+        character (len=*), intent (in) :: fname ! must be in dirXML
         character (len=MAX_LEN_FILE_PATH) :: path
-        integer :: iStat, first
+        integer :: iStat
 
-        if (DO_NOT_BACKUP .or. noWrites) return ! no backups
+        if (noWrites) return ! no backups
 
-        first = index(fname, DIRSEP//'xml'//DIRSEP) + index(fname, DIRSEP//'raw'//DIRSEP)
-        if (first==0) return ! do not backup files not in 'xml' or 'raw' directory
-
-        path = trim(fname)//DASH//currentDate//DASH//currentTime(1:6)
-        !path(first:first+4) = DIRSEP//'bak'//DIRSEP
-
+        path = trim(dirBAK)//fname(lenDirXML+1:)
         call rename (fname, path, iStat)
-        call file_log_message('Status='//trim(itoa(iStat))//' in renaming to '//trim(path) )
+        if (iStat/=0) call file_log_message('Status='//trim(itoa(iStat))//' in moving to '//trim(path) )
 
         return
     end subroutine move_to_backup
