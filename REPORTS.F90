@@ -94,15 +94,9 @@ contains
                 if (CollegeCount(gdx) <= 0) cycle
 
                 ! code
-                !write(device,AFORMAT) &
-                !   begintr//'<td width="10%"><small><a href="#'//trim(College(gdx)%Code)//'">'//trim(College(gdx)%Code)//'</a></small>'//endtd
-                if (available(fnStudentsDistribution)) then
-                    write(device,AFORMAT) trim(make_href(fnStudentsDistribution, College(gdx)%Code, &
-                        A1=College(gdx)%Code, &
-                        pre=begintr//'<td width="10%"><small>', post='</small>'//endtd))
-                else
-                    write(device,AFORMAT)  begintr//'<td width="10%"><small>'//trim(College(gdx)%Code)//'</a></small>'//endtd
-                end if
+                write(device,AFORMAT) trim(make_href(fnStudentsDistribution, College(gdx)%Code, &
+                    A1=College(gdx)%Code, &
+                    pre=begintr//'<td width="10%"><small>', post='</small>'//endtd))
             
                 ! bar chart
                 write(device,AFORMAT) &
@@ -289,19 +283,10 @@ contains
         ! which subject ?
         call cgi_get_named_string(QUERY_STRING, 'A1', tSubject, ierr)
         targetSubject = index_to_subject(tSubject)
-        if (ierr/=0 .or. targetSubject==0) then
-            write(device,AFORMAT) '<br>'//red//'Subject "'//tSubject//'" not found.'//black//'<br><hr>'
-            targetCollege = NumColleges ! trigger 'All colleges' link for Admin
-            return
-        end if
         targetDepartment = Subject(targetSubject)%DeptIdx
         targetCollege = Department(targetDepartment)%CollegeIdx
         call html_write_header (device, 'Students not accommodated in priority subject '// &
             trim(Subject(targetSubject)%Name)//SPACE//DASH//SPACE//trim(Subject(targetSubject)%Title))
-            !'<b>Students not accommodated in priority subject '//trim(Subject(targetSubject)%Name)//' - '// &
-            !  trim(Subject(targetSubject)%Title)//'</b><br>', Department(targetDepartment)%Name// &
-            !trim(txtSemester(currentTerm+3))//' Term, SY '//trim(itoa(currentYear))//DASH//itoa(currentYear+1)// &
-            !'<hr>'
         ! collect students
         n_count = 0
         !tArray = 0
@@ -315,7 +300,7 @@ contains
                 tArray(n_count) = std
             end do
         end do
-  
+
         call list_students(device, n_count, tArray, targetSubject, Preenlisted)
         write(device,AFORMAT) '<hr>'
 
@@ -326,7 +311,7 @@ contains
     subroutine enlistment_summarize (device, NumSections, Section, Offering, Preenlisted, fn)
         integer, intent (in) :: device, fn
         integer, intent (in) :: NumSections
-        type (TYPE_SECTION), intent(in out), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in out) :: Section(0:)
         type (TYPE_OFFERED_SUBJECTS), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS), intent (in out) :: Offering
         type (TYPE_PRE_ENLISTMENT), intent(in) :: Preenlisted(0:)
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
@@ -335,7 +320,7 @@ contains
         !real, dimension(0:MAX_ALL_SUBJECTS) :: tCount
 
         call offerings_summarize(NumSections, Section, Offering)
-    
+
         MaxLoad = 0 ! maximum allowed load
         do std = 1,NumStudents
             if (MaxLoad<Preenlisted(std)%AllowedLoad) MaxLoad = Preenlisted(std)%AllowedLoad
@@ -387,22 +372,10 @@ contains
                 ! which department ?
                 call cgi_get_named_string(QUERY_STRING, 'A1', tDepartment, ierr)
                 targetDepartment = index_to_dept(tDepartment)
-                if (ierr/=0 .or. targetDepartment==0) then
-                    targetDepartment = DeptIdxUser
-                    targetCollege = CollegeIdxUser
-                    call html_write_header(device, 'Enlistment summary', '<hr><br>Department "'//tDepartment//'" not found')
-                    return
-                end if
-
                 targetCollege = Department(targetDepartment)%CollegeIdx
 
                 call html_write_header(device, 'Enlistment summary for subjects in '// &
-                trim(Department(targetDepartment)%Name)//', '//trim(College(targetCollege)%Code))
-
-                !write(device,AFORMAT) '<b>Enlistment summary</b> for subjects in '// &
-                !  trim(Department(targetDepartment)%Name)//', '//trim(College(targetCollege)%Code)// &
-                !  trim(txtSemester(currentTerm+3))//' Term, SY '//trim(itoa(currentYear))//DASH//itoa(currentYear+1)//'<br>'// &
-                !  '<hr><br>'
+                    trim(Department(targetDepartment)%Name)//', '//trim(College(targetCollege)%Code))
                 do i=1,NumSubjects+NumAdditionalSubjects
                     SubjectRank(i) = i
                 end do
@@ -423,8 +396,6 @@ contains
                     end do
                 end do
                 call html_write_header(device, 'Top 100 subjects for which demand > available seats')
-                !write(device,AFORMAT) '<b>Top 100 subjects for which demand > available seats</b>, ', &
-                !   trim(txtSemester(currentTerm+3))//' Term, SY '//trim(itoa(currentYear))//DASH//itoa(currentYear+1)//'<hr><br>'
                 call enlistment_write_summary(device, Offering, 0, 100)
                 targetCollege = NumColleges
 
@@ -443,8 +414,6 @@ contains
                     end do
                 end do
                 call html_write_header(device, 'Top 100 subjects for which available seats > demand')
-                !write(device,AFORMAT) '<b>Top 100 subjects for which available seats > demand</b>, ', &
-                !   trim(txtSemester(currentTerm+3))//' Term, SY '//trim(itoa(currentYear))//DASH//itoa(currentYear+1)//'<hr><br>'
                 call enlistment_write_summary(device, Offering, 0, 100)
                 targetCollege = NumColleges
 
@@ -452,8 +421,6 @@ contains
             case (fnUnderloadSummary)
 
                 call html_write_header(device, 'Summary of underloading/overloading')
-                !write(device,AFORMAT) '<b>Summary of underloading/overloading</b>, ', &
-                !   trim(txtSemester(currentTerm+3))//' Term, SY '//trim(itoa(currentYear))//DASH//itoa(currentYear+1)//'<hr><br>'
 
                 write(device,AFORMAT) 'Note: Entry at position (<i>row</i>, <i>column</i>) indicates the number '// &
                     ' of students who were allowed <i>column</i> units but were underloaded(-)/overloaded(+) by '// &
@@ -528,9 +495,6 @@ contains
 
                 call html_write_header(device, 'Students allowed '//itoa(allowed_units)//' units, but underloaded by '// &
                     itoa(underloaded_by))
-                !write(device,AFORMAT) '<b>Students allowed '//itoa(allowed_units)//' units, but underloaded by '// &
-                !   itoa(underloaded_by)//'</b>, ', &
-                !   trim(txtSemester(currentTerm+3))//' Term, SY '//trim(itoa(currentYear))//DASH//itoa(currentYear+1)//')<hr><br>'
 
                 write(device,AFORMAT) '<table border="0" width="100%">', &
                     begintr//thalignleft//'Count'//endth// &
@@ -563,17 +527,17 @@ contains
                         begintd//trim(Student(std)%Name)//endtd// &
                         begintd//trim(Curriculum(Student(std)%CurriculumIdx)%Code)//endtd//begintd
 
-                    if (available(fnChangeMatriculation) ) then
+                    if (fnAvailable(fnChangeMatriculation) ) then
                         write(device,AFORMAT) trim(make_href(fnChangeMatriculation, 'schedule', &
                             A1=Student(std)%StdNo, &
                             pre=' [ ', post=' ]'))
                     end if
-                    if (available(fnEditCheckList) ) then
+                    if (fnAvailable(fnEditCheckList) ) then
                         write(device,AFORMAT) trim(make_href(fnEditCheckList, 'checklist', &
                             A1=Student(std)%StdNo, &
                             pre=' [ ', post=' ]'))
                     end if
-                    if (available(fnStudentPerformance) ) then
+                    if (fnAvailable(fnStudentPerformance) ) then
                         write(device,AFORMAT) trim(make_href(fnStudentPerformance, 'performance', &
                             A1=Student(std)%StdNo, &
                             pre=' [ ', post=' ]'))

@@ -41,7 +41,7 @@ contains
   subroutine enlistment_grades (device, NumSections, Section)
     integer, intent (in) :: device
     integer, intent (in) :: NumSections
-    type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+    type (TYPE_SECTION), intent(in) :: Section(0:)
     integer :: ldx, n_count, tdx, std, ierr, ncol, sect, crse, idx_select
     character(len=MAX_LEN_CLASS_ID) :: tClassId
     logical :: isDirtyFORM5
@@ -49,12 +49,6 @@ contains
     ! which section?
     call cgi_get_named_string(QUERY_STRING, 'A1', tClassId, ierr)
     targetSection = index_to_section(tClassId, NumSections, Section)
-    if (ierr/=0 .or. targetSection==0) then
-            targetDepartment = DeptIdxUser
-            targetCollege = CollegeIdxUser
-            call html_write_header(device, 'Gradesheet', '<hr><br>Class "'//tClassId//'" not found')
-            return
-    end if
     targetDepartment = Section(targetSection)%DeptIdx
     targetCollege = Department(targetDepartment)%CollegeIdx
     crse = Section(targetSection)%SubjectIdx
@@ -95,9 +89,7 @@ contains
         end do
     end do
 
-!    if (isDirtyFORM5) call write_all_enlistment(trim(dirXML)//trim(path)//'ENLISTMENT', &
-!    Preenlisted, Section, currentYear, currentTerm)
-    if (isDirtyFORM5) call xml_write_pre_enlistment(pathToCurrent, 'ENLISTMENT', Preenlisted, Section)
+    if (isDirtyFORM5) call xml_write_pre_enlistment(pathToTerm, 'ENLISTMENT', Preenlisted, Section)
 
     call html_write_header(device,'Gradesheet for '//tClassId)
 
@@ -140,8 +132,8 @@ contains
   subroutine enlistment_edit (device, NumSections, Section, NumBlocks, Block)
     integer, intent (in) :: device
     integer, intent (in out) :: NumBlocks, NumSections
-    type (TYPE_SECTION), intent(in out), dimension (0:) :: Section
-    type (TYPE_BLOCK), dimension(0:), intent(in out) :: Block
+    type (TYPE_SECTION), intent(in out) :: Section(0:)
+    type (TYPE_BLOCK), intent(in out) :: Block(0:)
     character(len=MAX_LEN_STUDENT_CODE) :: tStdNo
     character(len=MAX_LEN_BLOCK_CODE) :: tBlock
     character(len=MAX_LEN_CLASS_ID) :: tClassId
@@ -158,12 +150,6 @@ contains
     ! which student?
     call cgi_get_named_string(QUERY_STRING, 'A1', tStdNo, ierr)
     targetStudent = index_to_student(tStdNo)
-    if (ierr/=0 .or. targetStudent==0) then
-            targetDepartment = DeptIdxUser
-            targetCollege = CollegeIdxUser
-            call html_write_header(device, 'Edit enlistment', '<hr><br>Student "'//tStdNo//'" not found')
-            return
-    end if
     targetCurriculum = Student(targetStudent)%CurriculumIdx
     allowed_to_edit = isRoleAdmin .or. (isRoleSRE .and. &
                       CurrProgCode(CurriculumIdxUser)==CurrProgCode(targetCurriculum))
@@ -344,7 +330,7 @@ contains
     end select
 
     if (isDirtyFORM5) then
-        call xml_write_pre_enlistment(pathToCurrent, 'ENLISTMENT', Preenlisted, Section)
+        call xml_write_pre_enlistment(pathToTerm, 'ENLISTMENT', Preenlisted, Section)
       end if
     
     call html_write_header(device, trim(Student(targetStudent)%StdNo)//SPACE//trim(Student(targetStudent)%Name)// &
@@ -489,7 +475,7 @@ contains
   subroutine enlistment_fees(device, std, NumSections, Section, heading)
     integer, intent(in) :: device, std
     integer, intent (in) :: NumSections
-    type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+    type (TYPE_SECTION), intent(in) :: Section(0:)
     character (len=*), intent(in), optional :: heading
     integer :: idx, sect, crse
     real :: mult, totalUnits, totalA, totalB, totalC, totalD, totalE, totalGraduate, totalLabFee
@@ -715,7 +701,7 @@ contains
   subroutine enlistment_printable  (device, NumSections, Section)
     integer, intent (in) :: device
     integer, intent (in out) :: NumSections
-    type (TYPE_SECTION), intent(in out), dimension (0:) :: Section
+    type (TYPE_SECTION), intent(in out) :: Section(0:)
     character(len=MAX_LEN_STUDENT_CODE) :: tStdNo
     integer ::  ierr, tLen1
     integer, dimension(60,6) :: TimeTable
@@ -724,12 +710,6 @@ contains
     ! which student?
     call cgi_get_named_string(QUERY_STRING, 'A1', tStdNo, ierr)
     targetStudent = index_to_student(tStdNo)
-    if (ierr/=0 .or. targetStudent==0) then
-            targetDepartment = DeptIdxUser
-            targetCollege = CollegeIdxUser
-            call html_write_header(device, 'Pre-registration form', '<hr><br>student "'//tStdNo//'" not found')
-            return
-    end if
     targetCurriculum = Student(targetStudent)%CurriculumIdx
 
     call timetable_meetings_of_student(NumSections, Section, targetStudent, Preenlisted, 0, tLen1, tArray, TimeTable, conflicted)
@@ -744,8 +724,8 @@ contains
   subroutine enlistment_find_block(device, NumSections, Section, NumBlocks, Block)
     integer, intent (in) :: device
     integer, intent (in out) :: NumBlocks, NumSections
-    type (TYPE_SECTION), intent(in out), dimension (0:) :: Section
-    type (TYPE_BLOCK), dimension(0:), intent(in out) :: Block
+    type (TYPE_SECTION), intent(in out) :: Section(0:)
+    type (TYPE_BLOCK), intent(in out) :: Block(0:)
     character(len=MAX_LEN_STUDENT_CODE) :: tStdNo
     integer :: ierr, crse, sect, seats
     integer :: bdx, fdx, blk, n_blks, n_matches
@@ -760,13 +740,6 @@ contains
     ! which student?
     call cgi_get_named_string(QUERY_STRING, 'A1', tStdNo, ierr)
     targetStudent = index_to_student(tStdNo)
-    if (ierr/=0 .or. targetStudent==0) then
-            targetDepartment = DeptIdxUser
-            targetCollege = CollegeIdxUser
-            call html_write_header(device, 'Find block', '<hr><br>student "'//tStdNo//'" not found')
-            return
-    end if
-
     targetCurriculum = Student(targetStudent)%CurriculumIdx
     targetCollege = Curriculum(targetCurriculum)%CollegeIdx
     !tDepartment = College(targetCollege)%Code
@@ -849,14 +822,13 @@ contains
 
   subroutine enlistment_class_schedule(device, std, NumSections, Section, lenSL, SectionList)
     integer, intent(in) :: device, std, NumSections, lenSL, SectionList(3*lenSL+3)
-    type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+    type (TYPE_SECTION), intent(in) :: Section(0:)
     integer :: crse, idx, mdx, sect, previous, conflict
     real :: totalUnits, classUnits, totalHours, classHours, totalTuition, classTuition, totalLabFee, classLabFee
 
     write(device,AFORMAT) '<b>'//trim(Student(std)%StdNo)//SPACE//trim(Student(std)%Name)// &
       SPACE//DASH//SPACE//trim(Curriculum(Student(std)%CurriculumIdx)%Code)//'<br>'// &
-      trim(txtSemester(currentTerm+3))//' Term, SY '//trim(itoa(currentYear))//DASH// &
-      trim(itoa(currentYear+1))//'</b><hr>'
+      trim(txtSemester(currentTerm+3))//' Term, '//text_school_year(currentYear)//'</b><hr>'
 
     if (lenSL < 3) then
       write(device,AFORMAT) '<br>Not pre-registered in any class?<br>'
@@ -990,8 +962,8 @@ contains
     subroutine timetable_meetings_of_student(NumSections, Section, iStd, eList, to_skip, &
     len_list, list, TimeTable, conflicted)
         integer, intent (in) :: NumSections
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
-        type (TYPE_PRE_ENLISTMENT), dimension(0:), intent(in) :: eList
+        type (TYPE_SECTION), intent(in) :: Section(0:)
+        type (TYPE_PRE_ENLISTMENT), intent(in) :: eList(0:)
         integer, intent(in) :: iStd, to_skip
         integer, intent (out) :: len_list, list(:)
         integer, dimension(60,6), intent (out) :: TimeTable

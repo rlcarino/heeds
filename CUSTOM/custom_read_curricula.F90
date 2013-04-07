@@ -160,7 +160,8 @@ subroutine custom_read_curricula(path, errNo)
                     Curriculum(NumCurricula)%NSubjects = j
                     Curriculum(NumCurricula)%SubjectIdx(j) = i
                     Curriculum(NumCurricula)%SubjectTerm(j) = idxTerm
-                    if (is_offered(i,mod(term,3)) ) then
+                    !if (is_offered(i,mod(term,3)) ) then
+                    if ( is_offered(i,term) ) then
                         if (.not. is_prerequisite_satisfiable_in_curriculum(i,NumCurricula)) then
                             ! errNo = 126 ! subject prerequisite cannot be satisfied in this curriculum
                             call file_log_message (trim(Curriculum(NumCurricula)%Code)//', '// &

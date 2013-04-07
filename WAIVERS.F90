@@ -61,7 +61,7 @@ contains
 
     subroutine xml_write_waivers(path, Section)
         character (len=*), intent (in) :: path ! YEAR/TERM/WAIVER-COI
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
 
         integer :: std, sect, i
 
@@ -106,7 +106,7 @@ contains
 
         character(len=*), intent(in) :: path
         integer, intent (in) :: NumSections
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, intent (out) :: numEntries, errNo
 
         character(len=MAX_LEN_XML_LINE) :: value
@@ -193,7 +193,7 @@ contains
         end do
 
         call xml_close_file(unitXML)
-        call file_log_message (itoa(numEntries)//' in '//fileName)
+        call file_log_message (itoa(numEntries)//' entries in '//fileName)
 
         return
     end subroutine xml_read_waivers
@@ -203,7 +203,7 @@ contains
 
         character(len=*), intent(in) :: path ! YEAR/TERM
         integer, intent (in) :: NumSections
-        type (TYPE_SECTION), intent(in out), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in out) :: Section(0:)
         type (TYPE_OFFERED_SUBJECTS), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS) :: Offering
         integer, intent (in out) :: numEntries
         integer, intent (out) :: errNo
@@ -232,7 +232,7 @@ contains
     subroutine custom_read_waivers (filePath, NumSections, Section, Offering, cList, numEntries, ier)
         character(len=*), intent(in) :: filePath
         integer, intent (in) :: NumSections
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         type (TYPE_OFFERED_SUBJECTS), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS) :: Offering
         type (TYPE_WAIVER), intent(in out) :: cList(0:)
         integer, intent (out) :: numEntries, ier

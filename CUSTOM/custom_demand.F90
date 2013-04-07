@@ -28,8 +28,11 @@
 !======================================================================
 
 
-subroutine demand_for_subjects (device)
+subroutine demand_for_subjects (device, NumSections, Section, Offering )
     integer, intent (in) :: device
+    integer, intent (in out) :: NumSections
+    type (TYPE_SECTION), intent(in out) :: Section(0:)
+    type (TYPE_OFFERED_SUBJECTS), intent(in out), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS) :: Offering
 
     character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
     integer :: ierr, i, j, l, std, owner_dept, owner_coll
@@ -55,10 +58,10 @@ subroutine demand_for_subjects (device)
     !write(device,AFORMAT) '<b>'//trim(Department(targetDepartment)%Name)//', '// &
     !  trim(College(targetCollege)%Code)//'</b><hr><br>'
 
-    call offerings_summarize(NumNextSections, NextSection, NextOffering, owner_dept)
+    call offerings_summarize(NumSections, Section, Offering, owner_dept)
 
     ! calculate priority demand, priority accomodated/not accommodated
-    NextSection(:)%RemSlots = NextSection(:)%Slots
+    Section(:)%RemSlots = Section(:)%Slots
 
     ! use Advised(:)%Contrib for Offering(:)%Demand
     tCount = 0.0
@@ -72,31 +75,31 @@ subroutine demand_for_subjects (device)
     end do
 
     do j=1,NumSubjects+NumAdditionalSubjects
-        NextOffering(j)%Demand = tCount(j)
-        NextOffering(j)%PriorityNotAccommodated = tCount(j)
+        Offering(j)%Demand = tCount(j)
+        Offering(j)%PriorityNotAccommodated = tCount(j)
     end do
 
     ! calculate remaining slots, open sections
-    do i=1,NumNextSections
-        if (index(NextSection(i)%Code,'+')>0) cycle ! an additional schedule
-        j = NextSection(i)%SubjectIdx
+    do i=1,NumSections
+        if (index(Section(i)%Code,'+')>0) cycle ! an additional schedule
+        j = Section(i)%SubjectIdx
         if (j==0) cycle ! deleted
-        l = NextSection(i)%RemSlots
+        l = Section(i)%RemSlots
         if (l==0) cycle
 
-        owner_dept = NextSection(i)%DeptIdx
+        owner_dept = Section(i)%DeptIdx
         owner_coll = Department(owner_dept)%CollegeIdx
         if (owner_dept/=targetDepartment) cycle
 
         ! lecture-lab ?
         if (.not. is_lecture_lab_subject(j)) then ! lecture only or lab only
-            NextOffering(j)%OpenSlots = NextOffering(j)%OpenSlots + l
-            NextOffering(j)%OpenSections = NextOffering(j)%OpenSections + 1
+            Offering(j)%OpenSlots = Offering(j)%OpenSlots + l
+            Offering(j)%OpenSections = Offering(j)%OpenSections + 1
         else ! a lecture-lab subject
-            if (is_lecture_class(i, NextSection)) then ! this is the lecture section
+            if (is_lecture_class(i, Section)) then ! this is the lecture section
             else ! this is the lab section
-                NextOffering(j)%OpenSlots = NextOffering(j)%OpenSlots + l
-                NextOffering(j)%OpenSections = NextOffering(j)%OpenSections + 1
+                Offering(j)%OpenSlots = Offering(j)%OpenSlots + l
+                Offering(j)%OpenSections = Offering(j)%OpenSections + 1
             end if
         end if
     end do
@@ -107,7 +110,7 @@ subroutine demand_for_subjects (device)
     do crse=1,NumSubjects+NumAdditionalSubjects
 
         if (.not. is_used_in_college_subject(targetCollege, crse) ) cycle
-        if (NextOffering(crse)%OpenSections==0 .and. NextOffering(crse)%Demand==0) cycle
+        if (Offering(crse)%OpenSections==0 .and. Offering(crse)%Demand==0) cycle
 
         if (mod(nlines,20)==0) &
         write(device,AFORMAT) begintr//begintd//'<i><p>Subject<br></p></i>'//endtd, & ! subject
@@ -115,7 +118,7 @@ subroutine demand_for_subjects (device)
         tdalignright//'<i><p>Total<br>seats</p></i>'//endtd, & ! total seats
         tdalignright//'<i><p>Priority<br>demand</p></i>'//endtd ! priority demand
 
-        if (NextOffering(crse)%NSections>0) then
+        if (Offering(crse)%NSections>0) then
             tNote = ' '
         else
             tNote = ' (*)'
@@ -123,10 +126,10 @@ subroutine demand_for_subjects (device)
         tSubject = Subject(crse)%Name
         write(device,AFORMAT)  begintr// &
         begintd//trim(tSubject)//tNote//endtd// & ! subject
-        tdalignright//trim(itoa(NextOffering(crse)%NSections))//endtd// & ! no. of sections, total seats
-        tdalignright//trim(itoa(NextOffering(crse)%TotalSlots))//endtd// & ! total seats
-        !tdalignright//trim(itoa(NextOffering(crse)%Demand))//endtd//endtr ! priority demand
-        trim(make_href(fnPotentialStudents, itoa(NextOffering(crse)%Demand), &
+        tdalignright//trim(itoa(Offering(crse)%NSections))//endtd// & ! no. of sections, total seats
+        tdalignright//trim(itoa(Offering(crse)%TotalSlots))//endtd// & ! total seats
+        !tdalignright//trim(itoa(Offering(crse)%Demand))//endtd//endtr ! priority demand
+        trim(make_href(fnPotentialStudents, itoa(Offering(crse)%Demand), &
         A1=tSubject, A2=Department(targetDepartment)%Code, pre=tdalignright, post=endtd//endtr ))
         nlines = nlines+1
     end do
@@ -138,8 +141,8 @@ subroutine demand_for_subjects (device)
     '<br>(*) = no sections open; subject may be needed by graduating students'
     write(device,AFORMAT) '<hr>'
 
-    ! reset NextOffering()
-    call offerings_summarize(NumNextSections, NextSection, NextOffering)
+    ! reset Offering()
+    call offerings_summarize(NumSections, Section, Offering)
 
     return
 

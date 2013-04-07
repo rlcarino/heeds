@@ -109,10 +109,10 @@ contains
         else ! for reading
             if (.not. fileExists) then ! not there
                 errNo = -1
-                call file_log_message('File not found: '//fileName)
+                !call file_log_message('File not found: '//fileName)
             else ! open & look for rootName in file
                 open (unit=device, file=fileName, status='old', iostat=eof)
-                call file_log_message('Status='//trim(itoa(eof))//' in reading '//fileName)
+                !call file_log_message('Status='//trim(itoa(eof))//' in opening '//fileName)
                 found = .false.
                 do
                     read(device, AFORMAT, iostat=eof) xmlLine
@@ -124,7 +124,7 @@ contains
                 end do
                 if (.not. found) then
                     errNo = 1
-                    call file_log_message('Not in file: <'//rootName//'>')
+                    !call file_log_message('Not in file: <'//rootName//'>')
                 end if
             end if
         end if

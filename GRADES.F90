@@ -30,7 +30,7 @@
 
 module GRADES
 
-    use BASE
+    use UNIVERSITY
 
     implicit none
 

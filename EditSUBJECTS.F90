@@ -400,7 +400,7 @@ contains
 
     end select
     
-    if (isDirtySUBJECTS) call xml_write_subjects(pathToCurrent)
+    if (isDirtySUBJECTS) call xml_write_subjects(pathToYear)
 
     targetDepartment = Subject(crse)%DeptIdx
 

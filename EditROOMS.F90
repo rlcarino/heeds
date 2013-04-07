@@ -30,425 +30,484 @@
 
 module EditROOMS
 
-  use HTML
+    use HTML
 
-  implicit none
+    implicit none
 
 contains
 
-  subroutine room_list_all (device, NumSections, Section, fn)
-    integer, intent (in) :: device, fn
-    integer, intent (in) :: NumSections
-    type (TYPE_SECTION), intent(in), dimension (0:MAX_ALL_SECTIONS) :: Section
-    integer :: rdx, n_count, nsect, sdx, tdx, ierr
-    integer :: n_meetings, meetings(MAX_SECTION_MEETINGS)
-    character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
-    character(len=MAX_LEN_COLLEGE_CODE) :: tCollege
-    integer, dimension(60,6) :: TimeTable
-    character (len=127) :: mesg
+    subroutine room_list_all (device)
+        integer, intent (in) :: device
+        integer :: rdx, n_count, nsect(3), sdx, tdx, term, termStore, ierr
+        integer :: n_meetings, meetings(MAX_SECTION_MEETINGS)
+        character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
+        integer, dimension(60,6) :: TimeTable
+        character (len=127) :: mesg
+        character (len=80) :: tDesc
+        integer :: tYear, tTerm
 
-    ! collect rooms
-    tArray = 0
-    n_count = 0
-    select case (fn)
+        ! collect rooms
+        tArray = 0
+        n_count = 0
 
-           case (fnSearch)
-                   targetDepartment = DeptIdxUser
-                   targetCollege  = Department(targetDepartment)%CollegeIdx
-                   ! search string ?
-                   call cgi_get_named_string(QUERY_STRING, 'A2', mesg, ierr)
-                   if (mesg==SPACE) then
-                           targetCollege = CollegeIdxUser
-                           targetDepartment = DeptIdxUser
-                           call html_write_header(device, 'Search', '<br><hr>Search string not specified.')
-                           return
-                   else
-                           do rdx=1,NumRooms+NumAdditionalRooms
-                              if (isRoleChair .and. Room(rdx)%DeptIdx/=DeptIdxUser) cycle
-                              if (index(Room(rdx)%Code,trim(mesg)//SPACE)>0) then
-                                n_count = n_count+1
-                                tArray(n_count) = rdx
-                              end if
-                           end do
-                   end if
-                   mesg = 'Search results for "'//trim(mesg)//'" rooms'
+        ! which dept ?
+        call cgi_get_named_string(QUERY_STRING, 'A1', tDepartment, ierr)
 
-           case (fnRoomList, fnNextRoomList)
-                   ! which dept ?
-                   call cgi_get_named_string(QUERY_STRING, 'A1', tDepartment, ierr)
-                   targetDepartment = index_to_dept(tDepartment)
-                   if (ierr/=0 .or. targetDepartment<=0) then
-                           targetCollege = CollegeIdxUser
-                           targetDepartment = DeptIdxUser
-                           call html_write_header(device, 'Search', '<br><hr>Dept "'//tDepartment//'" not found.')
-                           return
-                   else
-                           do rdx=1,NumRooms+NumAdditionalRooms
-                              if (targetDepartment==Room(rdx)%DeptIdx) then 
-                                n_count = n_count+1
-                                tArray(n_count) = rdx
-                              end if
-                           end do
-                   end if
-                   mesg = 'Rooms in '//tDepartment
+        write(device,AFORMAT) '<!-- room_list_all('//trim(tDepartment)//') -->'
 
-           case (fnRoomConflicts, fnNextRoomConflicts)
-                   ! which college
-                   call cgi_get_named_string(QUERY_STRING, 'A1', tCollege, ierr)
-                   targetCollege = index_to_college(tCollege)
-                   if (ierr/=0 .or. targetCollege<=0) then
-                           targetCollege = CollegeIdxUser
-                           targetDepartment = DeptIdxUser
-                           call html_write_header(device, 'Search', '<br><hr>College "'//trim(tCollege)//'" not found.')
-                           return
-                   else
-                           do rdx=1,NumRooms+NumAdditionalRooms
-                             if (Department(Room(rdx)%DeptIdx)%CollegeIdx/=targetCollege) cycle ! not in college
-                             call timetable_clear(TimeTable)
-                             ! collect classes in room
-                             nsect = 0
-                             do sdx=1,NumSections
-                               call meetings_of_section_in_room(NumSections, Section, sdx, rdx, n_meetings, meetings)
-                               if (n_meetings>0) then ! room assigned to this section
-                                       ierr = -10
-                                       call timetable_add_meetings_of_section(NumSections, Section, sdx, &
-                                            n_meetings, meetings, TimeTable, ierr)
-                                       if (ierr /= -10) then
-                                               nsect = nsect+1
-                                               exit
-                                       end if
-                               end if
-                             end do
-                             if (nsect>0) then ! conflict
-                                     n_count = n_count + 1
-                                     tArray(n_count) = rdx
-                             end if
-                           end do
-                   end if
-                   mesg = 'Rooms with schedule conflicts in '//tCollege
+        targetDepartment = index_to_dept(tDepartment)
+        do rdx=1,NumRooms+NumAdditionalRooms
+            if (targetDepartment==Room(rdx)%DeptIdx) then
+                n_count = n_count+1
+                tArray(n_count) = rdx
+            end if
+        end do
+        mesg = 'Rooms in '//tDepartment
 
-    end select
+        call html_write_header(device, mesg)
 
-    call html_write_header(device, mesg)
-
-    if (n_count == 0) then
+        if (n_count == 0) then
             write(device,AFORMAT) '(None?)'
-    else
+        else
             ! sort rooms
             do tdx=1,n_count-1
-              do sdx=tdx+1,n_count
-                if (Room(tArray(sdx))%Code<Room(tArray(tdx))%Code) then
+                do sdx=tdx+1,n_count
+                    if (Room(tArray(sdx))%Code<Room(tArray(tdx))%Code) then
                         rdx =tArray(sdx)
                         tArray(sdx) = tArray(tdx)
                         tArray(tdx) = rdx
+                    end if
+                end do
+            end do
+
+            write(device,AFORMAT) '<table border="0" width="75%">'//&
+                begintr//thalignleft//'Code'//endth// &
+                thaligncenter//'Cluster'//endth, &
+                thaligncenter//'Capacity'//endth
+            do term=termBegin,termEnd
+                call qualify_term (term, tYear, tTerm, tDesc)
+                write(device,AFORMAT) &
+                    thaligncenter//txtSemester(tTerm+6)//' Term<br>'// &
+                    text_school_year(tYear)//endth
+            end do
+            write(device,AFORMAT) &
+                thaligncenter//'Remark'//endth//endtr
+
+            do tdx=1,n_count
+                rdx = tArray(tdx)
+
+                ! check conflicts for each term
+                mesg = SPACE
+                nsect = 0
+                do tTerm=termBegin,termEnd
+                    call qualify_term (tTerm, tYear, term, tDesc)
+                    call timetable_clear(TimeTable)
+                    ! collect classes in room
+                    do sdx=1,NumSections(term)
+                        call meetings_of_section_in_room(NumSections(term), Section(term,0:), sdx, rdx, &
+                            n_meetings, meetings)
+                        if (n_meetings==0) cycle ! room not assigned to this section
+                        nsect(term) = nsect(term)+1
+                        ierr = -10
+                        call timetable_add_meetings_of_section(NumSections(term), Section(term,0:), sdx, &
+                            n_meetings, meetings, TimeTable, ierr)
+                        if (ierr /= -10) then
+                            mesg = trim(mesg)//SPACE//txtSemester(term+6)
+                        end if
+                    end do
+                end do
+                if (len_trim(mesg)>0) mesg = red//'Conflict: '//trim(mesg)//black
+
+                QUERY_put = Room(rdx)%Code
+                write(device,AFORMAT) begintr//begintd//trim(Room(rdx)%Code)
+                if (isRoleAdmin .or. (isRoleChair .and. Room(rdx)%DeptIdx==DeptIdxUser)) then
+                    write(device,AFORMAT) trim(make_href(fnEditRoom, 'Edit', &
+                        A1=QUERY_put, pre=nbsp//'<small>', post='</small>'))
                 end if
-              end do
+                write(device,AFORMAT) &
+                    endtd//tdaligncenter//trim(itoa(Room(rdx)%Cluster))//endtd// &
+                    tdaligncenter//trim(itoa(Room(rdx)%MaxCapacity))//endtd
+
+                termStore = targetTerm
+                do term=termBegin,termEnd
+                    call qualify_term (term, tYear, targetTerm, tDesc)
+                    write(device,AFORMAT) trim(make_href(fnRoomSchedule, itoa(nsect(targetTerm)), &
+                        A1=QUERY_put, pre=tdaligncenter, post=endtd))
+                end do
+                targetTerm = termStore
+                write(device,AFORMAT) tdaligncenter//trim(mesg)//endtd//endtr
+            end do
+            write(device,AFORMAT) '</table>'
+        end if
+        write(device,AFORMAT) '<hr>'
+
+        return
+    end subroutine room_list_all
+
+
+
+    subroutine room_conflicts (device, NumSections, Section)
+        integer, intent (in) :: device
+        integer, intent (in) :: NumSections
+        type (TYPE_SECTION), intent(in) :: Section(0:)
+        integer :: rdx, n_count, nsect, sdx, tdx, ierr
+        integer :: n_meetings, meetings(MAX_SECTION_MEETINGS)
+        character(len=MAX_LEN_COLLEGE_CODE) :: tCollege
+        integer, dimension(60,6) :: TimeTable
+        character (len=127) :: mesg
+
+        ! collect rooms
+        tArray = 0
+        n_count = 0
+        ! which college
+        call cgi_get_named_string(QUERY_STRING, 'A1', tCollege, ierr)
+
+        write(device,AFORMAT) '<!-- room_conflicts('//trim(tCollege)//') -->'
+
+        targetCollege = index_to_college(tCollege)
+        do rdx=1,NumRooms+NumAdditionalRooms
+            if (Department(Room(rdx)%DeptIdx)%CollegeIdx/=targetCollege) cycle ! not in college
+            call timetable_clear(TimeTable)
+            ! collect classes in room
+            nsect = 0
+            do sdx=1,NumSections
+                call meetings_of_section_in_room(NumSections, Section, sdx, rdx, n_meetings, meetings)
+                if (n_meetings>0) then ! room assigned to this section
+                    ierr = -10
+                    call timetable_add_meetings_of_section(NumSections, Section, sdx, &
+                    n_meetings, meetings, TimeTable, ierr)
+                    if (ierr /= -10) then
+                        nsect = nsect+1
+                        exit
+                    end if
+                end if
+            end do
+            if (nsect>0) then ! conflict
+                n_count = n_count + 1
+                tArray(n_count) = rdx
+            end if
+        end do
+        mesg = 'Rooms with schedule conflicts in '//tCollege
+
+        call html_write_header(device, mesg)
+
+        if (n_count == 0) then
+            write(device,AFORMAT) '(None?)'
+        else
+            ! sort rooms
+            do tdx=1,n_count-1
+                do sdx=tdx+1,n_count
+                    if (Room(tArray(sdx))%Code<Room(tArray(tdx))%Code) then
+                        rdx =tArray(sdx)
+                        tArray(sdx) = tArray(tdx)
+                        tArray(tdx) = rdx
+                    end if
+                end do
             end do
 
             write(device,AFORMAT) '<table border="0" width="50%">'//&
-              begintr//thalignleft//'Code'//endth//thaligncenter//'Cluster'//endth, &
-                       thaligncenter//'Capacity'//endth//&
-                       thaligncenter//'Classes'//endth//thaligncenter//'Remark'//endth//endtr
-   
+                begintr//thalignleft//'Code'//endth// &
+                thaligncenter//'Cluster'//endth, &
+                thaligncenter//'Capacity'//endth// &
+                thaligncenter//'Classes'//endth// &
+                thaligncenter//'Remark'//endth//endtr
+
             do tdx=1,n_count
-              rdx = tArray(tdx)
-              ! check conflicts
-              mesg = SPACE
-              call timetable_clear(TimeTable)
-              ! collect classes in room
-              nsect = 0
-              do sdx=1,NumSections
-                call meetings_of_section_in_room(NumSections, Section, sdx, rdx, n_meetings, meetings)
-                if (n_meetings>0) then ! room assigned to this section
+                rdx = tArray(tdx)
+                ! check conflicts
+                mesg = SPACE
+                call timetable_clear(TimeTable)
+                ! collect classes in room
+                nsect = 0
+                do sdx=1,NumSections
+                    call meetings_of_section_in_room(NumSections, Section, sdx, rdx, n_meetings, meetings)
+                    if (n_meetings>0) then ! room assigned to this section
                         nsect = nsect+1
                         tArray(n_count+nsect) = sdx
                         ierr = -10
                         call timetable_add_meetings_of_section(NumSections, Section, sdx, n_meetings, meetings, TimeTable, ierr)
                         if (ierr /= -10) then
-                                mesg = red//'Conflict!'//black
+                            mesg = red//'Conflict!'//black
                         end if
+                    end if
+                end do
+                QUERY_put = Room(rdx)%Code
+                write(device,AFORMAT) begintr//begintd//trim(Room(rdx)%Code)
+                if (isRoleAdmin .or. (isRoleChair .and. Room(rdx)%DeptIdx==DeptIdxUser)) then
+                    write(device,AFORMAT) trim(make_href(fnEditRoom, 'Edit', &
+                        A1=QUERY_put, pre=nbsp//'<small>', post='</small>'))
                 end if
-              end do
-#if defined DO_NOT_ENCODE
-              QUERY_put = Room(rdx)%Code
-#else
-              call cgi_url_encode(Room(rdx)%Code, QUERY_put)
-#endif
-              write(device,AFORMAT) begintr//begintd//trim(Room(rdx)%Code)
-              if (isRoleAdmin .or. (isRoleChair .and. Room(rdx)%DeptIdx==DeptIdxUser)) then
-                write(device,AFORMAT) trim(make_href(fnEditRoom, 'Edit', &
-                  A1=QUERY_put, pre=nbsp//'<small>', post='</small>'))
-              end if
-              write(device,AFORMAT) &
-                endtd//tdaligncenter//trim(itoa(Room(rdx)%Cluster))//endtd// &
-                tdaligncenter//trim(itoa(Room(rdx)%MaxCapacity))//endtd
-              !if (nsect>0) then
-                write(device,AFORMAT) trim(make_href(fnOFFSET+fnRoomSchedule, itoa(nsect), &
-                  A1=QUERY_put, pre=tdaligncenter, post=endtd))
-              !else
-              !  write(device,AFORMAT) tdaligncenter//trim(itoa(nsect))//endtd
-              !end if
-              write(device,AFORMAT) tdaligncenter//trim(mesg)//endtd//endtr
+                write(device,AFORMAT) &
+                    endtd//tdaligncenter//trim(itoa(Room(rdx)%Cluster))//endtd// &
+                    tdaligncenter//trim(itoa(Room(rdx)%MaxCapacity))//endtd
+                !if (nsect>0) then
+                write(device,AFORMAT) trim(make_href(fnRoomSchedule, itoa(nsect), &
+                    A1=QUERY_put, pre=tdaligncenter, post=endtd))
+                !else
+                !  write(device,AFORMAT) tdaligncenter//trim(itoa(nsect))//endtd
+                !end if
+                write(device,AFORMAT) tdaligncenter//trim(mesg)//endtd//endtr
             end do
             write(device,AFORMAT) '</table>'
-    end if
-    write(device,AFORMAT) '<hr>'
+        end if
+        write(device,AFORMAT) '<hr>'
 
-    return
-  end subroutine room_list_all 
+        return
+    end subroutine room_conflicts
 
 
-  subroutine room_schedule(device, NumSections, Section, LoadSource)
-    integer, intent(in), optional :: LoadSource
-    integer, intent (in) :: device
-    integer, intent (in) :: NumSections
-    type (TYPE_SECTION), intent(in out), dimension (0:MAX_ALL_SECTIONS) :: Section
-    integer :: mdx, sdx, tLen1, tLen2, ierr, sect, LoadFromDept
-    character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
-    character(len=MAX_LEN_ROOM_CODE) :: tRoom
-    character(len=MAX_LEN_CLASS_ID) :: tAction, tClassId
-    integer, dimension(60,6) :: TimeTable
-    logical :: conflicted, assigned, allowed_to_edit
-    character(len=127) :: mesg 
+    subroutine room_schedule(device, NumSections, Section, LoadSource)
+        integer, intent(in), optional :: LoadSource
+        integer, intent (in) :: device
+        integer, intent (in) :: NumSections
+        type (TYPE_SECTION), intent(in out), dimension (0:MAX_ALL_SECTIONS) :: Section
+        integer :: mdx, sdx, tLen1, tLen2, ierr, sect, LoadFromDept
+        character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
+        character(len=MAX_LEN_ROOM_CODE) :: tRoom
+        character(len=MAX_LEN_CLASS_ID) :: tAction, tClassId
+        integer, dimension(60,6) :: TimeTable
+        logical :: conflicted, assigned, allowed_to_edit
+        character(len=127) :: mesg
 
-    call cgi_get_named_string(QUERY_STRING, 'A1', tRoom, ierr)
-    targetRoom = index_to_room(tRoom)
-    if (ierr/=0 .or. targetRoom==0) then
-            targetCollege = CollegeIdxUser
-            targetDepartment = DeptIdxUser
-            call html_write_header(device, 'Search', '<br><hr>Room "'//tRoom//'" not found.')
-            return
-    end if
-    targetDepartment = Room(targetRoom)%DeptIdx
-    allowed_to_edit = isRoleAdmin .or. (isRoleChair .and. targetDepartment==DeptIdxUser)
-    mesg = SPACE
+        call cgi_get_named_string(QUERY_STRING, 'A1', tRoom, ierr)
 
-    ! check if there are other arguments
-    call cgi_get_named_string(QUERY_STRING, 'A2', tAction, ierr)
-    if (ierr==0) then ! action is Add or Del
+        write(device,AFORMAT) '<!-- room_schedule('//trim(tRoom)//') -->'
+
+        targetRoom = index_to_room(tRoom)
+        targetDepartment = Room(targetRoom)%DeptIdx
+        allowed_to_edit = isRoleAdmin .or. (isRoleChair .and. targetDepartment==DeptIdxUser)
+        mesg = SPACE
+
+        ! check if there are other arguments
+        call cgi_get_named_string(QUERY_STRING, 'A2', tAction, ierr)
+
+        if (ierr==0) then ! action is Add or Del
             call cgi_get_named_string(QUERY_STRING, 'A3', tClassId, ierr)
             sect = index_to_section(tClassId, NumSections, Section)
             if (sect>0) then ! target of action is indexed by sect
-                    LoadFromDept = Section(sect)%DeptIdx
-                    if (tAction=='Add') then
-                            do mdx=1,Section(sect)%NMeets
-                              Section(sect)%RoomIdx(mdx) = targetRoom
-                            end do
-                            mesg = 'Added '//tClassId
-                    end if
-                    if (tAction=='Del') then
-                            do mdx=1,Section(sect)%NMeets
-                              Section(sect)%RoomIdx(mdx) = 0
-                            end do
-                            mesg = 'Deleted '//tClassId
-                    end if
-                    call xml_write_sections(pathToSOURCE, NumSections, Section, 0)
-                    call xml_write_sections(pathToUPDATES, NumSections, Section, LoadFromDept)
+                LoadFromDept = Section(sect)%DeptIdx
+                if (tAction=='Add') then
+                    do mdx=1,Section(sect)%NMeets
+                        Section(sect)%RoomIdx(mdx) = targetRoom
+                    end do
+                    mesg = 'Added '//tClassId
+                end if
+                if (tAction=='Del') then
+                    do mdx=1,Section(sect)%NMeets
+                        Section(sect)%RoomIdx(mdx) = 0
+                    end do
+                    mesg = 'Deleted '//tClassId
+                end if
+                call xml_write_sections(pathToTerm, NumSections, Section, 0)
+                call xml_write_sections(pathToTerm, NumSections, Section, LoadFromDept)
             end if
-    end if
+        end if
 
-    call html_write_header(device, 'Classes in room '//tRoom, mesg)
+        call html_write_header(device, 'Classes in room '//tRoom, mesg)
 
-    ! collect classes in room rdx
-    call timetable_meetings_in_room(NumSections, Section, targetRoom, 0, tLen1, tArray, TimeTable, conflicted)
-    if (tLen1>0) call timetable_display(device, Section, TimeTable)
-    call list_sections_to_edit(device, Section, tLen1, tArray, fnOFFSET+fnRoomSchedule, tRoom, 'Del', allowed_to_edit)
-    write(device,AFORMAT) '<hr>'
+        ! collect classes in room rdx
+        call timetable_meetings_in_room(NumSections, Section, targetRoom, 0, tLen1, tArray, TimeTable, conflicted)
+        if (tLen1>0) call timetable_display(device, Section, TimeTable)
+        call list_sections_to_edit(device, Section, tLen1, tArray, fnRoomSchedule, tRoom, 'Del', allowed_to_edit)
+        write(device,AFORMAT) '<hr>'
 
-    ! make list of TBA sections LoadSource that fit the schedule of room
-    if (present(LoadSource)) then
+        ! make list of TBA sections LoadSource that fit the schedule of room
+        if (present(LoadSource)) then
             LoadFromDept = LoadSource
-    else
+        else
             call cgi_get_named_string(QUERY_STRING, 'A4', tDepartment, ierr)
             LoadFromDept = index_to_dept(tDepartment)
             if (ierr/=0 .or. LoadFromDept<=0) then
-                    LoadFromDept = targetDepartment
+                LoadFromDept = targetDepartment
             else
-                    mesg = 'Searched for feasible classes in '//tDepartment
+                mesg = 'Searched for feasible classes in '//tDepartment
             end if
-    end if
-    
-    tLen2 = 0
-    do sdx=1,NumSections
-      if (LoadFromDept/=Section(sdx)%DeptIdx) cycle ! not in this department
-      if (Section(sdx)%NMeets==1 .and. Section(sdx)%DayIdx(1)==0) cycle ! meeting days/time not specified 
-      ! room(s) already assigned to this section?
-      assigned = .false.
-      do mdx=1,Section(sdx)%NMeets
-        if (Section(sdx)%RoomIdx(mdx)/=0) assigned = .true.
-      end do
-      if (assigned) cycle ! section has a teacher
-      if (.not. is_conflict_timetable_with_section(NumSections, Section, sdx, TimeTable)) then ! add to list
-              do mdx=1,Section(sdx)%NMeets
-                tArray(tLen1+tLen2+1) = sdx
-                tArray(tLen1+tLen2+2) = mdx
-                tArray(tLen1+tLen2+3) = 0
-                tLen2 = tLen2+3
-              end do
-      end if
-    end do
-    tArray(tLen1+tLen2+1) = 0
-    tArray(tLen1+tLen2+2) = 0
-    tArray(tLen1+tLen2+3) = 0
-    if (tLen2>0) then
-            call list_sections_to_edit(device, Section, tLen2, tArray(tLen1+1), fnOFFSET+fnRoomSchedule, tRoom, 'Add', &
-              allowed_to_edit, '<b>Classes with TBA rooms in '//trim(Department(LoadFromDept)%Code)// &
-              ' that fit available times in '//trim(tRoom)//'</b>')
-    end if
+        end if
 
-    ! search for feasible classes in another department?
-    call make_form_start(device, fnOFFSET+fnRoomSchedule, tRoom)
-    write(device,AFORMAT) '<br>Search for feasible classes in : <select name="A4">'
-    do mdx=2,NumDepartments
-      if (mdx/=LoadFromDept) then
+        tLen2 = 0
+        do sdx=1,NumSections
+            if (LoadFromDept/=Section(sdx)%DeptIdx) cycle ! not in this department
+            if (Section(sdx)%NMeets==1 .and. Section(sdx)%DayIdx(1)==0) cycle ! meeting days/time not specified
+            ! room(s) already assigned to this section?
+            assigned = .false.
+            do mdx=1,Section(sdx)%NMeets
+                if (Section(sdx)%RoomIdx(mdx)/=0) assigned = .true.
+            end do
+            if (assigned) cycle ! section has a teacher
+            if (.not. is_conflict_timetable_with_section(NumSections, Section, sdx, TimeTable)) then ! add to list
+                do mdx=1,Section(sdx)%NMeets
+                    tArray(tLen1+tLen2+1) = sdx
+                    tArray(tLen1+tLen2+2) = mdx
+                    tArray(tLen1+tLen2+3) = 0
+                    tLen2 = tLen2+3
+                end do
+            end if
+        end do
+        tArray(tLen1+tLen2+1) = 0
+        tArray(tLen1+tLen2+2) = 0
+        tArray(tLen1+tLen2+3) = 0
+        if (tLen2>0) then
+            call list_sections_to_edit(device, Section, tLen2, tArray(tLen1+1), fnRoomSchedule, tRoom, 'Add', &
+            allowed_to_edit, '<b>Classes with TBA rooms in '//trim(Department(LoadFromDept)%Code)// &
+            ' that fit available times in '//trim(tRoom)//'</b>')
+        end if
+
+        ! search for feasible classes in another department?
+        call make_form_start(device, fnRoomSchedule, tRoom)
+        write(device,AFORMAT) '<br>Search for feasible classes in : <select name="A4">'
+        do mdx=2,NumDepartments
+            if (mdx/=LoadFromDept) then
                 ierr = 0
-      else
+            else
                 ierr = 1
-      end if
-      write(device,AFORMAT) '<option value="'//trim(Department(mdx)%Code)//'"'//trim(selected(ierr))//'> '// &
-        trim(Department(mdx)%Code)//DASH//trim(Department(mdx)%Name)
-    end do
-    write(device,AFORMAT) '</select>'//nbsp//'<input type="submit" value="Find classes"></form><hr>'
+            end if
+            write(device,AFORMAT) '<option value="'//trim(Department(mdx)%Code)//'"'//trim(selected(ierr))//'> '// &
+            trim(Department(mdx)%Code)//DASH//trim(Department(mdx)%Name)
+        end do
+        write(device,AFORMAT) '</select>'//nbsp//'<input type="submit" value="Find classes"></form><hr>'
 
-    return
-  end subroutine room_schedule
+        return
+    end subroutine room_schedule
 
 
-  subroutine room_edit(device)
-    integer, intent(in) :: device
-    character(len=MAX_LEN_ROOM_CODE) :: tRoom, tAction
-    character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
-    integer :: ierr, rdx, i, j
-    character (len=255) :: mesg, remark
-    type (TYPE_ROOM) :: wrk
-    logical :: isDirtyROOMS
+    subroutine room_edit(device)
+        integer, intent(in) :: device
+        character(len=MAX_LEN_ROOM_CODE) :: tRoom, tAction
+        character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
+        integer :: ierr, rdx, i, j
+        character (len=255) :: mesg, remark
+        type (TYPE_ROOM) :: wrk
+        logical :: isDirtyROOMS
 
-    ! which subject ?
-    call cgi_get_named_string(QUERY_STRING, 'A1', tRoom, rdx)
-    if (rdx/=0 .or. tRoom==SPACE) then
+        ! which subject ?
+        call cgi_get_named_string(QUERY_STRING, 'A1', tRoom, rdx)
+
+        write(device,AFORMAT) '<!-- room_edit('//trim(tRoom)//') -->'
+
+        if (rdx/=0 .or. tRoom==SPACE) then
             mesg = 'Room to edit not specified?'
-    else
+        else
             rdx = index_to_room(tRoom)
             mesg = 'Room code '//tRoom//' is invalid?'
-    end if
-    if (rdx<=0) then ! subject code is invalid
+        end if
+        if (rdx<=0) then ! subject code is invalid
             targetCollege = CollegeIdxUser
             targetDepartment = DeptIdxUser
             call html_write_header(device, 'Search', '<br><hr>'//trim(mesg))
             return
-    end if
+        end if
 
-    wrk = Room(rdx) ! make a working copy
+        wrk = Room(rdx) ! make a working copy
 
-    ! check for other arguments
-    call cgi_get_named_string(QUERY_STRING, 'action', tAction, ierr)
-    !write(*,*) 'ierr=', ierr, ', action=', tAction
-    isDirtyROOMS = .false.
-    remark = SPACE
+        ! check for other arguments
+        call cgi_get_named_string(QUERY_STRING, 'action', tAction, ierr)
+        !write(*,*) 'ierr=', ierr, ', action=', tAction
+        isDirtyROOMS = .false.
+        remark = SPACE
 
-    select case (trim(tAction))
+        select case (trim(tAction))
 
-        case ('Update')
-            
-            call cgi_get_named_integer(QUERY_STRING, 'MaxCapacity', wrk%MaxCapacity, ierr)
-            !write(*,*) 'ierr=', ierr, ', MaxCapacity=', wrk%MaxCapacity
-            if (ierr/=0) wrk%MaxCapacity = Room(rdx)%MaxCapacity
+            case ('Update')
 
-            call cgi_get_named_integer(QUERY_STRING, 'Cluster', wrk%Cluster, ierr)
-            !write(*,*) 'ierr=', ierr, ', Cluster=', wrk%Cluster
-            if (ierr/=0) wrk%Cluster = Room(rdx)%Cluster
+                call cgi_get_named_integer(QUERY_STRING, 'MaxCapacity', wrk%MaxCapacity, ierr)
+                !write(*,*) 'ierr=', ierr, ', MaxCapacity=', wrk%MaxCapacity
+                if (ierr/=0) wrk%MaxCapacity = Room(rdx)%MaxCapacity
 
-            call cgi_get_named_string(QUERY_STRING, 'Code', wrk%Code, ierr)
-            !write(*,*) 'ierr=', ierr, ', Code=', wrk%Code
-            if (ierr/=0) wrk%Code = Room(rdx)%Code
+                call cgi_get_named_integer(QUERY_STRING, 'Cluster', wrk%Cluster, ierr)
+                !write(*,*) 'ierr=', ierr, ', Cluster=', wrk%Cluster
+                if (ierr/=0) wrk%Cluster = Room(rdx)%Cluster
 
-            call cgi_get_named_string(QUERY_STRING, 'Department', tDepartment, ierr)
-            wrk%DeptIdx = index_to_dept(tDepartment)
-            !write(*,*) 'ierr=', ierr, ', DeptIdx=', wrk%DeptIdx
-            if (ierr/=0 .or. wrk%DeptIdx<=0) wrk%DeptIdx = Room(rdx)%DeptIdx
+                call cgi_get_named_string(QUERY_STRING, 'Code', wrk%Code, ierr)
+                !write(*,*) 'ierr=', ierr, ', Code=', wrk%Code
+                if (ierr/=0) wrk%Code = Room(rdx)%Code
 
-            if (wrk%Code /= Room(rdx)%Code) then
-                isDirtyROOMS = .true.
-                remark = trim(remark)//': Code changed to '//wrk%Code
-            end if
+                call cgi_get_named_string(QUERY_STRING, 'Department', tDepartment, ierr)
+                wrk%DeptIdx = index_to_dept(tDepartment)
+                !write(*,*) 'ierr=', ierr, ', DeptIdx=', wrk%DeptIdx
+                if (ierr/=0 .or. wrk%DeptIdx<=0) wrk%DeptIdx = Room(rdx)%DeptIdx
 
-            if (wrk%DeptIdx /= Room(rdx)%DeptIdx) then
-                isDirtyROOMS = .true.
-                remark = trim(remark)//': Department changed to '//Department(wrk%DeptIdx)%Code
-            end if
+                if (wrk%Code /= Room(rdx)%Code) then
+                    isDirtyROOMS = .true.
+                    remark = trim(remark)//': Code changed to '//wrk%Code
+                end if
 
-            if ( wrk%MaxCapacity /= Room(rdx)%MaxCapacity) then
-                isDirtyROOMS = .true.
-                remark = trim(remark)//': Max seating capacity changed to '//itoa(wrk%MaxCapacity)
-            end if
+                if (wrk%DeptIdx /= Room(rdx)%DeptIdx) then
+                    isDirtyROOMS = .true.
+                    remark = trim(remark)//': Department changed to '//Department(wrk%DeptIdx)%Code
+                end if
 
-            if ( wrk%Cluster /= Room(rdx)%Cluster) then
-                isDirtyROOMS = .true.
-                remark = trim(remark)//': Cluster changed to '//itoa(wrk%Cluster)
-            end if
+                if ( wrk%MaxCapacity /= Room(rdx)%MaxCapacity) then
+                    isDirtyROOMS = .true.
+                    remark = trim(remark)//': Max seating capacity changed to '//itoa(wrk%MaxCapacity)
+                end if
 
-            if (isDirtyROOMS) then
+                if ( wrk%Cluster /= Room(rdx)%Cluster) then
+                    isDirtyROOMS = .true.
+                    remark = trim(remark)//': Cluster changed to '//itoa(wrk%Cluster)
+                end if
+
+                if (isDirtyROOMS) then
                     if ( wrk%Code /= Room(rdx)%Code) then
-                            ! add new subject?
-                            j = index_to_room(wrk%Code)
-                            if (j==0) then
-                                    NumAdditionalRooms = NumAdditionalRooms+1
-                                    Room(NumRooms+NumAdditionalRooms) = wrk
-                                    rdx = NumRooms+NumAdditionalRooms
-                                    tRoom = wrk%Code
-                                    remark = ': Added new room '//wrk%Code
-                            else
-                                    remark = ': Add new room failed; "'//trim(wrk%Code)//'" already exists.'
-                                    isDirtyROOMS = .false.
-                            end if
+                        ! add new subject?
+                        j = index_to_room(wrk%Code)
+                        if (j==0) then
+                            NumAdditionalRooms = NumAdditionalRooms+1
+                            Room(NumRooms+NumAdditionalRooms) = wrk
+                            rdx = NumRooms+NumAdditionalRooms
+                            tRoom = wrk%Code
+                            remark = ': Added new room '//wrk%Code
+                        else
+                            remark = ': Add new room failed; "'//trim(wrk%Code)//'" already exists.'
+                            isDirtyROOMS = .false.
+                        end if
                     else
-                            ! update existing
-                            Room(rdx) = wrk
+                        ! update existing
+                        Room(rdx) = wrk
                     end if
-            end if
+                end if
 
-        case default
-                !write(*,*) 'Unknown action: '//tAction
+            case default
+                    !write(*,*) 'Unknown action: '//tAction
 
 
-    end select
-    
-    if (isDirtyROOMS) then
-            call xml_write_rooms(pathToCurrent)
+        end select
+
+        if (isDirtyROOMS) then
+            call xml_write_rooms(pathToYear)
             call html_college_links(device, Department(wrk%DeptIdx)%CollegeIdx, trim(tRoom)//remark)
             return
-    end if
+        end if
 
-    targetDepartment = Room(rdx)%DeptIdx
+        targetDepartment = Room(rdx)%DeptIdx
 
-    call html_write_header(device, 'Edit room '//tRoom, remark(3:))
-    call make_form_start(device, fnEditRoom, tRoom)
-    write(device,AFORMAT) '<table border="0" width="100%">', &
+        call html_write_header(device, 'Edit room '//tRoom, remark(3:))
+        call make_form_start(device, fnEditRoom, tRoom)
+        write(device,AFORMAT) '<table border="0" width="100%">', &
         begintr//begintd//'Room code'//endtd//begintd//'<input name="Code" size="'//trim(itoa(MAX_LEN_ROOM_CODE))// &
         '" value="'//trim(tRoom)//'"> (A new room will be created if this is changed)'//endtd//endtr
-    write(device,AFORMAT) &
-      begintr//begintd//'Responsible department'//endtd//begintd//'<select name="Department">'
-    do i=2,NumDepartments
-      if (i/=targetDepartment) then
-              j=0
-      else
-              j=1
-      end if
-      write(device,AFORMAT) '<option '//trim(selected(j))//' value="'//trim(Department(i)%Code)//'">'// &
-        trim(Department(i)%Name)
-    end do
-    write(device,AFORMAT) '</select>'//endtd//endtr, &
-      begintr//begintd//'Maximum seating capacity'//endtd//begintd//'<input name="MaxCapacity" size="3" value="'// &
+        write(device,AFORMAT) &
+        begintr//begintd//'Responsible department'//endtd//begintd//'<select name="Department">'
+        do i=2,NumDepartments
+            if (i/=targetDepartment) then
+                j=0
+            else
+                j=1
+            end if
+            write(device,AFORMAT) '<option '//trim(selected(j))//' value="'//trim(Department(i)%Code)//'">'// &
+            trim(Department(i)%Name)
+        end do
+        write(device,AFORMAT) '</select>'//endtd//endtr, &
+        begintr//begintd//'Maximum seating capacity'//endtd//begintd//'<input name="MaxCapacity" size="3" value="'// &
         trim(itoa(Room(rdx)%MaxCapacity))//'">'//endtd//endtr, &
-      begintr//begintd//'Cluster'//endtd//begintd//'<input name="Cluster" size="3" value="'// &
+        begintr//begintd//'Cluster'//endtd//begintd//'<input name="Cluster" size="3" value="'// &
         trim(itoa(Room(rdx)%Cluster))//'">'//endtd//endtr
 
-    write(device,AFORMAT) '</table><br>'//nbsp//'<input name="action" type="submit" value="Update"></form><pre>', &
-      'NOTE: Rooms that are located in buildings within walking distance of each other must belong to the same cluster.', &
-      '</pre><hr>'
+        write(device,AFORMAT) '</table><br>'//nbsp//'<input name="action" type="submit" value="Update"></form><pre>', &
+        'NOTE: Rooms that are located in buildings within walking distance of each other must belong to the same cluster.', &
+        '</pre><hr>'
 
-    return
-  end subroutine room_edit
+        return
+    end subroutine room_edit
 
 
 end module EditROOMS

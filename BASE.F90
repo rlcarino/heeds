@@ -32,38 +32,35 @@ module BASE
 
     implicit none
 
+    ! software version
+    character(len= 7), parameter :: VERSION   = ' v.4.10'
+
     ! Pasword encryption key (16 characters)                 1234567890123456
     character(len=16), parameter :: passwordEncryptionKey = 'r3pL@c3w!thUr0wn'
 
-    ! OS-specific variables (set in MAIN.F90)
+    ! OS-specific
 #if defined GLNX
-    ! HEEDS root directory and CGI script
-    character(len=18) :: dirHEEDS ! = '/home/heeds/HEEDS/'
     ! file separator; delete, directory, mkdir commands
-    character(len= 6) :: delCmd ! = 'rm -f '
-    character(len= 9) :: mkdirCmd ! = 'mkdir -p '
-    character(len= 6) :: mvCmd ! = 'mv -f '
+    character(len= 6), parameter :: delCmd = 'rm -f '
+    character(len= 9), parameter :: mkdirCmd = 'mkdir -p '
+    character(len= 6), parameter :: mvCmd = 'mv -f '
+    character(len= 1), parameter :: DIRSEP = '/'
+    character(len= 8), parameter :: UPDATES = 'UPDATES/'
 #else
-    ! HEEDS root directory and CGI script
-    character(len= 7) :: dirHEEDS ! = '\HEEDS\'
     ! file separator; delete, directory, mkdir commands
-    character(len= 7) :: delCmd ! = 'del /q '
-    character(len= 6) :: mkdirCmd ! = 'mkdir '
-    character(len= 8) :: mvCmd ! = 'move /y '
+    character(len= 7), parameter :: delCmd = 'del /q '
+    character(len= 6), parameter :: mkdirCmd = 'mkdir '
+    character(len= 8), parameter :: mvCmd = 'move /y '
+    character(len= 1), parameter :: DIRSEP = '\'
+    character(len= 8), parameter :: UPDATES = 'UPDATES\'
 #endif
-
-    character(len= 1) :: DIRSEP ! = '/' or '\'
-    character(len= 8) :: UPDATES ! = 'UPDATES/' or 'UPDATES\'
-
-    ! CGI script
-    character(len= 6), parameter :: CGI_PATH = '/heeds'
 
     ! flag to control generation of backups
     logical, parameter :: DO_NOT_BACKUP = .false. ! .false. ! create backups?
 
     integer :: currentYear ! year of start of Academic Year
     integer :: currentTerm ! current term 1=1st sem, 2=2nd sem; 3=summer
-    integer :: nextYear, nextTerm, targetTerm, targetYear
+    integer :: nextYear, nextTerm, targetTerm, termBegin, termEnd
     integer :: prevTermYear, prevTermTerm, prevYearYear, prevYearTerm
 
     character(len=10) :: currentTime ! current time
@@ -71,34 +68,33 @@ module BASE
     character(len=18) :: startDateTime ! program start date & time
 
     integer, parameter :: MAX_LEN_FILE_PATH = 256 ! Max length of file path+name
-    integer :: unitHTML = 999   ! file unit for HTML to webserver
-    integer :: unitUSER = 998   ! file unit for user activities
-    integer :: unitXML  = 997   ! file unit for XML input/output
-    integer :: unitRAW  = 996   ! file unit for custom inputs
-    integer :: unitLOG  = 995   ! file unit for log messages
-    integer :: unitREQ  = 994   ! file unit for requests
-    integer :: unitETC  = 993   ! file unit for requests
+    integer, parameter :: &
+        unitHTML = 999, &   ! file unit for HTML to webserver
+        unitUSER = 998, &   ! file unit for user activities
+        unitXML  = 997, &   ! file unit for XML input/output
+        unitRAW  = 996, &   ! file unit for custom inputs
+        unitLOG  = 995, &   ! file unit for log messages
+        unitREQ  = 994, &   ! file unit for requests
+        unitETC  = 993
 
     ! flag to control generation of log files, backups
     logical :: noWrites = .false. ! .true. means do not change data files
+    logical :: isSuspended = .false.  ! only REGISTRAR role can work
 
-    ! data & output locations
+    ! data & output paths (set in MAIN.F90)
     character (len=MAX_LEN_FILE_PATH) :: &
-        fileExecutable, & ! name of executable
-        dirWWW, & ! directory where web pages will be served (must be writable by HEEDS)
-        dirBak, & ! directory for backup files
-        dirLog, & ! directory for log files
+        dirHEEDS, & ! HEEDS root directory
+        dirBAK, & ! directory for backup files
+        dirLOG, & ! directory for log files
+        dirRAW, & ! directory for raw data files
+        dirXML, & ! directory for XML data files
         dirSUBSTITUTIONS, & ! directory for input/UNEDITED checklists from Registrar
         dirTRANSCRIPTS, & ! directory for raw transcripts
         dirEditedCHECKLISTS, & ! directory for output/EDITED checklists from College Secretaries
-        dirRAW, & ! directory for raw data files
-        dirXML, & ! directory for XML data files
-        pathToYear, &  ! path data files for the year
-        pathToTerm, &  ! path to updated files by stand-alone users
-        pathToCurrent, & ! path to files for currentYear+currentTerm
-        pathToTarget, &  ! path to files for targetYear+targetTerm
-        pathToSOURCE, &  ! pathToCurrent or pathToTarget
-        pathToUPDATES    ! path to files of changes by stand-alone users
+        pathToYear, pathToNextYear, &  ! path data files for the year, next year
+        pathToTerm, & ! path to files of changes by stand-alone users
+        fileExecutable, & ! name of executable
+        CGI_PATH ! URI
 
     ! position of last character in dirXML (to simplify derivation of path to backup)
     integer :: lenDirXML
@@ -114,41 +110,78 @@ module BASE
     character(len=16), parameter :: HEXDIGITS = '0123456789ABCDEF'
     character(len=24), parameter :: SPECIAL = '<>"#%{}|^~[]`;/?:=&$+().'
 
-    ! software version
+    !                                            123456789A123456789B123456789C123456789D123456789E
     character(len= 5), parameter :: PROGNAME  = 'HEEDS'
-    character(len= 8), parameter :: VERSION   = ' v.4.04 '
     character(len=45), parameter :: COPYRIGHT = 'Copyright (C) 2012, 2013 Ricolindo L. Carino'
     character(len=38), parameter :: EMAIL     = 'Ricolindo.Carino@AcademicForecasts.com'
     character(len=72), parameter :: CONTACT   = 'E-mail inquiries about '//PROGNAME//' to '//EMAIL//'.'
     character(len=32), parameter :: WEB       = 'http://code.google.com/p/heeds/'
 
-    ! University name
-    integer, parameter :: &
-        MAX_LEN_UNIVERSITY_CODE=20, & ! length of college codes
-        MAX_LEN_UNIVERSITY_NAME=60, & ! length of college names
-        MAX_LEN_COLLEGE_CODE=10, & ! length of college codes
-        MAX_LEN_DEPARTMENT_CODE=10 ! length of dept codes
-    character (len= MAX_LEN_UNIVERSITY_CODE) :: UniversityCode = SPACE
-    character (len=MAX_LEN_UNIVERSITY_NAME) :: &
-        UniversityName = '(Specify NAME in UNIVERSITY.XML)', &
-        UniversityAddress = '(Specify ADDRESS in UNIVERSITY.XML)', &
-        UniversityPresident = 'Firstname MI LastName, PhD', &
-        VPAcademicAffairs = 'Firstname MI LastName, PhD', &
-        DeanOfCampus = 'Firstname MI LastName, PhD', &
-        DeanOfInstruction = 'Firstname MI LastName, PhD'
-
-    ! 'Administrative' college, for data not under the academic colleges
-    character (len=MAX_LEN_COLLEGE_CODE) :: ADMINISTRATION = 'ADMIN'
-
-    ! 'Administrative' department, for data not under the academic departments
-    character (len=MAX_LEN_DEPARTMENT_CODE) :: REGISTRAR = 'Registrar'
-
-    integer :: baseYear = 2008 ! year that records usable by HEEDS are available in the database
-    integer :: StdNoYearLen ! no. of characters in StdNo to use for directory name
-    integer, parameter :: StdNoChars = 2 ! no. of characters in StdNo to use for directory name
-
 
 contains
+
+
+    subroutine initialize_random_seed()
+
+        integer :: i, n, clock
+        integer, dimension(:), allocatable :: seed
+
+        ! initialize the random seed based on the system's time.
+        ! (example from http://gcc.gnu.org/onlinedocs/gfortran/RANDOM_005fSEED.html#RANDOM_005fSEED)
+        call random_seed(size = n)
+        allocate(seed(n))
+
+        call system_clock(count=clock)
+
+        seed = clock + 37 * (/ (i - 1, i = 1, n) /)
+        call random_seed(put = seed)
+
+        deallocate(seed)
+
+        return
+    end subroutine initialize_random_seed
+
+
+    subroutine encrypt(key, text)
+        character(len=*), intent (in) :: key
+        character(len=*), intent (inout) :: text
+        integer :: i, j, k, lenKey, lenText
+        lenKey=len_trim(key)
+        lenText=len_trim(text)
+        i = lenKey
+        do j=lenText,1,-1
+            k = 2*j
+            write(text(k-1:k),'(z0.2)') char(ieor(ichar(key(i:i)),ichar(text(j:j))))
+            i = i-1
+            if (i==0) i = lenKey
+        end do
+        return
+    end subroutine encrypt
+
+
+    subroutine decrypt(key, text)
+        character(len=*), intent (in) :: key
+        character(len=*), intent (in out) :: text ! in=cipher, out=plaintext
+        integer :: i, j, k, lenKey, lenText, intText
+
+#if defined PRODUCTION
+#else
+        write(unitHTML,AFORMAT) '<!-- decrypt('//trim(text)//') -->'
+#endif
+
+        lenKey = len_trim(key)
+        lenText = len_trim(text)/2
+        i = lenKey
+        do j=lenText,1,-1
+            k = 2*j
+            read(text(k-1:k), '(z2)') intText
+            text(j+lenText:j+lenText) = char( ieor(ichar(key(i:i)),intText) )
+            i = i-1
+            if (i==0) i = lenKey
+        end do
+        text = text(lenText+1:) ! move to front
+        return
+    end subroutine decrypt
 
 
     subroutine blank_to_underscore (inString, outString)
@@ -203,43 +236,6 @@ contains
         end do
         return
     end subroutine lower_case
-
-
-    subroutine encrypt(key, text)
-        character(len=*), intent (in) :: key
-        character(len=*), intent (inout) :: text
-        integer :: i, j, k, lenKey, lenText
-        lenKey=len_trim(key)
-        lenText=len_trim(text)
-        i = lenKey
-        do j=lenText,1,-1
-            k = 2*j
-            write(text(k-1:k),'(z0.2)') char(ieor(ichar(key(i:i)),ichar(text(j:j))))
-            i = i-1
-            if (i==0) i = lenKey
-        end do
-        return
-    end subroutine encrypt
-
-
-    subroutine decrypt(key, text)
-        character(len=*), intent (in) :: key
-        character(len=*), intent (inout) :: text
-        integer :: i, j, k, lenKey, lenText, intText
-        lenKey = len_trim(key)
-        lenText = len_trim(text)/2
-        i = lenKey
-        do j=lenText,1,-1
-            k = 2*j
-            read(text(k-1:k), '(z2)') intText
-            text(j+lenText:j+lenText) = char( ieor(ichar(key(i:i)),intText) )
-            i = i-1
-            if (i==0) i = lenKey
-        end do
-        text = text(lenText+1:) ! discard 1st half
-        return
-    end subroutine decrypt
-
 
 
     function atoi(inString)
@@ -384,6 +380,30 @@ contains
     end function itoabz
   
 
+    function itoa2bz(num)
+        character (len=2) :: itoa2bz
+        integer, intent (in) :: num
+        character (len=2) :: str2
+        integer :: j, k, l
+        if (num > 99) then
+            str2 = '**'
+        else
+            str2 = '00'
+            k = num
+            l = 2
+            do
+                j = mod(k,10)+1
+                k = k/10
+                str2(l:l) = DECDIGITS(j:j)
+                if (k == 0) exit
+                l = l-1
+            end do
+        end if
+        itoa2bz = str2
+        return
+    end function itoa2bz
+
+
     function itoa3bz(num)
         character (len=3) :: itoa3bz
         integer, intent (in) :: num
@@ -409,6 +429,7 @@ contains
         return
     end function itoa3bz
 
+
     subroutine index_to_delimiters(symbol, string, nsymbols, pos)
         character (len=*), intent (in) :: symbol
         character (len=*), intent (in) :: string
@@ -431,8 +452,9 @@ contains
 
 
     subroutine check_array_bound(current, limit, msg)
-        character (len = *), intent (in) :: msg
+        character (len=*), intent (in) :: msg
         integer, intent (in) :: current, limit
+
         if (current > limit) then
             write(unitLOG,AFORMAT) 'Aborting due to insufficient array size; increase '//msg
             write(unitLOG,'(1x,2(a,i5))')  'Limit is ', limit, '; currently used is ', current
@@ -482,25 +504,5 @@ contains
     end subroutine move_to_backup
 
 
-    subroutine initialize_random_seed()
-
-        integer :: i, n, clock
-        integer, dimension(:), allocatable :: seed
-
-        ! initialize the random seed based on the system's time.
-        ! (example from http://gcc.gnu.org/onlinedocs/gfortran/RANDOM_005fSEED.html#RANDOM_005fSEED)
-        call random_seed(size = n)
-        allocate(seed(n))
-
-        call system_clock(count=clock)
-
-        seed = clock + 37 * (/ (i - 1, i = 1, n) /)
-        call random_seed(put = seed)
-
-        deallocate(seed)
-
-        return
-    end subroutine initialize_random_seed
-  
 end module BASE
 

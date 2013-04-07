@@ -51,32 +51,33 @@ contains
         character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
         character(len=MAX_LEN_FILE_PATH) :: logTeacher
         logical :: logExists
+        real :: harvest    ! random number
 
+        ! initialize QUERY_STRING encryption key
+        do iTmp=1,MAX_LEN_QUERY_STRING
+            call random_number(harvest)
+            kStart = 1 + int(255*harvest)
+            queryEncryptionKey(iTmp:iTmp) = achar(kStart)
+        end do
 
-        ! delete existing pages
-        call system(delCmd//trim(dirWWW)//'index.*', iTmp)
+        ! make "Stop!" page
+        call hostnm(QUERY_put, iTmp)
+        if (iTmp/=0) QUERY_put = 'localhost'
+        CGI_PATH = 'http://'//trim(QUERY_put)//FSLASH//trim(UniversityCode)//FSLASH//ACTION
+        call html_login('Stop-'//trim(UniversityCode)//DASH//trim(ACTION)//'.html', &
+            trim(make_href(fnStop, 'Stop', post=nbsp//trim(UniversityCode)//FSLASH//ACTION)))
 
-        ! make landing page
-        call html_login(trim(dirWWW)//DIRSEP//'index.html', SPACE)
-
-        ! make error page
-        call html_login(trim(dirWWW)//DIRSEP//'50x.html', &
-            'The '//PROGNAME//' program is not running. Contact the '//REGISTRAR)
+        ! reset CGI_PATH
+        CGI_PATH = FSLASH//trim(UniversityCode)//FSLASH//ACTION
 
         ! notes
-        call file_log_message(trim(fileExecutable)//' is ready.')
+        call file_log_message(trim(fileExecutable)//' started '//ACTION)
         if (noWrites) then ! training mode
             call file_log_message(trim(fileExecutable)//' is in training mode. '// &
                 'Any made changes will be lost after the program exits.')
         end if
 
-        ! open log for requests only
-        open(unit=unitREQ, file=trim(dirLOG)//'requests.log', status='unknown')
-
-        ! open a 'scratch' response file
-        open(unit=unitHTML, form='formatted', status='scratch')
-        !open(unit=unitHTML, file='WRK.HTML', form='formatted', status='unknown')
-
+        ! loop until killed/fnSTOP
         do while (FCGI_Accept() >= 0)
         
             ! timestamp of request
@@ -117,12 +118,16 @@ contains
             targetRoom = 0
             targetTeacher = 0
             targetBlock = 0
+            targetTerm = 0
             targetLogin = 0
             targetStudent = 0
 
             ! Establish USERNAME/ROLE and REQUEST
             loginCheckMessage = SPACE
-            call get_user_request(targetLogin)
+            call get_user_request()
+
+            ! override targetTerm if  is ENLISTMENT
+            if (currentTerm==nextTerm) targetTerm = currentTerm
 
             ! open user's log file, create if necessary
             call blank_to_underscore(USERNAME, tTeacher)
@@ -137,11 +142,15 @@ contains
             ! append query to user log file
             write(unitUSER,AFORMAT) SPACE, &
                 REMOTE_ADDR//' : '//currentDate//DASH//currentTime//' : '// &
-                trim(fnDescription(REQUEST))
+                fnDescription(REQUEST)
             if (REQUEST>4) then ! no passwords
                 write(unitUSER,AFORMAT) trim(cipher)
                 write(unitREQ, AFORMAT) trim(cipher)
             end if
+#if defined PRODUCTION
+#else
+            write(unitHTML,AFORMAT) '<!-- '//trim(fnDescription(REQUEST))//' -->'
+#endif
 
             ! compose response
             call server_respond(unitHTML)
@@ -152,23 +161,16 @@ contains
             ! close user log file
             close(unitUSER)
 
-            if (REQUEST==fnStopProgram) exit
-
-            ! reset available features (in case objects were added or deleted)
-            call set_feature_availability()
+            ! stop?
+            if (REQUEST==fnStop) exit
 
         end do ! while (FCGI_Accept() >= 0)
 
-        ! make 'Sorry!' landing page
-        call html_login(trim(dirWWW)//DIRSEP//'index.html', &
-            'The '//PROGNAME//' program is not running. Contact the '//REGISTRAR)
+        ! remove "Stop" link
+        call unlink('Stop-'//trim(UniversityCode)//DASH//trim(ACTION)//'.html')
 
-        ! wait for next query before NGINX raises error
-        iTmp = FCGI_Accept()
-
-        ! it is good practice to close files before program termination
-        close(unitHTML)
-        close(unitREQ)
+        ! terminate
+        call terminate(trim(fileExecutable)//' completed '//ACTION)
 
         return
 
@@ -178,21 +180,39 @@ contains
     subroutine server_respond (device)
         integer, intent (in) :: device
 
-        ! set TermQualifier to next semester if REQUEST uses data for next semester
-        if (REQUEST>=fnNextScheduleOfClasses) then
-            fnOFFSET = fnNextOffset
-            TermQualifier = green//trim(txtSemester(targetTerm+3))//' Term, SY '// &
-                trim(itoa(targetYear))//DASH//itoa(targetYear+1)//black
-            pathToSOURCE = pathToTarget
-            pathToUPDATES = UPDATES//pathToTarget
+        integer :: tYear, tTerm
+
+#if defined PRODUCTION
+#else
+        write(unitHTML,AFORMAT) '<!-- server_respond() -->'
+#endif
+        ! target directory if files are to be modified
+        if (targetTerm>0) then
+            if (targetTerm<currentTerm) then ! next school year
+                call qualify_term (3+targetTerm, tYear, tTerm, termDescription)
+            else
+                call qualify_term (targetTerm, tYear, tTerm, termDescription)
+            end if
+            termDescription = ' for '//termDescription
+            pathToTerm = trim(itoa(tYear))//DIRSEP//trim(txtSemester(tTerm))//DIRSEP
         else
-            fnOFFSET = 0
-            TermQualifier = SPACE
-            pathToSOURCE = pathToCurrent
-            pathToUPDATES = UPDATES//pathToCurrent
+            termDescription = SPACE
+            pathToTerm = trim(itoa(currentYear))//DIRSEP
         end if
 
+        ! suspended ?
+        if (isSuspended .and. .not. isRoleAdmin) REQUEST = 0
+
         select case (REQUEST)
+
+            case (0)
+                Teacher(targetLogin)%Status = 0
+                call html_landing_page(device, &
+                    '<hr>The '//trim(UniversityCode)//SPACE//trim(REGISTRAR)//' has temporarily suspended '// &
+                    PROGNAME//FSLASH//trim(Action)//'. Please try again later.<hr>')
+
+            case (fnStop)
+                call html_landing_page(device, 'The program will stop.')
 
             case (fnLogin)
                 Teacher(targetLogin)%Status = 1
@@ -202,22 +222,44 @@ contains
                 Teacher(targetLogin)%Status = 1
                 call change_current_password(device)
 
+            case (fnLogout)
+                Teacher(targetLogin)%Status = 0
+                call html_landing_page(device, SPACE)
+
+            case (fnSuspendProgram)
+                if (isRoleAdmin) then
+                    if (isDirtySTUDENTS) then
+                        call xml_write_students(pathToYear, 0)
+                    end if
+                    isSuspended = .not. isSuspended
+                    call html_college_links(device, CollegeIdxUser, mesg='Toggled "Suspend" mode')
+                else
+                    REQUEST = fnLogout
+                    Teacher(targetLogin)%Status = 0
+                    call html_landing_page(device, SPACE)
+                end if
+
             case (fnToggleTrainingMode)
                 noWrites = .not. noWrites
-                call html_college_links(device, CollegeIdxUser, mesg='Toggled training mode')
+                call html_college_links(device, CollegeIdxUser, mesg='Toggled "Training" mode')
 
-            case (fnSearch)
-                call object_search (device)
+            case (fnDownloadXML)
+                call download_xml(device)
 
+            ! college info
             case (fnCollegeLinks)
                 call html_college_links(device)
 
+
+            ! subject info
             case (fnSubjectList)
                 call subject_list_all (device)
 
             case (fnEditSubject)
                 call subject_edit (device)
 
+
+            ! curriculum info
             case (fnCurriculumList, fnActivateCurriculum, fnDeactivateCurriculum)
                 call curriculum_list_all(device, REQUEST)
 
@@ -227,194 +269,154 @@ contains
             case (fnEditCurriculum)
                 call curriculum_edit (device)
 
+
+            ! room info
+            case (fnRoomList)
+                call room_list_all (device)
+
             case (fnEditRoom)
                 call room_edit (device)
+
+
+            ! teacher info
+            case (fnTeachersByDept, fnTeachersByName)
+                call teacher_list_all (device, REQUEST)
 
             case (fnEditTeacher)
                 call teacher_edit (device)
 
-            ! cases for this semester's schedule of classes
-            case (fnTeachersByDept, fnTeachersByName, fnTeacherConflicts)
-                call teacher_list_all (device, NumCurrentSections, CurrentSection, REQUEST)
 
-            case (fnTeacherSchedule)
-                call teacher_schedule(device, NumCurrentSections, CurrentSection)
-
-            case (fnPrintableWorkload)
-                call teacher_schedule_printable(device, NumCurrentSections, CurrentSection, &
-                    NumCurrentBlocks, CurrentBlock)
-
-            case (fnRoomList, fnRoomConflicts)
-                call room_list_all (device, NumCurrentSections, CurrentSection, REQUEST)
-
-            case (fnRoomSchedule)
-                call room_schedule(device, NumCurrentSections, CurrentSection)
-
-            case (fnScheduleOfClasses, fnScheduleByArea, fnTBARooms, fnTBATeachers)
-                call section_list_all (device, NumCurrentSections, CurrentSection, CurrentOffering, &
-                    NumCurrentBlocks, CurrentBlock, REQUEST)
-
-            case (fnScheduleOfferSubject)
-                call section_offer_subject (device, NumCurrentSections, CurrentSection, CurrentOffering, &
-                    NumCurrentBlocks, CurrentBlock)
-
-            case (fnScheduleDelete)
-                call section_delete(device, NumCurrentSections, CurrentSection, CurrentOffering, &
-                    NumCurrentBlocks, CurrentBlock)
-
-            case (fnScheduleAddLab)
-                call section_add_laboratory(device, NumCurrentSections, CurrentSection, CurrentOffering, &
-                    NumCurrentBlocks, CurrentBlock)
-
-            case (fnScheduleEdit)
-                call section_edit(device, NumCurrentSections, CurrentSection, &
-                    NumCurrentBlocks, CurrentBlock)
-
-            case (fnScheduleValidate)
-                call section_validate_inputs (device, NumCurrentSections, CurrentSection, CurrentOffering, &
-                    NumCurrentBlocks, CurrentBlock)
+            ! blocks
+            case (fnBlockList)
+                call block_list_all(device, NumBlocks(targetTerm), Block(targetTerm,0:))
 
             case (fnBlockSchedule, fnBlockDeleteName, fnBlockEditName, fnBlockCopy, fnBlockDeleteAll, &
                 fnBlockEditSection, fnBlockEditSubject)
-                call block_show_schedule(device, NumCurrentSections, CurrentSection, CurrentOffering, &
-                    NumCurrentBlocks, CurrentBlock, REQUEST)
+                call block_show_schedule(device, NumSections(targetTerm), Section(targetTerm,0:), &
+                    Offering(targetTerm,MAX_ALL_DUMMY_SUBJECTS:), &
+                    NumBlocks(targetTerm), Block(targetTerm,0:), REQUEST)
 
             case (fnBlockNewSelect)
-                call block_select_curriculum_year(device, NumCurrentSections, CurrentSection, NumCurrentBlocks, CurrentBlock)
+                call block_select_curriculum_year(device, NumSections(targetTerm), Section(targetTerm,0:), &
+                    NumBlocks(targetTerm), Block(targetTerm,0:) )
 
             case (fnBlockNewAdd)
-                call block_add(device, currentTerm, NumCurrentSections, CurrentSection, CurrentOffering, &
-                    NumCurrentBlocks, CurrentBlock)
+                call block_add(device, targetTerm, NumSections(targetTerm), Section(targetTerm,0:), &
+                    Offering(targetTerm,MAX_ALL_DUMMY_SUBJECTS:), NumBlocks(targetTerm), Block(targetTerm,0:) )
 
-            case (fnEnlistmentSummary, fnBottleneck, fnExtraSlots, fnUnderloadSummary, fnUnderloadedStudents)
-                call enlistment_summarize(device, NumCurrentSections, CurrentSection, CurrentOffering, Preenlisted, REQUEST)
 
-            case (fnNotAccommodated)
-                call enlistment_not_accommodated(device, Preenlisted)
+            ! schedule of classes
+            case (fnScheduleOfClasses, fnScheduleByArea, fnTBARooms, fnTBATeachers)
+                call section_list_all (device, NumSections(targetTerm), Section(targetTerm,0:), &
+                    Offering(targetTerm,MAX_ALL_DUMMY_SUBJECTS:), &
+                    NumBlocks(targetTerm), Block(targetTerm,0:), REQUEST)
 
-            case (fnGradeSheet)
-                call enlistment_grades(device, NumCurrentSections, CurrentSection)
+            case (fnScheduleOfferSubject)
+                call section_offer_subject (device, NumSections(targetTerm), Section(targetTerm,0:), &
+                    Offering(targetTerm,MAX_ALL_DUMMY_SUBJECTS:), &
+                    NumBlocks(targetTerm), Block(targetTerm,0:) )
 
-            ! cases for student info
-            case (fnStudentsByCurriculum,fnStudentsByname,fnStudentsByYear,fnStudentsByProgram, fnClassList)
-                call links_to_students(device, REQUEST, NumCurrentSections, CurrentSection)
+            case (fnScheduleDelete)
+                call section_delete(device, NumSections(targetTerm), Section(targetTerm,0:), &
+                    Offering(targetTerm,MAX_ALL_DUMMY_SUBJECTS:), &
+                    NumBlocks(targetTerm), Block(targetTerm,0:) )
 
-            case (fnStudentsDistribution)
-                call student_distribution(device)
+            case (fnScheduleAddLab)
+                call section_add_laboratory(device, NumSections(targetTerm), Section(targetTerm,0:), &
+                    Offering(targetTerm,MAX_ALL_DUMMY_SUBJECTS:), &
+                    NumBlocks(targetTerm), Block(targetTerm,0:) )
 
+            case (fnScheduleEdit)
+                call section_edit(device, NumSections(targetTerm), Section(targetTerm,0:), &
+                    NumBlocks(targetTerm), Block(targetTerm,0:) )
+
+            case (fnScheduleValidate)
+                call section_validate_inputs (device, NumSections(targetTerm), Section(targetTerm,0:), &
+                    Offering(targetTerm,MAX_ALL_DUMMY_SUBJECTS:), &
+                    NumBlocks(targetTerm), Block(targetTerm,0:) )
+
+
+            ! schedule conflicts
+            case (fnRoomConflicts)
+                call room_conflicts (device, NumSections(targetTerm), Section(targetTerm,0:))
+
+            case (fnRoomSchedule)
+                call room_schedule(device, NumSections(targetTerm), Section(targetTerm,0:) )
+
+            case (fnTeacherConflicts)
+                call teacher_conflicts (device, NumSections(targetTerm), Section(targetTerm,0:))
+
+            case (fnTeacherSchedule)
+                call teacher_schedule(device, NumSections(targetTerm), Section(targetTerm,0:) )
+
+            case (fnPrintableWorkload)
+                call teacher_schedule_printable(device, NumSections(targetTerm), Section(targetTerm,0:), &
+                    NumBlocks(targetTerm), Block(targetTerm,0:) )
+
+            ! students
             case (fnStudentAddPrompt)
                 call student_prompt_add(device)
 
             case (fnStudentAdd)
                 call student_add(device)
 
-            case (fnEditCheckList)
-                if (Period==1) then
-                    call checklist_edit(device, UseCurrentClasses, CurrentSection, CurrentOffering)
-                else
-                    call checklist_edit(device, UseNextClasses, NextSection, NextOffering)
-                end if
+            case (fnStudentsDistribution)
+                call student_distribution(device)
 
-            case (fnChangeMatriculation)
-                call enlistment_edit(device, NumCurrentSections, CurrentSection, &
-                    NumCurrentBlocks, CurrentBlock)
-
-            case (fnFindBlock)
-                call enlistment_find_block(device, NumCurrentSections, CurrentSection, &
-                    NumCurrentBlocks, CurrentBlock)
-
-            case (fnPrintableSchedule)
-                call enlistment_printable(device, NumCurrentSections, CurrentSection)
+            case (fnStudentsByCurriculum,fnStudentsByname,fnStudentsByYear,fnStudentsByProgram)
+                call links_to_students(device, REQUEST)
 
             case (fnStudentPerformance)
                 call student_performance(device)
 
+            case (fnEditCheckList)
+                 call checklist_edit(device, .false., &
+                    Section(nextTerm,0:), Offering(nextTerm,MAX_ALL_DUMMY_SUBJECTS:))
+
             ! cases for next semester's predicted demand for subjects
             case (fnDemandFreshmen,fnUpdateDemandFreshmen)
-                call demand_by_new_freshmen(device, NextOffering)
+                call demand_by_new_freshmen(device, Offering(nextTerm,MAX_ALL_DUMMY_SUBJECTS:))
 
             case (fnDemandForSubjects)
-                call demand_for_subjects(device)
+                call demand_for_subjects(device, NumSections(nextTerm), Section(nextTerm,0:), &
+                    Offering(nextTerm,MAX_ALL_DUMMY_SUBJECTS:))
 
             case (fnPotentialStudents)
                 call list_potential_students(device)
 
-            ! cases for next semester's schedule of classes
-            case (fnNextTeachersByDept, fnNextTeachersByName,fnNextTeacherConflicts)
-                call teacher_list_all (device, NumNextSections, NextSection, REQUEST)
 
-            case (fnNextTeacherSchedule)
-                call teacher_schedule(device, NumNextSections, NextSection)
+            ! cases for current semester enlistment
+            case (fnEnlistmentSummary, fnBottleneck, fnExtraSlots, fnUnderloadSummary, fnUnderloadedStudents)
+                call enlistment_summarize(device, NumSections(currentTerm), Section(currentTerm,0:), &
+                    Offering(currentTerm,MAX_ALL_DUMMY_SUBJECTS:), Preenlisted, REQUEST)
 
-            case (fnNextPrintableWorkload)
-                call teacher_schedule_printable(device, NumNextSections, NextSection, &
-                    NumNextBlocks, NextBlock)
+            case (fnNotAccommodated)
+                call enlistment_not_accommodated(device, Preenlisted)
 
-            case (fnNextRoomList, fnNextRoomConflicts)
-                call room_list_all (device, NumNextSections, NextSection, REQUEST)
+!            case (fnGradeSheet)
+!                call enlistment_grades(device, NumSections(currentTerm), Section(currentTerm,0:))
 
-            case (fnNextRoomSchedule)
-                call room_schedule(device, NumNextSections, NextSection)
+            case (fnClassList)
+                call class_list(device, NumSections(currentTerm), Section(currentTerm,0:), Preenlisted)
 
-            case (fnNextScheduleOfClasses, fnNextScheduleByArea, fnNextTBARooms, fnNextTBATeachers)
-                call section_list_all (device, NumNextSections, NextSection, NextOffering, &
-                    NumNextBlocks, NextBlock, REQUEST)
+            case (fnChangeMatriculation)
+                call enlistment_edit(device, NumSections(currentTerm), Section(currentTerm,0:), &
+                    NumBlocks(currentTerm), Block(currentTerm,0:) )
 
-            case (fnNextScheduleOfferSubject)
-                call section_offer_subject (device, NumNextSections, NextSection, NextOffering, &
-                    NumNextBlocks, NextBlock)
+            case (fnFindBlock)
+                call enlistment_find_block(device, NumSections(currentTerm), Section(currentTerm,0:), &
+                    NumBlocks(currentTerm), Block(currentTerm,0:) )
 
-            case (fnNextScheduleDelete)
-                call section_delete(device, NumNextSections, NextSection, NextOffering, &
-                    NumNextBlocks, NextBlock)
-
-            case (fnNextScheduleAddLab)
-                call section_add_laboratory(device, NumNextSections, NextSection, NextOffering, &
-                    NumNextBlocks, NextBlock)
-
-            case (fnNextScheduleEdit)
-                call section_edit(device, NumNextSections, NextSection, &
-                    NumNextBlocks, NextBlock)
-
-            case (fnNextScheduleValidate)
-                call section_validate_inputs (device, NumNextSections, NextSection, NextOffering, &
-                    NumNextBlocks, NextBlock)
-
-            case (fnNextBlockSchedule, fnNextBlockDeleteName, fnNextBlockEditName, fnNextBlockCopy, &
-                fnNextBlockDeleteAll, fnNextBlockEditSection, fnNextBlockEditSubject)
-                call block_show_schedule(device, NumNextSections, NextSection, NextOffering, &
-                    NumNextBlocks, NextBlock, REQUEST)
-
-            case (fnNextBlockNewSelect)
-                call block_select_curriculum_year(device, NumNextSections, NextSection, NumNextBlocks, NextBlock)
-
-            case (fnNextBlockNewAdd)
-                call block_add(device, nextTerm, NumNextSections, NextSection, NextOffering, &
-                    NumNextBlocks, NextBlock)
-
-            case (fnStopUser)
-                Teacher(targetLogin)%Status = 0
-                call html_landing_page(device, SPACE)
-
-            case (fnStopProgram)
-                if (isRoleAdmin) then
-                    if (isDirtySTUDENTS) then
-                        call xml_write_students(pathToCurrent, 0)
-                    end if
-                    loginCheckMessage = 'The '//PROGNAME//' program will stop.'
-                else
-                    REQUEST = fnStopUser
-                    Teacher(targetLogin)%Status = 0
-                    loginCheckMessage = SPACE
-                end if
-                call html_landing_page(device, loginCheckMessage)
+            case (fnPrintableSchedule)
+                call enlistment_printable(device, NumSections(currentTerm), Section(currentTerm,0:))
 
             case default
                 targetCollege = CollegeIdxUser
                 targetDepartment = DeptIdxUser
-                TermQualifier = SPACE
+                termDescription = SPACE
                 call html_write_header(device, SPACE, &
-                    '<hr>The functionality you requested is not available in '//PROGNAME//VERSION)
+                    '<hr>The functionality "'//trim(fnDescription(REQUEST))// &
+                    '" is not activated in '//PROGNAME//VERSION)
 
         end select
 
@@ -424,104 +426,18 @@ contains
     end subroutine server_respond
 
 
-    subroutine server_end(msg)
+    subroutine terminate(msg)
 
         character(len=*), intent (in) :: msg
 
         call file_log_message(msg, 'Ends '//currentDate//DASH//currentTime )
+
+        close(unitREQ)
+        close(unitHTML)
         close(unitLOG)
-        write(*,*) 'Check .log files '//trim(dirLog)//' for other messages.'
+
         stop
-    end subroutine server_end
-
-
-    subroutine object_search (device)
-        integer, intent(in) :: device
-        integer :: A1, ierr, dept
-
-        ! get arguments
-        call cgi_get_named_integer(QUERY_STRING, 'A1', A1, ierr)
-        targetCollege = CollegeIdxUser
-        targetDepartment = DeptIdxUser
-        dept = targetDepartment
-        if (A1<=0) then
-            call html_write_header(device, 'Search', '<br><hr>Search item not specified?')
-        else
-            select case (A1)
-
-                case (1) ! Student
-                    call links_to_students(device, REQUEST, NumCurrentSections, CurrentSection)
-
-                case (2) ! Section
-                    call section_list_all (device, NumCurrentSections, CurrentSection, CurrentOffering, &
-                        NumCurrentBlocks, CurrentBlock, REQUEST, dept)
-
-                case (3) ! Teacher
-                    call teacher_list_all (device, NumCurrentSections, CurrentSection, REQUEST)
-
-                case (4) ! Room
-                    call room_list_all (device, NumCurrentSections, CurrentSection, REQUEST)
-
-                case (5) ! Section
-                    call section_list_all (device, NumNextSections, NextSection, NextOffering, &
-                        NumNextBlocks, NextBlock, REQUEST, dept)
-
-                case (6) ! Teacher
-                    call teacher_list_all (device, NumNextSections, NextSection, REQUEST)
-
-                case (7) ! Room
-                    call room_list_all (device, NumNextSections, NextSection, REQUEST)
-
-                case default
-                    call html_write_header(device, SPACE, &
-                        '<hr>The functionality you requested is not available in this version of '//PROGNAME//'.')
-
-            end select
-        end if
-        return
-    end subroutine object_search
-
-
-    subroutine set_term_offered_accg_to_curricula()
-        ! reset Subject()%TermOffered based on appearance of subject in the curricular programs
-        integer :: kdx, reqd
-
-        NextOffering = TYPE_OFFERED_SUBJECTS (0, 0, 0, 0, 0, 0, 0, 0)
-        do targetCurriculum=1,NumCurricula
-            do kdx=1,Curriculum(targetCurriculum)%NSubjects
-                targetSubject = Curriculum(targetCurriculum)%SubjectIdx(kdx)
-                select case(mod(Curriculum(targetCurriculum)%SubjectTerm(kdx),3))
-                    case (0) ! required during summer
-                        NextOffering(targetSubject)%Demand = NextOffering(targetSubject)%Demand + 1
-                    case (1) ! required during first sem
-                        NextOffering(targetSubject)%NSections = NextOffering(targetSubject)%NSections + 1
-                    case (2) ! required during second sem
-                        NextOffering(targetSubject)%TotalSlots = NextOffering(targetSubject)%TotalSlots + 1
-                end select
-            end do
-        end do
-        do targetSubject=1,NumSubjects
-            reqd = 0
-            if (NextOffering(targetSubject)%Demand>0) reqd = reqd + 4 ! summer
-            if (NextOffering(targetSubject)%NSections>0) reqd = reqd + 1 ! first sem
-            if (NextOffering(targetSubject)%TotalSlots >0) reqd = reqd + 2 ! second sem
-
-            if (reqd==0) then ! not required in any curriculum
-                !write(*,*) trim(Subject(targetSubject)%Name)//' is not required in any curriculum?'
-                Subject(targetSubject)%TermOffered = 3 ! 1,2
-            else if (reqd/=Subject(targetSubject)%TermOffered) then ! not consistent
-                !write(*,*) trim(Subject(targetSubject)%Name)//' is required '// &
-                !  text_term_offered(reqd)//' but set to be offered '// &
-                !  text_term_offered(Subject(targetSubject)%TermOffered)
-                Subject(targetSubject)%TermOffered = reqd
-            end if
-        end do
-        do targetSubject=NumDummySubjects,-2
-            Subject(targetSubject)%TermOffered = 7
-        end do
-
-        return
-    end subroutine set_term_offered_accg_to_curricula
+    end subroutine terminate
 
 
     subroutine student_prompt_add(device)
@@ -689,7 +605,7 @@ contains
         Teacher(i)%Role = GUEST
 
         ! update  TEACHERS.XML
-        call xml_write_teachers(pathToCurrent)
+        call xml_write_teachers(pathToYear)
 
         return
     end subroutine reset_passwords
@@ -729,7 +645,7 @@ contains
                     if (Teacher(targetLogin)%Password/=t1Password .and. &
                             Teacher(targetLogin)%TeacherID/=t2Password) then
                         Teacher(targetLogin)%Password = t1Password
-                        call xml_write_teachers(pathToCurrent)
+                        call xml_write_teachers(pathToYear)
                         loginCheckMessage = 'Successfully changed password for '//USERNAME
                         call html_college_links(device, CollegeIdxUser, mesg=loginCheckMessage)
                         return
@@ -746,15 +662,15 @@ contains
 
         write(device,AFORMAT) &
             '<html><head><title>'//PROGNAME//VERSION//'</title></head><body>', &
-            '<h1>'//trim(UniversityCode)//nbsp//PROGNAME//' Password Service</h1>'
+            '<h2>'//trim(UniversityCode)//nbsp//PROGNAME//' Password Service</h2>'
         if (len_trim(loginCheckMessage)>0) write(device,AFORMAT) &
             red//trim(loginCheckMessage)//black
 
         write(device,AFORMAT) '<br>'//&
-            '<form name="input" method="post" action="'//CGI_PATH//'">', &
+            '<form name="input" method="post" action="'//trim(CGI_PATH)//'">', &
             '<input type="hidden" name="F" value="'//trim(itoa(REQUEST))//'">', &
             '<input type="hidden" name="N" value="'//trim(USERNAME)//'">', &
-            '<h2>Change password for '//trim(USERNAME)//'</h2><br>'
+            '<h3>Change password for '//trim(USERNAME)//'</h3><br>'
         if (REQUEST==fnChangePassword) write(device,AFORMAT) &
             '<b>Old password:</b><br>', &
             '<input size="20" type="password" name="C" value="">', &
@@ -772,9 +688,7 @@ contains
     end subroutine change_current_password
 
 
-    subroutine get_user_request(idxUser)
-
-        integer, intent(out) :: idxUser ! index to USERNAME in Teachers()
+    subroutine get_user_request()
 
         character (len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
         character (len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
@@ -793,10 +707,10 @@ contains
 
         ! Get USERNAME
         call cgi_get_named_string(QUERY_STRING, 'N', USERNAME, ierr)
-        idxUser = index_to_teacher(USERNAME)
+        targetLogin = index_to_teacher(USERNAME)
 
-        if (idxUser>0) then
-            ROLE = Teacher(idxUser)%Role
+        if (targetLogin>0) then
+            ROLE = Teacher(targetLogin)%Role
         else ! not in Teachers(); assume Guest
             USERNAME = GUEST
             ROLE = GUEST
@@ -805,7 +719,7 @@ contains
         if (trim(ROLE)==GUEST) then ! Guest
             isRoleGuest = .true.
             if (trim(USERNAME)/=GUEST) then
-                DeptIdxUser = Teacher(idxUser)%DeptIdx
+                DeptIdxUser = Teacher(targetLogin)%DeptIdx
                 CollegeIdxUser = Department(DeptIdxUser)%CollegeIdx
             end if
         elseif (trim(ROLE)==REGISTRAR) then ! Administrator
@@ -837,12 +751,18 @@ contains
         ! Establish REQUESTed function if any, else return the landing page
         call cgi_get_named_integer(QUERY_STRING, 'F', REQUEST, ierr)
         if (ierr==-1) then
-            REQUEST = fnStopUser
+            REQUEST = fnLogout
             return
         end if
+
+        ! Establish TERM if required
+        if (REQUEST>=fnScheduleOfClasses) then
+            call cgi_get_named_integer(QUERY_STRING, 'A9', targetTerm, ierr)
+        end if
+
         if (REQUEST/=fnLogin) then ! not logging in
             ! previously logged out?  force user to login
-            if (Teacher(idxUser)%Status==0 .and. .not. isRoleGuest) REQUEST = fnStopUser
+            if (Teacher(targetLogin)%Status==0 .and. .not. isRoleGuest) REQUEST = fnLogout
             return
         end if
         ! request is login; validate POSTed data
@@ -857,7 +777,7 @@ contains
         ! Return login page if password not provided
         call cgi_get_named_string(QUERY_STRING, 'P', tPassword, ierr)
         if (ierr==-1) then
-            REQUEST = fnStopUser
+            REQUEST = fnLogout
             loginCheckMessage = 'Username and/or Password not valid.'
             return
         end if
@@ -865,8 +785,8 @@ contains
         ! Return login page if password not correct for user
         cPassword = tPassword
         call encrypt(passwordEncryptionKey, cPassword)
-        if ( trim(Teacher(idxUser)%Password)/=trim(cPassword) ) then
-            REQUEST = fnStopUser
+        if ( trim(Teacher(targetLogin)%Password)/=trim(cPassword) ) then
+            REQUEST = fnLogout
             loginCheckMessage = 'Username and/or Password not valid.'
             return
         end if
@@ -882,6 +802,44 @@ contains
 
         return
     end subroutine get_user_request
+
+
+    subroutine download_xml(device)
+        integer, intent(in) :: device
+
+        character (len=MAX_LEN_FILE_PATH) :: XMLfile, fileName
+        character (len=MAX_LEN_XML_LINE) :: line
+        integer :: ierr, eof
+        logical :: fileExists
+
+        call cgi_get_named_string(QUERY_STRING, 'A1', XMLfile, ierr)
+
+        fileName = trim(dirXML)//trim(pathToYear)//XMLfile
+        inquire(file=fileName, exist=fileExists)
+        if (.not. fileExists) then
+            fileName = trim(dirXML)//trim(pathToTerm)//XMLfile
+            inquire(file=fileName, exist=fileExists)
+        end if
+        if (fileExists) then
+            write(device,AFORMAT) '<comment>', &
+                'Save as '//trim(fileName), '</comment>'
+            open(unit=unitXML, file=fileName, form='formatted', status='old')
+            do
+                read(unitXML, AFORMAT, iostat=eof) line
+                if (eof<0) exit
+                write(device,AFORMAT) trim(line)
+            end do
+            close(unitXML)
+        else
+            targetCollege = CollegeIdxUser
+            targetDepartment = DeptIdxUser
+            termDescription = SPACE
+            call html_write_header(device, SPACE, '<hr>File not found "'//trim(fileName))
+            REQUEST = 0
+        end if
+
+        return
+    end subroutine download_xml
 
 
 end module WEBSERVER

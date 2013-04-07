@@ -35,7 +35,7 @@ module TIMES
     implicit none
 
     ! period in an academic term, for REGIST function availabilities
-    integer :: Period
+    integer :: Period =2
     character (len=20), dimension(0:4) :: txtPeriod = (/ &
         ' ERROR              ', ' (Enlistment period)', ' (Mid-term)         ',  &
         ' (End of term)      ', ' (Term break)       ' /)
@@ -160,13 +160,36 @@ contains
 
 
     subroutine rank_to_year_term (rank, Year, Term)
+        ! rank: 1 2 3 4 5 6 7 8 9 10 11 12
+        ! year: 1 1 1 2 2 2 3 3 3  4  4  4
+        ! term: 1 2 3 1 2 3 1 2 3  1  2  3
         integer, intent(in) :: rank
         integer, intent(out) :: Year, Term
-        Year = rank/3+1
-        Term = mod(rank,3)
-        if (Term==0) Year = Year-1
+        Year = (rank+2)/3
+        Term = rank-3*(Year-1)
         return
     end subroutine rank_to_year_term
+
+
+    subroutine qualify_term (plusCurrent, Year, Term, description)
+        integer, intent(in) :: plusCurrent
+        integer, intent(out) :: Year, Term
+        character(len=*), intent (out) :: description
+
+        if (plusCurrent<=3) then
+            Year = currentYear
+            Term = plusCurrent
+        else
+            Year = currentYear+1
+            Term = plusCurrent-3
+        end if
+        if (Term<3) then
+            description = trim(txtSemester(Term+6))//' Semester, '//text_school_year(Year)
+        else
+            description = 'Summer Term, '//text_school_year(Year)
+        end if
+        return
+    end subroutine qualify_term
 
 
     function text_term_offered (num)
@@ -233,6 +256,18 @@ contains
 
         return
     end function text_term_offered_separated
+
+
+    function text_school_year (year)
+        ! returns the text representation of SY year-(year+1)
+
+        character (len=10) :: text_school_year
+        integer, intent (in) :: year
+
+        text_school_year = 'SY '//trim(itoa(year))//dash//itoa2bz(mod(year+1,1000))
+
+        return
+    end function text_school_year
 
 
 end module TIMES

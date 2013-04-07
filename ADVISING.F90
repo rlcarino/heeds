@@ -123,7 +123,10 @@ contains
     end subroutine get_scholastic_three_terms
 
 
-    subroutine advise_all_students()
+    subroutine advise_all_students(UseCLASSES, Offering)
+        logical, intent (in) :: UseCLASSES
+        type (TYPE_OFFERED_SUBJECTS), intent(in) :: Offering(MAX_ALL_DUMMY_SUBJECTS:)
+
         ! executed during period 2 (enlisted subjects are finalized, schedule of classes
         ! for next term are not yet set) to generate probabilistic forecast of demand for subjects
         !
@@ -132,16 +135,13 @@ contains
 
         integer :: std, NRemaining, MissingPOCW, idxSTD
 
-        call initialize_pre_enlistment(Advised(0))
-        Advised = Advised(0)
-
         write(*,*)  'Generating the advice for each student... please wait...'
         do idxSTD = 1,NumStudents
             if (mod(idxSTD,1000) == 0) then
                 write(*,*) trim(itoa(idxSTD))//' / '//itoa(NumStudents)//' done...'
             end if
             std = StdRank(idxSTD)
-            call advise_student (std, UseNextClasses, NextOffering, WaiverCOI(std), Advised(std), MissingPOCW, NRemaining)
+            call advise_student (std, UseCLASSES, Offering, WaiverCOI(std), Advised(std), MissingPOCW, NRemaining)
         end do
 
         return

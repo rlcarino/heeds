@@ -30,37 +30,48 @@
 # Makefile for HEEDS
 
 #
-# The Windows build-PC must have MinGW/MSYS installed
+# On Windows, the build-PC must have MinGW/MSYS installed, and the
+#   HEEDS directory must be C:\HEEDS\
 #
 
 #---------------------------------------------------------------
-# raw data format & debugging flags 
+# raw data format (RAWDATA) and operating system (OS)
 #---------------------------------------------------------------
-RAWDATA = CUSTOM
-DEBUG = 
+RAWDATA = SIAS
+#UPLB
+#SIAS
+OS = MSWIN
+#GLNX
+#MSWIN
+
+#---------------------------------------------------------------
+# debugging flags 
+#---------------------------------------------------------------
+DEBUG = -DPRODUCTION
+#-DPRODUCTION
 #-DDBsubst 
 #-DDBprereq 
 #-DDBcoreq 
 #-DDBconcpreq
-URLENCODE = -DDO_NOT_ENCODE
 
 #---------------------------------------------------------------
 # Fortran compiler and flags
 #---------------------------------------------------------------
-FFLAGS = -Wunused -ffree-form 
+FFLAGS = -Wunused -ffree-form
 #-fbounds-check
-OPTIONS = $(DEBUG) $(URLENCODE) -D$(RAWDATA) -D$(OS) -I$(RAWDATA)
+OPTIONS =-D$(OS) -D$(RAWDATA) -I$(RAWDATA) $(DEBUG) 
 FC = gfortran $(FFLAGS) $(OPTIONS)
 
 #---------------------------------------------------------------
 # object files
 #---------------------------------------------------------------
 
-COMMON = BASE.o XML.o TIMES.o CGI.o COLLEGES.o DEPARTMENTS.o \
+COMMON = BASE.o XML.o TIMES.o CGI.o UNIVERSITY.o COLLEGES.o DEPARTMENTS.o \
 	ROOMS.o TEACHERS.o SUBJECTS.o SECTIONS.o \
 	TIMETABLES.o CURRICULA.o STUDENTS.o GRADES.o \
 	CHECKLISTS.o PRE_ENLISTMENT.o WAIVERS.o BLOCKS.o \
-	ADVISING.o SCHEDULING.o
+	ADVISING.o 
+#	SCHEDULING.o
 
 INTERACTIVE = HTML.o \
 	EditSUBJECTS.o EditSECTIONS.o EditBLOCKS.o EditCURRICULA.o \
@@ -68,32 +79,30 @@ INTERACTIVE = HTML.o \
 	REPORTS.o DEMAND.o \
 	WEBSERVER.o MAIN.o
 
+
 #---------------------------------------------------------------
 # targets
 #---------------------------------------------------------------
 
 help:
-	echo 'Usage: make HEEDS_MSWIN | HEEDS_GLNX'
+	echo 'Usage: make HEEDS OS=MSWIN|GLNX RAWDATA=SIAS|UPLB'
 
 # default target
-all:	HEEDS_MSWIN
-#HEEDS_MSWIN
-#HEEDS_GLNX
-
+all:	$(RAWDATA)_$(OS)
 
 # MS Windows
-HEEDS_MSWIN:
-	make HEEDS BIN=/c/HEEDS/bin OS=MSWIN
+$(RAWDATA)_MSWIN:
+	make HEEDS OS=MSWIN BIN=/C/HEEDS/bin
 
 # GNU/Linux
-HEEDS_GLNX:
-	make HEEDS BIN=/home/heeds/HEEDS/bin OS=GLNX
+$(RAWDATA)_GLNX:
+	make HEEDS OS=GLNX BIN=$(HOME)/HEEDS/bin
 
 #	
 HEEDS:	$(COMMON) $(INTERACTIVE)
-	$(FC) $(COMMON) $(INTERACTIVE) -o $(BIN)/HEEDS_$(OS) -lfcgi
+	$(FC) $(COMMON) $(INTERACTIVE) -o $(BIN)/HEEDS_$(OS)_$(RAWDATA) -lfcgi -Wl,--rpath -Wl,/usr/local/lib
 
-#BASE.o:	Makefile
+BASE.o:	Makefile
 
 CGI.o:	BASE.o
 
@@ -101,7 +110,9 @@ XML.o:	BASE.o
 
 TIMES.o:	BASE.o
 
-COLLEGES.o:	XML.o  $(RAWDATA)/custom_read_colleges.F90
+UNIVERSITY.o:	XML.o
+
+COLLEGES.o:	UNIVERSITY.o  $(RAWDATA)/custom_read_colleges.F90
 
 DEPARTMENTS.o:	COLLEGES.o $(RAWDATA)/custom_read_departments.F90
 
@@ -163,4 +174,4 @@ MAIN.o:	WEBSERVER.o
 .SUFFIXES:	 .F90
 
 clean:
-	rm -f *.mod *.o *~ *.exe
+	rm -f *.mod *.o *~ 

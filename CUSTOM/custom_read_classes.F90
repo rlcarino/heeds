@@ -31,7 +31,7 @@ subroutine custom_read_classes(fName, NumSections, Section, errNo)
 
     character (len=*), intent (in) :: fName
     integer, intent (in out) :: NumSections
-    type (TYPE_SECTION), intent(in out), dimension (0:) :: Section
+    type (TYPE_SECTION), intent(in out) :: Section(0:)
     integer, intent(out) :: errNo
 
     integer :: ddx
@@ -53,7 +53,7 @@ subroutine SIAS_read_classes(fName, NumSections, Section, errNo)
 
     character (len=*), intent (in) :: fName
     integer, intent (in out) :: NumSections
-    type (TYPE_SECTION), intent(in out), dimension (0:) :: Section
+    type (TYPE_SECTION), intent(in out) :: Section(0:)
     integer, intent(out) :: errNo
 
     character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
@@ -224,7 +224,7 @@ end subroutine SIAS_read_classes
 
 subroutine UPLB_read_classes  (fName, NumSections, Section, errNo)
     character (len=*), intent (in) :: fName
-    type (TYPE_SECTION), intent(in out), dimension (0:) :: Section
+    type (TYPE_SECTION), intent(in out) :: Section(0:)
     integer, intent (in out) :: NumSections
     integer, intent (out) :: errNo
     integer :: eof, i, j, sect, ier
@@ -278,7 +278,7 @@ end subroutine UPLB_read_classes
 
 
 subroutine ValidateSection (NumSections, Section, line, wrk, ier)
-    type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+    type (TYPE_SECTION), intent(in) :: Section(0:)
     integer, intent (in) :: NumSections
     type (TYPE_SECTION), intent(out) :: wrk
     integer, intent (out) :: ier

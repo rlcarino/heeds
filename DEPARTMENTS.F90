@@ -227,6 +227,7 @@ contains
         end do
 
         call xml_close_file(unitXML)
+        call file_log_message (itoa(NumDepartments)//' entries in '//fileName)
 
         return
     end subroutine xml_read_departments

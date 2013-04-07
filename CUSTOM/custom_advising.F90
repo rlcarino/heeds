@@ -72,7 +72,7 @@ subroutine advise_student (std, UseClasses, Offering, WaiverCOI, Advice, Missing
         return
     end if
 
-    call read_student_records (std)
+    !call read_student_records (std)
 
     CheckList = Curriculum(idxCURR)
     CLExt = TYPE_CHECKLIST_EXTENSION (0, 0, 0, 0, 0.0, .false., .false., .false., &
@@ -81,10 +81,10 @@ subroutine advise_student (std, UseClasses, Offering, WaiverCOI, Advice, Missing
     call get_scholastic_three_terms (prevTermYear, prevTermTerm, UnitsPaid, UnitsDropped, UnitsPassed, Standing)
 
     call analyze_checklist (std, UseClasses, Offering, WaiverCOI, Standing, &
-    UnitsEarned, StdClassification, StdTerm, StdYear, MissingPOCW, &
-    AllowedLoad, Group, NPriority, NAlternates, NCurrent, NRemaining)
+        UnitsEarned, StdClassification, StdTerm, StdYear, MissingPOCW, &
+        AllowedLoad, Group, NPriority, NAlternates, NCurrent, NRemaining)
 
-    !write(*,*) &
+    !write(unitLOG,*) &
     !  UnitsEarned, StdClassification, StdTerm, StdYear, MissingPOCW, &
     !  AllowedLoad, Group, NPriority, NAlternates, NCurrent, NRemaining
 
@@ -106,7 +106,7 @@ subroutine advise_student (std, UseClasses, Offering, WaiverCOI, Advice, Missing
     Advice%NAlternates = NAlternates
     Advice%NCurrent = NCurrent
 
-    !write(*,*) &
+    !write(unitLOG,*) &
     !  UnitsEarned, StdClassification, StdTerm, StdYear, MissingPOCW, &
     !  AllowedLoad, Group, NPriority, NAlternates, NCurrent, NRemaining
     ! recommended subjects
@@ -114,10 +114,10 @@ subroutine advise_student (std, UseClasses, Offering, WaiverCOI, Advice, Missing
         tdx = CLExt(idx)%PriorityRank
         Advice%Subject(idx) = CheckList%SubjectIdx(tdx)
         Advice%Contrib(idx) = CLExt(tdx)%Contrib
-    !write(*,*) idx, Subject(Advice%Subject(idx))%Name
+    !write(unitLOG,*) idx, Subject(Advice%Subject(idx))%Name
     end do
     !idx=NPriority+NAlternates+NCurrent
-    !write(*,*) idx, Subject(Advice%Subject(idx))%Name
+    !write(unitLOG,*) idx, Subject(Advice%Subject(idx))%Name
 
     ! update from waiver-coi
     if (WaiverUnits>0) then
@@ -147,7 +147,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
     AllowedLoad, Group, NPriority, NAlternates, NCurrent, NRemaining)
 
     ! Routine determines the remaining subjects to be taken by a student based on curriculum,
-    !   enrollment record, plan of study, and targetTerm
+    !   enrollment record, plan of study, and nextTerm
 
     ! Student groupings based on grades in the last semester
     !   Group 1 - New Students (no record of any grade) & graduated? (no remaining subjects)
@@ -319,7 +319,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
             token = Subject(TCG(tdx)%Reqd(1))%Name
 
 #ifdef DBsubst
-            write(*,*) '? substitute '//token
+            write(unitLOG,*) '? substitute '//token
 #endif
             if (token == 'ADDITIONAL') then
                 i = CheckList%NSubjects
@@ -351,7 +351,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                     CheckList%SubjectIdx(k) = TCG(tdx)%Subst(1)
                     input_value = Subject(TCG(tdx)%Subst(1))%Name
 #ifdef DBsubst
-                    write(*,*) '   ---> '//trim(input_value)
+                    write(unitLOG,*) '   ---> '//trim(input_value)
 #endif
                     call blank_to_underscore(token, input_name1)
                     call blank_to_underscore(input_value, input_name2)
@@ -364,7 +364,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                 else ! postpone binding
                     ! not found, or extra dummy subject; save for later processing
 #ifdef DBsubst
-                    write(*,*) '   not found, or extra; for later '
+                    write(unitLOG,*) '   not found, or extra; for later '
 #endif
 
                     p(n+1) =  TCG(tdx)%Reqd(1)
@@ -403,12 +403,12 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                     TCG(tdx)%Used = .true.
 
 #ifdef DBsubst
-                    write(*,*) '   (explicit substitution)'
+                    write(unitLOG,*) '   (explicit substitution)'
 #endif
 
                 else ! not found; duplicate entry?
 
-                    !write(*,*) '   (not found, or duplicate)'
+                    !write(unitLOG,*) '   (not found, or duplicate)'
 
                 end if
             end if
@@ -589,7 +589,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
         if (is_grade_passing(CLExt(idx)%Grade)) cycle ! consider earned
         crse = CheckList%SubjectIdx(idx)
 #ifdef DBsubst
-        write(*,*) crse, Subject(crse)%Name//' not yet earned?'
+        write(unitLOG,*) crse, Subject(crse)%Name//' not yet earned?'
 #endif
         loop_subst : &
         do i=1,NumSubst
@@ -600,25 +600,26 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                 do j=k+2, SubstIdx(i+1)-1
                     OKSubst = .false.
 #ifdef DBsubst
-                    write(*,*) '       substitute is '//Subject(Substitution(j))%Name
+                    write(unitLOG,*) '       substitute is '//Subject(Substitution(j))%Name
 #endif
                     do l=1,lenTCG
                         if (TCG(l)%Code /= 2) cycle
                         if (TCG(l)%Subject == Substitution(j) .and. &
                         !is_grade_numeric_pass(TCG(l)%Grade) ) then
-                        is_grade_passing(TCG(l)%Grade,Period==2) .and. (.not. TCG(l)%Used) ) then
+                            is_grade_passing(TCG(l)%Grade,Period==2) &
+                            .and. (.not. TCG(l)%Used) ) then
                             p(j-k) = l
                             gdx = TCG(l)%Grade
                             OKSubst = .true.
 #ifdef DBsubst
-                            write(*,*) '       grade in '//Subject(Substitution(j))%Name//' is '//txtGrade(pGrade(gdx))
+                            write(unitLOG,*) '       grade in '//Subject(Substitution(j))%Name//' is '//txtGrade(pGrade(gdx))
 #endif
                             exit
                         end if
                     end do
                     if (.not. OKSubst) then
 #ifdef DBsubst
-                        write(*,*) '       '//Subject(Substitution(j))%Name//' not yet earned; substitution not valid'
+                        write(unitLOG,*) '       '//Subject(Substitution(j))%Name//' not yet earned; substitution not valid'
 #endif
                         cycle loop_subst
                     end if
@@ -727,17 +728,17 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
     do i=Curriculum(idxCURR)%NumTerms,1,-1
         if (UnitsEarned < SpecifiedUnits(i)) StdTerm = i
     end do
-    ! adjust stdterm according to semester
-    if (targetTerm == 0) then
+    ! adjust stdterm according to nextTerm
+    if (nextTerm==3) then
         StdTerm = 3*( (StdTerm-1)/3 + 1)
-    else if (targetTerm == 1) then
-        if (mod(StdTerm,3) /= 1) StdTerm = 3*( (StdTerm-1)/3 + 1) + 1
+    else if (nextTerm==1) then
+        if (mod(StdTerm,3)/=1) StdTerm = 3*( (StdTerm-1)/3 + 1) + 1
     else
-        if (mod(StdTerm,3) /= 2) StdTerm = 3*((StdTerm-1)/3) + 2
+        if (mod(StdTerm,3)/=2) StdTerm = 3*((StdTerm-1)/3) + 2
         ! special case for new freshmen entering 2nd semester
         if (UnitsEarned < TermUnits(1)) StdTerm = 1
     end if
-    StdYear = min(StdTerm,Curriculum(idxCURR)%NumTerms)/3+1
+    StdYear = min(StdTerm,Curriculum(idxCURR)%NumTerms)/3
     AllowedLoad = TermUnits(min(StdTerm,Curriculum(idxCURR)%NumTerms))
     if (AllowedLoad == 0) AllowedLoad = 18
 
@@ -754,7 +755,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
     end if
 
 #ifdef DBunits
-    write(*,*) 'Target=', UnitsTarget, &
+    write(unitLOG,*) 'Target=', UnitsTarget, &
     'Earned=', UnitsEarned, &
     ', % earned=', (100.0*UnitsEarned)/UnitsTarget, &
     ', StdClassification=', StdClassification, &
@@ -769,12 +770,10 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
     do idx=1,CheckList%NSubjects
         crse = CheckList%SubjectIdx(idx)
         rank = CheckList%SubjectTerm(idx)
-        Year = rank/3+1
-        Term = mod(rank,3)
-        if (Term == 0) Year = Year-1
+        call rank_to_year_term(rank, Year, Term)
         if (crse > 0) then ! NOT a special subject
 #ifdef DBsimplify
-            write(*,*) Year, Term, Subject(crse)%Name
+            write(unitLOG,*) Year, Term, Subject(crse)%Name
 #endif
             ! collect prerequisites
             ntokens = Subject(crse)%lenPreq
@@ -811,7 +810,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                 end if
 
 #ifdef DBsimplify
-                write(*,*) j, k, SPACE, tSubject, CLPreq(idx,j)
+                write(unitLOG,*) j, k, SPACE, tSubject, CLPreq(idx,j)
 #endif
 
             end do
@@ -973,7 +972,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
     end do
     ! slack times
 #ifdef DBsimplify
-    write(*,*) 'Zero-slack subjects, rank, early start...'
+    write(unitLOG,*) 'Zero-slack subjects, rank, early start...'
 #endif
     do idx=1,CheckList%NSubjects
         Slack(idx) = LateTime(idx) - EarlyTime(idx)
@@ -991,7 +990,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
         crse = CheckList%SubjectIdx(idx)
         rank = CheckList%SubjectTerm(idx)
 #ifdef DBprereq
-        write(*,*) idx, rank, Subject(crse)%Name
+        write(unitLOG,*) idx, rank, Subject(crse)%Name
 #endif
         ! display string
         tSubject = Subject(crse)%Name
@@ -1006,7 +1005,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
         end  if
         call blank_to_underscore(tSubject, input_name2)
         CLExt(idx)%Disp_Input_Grade = '<input type="text" size="4" name="GRADE:'//trim(input_name2)//'" value="'// &
-        trim(CLExt(idx)%Disp_Grade)//'">'
+            trim(CLExt(idx)%Disp_Grade)//'">'
 
         ! evaluate prerequisite
         tmpPreq = 0
@@ -1044,7 +1043,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                 end if
 
 #ifdef DBprereq
-                write(*,*) 'In checklist, ', tNote, j, jdx, SPACE, tSubject, tmpPreq(j), prob(j)
+                write(unitLOG,*) 'In checklist, ', tNote, j, jdx, SPACE, tSubject, tmpPreq(j), prob(j)
 #endif
 
             else if (jdx >= NumDummySubjects) then
@@ -1179,7 +1178,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                 end if
 
 #ifdef DBprereq
-                write(*,*) 'Special, ', tNote, j, jdx, SPACE, tSubject, tmpPreq(j), prob(j)
+                write(unitLOG,*) 'Special, ', tNote, j, jdx, SPACE, tSubject, tmpPreq(j), prob(j)
 #endif
 
             else ! not in curriculum; try all registered subjects
@@ -1191,7 +1190,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                 do k=1,lenTCG
                     if (TCG(k)%Code /= 2) cycle
                     if (-TCG(k)%Subject == jdx-NumDummySubjects .and. &
-                    is_grade_passing(TCG(k)%Grade,Period==2) ) then
+                        is_grade_passing(TCG(k)%Grade,Period==2) ) then
                         prob(j) = 1.0
                         tmpPreq(j) = 1
 #ifdef DBprereq
@@ -1202,7 +1201,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                 tSubject = Subject(-(jdx-NumDummySubjects))%Name
 
 #ifdef DBprereq
-                write(*,*) 'Not in curriculum, ', tNote, j, jdx, SPACE, tSubject, tmpPreq(j), prob(j)
+                write(unitLOG,*) 'Not in curriculum, ', tNote, j, jdx, SPACE, tSubject, tmpPreq(j), prob(j)
 #endif
 
             end if
@@ -1219,7 +1218,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                 if (crse==WaiverCOI%Subject(k)) then
                     CLExt(idx)%OKPreq = .true.
                     CLExt(idx)%Contrib = 1.0
-                    !write(*,*)  'Waiver/COI: '//Subject(crse)%Name//trim(text_student_info(std))
+                    !write(unitLOG,*)  'Waiver/COI: '//Subject(crse)%Name//trim(text_student_info(std))
                     exit
                 end if
             end do
@@ -1230,7 +1229,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
         end if
 
 #ifdef DBprereq
-        write(*,*) trim(tNote), ' OKpreq=', CLExt(idx)%OKPreq
+        write(unitLOG,*) trim(tNote), ' OKpreq=', CLExt(idx)%OKPreq
 #endif
         ! problem with records?
         if (CLExt(idx)%Grade==gdxREGD) then
@@ -1284,31 +1283,31 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                 cdx = Subject(CheckList%SubjectIdx(idx))%Corequisite(1)
                 if (cdx>0) then ! corequisite is a named subject
 #ifdef DBcoreq
-                    write(*,*) 'OK preq: '//Subject(CheckList%SubjectIdx(idx))%Name// &
+                    write(unitLOG,*) 'OK preq: '//Subject(CheckList%SubjectIdx(idx))%Name// &
                     ' is not passed, but prereq is satisfied; corequisite is '//Subject(cdx)%Name
 #endif
                     kdx = index_of_subject_in_curriculum(CheckList, cdx)
                     if (kdx>0) then ! found in checklist; should be passed, or at least, prereq is satisfied
                         if (is_grade_passing(CLExt(kdx)%Grade,Period==2)) then ! co-req is passed
 #ifdef DBcoreq
-                            write(*,*) '  - which is a required subject already passed; ADD.'
+                            write(unitLOG,*) '  - which is a required subject already passed; ADD.'
 #endif
                             FlagIsUp = .true.
                         else if (CLExt(kdx)%OKPreq) then ! co-req's prereq is satisfied (co-req is predicted)
 #ifdef DBcoreq
-                            write(*,*) '  - which is a required subject whose prereq is already satisfied; ADD.'
+                            write(unitLOG,*) '  - which is a required subject whose prereq is already satisfied; ADD.'
 #endif
                             FlagIsUp = .true.
                         else ! co-requisite not passed, nor is its prereq satisfied
 #ifdef DBcoreq
-                            write(*,*) '  - which is a required subject not passed nor satisfied prereq; DO NOT ADD'
+                            write(unitLOG,*) '  - which is a required subject not passed nor satisfied prereq; DO NOT ADD'
 #endif
                             FlagIsUp = .false.
                         end if
 
                     else ! co-requisite is not in student's curriculum
 #ifdef DBcoreq
-                        write(*,*) '  - which is NOT a required subject; curriculum is poorly desgined; DO NOT ADD!'
+                        write(unitLOG,*) '  - which is NOT a required subject; curriculum is poorly desgined; DO NOT ADD!'
 #endif
                         FlagIsUp = .false.
                     end if
@@ -1319,7 +1318,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                     cdx = Subject(CheckList%SubjectIdx(idx))%Concprerequisite(1)
                     if (cdx>0) then ! conc. prerequisite is a named subject
 #ifdef DBconcpreq
-                        write(*,*) 'OK preq: '//Subject(CheckList%SubjectIdx(idx))%Name// &
+                        write(unitLOG,*) 'OK preq: '//Subject(CheckList%SubjectIdx(idx))%Name// &
                         ' is not passed and prereq is satisfied; addnl prerequisite that can be taken concurrently is '// &
                         Subject(cdx)%Name
 #endif
@@ -1327,26 +1326,26 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                         if (kdx>0) then ! found in checklist; should be passed, or at least, prereq is satisfied
                             if (is_grade_passing(CLExt(kdx)%Grade,Period==2)) then ! conc. pre-req is passed
 #ifdef DBconcpreq
-                                write(*,*) '  - which is a required subject already passed; ADD.'
+                                write(unitLOG,*) '  - which is a required subject already passed; ADD.'
 #endif
                                 CLExt(idx)%Contrib = CLExt(kdx)%Contrib
                                 FlagIsUp = .true.
                             else if (CLExt(kdx)%OKPreq) then ! conc. pre-req's prereq is satisfied (conc. pre-req is predicted)
 #ifdef DBconcpreq
-                                write(*,*) '  - which is a required subject whose prereq is already satisfied; ADD.'
+                                write(unitLOG,*) '  - which is a required subject whose prereq is already satisfied; ADD.'
 #endif
                                 CLExt(idx)%Contrib = CLExt(kdx)%Contrib
                                 FlagIsUp = .true.
                             else
 #ifdef DBconcpreq
-                                write(*,*) '  - which is a required subject not passed nor satisfied prereq; DO NOT ADD'
+                                write(unitLOG,*) '  - which is a required subject not passed nor satisfied prereq; DO NOT ADD'
 #endif
                                 FlagIsUp = .false.
                             end if
 
                         else
 #ifdef DBconcpreq
-                            write(*,*) '  - which is NOT a required subject; curriculum is poorly desgined; DO NOT ADD!'
+                            write(unitLOG,*) '  - which is NOT a required subject; curriculum is poorly desgined; DO NOT ADD!'
 #endif
                             FlagIsUp = .false.
                         end if
@@ -1369,7 +1368,14 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
 
         end if
     end do ! idx=1,CheckList%NSubjects
-    !write(*,*) Student(std)%StdNo, ', n=', n, ', m=', m
+    !write(unitLOG,*) Student(std)%StdNo, ', n=', n, ', m=', m
+
+!    write(unitLOG,*) 'OK prerequisite...'
+!    do i=1,n
+!        idx = p(i)
+!        if (idx==0) cycle
+!        write(unitLOG,*) i, Subject(CheckList%SubjectIdx(idx))%Name
+!    end do
 
 
     ! no remaining subjects with unsatisfied prerequisites
@@ -1392,7 +1398,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
             do i = 1,n
                 if (p(i)==0) cycle
                 NPriority = NPriority+1
-                !write(*,*) 'PriorityA #', NPriority, Subject(CheckList%SubjectIdx(p(i)))%Name
+                !write(unitLOG,*) 'PriorityA #', NPriority, Subject(CheckList%SubjectIdx(p(i)))%Name
                 CLExt(NPriority)%PriorityRank = p(i)
                 CLExt(p(i))%Disp_Remarks = 'Pri'//itoa(NPriority)
             end do
@@ -1402,7 +1408,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                 crse = CheckList%SubjectIdx(idx)
                 if (crse<=0) cycle ! subject not specified in PlanOfStudy
                 if (CLExt(idx)%Grade==gdxREGD .and. Period==2 .and. &
-                (is_offered(crse,targetTerm) .or. Offering(crse)%NSections>0)) then
+                    (is_offered(crse,nextTerm) .or. Offering(crse)%NSections>0)) then
                     CLExt(idx)%Contrib = Failrate(crse,prevTermTerm) ! CHANGE THIS LATER TO CONDITIONAL PROBABILITY
                     ! list as alternate; contribute failure rate to forecast
                     NCurrent = NCurrent + 1
@@ -1435,11 +1441,18 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
     else
         do idx=1,n
             if (p(idx) == 0) cycle
-            if (.not. is_offered(CheckList%SubjectIdx(p(idx)),targetTerm) ) then
+            if (.not. is_offered(CheckList%SubjectIdx(p(idx)),nextTerm) ) then
                 p(idx) = 0
             end if
         end do
     end if
+
+!    write(unitLOG,*) 'Offered during term=', nextTerm
+!    do i=1,n
+!        idx = p(i)
+!        if (idx==0) cycle
+!        write(unitLOG,*) i, Subject(CheckList%SubjectIdx(idx))%Name
+!    end do
 
     !        ! remove PE 2/3 if PE 1 is present
     !        do idx=1,n
@@ -1451,7 +1464,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
     !                    token = Subject(CheckList%SubjectIdx(p(i)))%Name
     !                    if (token(1:4) == 'PE 2' .or. token(1:4) == 'PE 3') then
     !                        p(i) = 0
-    !                    !write(*,*) 'PE 1 recommended; removed '//token
+    !                    !write(unitLOG,*) 'PE 1 recommended; removed '//token
     !                    end if
     !                end do
     !            end if
@@ -1466,7 +1479,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
     !                    token = Subject(CheckList%SubjectIdx(p(i)))%Name
     !                    if (token(1:4) == 'PE 2' .or. token(1:4) == 'PE 3') then
     !                        p(i) = 0
-    !                    !write(*,*) trim(tSubject)//' recommended; removed '//token
+    !                    !write(unitLOG,*) trim(tSubject)//' recommended; removed '//token
     !                    end if
     !                end do
     !            end if
@@ -1485,6 +1498,13 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
             idx = idx+1
         end if
     end do
+
+!    write(unitLOG,*) 'Compressed...'
+!    do i=1,n
+!        idx = p(i)
+!        write(unitLOG,*) i, Subject(CheckList%SubjectIdx(idx))%Name
+!    end do
+
 
     ! sort same rank subjects according to increasing slack time
     idx = 1
@@ -1506,7 +1526,14 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
             end do
         end do
         idx = jdx+1
+
     end do
+
+!    write(unitLOG,*) 'Sorted by slack time...'
+!    do i=1,n
+!        idx = p(i)
+!        write(unitLOG,*) i, Subject(CheckList%SubjectIdx(idx))%Name
+!    end do
 
     ! "fudge" units
     if (UnitsEarned==0 .or. AllowedLoad>=20) then
@@ -1524,7 +1551,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
             NPriority = NPriority+1
             CLExt(NPriority)%PriorityRank = idx
             CLExt(idx)%Disp_Remarks = 'Pri'//itoa(NPriority)
-            !write(*,*) 'Priority1 #', NPriority, Subject(CheckList%SubjectIdx(idx))%Name
+            !write(unitLOG,*) 'Priority1 #', NPriority, Subject(CheckList%SubjectIdx(idx))%Name
             ! erase from p()
             p(i) = 0
         end if
@@ -1542,7 +1569,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
             CLExt(NPriority)%PriorityRank = idx
             PredictedLoad = PredictedLoad + Subject(crse)%Units
             CLExt(idx)%Disp_Remarks = 'Pri'//itoa(NPriority)
-            !write(*,*) 'Priority2 #', NPriority, Subject(crse)%Name
+            !write(unitLOG,*) 'Priority2 #', NPriority, Subject(crse)%Name
             ! erase from p()
             p(i) = 0
         end if
@@ -1579,7 +1606,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                     AddCoReq1 = .true.
                     AddCoReq2 = .true.
 #ifdef DBcoreq
-                    write(*,*) 'Priority3a.2 #', NPriority, Subject(crse)%Name, NPriority+1, Subject(coreq)%Name
+                    write(unitLOG,*) 'Priority3a.2 #', NPriority, Subject(crse)%Name, NPriority+1, Subject(coreq)%Name
 #endif
                 else ! add both crse & coreq as alternate subjects later
                     p(i) = -p(i)
@@ -1587,7 +1614,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                     AddCoReq1 = .false.
                     AddCoReq2 = .false.
 #ifdef DBcoreq
-                    write(*,*) 'Add as ALTERNATE subjects: ', Subject(crse)%Name, Subject(coreq)%Name
+                    write(unitLOG,*) 'Add as ALTERNATE subjects: ', Subject(crse)%Name, Subject(coreq)%Name
 #endif
                 end if
 
@@ -1597,7 +1624,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                 if (PredictedLoad+credit <= AllowedLoad + addnl) then ! add both crse & coreq as priority subjects
                     AddCoReq1 = .true.
 #ifdef DBcoreq
-                    write(*,*) 'Priority3a.1 #', NPriority, Subject(crse)%Name
+                    write(unitLOG,*) 'Priority3a.1 #', NPriority, Subject(crse)%Name
 #endif
                 else
                     AddCoReq1 = .false.
@@ -1653,7 +1680,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                     AddCoReq1 = .true.
                     AddCoReq2 = .true.
 #ifdef DBconcpreq
-                    write(*,*) 'Priority3b.2 #', NPriority, Subject(crse)%Name, NPriority+1, Subject(concpreq)%Name
+                    write(unitLOG,*) 'Priority3b.2 #', NPriority, Subject(crse)%Name, NPriority+1, Subject(concpreq)%Name
 #endif
                 else ! add both crse & concpreq as alternate subjects later
                     p(i) = -p(i)
@@ -1661,7 +1688,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                     AddCoReq1 = .false.
                     AddCoReq2 = .false.
 #ifdef DBconcpreq
-                    write(*,*) 'Add as ALTERNATE subjects: ', Subject(crse)%Name, Subject(concpreq)%Name
+                    write(unitLOG,*) 'Add as ALTERNATE subjects: ', Subject(crse)%Name, Subject(concpreq)%Name
 #endif
                 end if
             else ! only concpreq is a priority subject, if allowed load not exceeded
@@ -1670,7 +1697,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                 if (PredictedLoad+credit <= AllowedLoad + addnl) then ! add both crse as priority subject
                     AddCoReq1 = .true.
 #ifdef DBcoreq
-                    write(*,*) 'Priority3b.1 #', NPriority, Subject(concpreq)%Name
+                    write(unitLOG,*) 'Priority3b.1 #', NPriority, Subject(concpreq)%Name
 #endif
                 else
                     AddCoReq1 = .false.
@@ -1710,7 +1737,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                 CLExt(NPriority)%PriorityRank = idx
                 CLExt(idx)%Disp_Remarks = 'Pri'//itoa(NPriority)
                 PredictedLoad = PredictedLoad + credit
-                !write(*,*) 'PriorityD #', NPriority, Subject(crse)%Name
+                !write(unitLOG,*) 'PriorityD #', NPriority, Subject(crse)%Name
                 ! erase from p()
                 p(i) = 0
             end if
@@ -1750,7 +1777,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                     AddCoReq1 = .true.
                     AddCoReq2 = .true.
 #ifdef DBcoreq
-                    write(*,*) 'Priority4a.2 #', NPriority, Subject(crse)%Name, NPriority+1, Subject(coreq)%Name
+                    write(unitLOG,*) 'Priority4a.2 #', NPriority, Subject(crse)%Name, NPriority+1, Subject(coreq)%Name
 #endif
                 else ! add both crse & coreq as alternate subjects later
                     p(i) = -p(i)
@@ -1758,7 +1785,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                     AddCoReq1 = .false.
                     AddCoReq2 = .false.
 #ifdef DBcoreq
-                    write(*,*) 'Add as ALTERNATE subjects: ', Subject(crse)%Name, Subject(coreq)%Name
+                    write(unitLOG,*) 'Add as ALTERNATE subjects: ', Subject(crse)%Name, Subject(coreq)%Name
 #endif
                 end if
 
@@ -1768,7 +1795,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                 if (PredictedLoad+credit <= AllowedLoad + addnl) then ! add both crse as priority subject
                     AddCoReq1 = .true.
 #ifdef DBcoreq
-                    write(*,*) 'Priority4a.1 #', NPriority, Subject(crse)%Name
+                    write(unitLOG,*) 'Priority4a.1 #', NPriority, Subject(crse)%Name
 #endif
                 else
                     AddCoReq1 = .false.
@@ -1823,7 +1850,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                     AddCoReq1 = .true.
                     AddCoReq2 = .true.
 #ifdef DBconcpreq
-                    write(*,*) 'Priority4b.2 #', NPriority, Subject(crse)%Name, NPriority+1, Subject(concpreq)%Name
+                    write(unitLOG,*) 'Priority4b.2 #', NPriority, Subject(crse)%Name, NPriority+1, Subject(concpreq)%Name
 #endif
                 else ! add both crse & concpreq as alternate subjects later
                     p(i) = -p(i)
@@ -1831,7 +1858,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                     AddCoReq1 = .false.
                     AddCoReq2 = .false.
 #ifdef DBconcpreq
-                    write(*,*) 'Add as ALTERNATE subjects: ', Subject(crse)%Name, Subject(concpreq)%Name
+                    write(unitLOG,*) 'Add as ALTERNATE subjects: ', Subject(crse)%Name, Subject(concpreq)%Name
 #endif
                 end if
             else ! only concpreq is a priority subject, if allowed load not exceeded
@@ -1840,7 +1867,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                 if (PredictedLoad+credit <= AllowedLoad + addnl) then ! add both crse as priority subject
                     AddCoReq1 = .true.
 #ifdef DBcoreq
-                    write(*,*) 'Priority4b.1 #', NPriority, Subject(concpreq)%Name
+                    write(unitLOG,*) 'Priority4b.1 #', NPriority, Subject(concpreq)%Name
 #endif
                 else
                     AddCoReq1 = .false.
@@ -1881,7 +1908,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                 CLExt(NPriority)%PriorityRank = idx
                 CLExt(idx)%Disp_Remarks = 'Pri'//itoa(NPriority)
                 PredictedLoad = PredictedLoad + credit
-                !write(*,*) 'PriorityE #', NPriority, Subject(crse)%Name
+                !write(unitLOG,*) 'PriorityE #', NPriority, Subject(crse)%Name
                 ! erase from p()
                 p(i) = 0
             end if
@@ -1912,11 +1939,11 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
         crse = CheckList%SubjectIdx(idx)
         if (crse<=0) cycle ! subject not specified in PlanOfStudy
         if (CLExt(idx)%Grade==gdxREGD .and. Period==2 .and. &
-        (is_offered(crse,targetTerm) .or. Offering(crse)%NSections>0)) then
+            (is_offered(crse,nextTerm) .or. Offering(crse)%NSections>0)) then
             n = n+1
             p(n) = idx
             prob(n) = Failrate(crse,prevTermTerm)
-        !write(*,*) n, Subject(crse)%Name, prob(n)
+        !write(unitLOG,*) n, Subject(crse)%Name, prob(n)
         end if
     end do
     ! sort according to decreasing failrate
@@ -1931,7 +1958,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                 prob(j) = pLoad
             end if
         end do
-    !write(*,*) i, Subject(CheckList%SubjectIdx(p(i)))%Name, prob(i)
+    !write(unitLOG,*) i, Subject(CheckList%SubjectIdx(p(i)))%Name, prob(i)
     end do
     ! calculate probabilistic load from priority subjects
     pLoad = 0.0
@@ -1944,7 +1971,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
         if (idx==0) cycle
         crse = CheckList%SubjectIdx(idx)
         fCredit = Failrate(crse,prevTermTerm)*Subject(crse)%Units
-        !write(*,*) i, Subject(crse)%Name, Failrate(crse,prevTermTerm), fCredit
+        !write(unitLOG,*) i, Subject(crse)%Name, Failrate(crse,prevTermTerm), fCredit
         !if (pLoad + fCredit < AllowedLoad + addnl) then
         if (pLoad < AllowedLoad + addnl) then
             ! list as alternate; contribute failure rate to forecast
@@ -1967,7 +1994,8 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                     end if
                 end do
                 if (FlagIsUp) then ! found co-requisite
-                    !write(*,*) 'Adding current as alternate: '//Subject(crse)%Name//' and as co-requisite: '//Subject(coreq)%Name
+                    !write(unitLOG,*) 'Adding current as alternate: '//Subject(crse)%Name//' and as co-requisite: ' &
+                    !    //Subject(coreq)%Name
                     fCredit = Failrate(coreq,prevTermTerm)*Subject(coreq)%Units
                     ! list as alternate; contribute failure rate to forecast
                     CLExt(kdx)%Contrib = Failrate(coreq,prevTermTerm) ! CHANGE THIS LATER TO CONDITIONAL PROBABILITY
@@ -1992,7 +2020,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                 end if
             end do
             if (FlagIsUp) then ! found concpreq
-                !write(*,*) 'Adding current as alternate: '//Subject(CheckList%SubjectIdx(idx))%Name// &
+                !write(unitLOG,*) 'Adding current as alternate: '//Subject(CheckList%SubjectIdx(idx))%Name// &
                 !  ' and its concurrent pre-requisite: '//Subject(concpreq)%Name
                 fCredit = Failrate(concpreq,prevTermTerm)*Subject(concpreq)%Units
                 ! list as alternate; contribute failure rate to forecast
@@ -2018,7 +2046,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                 end if
             end do
             if (FlagIsUp) then ! found crse
-                !write(*,*) 'Adding current as alternate: '//Subject(CheckList%SubjectIdx(idx))%Name// &
+                !write(unitLOG,*) 'Adding current as alternate: '//Subject(CheckList%SubjectIdx(idx))%Name// &
                 !  ' which is concurrent pre-requisite to: '//Subject(concpreq)%Name
                 fCredit = Failrate(crse,prevTermTerm)*Subject(crse)%Units
                 ! list as alternate; contribute failure rate to forecast
@@ -2038,7 +2066,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
     !    do idx=1,CheckList%NSubjects
     !      crse = CheckList%SubjectIdx(idx)
     !      if (crse<=0) cycle ! subject not specified in PlanOfStudy
-    !      if (CLExt(idx)%Grade==gdxREGD .and. (is_offered(crse,targetTerm) .or. Offering(crse)%NSections>0)) then
+    !      if (CLExt(idx)%Grade==gdxREGD .and. (is_offered(crse,nextTerm) .or. Offering(crse)%NSections>0)) then
     !        CLExt(idx)%Contrib = Failrate(crse,prevTermTerm) ! CHANGE THIS LATER TO CONDITIONAL PROBABILITY
     !        ! list as alternate; contribute failure rate to forecast
     !        NCurrent = NCurrent + 1

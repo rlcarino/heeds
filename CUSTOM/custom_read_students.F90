@@ -171,7 +171,7 @@ subroutine SIAS_read_students_from_enlistment (filePath, numEntries, ier)
     integer :: idxCURR, i, j, indexLoc
 
     numEntries = 0
-    fileName = trim(dirRAW)//trim(filePath)//'.CSV'
+    fileName = trim(dirXML)//trim(filePath)//'.CSV'
     open(unit=unitRAW, file=fileName, status='old', iostat=ier)
     if (ier/=0) return
 

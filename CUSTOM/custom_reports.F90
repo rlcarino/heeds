@@ -51,16 +51,16 @@ subroutine student_performance (device, mesg)
     ! which student?
     call cgi_get_named_string(QUERY_STRING, 'A1', tStdNo, ierr)
     targetStudent = index_to_student(tStdNo)
-    if (ierr/=0 .or. targetStudent==0) then
-        targetDepartment = DeptIdxUser
-        targetCollege = CollegeIdxUser
-        call html_write_header(device, 'Student performance', '<hr><br>Student "'//trim(tStdNo)//'" - not listed?')
-        return
-    else
+!    if (ierr/=0 .or. targetStudent==0) then
+!        targetDepartment = DeptIdxUser
+!        targetCollege = CollegeIdxUser
+!        call html_write_header(device, 'Student performance', '<hr><br>Student "'//trim(tStdNo)//'" - not listed?')
+!        return
+!    else
         targetCurriculum = Student(targetStudent)%CurriculumIdx
         targetCollege = Curriculum(targetCurriculum)%CollegeIdx
-    end if
-    !write(*,*) 'Performance of '//trim(text_student_info(targetStudent))
+!    end if
+!    !write(*,*) 'Performance of '//trim(text_student_info(targetStudent))
 
     call html_write_header(device, text_student_curriculum(targetStudent), mesg)
 
@@ -103,7 +103,7 @@ subroutine student_performance (device, mesg)
                 write(device,AFORMAT) endtr
             end if
             ! header for next term
-            if (TCG(tdx)%Term == 0) then
+            if (TCG(tdx)%Term==3) then
                 write(device,AFORMAT) &
                 begintr//tdnbspendtd//'<td colspan="4" align="left">SUMMER, '// &
                 trim(itoa(TCG(tdx)%Year))//endtd//'<td colspan="6">'//nbsp//endtd//endtr

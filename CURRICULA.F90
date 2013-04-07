@@ -113,7 +113,7 @@ contains
         '            i.e., MATH 11 and MATH 14 can be substituted by MATH I and MATH 17', &
         '    </comment>'
 
-        do idxCURR=1,NumCurricula
+        do idxCURR=1,NumCurricula-1
 
             idxCOLL = Curriculum(idxCURR)%CollegeIdx
 
@@ -146,9 +146,7 @@ contains
             call xml_write_character(unitXML, indent1, 'College', College(idxCOLL)%Code)
 
             do tdx=1,Curriculum(idxCURR)%NumTerms
-                Year = tdx/3+1
-                Term = mod(tdx,3)
-                if (Term == 0) Year = Year-1
+                call rank_to_year_term(tdx, Year, Term)
                 mesg = SPACE
                 do idx=1,Curriculum(idxCURR)%NSubjects
                     if (INDEX_TO_NONE==Curriculum(idxCURR)%SubjectIdx(idx)) cycle
@@ -255,7 +253,6 @@ contains
                     call tokenize_subjects(value, ',', MAX_SUBJECTS_PER_TERM, nLoad, loadArray, ierr)
 
                 case ('/Load') ! value is empty
-                    if (term==0) term = 3 ! SUMMER
                     if (year>0 .and. term>0) then ! ok
                         ! collect subjects
                         idxTerm = (year-1)*3 + term
@@ -266,7 +263,7 @@ contains
                             i = index_to_new_subject(loadArray(k))
                             !if (i/=loadArray(k)) &
                             !    call file_log_message (tCurriculum//token//' renamed '//Subject(i)%Name)
-                            if (is_offered(i,mod(term,3)) ) then
+                            if ( is_offered(i,term) ) then
                                 j = tmpCurriculum%NSubjects+1
                                 tmpCurriculum%NSubjects = j
                                 tmpCurriculum%SubjectIdx(j) = i
@@ -283,6 +280,7 @@ contains
                     term = -1
 
                 case ('/Curriculum') ! add temporary curriculum data to Curriculum()
+                    if (trim(tmpCurriculum%Code)=='OTHER') cycle ! ignore OTHER
                     NumCurricula = NumCurricula + 1
                     call check_array_bound (NumCurricula, MAX_ALL_CURRICULA, 'MAX_ALL_CURRICULA')
                     Curriculum(NumCurricula) = tmpCurriculum
@@ -314,6 +312,7 @@ contains
         end do
 
         call xml_close_file(unitXML)
+        call file_log_message (itoa(NumCurricula)//' entries in '//fileName)
 
         return
     end subroutine xml_read_curricula
@@ -339,7 +338,7 @@ contains
         '            be considered "passed" if the rest of the subjects in the list have earned credits', &
         '    </comment>'
         do tdx=1,NumSubst
-            if (Substitution(SubstIdx(tdx))>NumCurricula) then
+            if (Substitution(SubstIdx(tdx))>NumCurricula-1) then
                 mesg = SPACE
                 do idx=SubstIdx(tdx)+1, SubstIdx(tdx+1)-1
                     mesg = trim(mesg)//COMMA//Subject(Substitution(idx))%Name
@@ -928,6 +927,49 @@ contains
 
         return
     end subroutine xml_read_intake
+
+
+    subroutine set_term_offered_accg_to_curricula(Offering)
+        ! reset Subject()%TermOffered based on appearance of subject in the curricular programs
+        type (TYPE_OFFERED_SUBJECTS), intent(out), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS) :: Offering
+        integer :: kdx, reqd, curr, subj
+
+        Offering = TYPE_OFFERED_SUBJECTS (0, 0, 0, 0, 0, 0, 0, 0)
+        do curr=1,NumCurricula
+            do kdx=1,Curriculum(curr)%NSubjects
+                subj = Curriculum(curr)%SubjectIdx(kdx)
+                select case(mod(Curriculum(curr)%SubjectTerm(kdx),3))
+                    case (0) ! required during summer
+                        Offering(subj)%Demand = Offering(subj)%Demand + 1
+                    case (1) ! required during first sem
+                        Offering(subj)%NSections = Offering(subj)%NSections + 1
+                    case (2) ! required during second sem
+                        Offering(subj)%TotalSlots = Offering(subj)%TotalSlots + 1
+                end select
+            end do
+        end do
+        do subj=1,NumSubjects
+            reqd = 0
+            if (Offering(subj)%Demand>0) reqd = reqd + 4 ! summer
+            if (Offering(subj)%NSections>0) reqd = reqd + 1 ! first sem
+            if (Offering(subj)%TotalSlots >0) reqd = reqd + 2 ! second sem
+
+            if (reqd==0) then ! not required in any curriculum
+                !write(*,*) trim(Subject(subj)%Name)//' is not required in any curriculum?'
+                Subject(subj)%TermOffered = 3 ! 1,2
+            else if (reqd/=Subject(subj)%TermOffered) then ! not consistent
+                !write(*,*) trim(Subject(subj)%Name)//' is required '// &
+                !  text_term_offered(reqd)//' but set to be offered '// &
+                !  text_term_offered(Subject(subj)%TermOffered)
+                Subject(subj)%TermOffered = reqd
+            end if
+        end do
+        do subj=NumDummySubjects,-2
+            Subject(subj)%TermOffered = 7
+        end do
+
+        return
+    end subroutine set_term_offered_accg_to_curricula
 
 
 end module CURRICULA

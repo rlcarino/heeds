@@ -98,7 +98,7 @@ contains
             end if
 
             ! rewrite INTAKE file
-            call xml_write_intake(pathToTarget)
+            call xml_write_intake(pathToTerm)
 
         end if
 

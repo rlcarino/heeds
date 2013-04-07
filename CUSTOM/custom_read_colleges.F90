@@ -27,44 +27,6 @@
 !
 !======================================================================
 
-
-subroutine custom_read_university(path, errNo)
-
-    character(len=*), intent(in) :: path
-    integer, intent(out) :: errNo
-
-    fileName = trim(dirRAW)//trim(path)//'UNIVERSITY'
-    open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
-    if (errNo/=0) return
-
-    call file_log_message('Retrieving university info from '//fileName)
-
-    do
-        read(unitRAW, AFORMAT, iostat=eof) line
-        if (eof<0) exit
-        if (line==SPACE .or. line(1:1)=='#') cycle
-
-        call index_to_delimiters(COMMA, line, ndels, pos)
-        select case (line(:pos(2)-1))
-            case ('NAME')
-                UniversityName = line(pos(2)+1:)
-            case ('ADDRESS')
-                UniversityAddress = line(pos(2)+1:)
-            case ('ADMINISTRATION')
-                ADMINISTRATION = line(pos(2)+1:)
-            case ('REGISTRAR')
-                REGISTRAR = line(pos(2)+1:)
-            case ('BASEYEAR')
-                baseYear = atoi(trim(line(pos(2)+1:)))
-        end select
-
-    end do
-    close(unitRAW)
-
-    return
-end subroutine custom_read_university
-
-
 subroutine custom_read_colleges(path, errNo)
     !id,code,name,sched,number,orperiod,orexam
     !6,"CA","College of Agriculture","C","","11-1"," "

@@ -53,20 +53,10 @@ module SECTIONS
         integer :: DeptIdx, SubjectIdx, Slots, RemSlots, NMeets
         integer, dimension(0:MAX_SECTION_MEETINGS) :: DayIdx, bTimeIdx, eTimeIdx, RoomIdx, TeacherIdx
     end type TYPE_SECTION
+    type (TYPE_SECTION), dimension (3,0:MAX_ALL_SECTIONS) :: Section
+    integer :: NumSections(3)
 
-    type (TYPE_SECTION), dimension (0:MAX_ALL_SECTIONS) :: CurrentSection, NextSection
-
-    integer :: NumCurrentSections, NumNextSections
-    logical :: UseCurrentCLASSES, UseNextCLASSES
-    integer :: fnOFFSET ! set in WEBSERVER.F90; 0=use current, >0 use next
-
-    ! subject offering variables
-    type :: TYPE_OFFERED_SUBJECTS
-        integer :: Demand, NSections, TotalSlots, &
-        Accommodated, PriorityNotAccommodated, &
-        OpenSections, OpenSlots, SortKey
-    end type TYPE_OFFERED_SUBJECTS
-    type (TYPE_OFFERED_SUBJECTS), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS) :: CurrentOffering, NextOffering
+    logical :: UseCLASSES = .false.
 
     ! private tokens
     character (len=MAX_LEN_FILE_PATH), private :: fileName
@@ -88,7 +78,7 @@ contains
     function index_to_section(tSection, NumSections, Section)
         integer :: index_to_section
         character (len=MAX_LEN_CLASS_ID), intent (in) :: tSection
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, intent (in) :: NumSections
         integer :: i, sdx
         sdx = 0
@@ -104,7 +94,7 @@ contains
 
     function is_lecture_class(sect, Section)
         integer, intent (in) :: sect
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         logical :: is_lecture_class
         ! returns true if sect is a lecture class (no DASH in section code)
         is_lecture_class = index(Section(sect)%Code,DASH)==0 .or. &
@@ -115,7 +105,7 @@ contains
 
     function text_days_of_section(sect, NumSections, Section)
         integer, intent(in) :: sect
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, intent (in) :: NumSections
         character (len=7) :: line, text_days_of_section
         integer :: j
@@ -148,7 +138,7 @@ contains
 
 
     subroutine offerings_sort(NumSections, Section)
-        type (TYPE_SECTION), intent(in out), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in out) :: Section(0:)
         integer, intent (in out) :: NumSections
         integer :: i, j
         do i=1,NumSections-1
@@ -166,7 +156,7 @@ contains
 
 
     subroutine offerings_summarize(NumSections, Section, Offering, DeptIdx)
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, intent (in) :: NumSections
         type (TYPE_OFFERED_SUBJECTS), intent(out), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS) :: Offering
         integer, intent (in), optional :: DeptIdx
@@ -203,7 +193,7 @@ contains
 
     subroutine count_sections_by_dept(Term, NumSections, Section)
         integer, intent (in) :: Term, NumSections
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         integer :: sect, dept
         ScheduleCount(Term,:) = 0
 #if defined UPLB
@@ -227,7 +217,7 @@ contains
 
     subroutine delete_sections_of_dept(NumSections, Section, DeptIdx)
         integer, intent (in out) :: NumSections
-        type (TYPE_SECTION), intent(in out), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in out) :: Section(0:)
         integer, intent (in) :: DeptIdx
         integer :: sect
 
@@ -245,7 +235,7 @@ contains
     subroutine xml_write_sections(path, NumSections, Section, iDept)
 
         character(len=*), intent(in) :: path
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, intent (in) :: NumSections
         integer, intent (in) :: iDept
 
@@ -293,7 +283,8 @@ contains
                 call xml_write_character(unitXML, indent1, 'Class', Section(sdx)%Code)
                 call xml_write_character(unitXML, indent1, 'Owner', Department(Section(sdx)%DeptIdx)%Code)
                 call xml_write_integer(unitXML,   indent1, 'Seats', Section(sdx)%Slots)
-                call xml_write_character(unitXML, indent1, 'BlockID', Section(sdx)%BlockID)
+                if (len_trim(Section(sdx)%BlockID)>0) &
+                    call xml_write_character(unitXML, indent1, 'BlockID', Section(sdx)%BlockID)
                 call xml_write_character(unitXML, indent1, 'Meeting')
                 call xml_write_character(unitXML, indent2, 'Time', text_time_period(Section(sdx)%bTimeIdx(1), &
                     Section(sdx)%eTimeIdx(1)))
@@ -309,7 +300,8 @@ contains
                 call xml_write_character(unitXML, indent1, 'Class', Section(sdx)%Code)
                 call xml_write_character(unitXML, indent1, 'Owner', Department(Section(sdx)%DeptIdx)%Code)
                 call xml_write_integer(unitXML,   indent1, 'Seats', Section(sdx)%Slots)
-                call xml_write_character(unitXML, indent1, 'BlockID', Section(sdx)%BlockID)
+                if (len_trim(Section(sdx)%BlockID)>0) &
+                    call xml_write_character(unitXML, indent1, 'BlockID', Section(sdx)%BlockID)
                 do mdx=1,Section(sdx)%NMeets
                     call xml_write_character(unitXML, indent1, 'Meeting')
                     call xml_write_character(unitXML, indent2, 'Time', text_time_period(Section(sdx)%bTimeIdx(mdx), &
@@ -333,7 +325,7 @@ contains
     subroutine read_classes(path, NumSections, Section, Offering, errNo)
 
         character(len=*), intent(in) :: path
-        type (TYPE_SECTION), intent(in out), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in out) :: Section(0:)
         integer, intent (in out) :: NumSections
         type (TYPE_OFFERED_SUBJECTS), intent (in out), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS) :: Offering
         integer, intent (out) :: errNo
@@ -341,10 +333,6 @@ contains
         integer :: ddx, ierr, mainEntries, numUpdates, partialEntries, numEntries
         logical :: noXML
 
-        ! read this term's classes
-        NumSections = 0
-        call initialize_section (Section(0))
-        Section = Section(0)
         errNo = 0 ! 0 is OK; there might be no classes entered yet
 
         fileName = trim(dirXML)//trim(path)//'CLASSES.XML'
@@ -385,7 +373,7 @@ contains
     subroutine xml_read_classes(fName, NumSections, Section, errNo)
 
         character(len=*), intent(in) :: fName
-        type (TYPE_SECTION), intent(in out), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in out) :: Section(0:)
         integer, intent (in out) :: NumSections
         integer, intent (out) :: errNo
 
@@ -586,7 +574,7 @@ contains
     function is_regular_schedule(sect, Section)
         ! returns true if section meetings have same (time, room, teacher), different days
         integer, intent (in) :: sect
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         logical :: is_regular_schedule
         logical :: sameTeacher, sameRoom, sameTime
         integer :: mdx

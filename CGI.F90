@@ -194,6 +194,11 @@ contains
         character(len=1) :: ch
         character(len=2) :: hex_code
 
+#if defined PRODUCTION
+#else
+        write(unitHTML,AFORMAT) '<!-- cgi_url_decode('//trim(str_in)//') -->'
+#endif
+
         str_out = ' ' ! default return values
         len_str_out = len(str_out) ! dimension of str_out
         idx_out = 1 ! index to str_out
@@ -236,6 +241,12 @@ contains
         integer, intent (out) :: ierr
 
         integer :: i_start, j_end, l_string, l_lname
+
+#if defined PRODUCTION
+#else
+        write(unitHTML,AFORMAT) '<!-- cgi_get_name_value('// &
+            trim(string)//', '//trim(lname)//') -->'
+#endif
 
         ! default return values
         rvalue = ' '
@@ -339,6 +350,12 @@ contains
         integer :: w_start, i_start, j_end, l_string, l_lname, l_wild
         character(len=MAX_CGI_WRK_LEN) :: tmp
 
+#if defined PRODUCTION
+#else
+        write(unitHTML,AFORMAT) '<!-- cgi_get_wild_name_value('// &
+            trim(string)//', '//trim(wild)//') -->'
+#endif
+
         ! default return values
         lname  = ' '
         rvalue = ' '
@@ -398,9 +415,16 @@ contains
         ! write to the beginning of file unitNo
         rewind (unitNo)
 
+#if defined PRODUCTION
+#else
+        write(unitNo,AFORMAT) '<!-- FCGI_FCGI_getquery() -->'
+#endif
         ! the remote IP
         call get_environment_variable('REMOTE_ADDR', REMOTE_ADDR)
+#if defined PRODUCTION
+#else
         write(unitNo, AFORMAT) '<!-- REMOTE_ADDR='//REMOTE_ADDR//' -->'
+#endif
 
         ! the requested script ('/' if none)
         call get_environment_variable('DOCUMENT_URI', DOCUMENT_URI)
@@ -409,17 +433,26 @@ contains
             ! default is /
             DOCUMENT_URI = '/'
         endif
+#if defined PRODUCTION
+#else
         iLen = len_trim(DOCUMENT_URI)
         write(unitNo, AFORMAT) '<!-- DOCUMENT_URI='//DOCUMENT_URI(:iLen)//' -->'
+#endif
 
         ! QUERY_STRING (request method was GET) ?
         call get_environment_variable( "QUERY_STRING", value=QUERY_STRING, length=iLen )
         if ( iLen > 0 ) then
+#if defined PRODUCTION
+#else
                 write(unitNo, AFORMAT) '<!-- QUERY_STRING='//QUERY_STRING(:iLen)//' -->'
+#endif
         else
             ! anything in CONTENT_LENGTH (request method was POST) ?
             call get_environment_variable( "CONTENT_LENGTH", value=cLen, length=iLen )
+#if defined PRODUCTION
+#else
             write(unitNo, AFORMAT) '<!-- CONTENT_LENGTH='//trim(cLen)//' -->'
+#endif
             if ( iLen > 0 ) then
                 read( cLen, * ) iLen
                 do i=1,iLen
@@ -427,7 +460,10 @@ contains
                     QUERY_STRING( i:i ) = ch
                 end do
                 QUERY_STRING( iLen+1: ) = ' '
+#if defined PRODUCTION
+#else
                 write(unitNo, AFORMAT) '<!-- CONTENT='//QUERY_STRING(:10)//'... -->'
+#endif
             end if
         endif
 
@@ -443,10 +479,14 @@ contains
         integer, intent(in) :: unitNo
         integer :: iStat
 
+#if defined PRODUCTION
+#else
+        write(unitNo,AFORMAT) '<!-- FCGI_putfile() -->'
+#endif
         ! flush any pending writes
         flush(unitNo)
 
-        ! copy line by line to webserver, except those starting with %REMARK%
+        ! copy line by line to webserver
         rewind(unitNo)
         do while (.true.)
             read(unitNo, AFORMAT, iostat=iStat) QUERY_STRING

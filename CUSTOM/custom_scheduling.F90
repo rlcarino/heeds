@@ -49,7 +49,7 @@ subroutine generate_initial_schedules(idxGrp, MaxAlternates)
     end if
 
     ! read ENLISTMENT files for earlier priority groups
-    call read_pre_enlistment(pathToTarget, 'ENLISTMENT', 0, idxGrp-1, &
+    call read_pre_enlistment(pathToTerm, 'ENLISTMENT', 0, idxGrp-1, &
     NumCurrentSections, CurrentSection, Preenlisted, NumEnlistmentRecords, ier)
     call file_log_message('# enlistment records in previous runs ='//itoa(NumEnlistmentRecords))
 
@@ -122,7 +122,7 @@ subroutine generate_initial_schedules(idxGrp, MaxAlternates)
     call initialize_pre_enlistment(Preenlisted(0))
     Preenlisted(1:) = Preenlisted(0)
     NumEnlistmentRecords = 0
-    call read_predictions(pathToTarget, NumCurrentSections, CurrentSection, Preenlisted, NumEnlistmentRecords, ier)
+    call read_predictions(pathToTerm, NumCurrentSections, CurrentSection, Preenlisted, NumEnlistmentRecords, ier)
     call file_log_message('# prediction records ='//itoa(NumEnlistmentRecords))
     if (ier/=0 .or. NumEnlistmentRecords==0) then
         write(*,*) 'No PREDICTIONS.XML ?'

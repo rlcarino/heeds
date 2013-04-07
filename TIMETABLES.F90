@@ -63,7 +63,7 @@ contains
 
     function is_conflict_timetable_with_section(NumSections, Section, sect, TimeTable)
         logical :: is_conflict_timetable_with_section
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, intent (in) :: NumSections
         integer, intent (in) :: sect
         integer, dimension(60,6), intent (in) :: TimeTable
@@ -89,7 +89,7 @@ contains
 
 
     subroutine timetable_add_section(NumSections, Section, sect, TimeTable, loc)
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, intent (in) :: NumSections
         integer, intent (in) :: sect
         integer, dimension (60,6), intent (in out) :: TimeTable
@@ -136,7 +136,7 @@ contains
 
     function is_conflict_timetable_with_section_meetings(NumSections, Section, sect, n_meetings, meetings, TimeTable)
         logical :: is_conflict_timetable_with_section_meetings
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, intent (in) :: NumSections
         integer, intent (in) :: sect, n_meetings, meetings(MAX_SECTION_MEETINGS)
         integer, dimension(60,6), intent (in) :: TimeTable
@@ -162,7 +162,7 @@ contains
 
 
     subroutine timetable_add_meetings_of_section(NumSections, Section, sect, n_meetings, meetings, TimeTable, loc)
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, intent (in) :: NumSections
         integer, intent (in) :: sect, n_meetings, meetings(MAX_SECTION_MEETINGS)
         integer, intent (in out) :: TimeTable(60,6), loc
@@ -263,7 +263,7 @@ contains
 
 
     subroutine timetable_remove_section(NumSections, Section, sect, TimeTable, loc)
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, intent (in) :: NumSections
         integer, intent (in) :: sect
         integer, dimension (60,6), intent (in out) :: TimeTable
@@ -320,8 +320,7 @@ contains
         end do
         if (n15==0.0) return ! assume TBA is OK
         ! disable check for summer schedules
-        if ( (fnOFFSET==0 .and. currentTerm==0) .or. &
-             (fnOFFSET>0 .and. currentTerm==2) ) return
+        if (targetTerm==3) return
 
         ! figure out how many hours based on subject type and section code
         idx = tSection%SubjectIdx
@@ -344,7 +343,7 @@ contains
     function is_conflict_free_section_hours(tSection, NumSections, Section)
         logical :: is_conflict_free_section_hours, tDetermination
         type (TYPE_SECTION), intent (in) :: tSection
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, intent (in) :: NumSections
         integer, dimension(60,6) :: TimeTable
         character(len=MAX_LEN_CLASS_ID) :: tClassId
@@ -377,7 +376,7 @@ contains
 
 
     subroutine sections_compound(NumSections, Section, nconflicts, ignoreMismatch)
-        type (TYPE_SECTION), intent(in out), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in out) :: Section(0:)
         integer, intent (in out) :: NumSections
         integer, intent (out) :: nconflicts
         logical, intent (in), optional :: ignoreMismatch
@@ -510,7 +509,7 @@ contains
 
 
     subroutine meetings_of_section_by_teacher(NumSections, Section, section_index, teacher_index, n_meetings, meetings)
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, intent (in) :: NumSections
         integer, intent(in) :: section_index, teacher_index
         integer, intent(out) :: n_meetings, meetings(MAX_SECTION_MEETINGS)
@@ -528,7 +527,7 @@ contains
 
 
     subroutine meetings_of_section_in_room(NumSections, Section, section_index, room_index, n_meetings, meetings)
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, intent (in) :: NumSections
         integer, intent(in) :: section_index, room_index
         integer, intent(out) :: n_meetings, meetings(MAX_SECTION_MEETINGS)
@@ -546,7 +545,7 @@ contains
 
 
     subroutine timetable_meetings_of_teacher(NumSections, Section, teacher_index, to_skip, len_list, list, TimeTable, conflicted)
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, intent (in) :: NumSections
         integer, intent(in) :: teacher_index, to_skip
         integer, intent (out) :: len_list, list(:)
@@ -585,7 +584,7 @@ contains
 
 
     subroutine timetable_meetings_in_room(NumSections, Section, room_index, to_skip, len_list, list, TimeTable, conflicted)
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, intent (in) :: NumSections
         integer, intent(in) :: room_index, to_skip
         integer, intent (out) :: len_list, list(:)
@@ -625,7 +624,7 @@ contains
 
     subroutine timetable_undesirability(ns, NumSections, Section, TimeTable)
         integer, intent(in) :: ns
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, intent (in) :: NumSections
         integer, dimension(60,6), intent(in out)  :: TimeTable
 

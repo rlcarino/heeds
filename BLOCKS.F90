@@ -49,8 +49,8 @@ module BLOCKS
     end type TYPE_BLOCK
 
     integer, parameter :: MAX_ALL_BLOCKS = 6*MAX_ALL_CURRICULA ! max all blocks
-    type (TYPE_BLOCK), dimension(0:MAX_ALL_BLOCKS) :: CurrentBlock, NextBlock
-    integer :: NumCurrentBlocks, NumNextBlocks
+    type (TYPE_BLOCK), dimension(3,0:MAX_ALL_BLOCKS) :: Block
+    integer :: NumBlocks(3)
 
     ! private tokens
     character (len=MAX_LEN_FILE_PATH), private :: fileName
@@ -145,7 +145,7 @@ contains
     subroutine delete_section_from_blocks(sect, NumSections, Section, NumBlocks, Block)
         integer, intent(in) :: sect, NumBlocks
         type (TYPE_BLOCK), dimension(0:), intent(in out) :: Block
-        type (TYPE_SECTION), intent(in out), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in out) :: Section(0:)
         integer, intent (in out) :: NumSections
         integer :: i, j
         do i=1,NumBlocks
@@ -171,7 +171,7 @@ contains
         integer, intent (in) :: iDept, NumBlocks
         character(len=*), intent(in) :: path
         type (TYPE_BLOCK), dimension(0:), intent(in) :: Block
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
 
         integer :: blk, sect, i
 
@@ -184,6 +184,8 @@ contains
         else
             fileName = trim(dirXML)//trim(path)//'BLOCKS.XML'
         end if
+
+        write(unitHTML,AFORMAT) '<!-- xml_write_blocks('//trim(fileName)//') -->'
 
         ! write file
         call xml_open_file(unitXML, XML_ROOT_BLOCKS, fileName, i)
@@ -243,7 +245,7 @@ contains
 
         character(len=*), intent(in) :: path
         integer, intent (in) :: NumSections
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, intent (out) :: NumBlocks
         type (TYPE_BLOCK), dimension(0:), intent(out) :: Block
         integer, intent (out) :: errNo
@@ -251,9 +253,6 @@ contains
         integer :: ddx, ierr, mainEntries, numEntries, numUpdates, partialEntries
         logical :: noXML = .false.
 
-        NumBlocks = 0
-        call initialize_block(Block(0))
-        Block = Block(0)
         errNo = 0 ! no blocks is OK; none may be defined yet
 
         fileName = trim(dirXML)//trim(path)//'BLOCKS.XML'
@@ -307,7 +306,7 @@ contains
 
         character(len=*), intent(in) :: fName ! YEAR/TERM/BLOCKS(-CURR)
         integer, intent (in) :: NumSections
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, intent (out) :: NumBlocks
         type (TYPE_BLOCK), dimension(0:), intent(out) :: Block
         integer, intent (out) :: errNo
@@ -407,7 +406,7 @@ contains
 
         character(len=*), intent (in) :: fName ! YEAR/TERM/BLOCKS
         integer, intent (in) :: NumSections
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, intent (out) :: NumBlocks
         type (TYPE_BLOCK), dimension(0:), intent(out) :: Block
         integer, intent (out) :: errNo

@@ -266,6 +266,7 @@ contains
 
         end do
         call xml_close_file(unitXML)
+        call file_log_message (itoa(NumRooms)//' entries in '//fileName)
 
         call sort_rooms()
 

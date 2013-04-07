@@ -59,7 +59,7 @@ contains
 
 
     subroutine recalculate_available_seats(Section)
-        type (TYPE_SECTION), intent(in out), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in out) :: Section(0:)
         integer :: i, j, std
         ! calculate priority demand, priority accomodated/not accommodated
         Section(:)%RemSlots = Section(:)%Slots
@@ -98,7 +98,7 @@ contains
     subroutine xml_write_pre_enlistment(path, basename, eList, Section, curriculumFilter)
         character (len=*), intent (in) :: path, basename ! YEAR/TERM/(ENLISTMENT,PREDICTION,WAIVER-COI)
         type (TYPE_PRE_ENLISTMENT), intent(in) :: eList(0:)
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, intent (in), optional :: curriculumFilter
 
         integer :: std, sect, i, lenRecord, filter
@@ -169,14 +169,15 @@ contains
             call xml_write_integer  (unitXML, indent1, 'StdPriority', eList(std)%StdPriority)
             call xml_write_integer  (unitXML, indent1, 'NPriority', eList(std)%NPriority)
             if (eList(std)%NAlternates/=0) &
-            call xml_write_integer  (unitXML, indent1, 'NAlternates', eList(std)%NAlternates)
+                call xml_write_integer  (unitXML, indent1, 'NAlternates', eList(std)%NAlternates)
             if (eList(std)%NCurrent/=0) &
-            call xml_write_integer  (unitXML, indent1, 'NCurrent', eList(std)%NCurrent)
+                call xml_write_integer  (unitXML, indent1, 'NCurrent', eList(std)%NCurrent)
 
             do i=1,lenRecord
                 sect = eList(std)%Section(i)
                 if (sect>0) then
-                    call xml_write_character(unitXML, indent1, 'Enlisted', Section(sect)%ClassId)
+                    call xml_write_character(unitXML, indent1, 'Enlisted', &
+                        trim(Subject(Section(sect)%SubjectIdx)%Name)//SPACE//Section(sect)%Code )
                 elseif (eList(std)%Subject(i)>0) then
                     if (eList(std)%Contrib(i)>0.0) then
                         call xml_write_character(unitXML, indent1, 'Predicted', &
@@ -201,7 +202,7 @@ contains
 
         character(len=*), intent(in) :: path, basename
         integer, intent (in) :: NumSections
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         type (TYPE_PRE_ENLISTMENT), intent(in out) :: eList(0:)
         integer, intent (out) :: numEntries, errNo
 
@@ -329,7 +330,7 @@ contains
         end do
 
         call xml_close_file(unitXML)
-        !call file_log_message (itoa(numEntries)//' in '//fileName)
+        call file_log_message (itoa(numEntries)//' entries in '//fileName)
 
         return
     end subroutine xml_read_pre_enlistment
@@ -339,7 +340,7 @@ contains
 
         character(len=*), intent(in) :: path, basename ! YEAR/TERM/(ENLISTMENT,PREDICTION)
         integer, intent (in) :: firstGrp, lastGrp, NumSections
-        type (TYPE_SECTION), intent(in out), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in out) :: Section(0:)
         type (TYPE_PRE_ENLISTMENT), intent(out) :: eList(0:)
         integer, intent (in out) :: numEntries
         integer, intent (out) :: errNo
@@ -386,7 +387,7 @@ contains
 
     subroutine custom_read_pre_enlistment(path, basename, NumSections, Section, cList, numEntries, ier)
         character(len=*), intent(in) :: path, basename
-        type (TYPE_SECTION), intent(in out), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in out) :: Section(0:)
         type (TYPE_PRE_ENLISTMENT), intent(out) :: cList(0:)
         integer, intent (in) :: NumSections
         integer, intent (out) :: numEntries, ier
@@ -429,7 +430,7 @@ contains
 
         end do loop_WRITEIN
         close(unitRAW)
-        call file_log_message (itoa(numEntries)//' in '//fileName)
+        call file_log_message (itoa(numEntries)//' entries in '//fileName)
 
         return
     end subroutine custom_read_pre_enlistment
@@ -438,7 +439,7 @@ contains
 
     subroutine GetEnlistment(iUnit, NumSections, Section, header, preRegistered)
         integer, intent(in) :: iUnit
-        type (TYPE_SECTION), intent(in), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, intent (in) :: NumSections
         character(len=127), intent(in) :: header
         type (TYPE_PRE_ENLISTMENT), intent (out) :: preRegistered
@@ -534,12 +535,12 @@ contains
 
         character(len=*), intent(in) :: path ! YEAR/TERM/
         integer, intent (in) :: NumSections
-        type (TYPE_SECTION), intent(in out), dimension (0:) :: Section
+        type (TYPE_SECTION), intent(in out) :: Section(0:)
         type (TYPE_PRE_ENLISTMENT), intent(out) :: eList(0:)
         integer, intent (in out) :: numEntries
         integer, intent (out) :: errNo
 
-        integer :: mainEntries, partialEntries, ierr
+        integer :: ierr, mainEntries, partialEntries
         logical :: noXML
 
         errNo = 0 ! OK if there's no enlistment record

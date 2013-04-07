@@ -30,7 +30,7 @@
 
 subroutine extract_student_grades()
 
-    character (len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
+    !character (len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
     character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
     character (len=MAX_LEN_TEXT_GRADE) :: tGrade
     type (TYPE_STUDENT) :: wrkStudent
@@ -46,9 +46,6 @@ subroutine extract_student_grades()
         dirYear = itoa(idxYear)
         do idxTerm = 1,3
 
-            ! skip future records
-            if (idxYear>currentYear .or. (idxYear==currentYear .and. idxTerm>currentTerm)) cycle
-
             do idxGrd = 1,1 ! 0,3
                 fileName = trim(dirRAW)//dirYEAR//DIRSEP//trim(txtSemester(idxTerm))//DIRSEP// &
                 trim(txtGradeType(idxGrd))//'.CSV'
@@ -58,7 +55,7 @@ subroutine extract_student_grades()
                     write(*,*) 'File not found: '//trim(fileName)
                     cycle
                 end if
-                write(*,*) 'Retrieving enrolled records from '//trim(fileName)
+                write(*,*) 'Retrieving grades from '//trim(fileName)
                 ! skip first line
                 read (unitRAW, AFORMAT, iostat = eof) line
                 call initialize_student(wrkStudent)
@@ -84,15 +81,15 @@ subroutine extract_student_grades()
 
                         call initialize_student(wrkStudent)
 
-                        tCurriculum = line(pos(6)+1:pos(7)-1)
-                        idxCURR = index_to_curriculum(tCurriculum)
-                        if (idxCURR==0) then
-                            tCurriculum = 'OTHER'
-                            idxCURR = index_to_curriculum(tCurriculum)
-                        elseif (idxCURR<=0) then
-                            idxCURR = -idxCURR
-                            !write (*,*) line(:pos(8))//'... using curriculum '// Curriculum(idxCURR)%Code
-                        end if
+!                        tCurriculum = line(pos(6)+1:pos(7)-1)
+!                        idxCURR = index_to_curriculum(tCurriculum)
+!                        if (idxCURR==0) then
+!                            tCurriculum = 'OTHER'
+!                            idxCURR = index_to_curriculum(tCurriculum)
+!                        elseif (idxCURR<=0) then
+!                            idxCURR = -idxCURR
+!                            !write (*,*) line(:pos(8))//'... using curriculum '// Curriculum(idxCURR)%Code
+!                        end if
                         wrkStudent%StdNo = adjustl(line(pos(2)+1:pos(3)-1))
                         wrkStudent%Name = SPACE
                         ! remove punctuation
@@ -117,13 +114,13 @@ subroutine extract_student_grades()
                         tSubject = adjustl(line(pos(idx)+1:pos(idx+1)-1))
                         cdx = index_to_subject(tSubject)
                         if (cdx<=0) then
-                            !call file_io_log (trim(wrkStudent%Name)//' - "'//trim(tSubject)// &
-                            !'" not in catalog')
+                            call file_log_message (trim(wrkStudent%Name)//' - "'//trim(tSubject)// &
+                                '" not in catalog')
                             cycle
                         end if
                         tGrade  = adjustl(line(pos(idx+2)+1:pos(idx+3)-1))
                         if (tGrade==SPACE) then
-                            gdx = 0
+                            gdx = gdxREGD
                         else
                             gdx = index_to_grade(tGrade)
                         end if
@@ -155,7 +152,7 @@ subroutine extract_student_grades()
         end do
     end do
 
-    call xml_write_failrates(pathToCurrent, GrandTotal)
+    call xml_write_failrates(pathToYear, GrandTotal)
 
     return
 end subroutine extract_student_grades

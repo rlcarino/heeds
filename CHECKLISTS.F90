@@ -136,14 +136,14 @@ contains
         call xml_write_character(unitXML, indent0, 'StdNo', Student(std)%StdNo)
         if (trim(Student(std)%Name)/='(not in directory)') &
             call xml_write_character(unitXML, indent0, 'Name', Student(std)%Name)
-        if (Student(std)%Gender/=SPACE .and. Student(std)%Gender/='X') &
-            call xml_write_character(unitXML, indent0, 'Gender', Student(std)%Gender)
-        if (Student(std)%CountryIdx/=1) &
-            call xml_write_integer(unitXML,   indent0, 'Country', Student(std)%CountryIdx)
-        if (Student(std)%CurriculumIdx/=0) &
-            call xml_write_character(unitXML, indent0, 'Curriculum', Curriculum(Student(std)%CurriculumIdx)%Code)
-        if (Student(std)%Classification/=-1) &
-            call xml_write_integer(unitXML,   indent0, 'Classification', Student(std)%Classification)
+!        if (Student(std)%Gender/=SPACE .and. Student(std)%Gender/='X') &
+!            call xml_write_character(unitXML, indent0, 'Gender', Student(std)%Gender)
+!        if (Student(std)%CountryIdx/=1) &
+!            call xml_write_integer(unitXML,   indent0, 'Country', Student(std)%CountryIdx)
+!        if (Student(std)%CurriculumIdx/=0) &
+!            call xml_write_character(unitXML, indent0, 'Curriculum', Curriculum(Student(std)%CurriculumIdx)%Code)
+!        if (Student(std)%Classification/=-1) &
+!            call xml_write_integer(unitXML,   indent0, 'Classification', Student(std)%Classification)
         do idx=1,Student(std)%Record(1,0)
             if (Student(std)%Record(4,idx)<=0) cycle
             call xml_write_character(unitXML, indent0, trim(txtGradeType(Student(std)%Record(1,idx))), &
@@ -211,42 +211,71 @@ contains
             end do
             write(unitXML,AFORMAT) '    </comment>'
         end if
-        l = 0 ! how many entries?
-        do idx=1,lenTCG
-            if (TCG(idx)%Code==1) l = l+1
-        end do
-        if (l>0) then
-            do idx=1,lenTCG
-                if (TCG(idx)%Code/=1) cycle
+!        l = 0 ! how many entries?
+!        do idx=1,lenTCG
+!            if (TCG(idx)%Code==1) l = l+1
+!        end do
+!        if (l>0) then
+!            do idx=1,lenTCG
+!                if (TCG(idx)%Code/=1) cycle
+!                call rank_to_year_term(TCG(idx)%Term, Year, Term)
+!
+!                !write(*,*) idx, trim(TCG(idx)%txtLine)
+!                call xml_write_character(unitXML, indent0, 'Substitution')
+!                call xml_write_character(unitXML, indent1, 'Year', txtYear(Year) )
+!                call xml_write_character(unitXML, indent1, 'Term', txtSemester(Term) )
+!                line = SPACE
+!                !write(*,*) 'xml_write_substitution : Required=', TCG(idx)%Reqd(0)
+!                do k=1,TCG(idx)%Reqd(0)
+!
+!                    !write(*,*) k, Subject(TCG(idx)%Reqd(k))%Name
+!
+!                    line = COMMA//trim(Subject(TCG(idx)%Reqd(k))%Name)//line
+!                end do
+!                call xml_write_character(unitXML, indent1, 'Required', line(2:))
+!                line = SPACE
+!                !write(*,*) 'xml_write_substitution : Replacement=', TCG(idx)%Subst(0)
+!                do k=1,TCG(idx)%Subst(0)
+!
+!                    !write(*,*) k, Subject(TCG(idx)%Subst(k))%Name
+!
+!                    line = COMMA//trim(Subject(TCG(idx)%Subst(k))%Name)//line
+!                end do
+!                call xml_write_character(unitXML, indent1, 'Replacement', line(2:))
+!                call xml_write_character(unitXML, indent0, '/Substitution')
+!            end do
+!        end if
 
-                !write(*,*) idx, trim(TCG(idx)%txtLine)
+!        write(unitXML,AFORMAT) &
+!            '    <comment>', &
+!            '        # Entries = '//itoa(Student(std)%Reqd(0,0)), &
+!            '    </comment>'
+        do idx=1,Student(std)%Reqd(0,0)
 
-                call xml_write_character(unitXML, indent0, 'Substitution')
-                if (TCG(idx)%Year>0 .and. TCG(idx)%Year<18) &
-                    call xml_write_character(unitXML, indent1, 'Year', txtYear(TCG(idx)%Year) )
-                if (TCG(idx)%Term>=0 .and. TCG(idx)%Term<=8) &
-                    call xml_write_character(unitXML, indent1, 'Term', txtSemester(TCG(idx)%Term) )
-                line = SPACE
-                !write(*,*) 'xml_write_substitution : Required=', TCG(idx)%Reqd(0)
-                do k=1,TCG(idx)%Reqd(0)
+            call rank_to_year_term(Student(std)%Reqd(-1,idx), Year, Term)
 
-                    !write(*,*) k, Subject(TCG(idx)%Reqd(k))%Name
+            call xml_write_character(unitXML, indent0, 'Substitution')
+            call xml_write_character(unitXML, indent1, 'Year', txtYear(Year) )
+            call xml_write_character(unitXML, indent1, 'Term', txtSemester(Term) )
+            line = SPACE
+            do k=1,Student(std)%Reqd(0,idx)
 
-                    line = COMMA//trim(Subject(TCG(idx)%Reqd(k))%Name)//line
-                end do
-                call xml_write_character(unitXML, indent1, 'Required', line(2:))
-                line = SPACE
-                !write(*,*) 'xml_write_substitution : Replacement=', TCG(idx)%Subst(0)
-                do k=1,TCG(idx)%Subst(0)
+                !write(*,*) k, Subject(Student(std)%Reqd(k,idx))%Name
 
-                    !write(*,*) k, Subject(TCG(idx)%Subst(k))%Name
-
-                    line = COMMA//trim(Subject(TCG(idx)%Subst(k))%Name)//line
-                end do
-                call xml_write_character(unitXML, indent1, 'Replacement', line(2:))
-                call xml_write_character(unitXML, indent0, '/Substitution')
+                line = COMMA//trim(Subject(Student(std)%Reqd(k,idx))%Name)//line
             end do
-        end if
+            call xml_write_character(unitXML, indent1, 'Required', line(2:))
+            line = SPACE
+            !write(*,*) 'xml_write_substitution : Replacement=', TCG(idx)%Subst(0)
+            do k=1,Student(std)%Subst(0,idx)
+
+                !write(*,*) k, Subject(Student(std)%Subst(k,idx))%Name
+
+                line = COMMA//trim(Subject(Student(std)%Subst(k,idx))%Name)//line
+            end do
+            call xml_write_character(unitXML, indent1, 'Replacement', line(2:))
+            call xml_write_character(unitXML, indent0, '/Substitution')
+        end do
 
         call xml_close_file(unitXML, XML_SUBSTITUTIONS)
         return
@@ -261,12 +290,12 @@ contains
         character(len=MAX_LEN_XML_LINE) :: value
         character(len=MAX_LEN_XML_TAG) :: tag
         type (TYPE_STUDENT) :: wrkStudent
-        character (len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
+        !character (len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
         character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
         character (len=MAX_LEN_TEXT_GRADE) :: tGrade
         character (len=MAX_LEN_TEXT_SEMESTER) :: tTerm
-        integer :: cdx, idx, grdType, idxCurr, gdx
-        logical :: flag
+        integer :: idx, grdType, gdx !cdx, idxCurr,
+        !logical :: flag
 
         ! generate file name
         idx = year_prefix(Student(std))
@@ -299,23 +328,27 @@ contains
                     wrkStudent%Name = adjustl(value)
 
                 case ('Gender')
-                    wrkStudent%Gender = adjustl(value)
+                    ! do nothing
+                    !wrkStudent%Gender = adjustl(value)
 
                 case ('Curriculum')
-                    tCurriculum = adjustl(value)
-                    idxCurr = index_to_curriculum(tCurriculum)
-                    if (idxCurr<0) then
-                        idxCurr = -idxCurr
-                    else if (idxCurr==0) then
-                        idxCurr =NumCurricula
-                    end if
-                    wrkStudent%CurriculumIdx = idxCurr
+                    ! do nothing
+                    !tCurriculum = adjustl(value)
+                    !idxCurr = index_to_curriculum(tCurriculum)
+                    !if (idxCurr<0) then
+                    !    idxCurr = -idxCurr
+                    !else if (idxCurr==0) then
+                    !    idxCurr =NumCurricula
+                    !end if
+                    !wrkStudent%CurriculumIdx = idxCurr
 
                 case ('Country')
-                    wrkStudent%CountryIdx = atoi(value)
+                    ! do nothing
+                    !wrkStudent%CountryIdx = atoi(value)
 
                 case ('Classification') ! ignore
-                    wrkStudent%Classification = atoi(value)
+                    ! do nothing
+                    !wrkStudent%Classification = atoi(value)
 
                 case default
                     call upper_case(tag)
@@ -350,35 +383,6 @@ contains
 
         end do
         call xml_close_file(unitXML)
-
-        ! add enlisted subjects
-        if (Period>1) then
-            do idx=1,Preenlisted(std)%lenSubject
-                if (Preenlisted(std)%Section(idx)>0) then
-                    flag = .false. ! duplicate not found
-                    do cdx=1,wrkStudent%Record(1,0)
-                        if (wrkStudent%Record(1,cdx)/=1) cycle ! same grade type?
-                        if (wrkStudent%Record(2,cdx)/=currentYear) cycle ! same year?
-                        if (wrkStudent%Record(3,cdx)/=currentTerm) cycle ! same term?
-                        if (wrkStudent%Record(4,cdx)/=Preenlisted(std)%Subject(idx)) cycle ! same subject?
-                        flag = .true.
-                        if (wrkStudent%Record(5,cdx)==gdxREGD .and. &
-                            Preenlisted(std)%Grade(idx)/=gdxREGD) then ! update grade
-                            wrkStudent%Record(5,cdx) = Preenlisted(std)%Grade(idx)
-                        end if
-                        exit
-                    end do
-                    if (flag) cycle ! duplicate
-                    cdx = wrkStudent%Record(1,0)+1
-                    wrkStudent%Record(1,0) = cdx
-                    wrkStudent%Record(1,cdx) = 1 ! type=FINALGRADE
-                    wrkStudent%Record(2,cdx) = currentYear ! year
-                    wrkStudent%Record(3,cdx) = currentTerm ! term
-                    wrkStudent%Record(4,cdx) = Preenlisted(std)%Subject(idx) ! subject
-                    wrkStudent%Record(5,cdx) = Preenlisted(std)%Grade(idx) ! grade
-                end if
-            end do
-        end if
 
         ! update student record
         Student(std) = wrkStudent
@@ -438,7 +442,7 @@ contains
             select case (trim(tag))
 
                 case ('Substitution')
-                    call check_array_bound (lenTCG+1, MAX_LEN_STUDENT_RECORD, 'MAX_LEN_STUDENT_RECORD')
+                    call check_array_bound (lenTCG+1, MAX_LEN_STUDENT_RECORD, 'MAX_LEN_STUDENT_RECORD @ '//fileName)
 
                 case ('Year') ! value is one of FIRST, SECOND, THIRD, FOURTH, ...
                     tYear = adjustl(value)
@@ -471,14 +475,14 @@ contains
                     if (TCG(lenTCG)%Term>=0 .and. TCG(lenTCG)%Term<=8) then
                         tTerm = txtSemester(TCG(lenTCG)%Term)
                     else
-                        tTerm = space
+                        tTerm = SPACE
                     end if
                     line = COMMA//trim(tTerm)//line
 
                     if (TCG(lenTCG)%Year>0 .and. TCG(lenTCG)%Year<18) then
                         tYear = txtYear(TCG(lenTCG)%Year)
                     else
-                        tYear = space
+                        tYear = SPACE
                     end if
                     TCG(lenTCG)%txtLine = 'PlanOfCoursework,'//trim(tYear)//line
                     TCG(lenTCG)%Code = 1
@@ -583,7 +587,7 @@ contains
             if (stdCurriculum==SPACE .or. idxCURR==0) then ! first line does not contain student info
                 if (line(1:5)=='Grade') then
                     lenTCG = lenTCG + 1
-                    call check_array_bound (lenTCG, MAX_LEN_STUDENT_RECORD, 'MAX_LEN_STUDENT_RECORD')
+                    call check_array_bound (lenTCG, MAX_LEN_STUDENT_RECORD, 'MAX_LEN_STUDENT_RECORD @ '//fileTCG)
                     TCG(lenTCG)%txtLine = line
                     TCG(lenTCG)%Code = 0
                 end if
@@ -602,35 +606,13 @@ contains
                 if (eof<0) exit
                 if (line(1:5)=='Grade') then
                     lenTCG = lenTCG + 1
-                    call check_array_bound (lenTCG, MAX_LEN_STUDENT_RECORD, 'MAX_LEN_STUDENT_RECORD')
+                    call check_array_bound (lenTCG, MAX_LEN_STUDENT_RECORD, 'MAX_LEN_STUDENT_RECORD @ '//fileTCG)
                     TCG(lenTCG)%txtLine = line
                 end if
             end do
             close(200)
 
         end if
-
-        ! add enlisted subjects
-        !Grade,Year,Term,Subject,Section,Units,Grade
-        ! 1     2    3      4       5     6     7
-        if (Period>1) then
-            do i=1,Preenlisted(std)%lenSubject
-                if (Preenlisted(std)%Section(i)>0) then
-                    lenTCG = lenTCG + 1
-                    call check_array_bound (lenTCG, MAX_LEN_STUDENT_RECORD, 'MAX_LEN_STUDENT_RECORD')
-                        TCG(lenTCG)%txtLine = 'Grade,'// &
-                        trim(itoa(currentYear))//COMMA// &
-                        trim(txtSemester(currentTerm))//COMMA// &
-                        trim(Subject(Preenlisted(std)%Subject(i))%Name)//COMMA// &
-                        trim(CurrentSection(Preenlisted(std)%Section(i))%Code)//COMMA// &
-                        trim(ftoa(Subject(Preenlisted(std)%Subject(i))%Units,1))//COMMA// &
-                        trim(txtGrade(pGrade(Preenlisted(std)%Grade(i))))
-                    !write(*,*) trim(TCG(lenTCG)%txtLine)
-                end if
-            end do
-        end if
-
-
 
         ! parse TCG; assume initial good academic standing, copy TCG to Record()
         Student(std)%Record(1,0) = 0
@@ -685,18 +667,6 @@ contains
                     !write(*,AFORMAT) trim(TCG(tdx)%txtLine), trim(TCG(tdx)%errLine)
                     cycle loop_tcg
                 end if
-                ! force current and "future" records to be error; current records are retrieved from ENLISTMENT
-                i = atoi(tYear)
-                j = index_to_term(tTerm)
-                if ( (i .gt. targetYear) .or. &
-                (i .eq. targetYear) .and. (j .ge. targetTerm) ) then
-                    TCG(tdx)%Code = 0
-                    TCG(tdx)%ErrorCode = 14
-                    TCG(tdx)%errLine = ' ERROR : '
-                    TCG(tdx)%errLine(pos(2):) = ' ^ year/term is in the future?'
-                    !write(*,AFORMAT) trim(TCG(tdx)%txtLine), trim(TCG(tdx)%errLine)
-                    cycle loop_tcg
-                end if
 
                 ! check subject
                 cdx = index_to_subject(tSubject)
@@ -735,6 +705,11 @@ contains
                 end if
                 j = atoi(tYear)
                 k = index_to_term(tTerm)
+                if (k==3) j = j-1 ! make summer the end of the school year
+
+                ! exclude future grades
+                if ( j>currentYear .or. (j==currentYear .and. k>currentTerm) ) cycle
+
                 TCG(tdx)%Subject = cdx
                 TCG(tdx)%Grade = gdx
                 TCG(tdx)%Year  = j
@@ -786,8 +761,7 @@ contains
             cdx = TCG(tdx)%Subject
             if (index(TCG(tdx)%txtLine, 'REMOVAL')>0) then
                 k = 0
-                if (Subject(cdx)%Name(1:4)/='PE 2' .and. &
-                Subject(cdx)%Name(1:4)/='PE 3') then
+                if (Subject(cdx)%Name(1:4)/='PE 2' .and. Subject(cdx)%Name(1:4)/='PE 3') then
                     do j=lenTCG,1,-1
                         if (TCG(j)%Code/=2) cycle
                         if (TCG(j)%Subject/=TCG(tdx)%Subject) cycle
@@ -814,8 +788,7 @@ contains
                 end if
             else if (index(TCG(tdx)%txtLine, 'COMPLETION')>0) then
                 k = 0
-                if (Subject(cdx)%Name(1:4)/='PE 2' .and. &
-                Subject(cdx)%Name(1:4)/='PE 3') then
+                if (Subject(cdx)%Name(1:4)/='PE 2' .and. Subject(cdx)%Name(1:4)/='PE 3') then
                     do j=lenTCG,1,-1
                         if (TCG(j)%Code/=2) cycle
                         if (TCG(j)%Subject/=TCG(tdx)%Subject) cycle
@@ -902,7 +875,7 @@ contains
                 if (line(1:16)=='PlanOfCoursework') then
                     lenTCG = lenTCG + 1
                     pocw = pocw + 1
-                    call check_array_bound (lenTCG, MAX_LEN_STUDENT_RECORD, 'MAX_LEN_STUDENT_RECORD')
+                    call check_array_bound (lenTCG, MAX_LEN_STUDENT_RECORD, 'MAX_LEN_STUDENT_RECORD @ '//fileTCG)
                     if (line(17:22)==',PE 2,') line = line(1:16)//',,'//line(17:)
                     TCG(lenTCG)%txtLine = line
                 end if
@@ -911,7 +884,7 @@ contains
         end if
 
         if (pocw==0) then ! get default GE
-            fileTCG = trim(dirRAW)//trim(pathToCurrent)//'defaultGE'
+            fileTCG = trim(dirRAW)//trim(pathToYear)//'defaultGE'
             !write(*,*) 'Looking into '//trim(fileTCG)
             open(200, file=fileTCG, form='formatted', status='old', iostat=eof)
             if (eof==0) then
@@ -922,7 +895,7 @@ contains
                     call index_to_delimiters(COMMA, line, ndels, pos)
                     if (line(1:pos(2)-1)/=trim(CurrProgCode(idxCURR))) cycle
                     lenTCG = lenTCG + 1
-                    call check_array_bound (lenTCG, MAX_LEN_STUDENT_RECORD, 'MAX_LEN_STUDENT_RECORD')
+                    call check_array_bound (lenTCG, MAX_LEN_STUDENT_RECORD, 'MAX_LEN_STUDENT_RECORD @ '//fileTCG)
                     TCG(lenTCG)%txtLine = line(pos(2)+1:)
                   !write(*,*) trim(TCG(lenTCG)%txtLine)
                 end do
@@ -965,7 +938,6 @@ contains
                     TCG(tdx)%errLine(pos(3):) = ' ^ error in YEAR or TERM'
                     TCG(tdx)%Term = tCheckList%NumTerms   ! last semester
                 else
-                    ! no longer necessary? if (i==0) i = 3
                     TCG(tdx)%Term = (j-1)*3 + i
                 end if
                 ! check validity of tokens
@@ -1185,6 +1157,12 @@ contains
                 end if
 
                 TCG(tdx)%Code = 1
+                ! copy to Student(std)
+                i = Student(std)%Reqd(0,0) + 1
+                Student(std)%Reqd(0,0) = i
+                Student(std)%Reqd(-1,i) = TCG(tdx)%Term
+                Student(std)%Reqd(0:5,i) = TCG(tdx)%Reqd(0:5)
+                Student(std)%Subst(0:5,i) = TCG(tdx)%Subst(0:5)
 
                 !write(*,*) 'custom_read_substitution: Required=', TCG(tdx)%Reqd(0)
                 !do cdx=1,TCG(tdx)%Reqd(0)
@@ -1199,5 +1177,58 @@ contains
 
         return
     end subroutine custom_read_substitutions
+
+
+    subroutine remake_student_records (std, DoNotRename)
+        integer, intent (in) :: std
+        logical, optional, intent (in) :: DoNotRename
+
+        integer :: i, j, k, ierr
+        real :: harvest
+
+        TCG = TYPE_STUDENT_RECORD (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, .false., SPACE, SPACE)
+        lenTCG = 0
+
+        ! retrieve record of substitutions
+        call xml_read_substitutions(std, ierr)
+        if (ierr/=0) then
+            call custom_read_substitutions (std, DoNotRename)
+            call xml_write_substitutions(std)
+        end if
+
+        ! retrieve record of grades
+        call xml_read_student_grades(std, ierr)
+        if (ierr/=0) then
+            call custom_read_student_grades (std, DoNotRename)
+        end if
+
+        ! generate random passing grades
+        do i=1,Student(std)%Record(1,0)
+            if (Student(std)%Record(4,i)<=0) cycle
+            j = Student(std)%Record(5,i)
+            k = j
+            if (UniversityCode(1:3)=='CSU') then ! percentage grades
+                if (j>=75) then ! passing
+                    do while (k==j)
+                        call random_number(harvest)
+                        k = 76+int(harvest*24.0)
+                    end do
+                end if
+            else ! assume 1.0, 1.25, 1.5, etc
+                if (j>0 .and. j<10) then ! numeric pass
+                    do while (k==j .or. k==0)
+                        call random_number(harvest)
+                        k = int(harvest*10.0)
+                    end do
+                end if
+            end if
+            Student(std)%Record(5,i) = k
+        end do
+
+        ! rewrite
+        call xml_write_student_grades(std)
+
+        return
+    end subroutine remake_student_records
 
 end module CHECKLISTS

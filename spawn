@@ -1,0 +1,40 @@
+#!/bin/bash
+
+IP=127.0.0.1
+EXE_UPLB=./HEEDS_GLNX_UPLB
+EXE_SIAS=./HEEDS_GLNX_SIAS
+
+# There must be at least 4 arguments
+if [ -z "$4" ]; then
+    if [ -x $EXE_UPLB ]; then
+        $EXE_UPLB
+    else
+        if [ -x $EXE_SIAS ]; then
+            $EXE_SIAS
+        else
+            echo "Not found: $EXE_UPLB or $EXE_SIAS"
+        fi
+    fi
+    exit 
+fi
+
+# University_Code/Port_Number combination must be the same as in nginx.conf
+declare -a  University_Code=( DEMO1      DEMO2      DEMO3    CSU-Andrews  CSU-Demo   UPLB       ISU-Echague )
+declare -a      Port_Number=( 10010      10020      10030      11010      11020      12000      13000       )
+declare -a HEEDS_Executable=( $EXE_UPLB  $EXE_UPLB  $EXE_UPLB  $EXE_SIAS  $EXE_SIAS  $EXE_UPLB  $EXE_SIAS   )
+
+# Search for matching univesity
+for index in ${!University_Code[*]}
+do
+    # printf "%4d: %s\n" $index ${University_Code[$index]}
+    if [ $1 = ${University_Code[$index]} ]; then
+        if [ -x ${HEEDS_Executable[$index]} ]; then
+            #echo "spawn-fcgi -a $IP -p ${Port_Number[$index]} -- ${HEEDS_Executable[$index]} $*" 
+            spawn-fcgi -a $IP -p ${Port_Number[$index]} -- ${HEEDS_Executable[$index]} $*
+        else
+            echo "Not found: ${HEEDS_Executable[$index]}"
+        fi
+        exit
+    fi
+done
+echo "University '$1' not recognized"

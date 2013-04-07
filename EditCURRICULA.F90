@@ -93,7 +93,7 @@ contains
       case default
             mesg = SPACE
     end select
-    if (mesg/=SPACE) call xml_write_curricula(pathToCurrent)
+    if (mesg/=SPACE) call xml_write_curricula(pathToYear)
 
     call html_write_header(device, tCurriculum//' options', mesg)
 
@@ -181,9 +181,7 @@ contains
     write(device,AFORMAT) '<br><table border="1" width="100%">'
     cumulative = 0
     do tdx=1,Curriculum(targetCurriculum)%NumTerms
-      Year = tdx/3+1
-      Term = mod(tdx,3)
-      if (Term == 0) Year = Year-1
+      call rank_to_year_term(tdx, Year, Term)
       m = 0
       n = 0
       do idx=1,Curriculum(targetCurriculum)%NSubjects
@@ -251,11 +249,6 @@ contains
     else
             call cgi_get_named_string(QUERY_STRING, 'A1', tCurriculum, tdx)
             targetCurriculum = index_to_curriculum(tCurriculum)
-    end if
-    if (tdx/=0 .or. targetCurriculum<=0) then
-            write(device,AFORMAT) '<br>'//red//'Curriculum "'//tCurriculum//'" not found.'//black//'<hr><br>'
-            targetCollege = CollegeIdxUser
-            return
     end if
 
     wrk = Curriculum(targetCurriculum) ! make a working copy
@@ -325,9 +318,7 @@ contains
             wrk%SubjectTerm = 0
             j = 0 ! number changed/reordered subjects
             do tdx=1,Curriculum(targetCurriculum)%NumTerms+6
-              Year = tdx/3+1
-              Term = mod(tdx,3)
-              if (Term == 0) Year = Year-1
+              call rank_to_year_term(tdx, Year, Term)
               call cgi_get_named_string(QUERY_STRING, 'Subjects'//trim(itoa(tdx)), mesg, ierr)
 
               if (len_trim(mesg)==0) then ! erase
@@ -429,10 +420,14 @@ write(unitLOG,*) 'NumSubst=', NumSubst, ' SubstIdx(.)=', SubstIdx(NumSubst), &
     end select
 
     if (changed) then
-        call xml_write_curricula(pathToCurrent)
+        call xml_write_curricula(pathToYear)
     end if
 
     call html_write_header(device, 'Edit curriculum '//tCurriculum, remark(3:))
+    write(device,AFORMAT) trim(make_href(fnCurriculumList, CurrProgCode(targetCurriculum), &
+        A1=CurrProgCode(targetCurriculum), &
+        pre='<small>Edit other'//nbsp, post=' option</small><br>'))
+
     call make_form_start(device, fnEditCurriculum, tCurriculum)
     write(device,AFORMAT) '<table border="0" width="100%">', &
         begintr//begintd//'<b>Curriculum code</b>'//endtd//begintd//'<input name="Code" size="'// &
@@ -479,9 +474,7 @@ write(unitLOG,*) 'NumSubst=', NumSubst, ' SubstIdx(.)=', SubstIdx(NumSubst), &
 
     tunits = 0
     do tdx=1,Curriculum(targetCurriculum)%NumTerms+6
-      Year = tdx/3+1
-      Term = mod(tdx,3)
-      if (Term == 0) Year = Year-1
+      call rank_to_year_term(tdx, Year, Term)
       m = 0
       n = 0
       mesg = SPACE
@@ -494,7 +487,6 @@ write(unitLOG,*) 'NumSubst=', NumSubst, ' SubstIdx(.)=', SubstIdx(NumSubst), &
         end if 
       end do
       tUnits = tUnits + n
-      !if (Term==0) write(device,AFORMAT) begintr//'<td colspan="2">'//nbsp//endtd//endtr
       write(device,AFORMAT) begintr//begintd// &
         trim(txtYear(Year+9))//' Year, '//trim(txtSemester(Term+6))//' Term ('// &
         trim(itoa(n))//FSLASH//trim(itoa(tUnits))//')'//endtd, &
