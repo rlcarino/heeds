@@ -772,22 +772,10 @@ contains
         type (TYPE_SECTION), intent(in out) :: Section(0:)
         character(len=MAX_LEN_CLASS_ID) :: tClassId
         integer :: sect
-        character (len=127) :: mesg
 
         ! get index to section
         call cgi_get_named_string(QUERY_STRING, 'A1', tClassId, sect)
-        if (sect/=0 .or. tClassId==SPACE) then
-            mesg = 'Section to edit not specified?'
-        else
-            sect = index_to_section(tClassId, NumSections, Section)
-            mesg = 'Section "'//tClassId//'" not found?'
-        end if
-        if (sect<=0) then ! section is invalid
-            targetCollege = CollegeIdxUser
-            targetDepartment = DeptIdxUser
-            call html_write_header(device, 'Edit section', '<br><hr>'//mesg)
-            return
-        end if
+        sect = index_to_section(tClassId, NumSections, Section)
 
         targetDepartment = Section(sect)%DeptIdx
         targetCollege = Department(targetDepartment)%CollegeIdx
@@ -795,7 +783,7 @@ contains
 
         ! go to validation
         call section_validation_form(device, NumSections, Section, NumBlocks, Block,  &
-        1, sect, Section(sect), targetDepartment, targetDepartment)
+            1, sect, Section(sect), targetDepartment, targetDepartment)
 
         return
     end subroutine section_edit
@@ -821,6 +809,7 @@ contains
         else
             tHours = trim(ftoa(Subject(Section(sect)%SubjectIdx)%LabHours,2))//' laboratory hours'
         end if
+
         ! write input form to capture edits to Section(sect); previous inputs are in tSection
         call make_form_start(device, fnScheduleValidate, Section(sect)%ClassId)
 
@@ -834,20 +823,20 @@ contains
         !  Room(tSection%RoomIdx(idx))%Code, Teacher(tSection%TeacherIdx(idx))%TeacherID, idx=1,tSection%NMeets)
         write(device,AFORMAT) &
             '<b>SECTION CODE</b> '//trim(Section(sect)%Code)// &
-            nbsp//nbsp//'<i>change to </i>&nbsp<input size="'//trim(itoa(tLen))//'" name="code" value="'// &
+            nbsp//nbsp//'<i>change to </i>'//nbsp//'<input size="'//trim(itoa(tLen))//'" name="code" value="'// &
             trim(tSection%Code)//'">', &
             nbsp//nbsp//nbsp//nbsp//nbsp//nbsp//'<b>NO. OF STUDENTS</b> '//trim(itoa(Section(sect)%Slots))// &
-            nbsp//nbsp//'<i>change to </i>&nbsp<input size="3" name="slots" value="'//trim(itoa(tSection%Slots))//'">'
+            nbsp//nbsp//'<i>change to </i>'//nbsp//'<input size="3" name="slots" value="'//trim(itoa(tSection%Slots))//'">'
         if (targetTerm/=3) write(device,AFORMAT) & ! not summer
             '<br><i>(Note: Class meetings must total <b>'//trim(tHours)//'</b>) :</i>'
 
         write(device,AFORMAT) '<table border="0" width="100%">'//begintr, &
-        '<td align="left"><b>Meeting</b>'//endtd//&
-        '<td align="left"><b>Day</b>'//endtd// &
-        '<td align="left"><b>Begin</b>'//endtd//&
-        '<td align="left"><b>End</b>'//endtd// &
-        '<td align="left"><b>Room</b>'//endtd//&
-        '<td align="left"><b>Teacher</b>'//endtd//endtr
+            '<td align="left"><b>Meeting</b>'//endtd//&
+            '<td align="left"><b>Day</b>'//endtd// &
+            '<td align="left"><b>Begin</b>'//endtd//&
+            '<td align="left"><b>End</b>'//endtd// &
+            '<td align="left"><b>Room</b>'//endtd//&
+            '<td align="left"><b>Teacher</b>'//endtd//endtr
         do idx_meet=1,tSection%NMeets+3
             DayIdx = tSection%DayIdx(idx_meet)
             bTimeIdx = tSection%bTimeIdx(idx_meet)
@@ -933,7 +922,7 @@ contains
 
         end do
         write(device,AFORMAT) '</table>', &
-            '<br><input type="submit" name="action" value="Validate"> above choices.', &
+            '<br><i>If you made a change above,</i> &nbsp; <input type="submit" name="action" value="Validate">', &
             '</form><hr>'
         return
     end subroutine section_write_edit_form
@@ -1012,21 +1001,9 @@ contains
         type (TYPE_SECTION) :: wrk
         character(len=MAX_LEN_CLASS_ID) :: tClassId, tAction
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
-        character(len=127), dimension(MAX_SECTION_MEETINGS) :: mesg
 
         call cgi_get_named_string(QUERY_STRING, 'A1', tClassId, sect)
-        if (sect/=0 .or. tClassId==SPACE) then
-            mesg(1) = 'Section to edit not specified?'
-        else
-            sect = index_to_section(tClassId, NumSections, Section)
-            mesg(1) = 'Section "'//tClassId//'" not found?'
-        end if
-        if (sect<=0) then ! section is invalid
-            targetCollege = CollegeIdxUser
-            targetDepartment = DeptIdxUser
-            call html_write_header(device, 'Edit section', '<br><hr>'//mesg(1))
-            return
-        end if
+        sect = index_to_section(tClassId, NumSections, Section)
 
         dept = Section(sect)%DeptIdx
         targetDepartment = dept
@@ -1040,7 +1017,8 @@ contains
         ! action is ?
         call cgi_get_named_string(QUERY_STRING, 'action', tAction, ierr)
         select case (trim(tAction))
-            case ('Confirm') ! Confirm previously validated edits
+
+            case ('Confirm') ! Accept previously validated edits
                 action_index = 2
                 Section(sect) = wrk
                 call xml_write_sections(pathToTerm, NumSections, Section, 0)
@@ -1050,16 +1028,20 @@ contains
                 call section_list_all (device, NumSections, Section, Offering, NumBlocks, Block,  &
                     fnScheduleOfClasses, dept, 'Finished editing '//trim(wrk%ClassId))
                 return
+
             case ('Find rooms')
                 action_index = 3
                 call cgi_get_named_string(QUERY_STRING, 'room_dept', tDepartment, room_dept)
                 room_dept = index_to_dept(tDepartment)
+
             case ('Find teachers')
                 action_index = 4
                 call cgi_get_named_string(QUERY_STRING, 'teacher_dept', tDepartment, teacher_dept)
                 teacher_dept = index_to_dept(tDepartment)
+
             case default ! assume Validate
                 action_index = 1
+
         end select
         if (room_dept==0) room_dept = targetDepartment
         if (teacher_dept==0) teacher_dept = targetDepartment
@@ -1090,7 +1072,7 @@ contains
         !write(*,*) 'section_validation_form:  Action is ', action_index, ' room_dept=', room_dept, ' teacher_dept=', teacher_dept
 
         call section_write_edit_form(device, NumSections, Section, NumBlocks, Block, &
-        sect, wrk, teacher_dept, room_dept)
+            sect, wrk, teacher_dept, room_dept)
         crse = Section(sect)%SubjectIdx
         ierr = 0
 
@@ -1179,6 +1161,7 @@ contains
           !    ierr = ierr+1
           !end if
         end do
+        if (ierr>0) write(device,AFORMAT) '<hr>'
 
         ! common form inputs
         call make_form_start(device, fnScheduleValidate, Section(sect)%ClassId)
@@ -1194,11 +1177,11 @@ contains
             '<input type="hidden" name="teacher'//trim(itoa(idx))//'" value="'//trim(Teacher(wrk%teacherIdx(idx))%TeacherID)//'">'
         end do
 
-        if (ierr==0) then ! nothing wrong?
-            write(device,AFORMAT) &
-                '<input type="submit" name="action" value="Confirm"> changes; else, specify additional changes, then Validate.'
+        if (ierr==0 .and. REQUEST==fnScheduleValidate) then ! nothing wrong?
+            write(device,AFORMAT) '<table border="0" width="100%">'//begintr// &
+                tdalignright//'<input type="submit" name="action" value="Confirm"> <i>changes.</i>', &
+                endtd//endtr//'</table><hr>'
         end if
-        write(device,AFORMAT) '<hr>'
 
         if (conflict_room .or. action_index==3) then ! tAction=='Find rooms') then
             call room_search_given_time(device, NumSections, Section, wrk, sect, jdx, room_dept)
@@ -1308,14 +1291,14 @@ contains
         ! show classes of the teachers, if any
         flagIsUp = .false. ! none
         write(device,AFORMAT) &
-        '<a name="teachers"></a><table border="0" width="100%">'//begintr, &
-        tdnbspendtd//tdalignright, &
-        '[ Other '//trim(Subject(crse)%Name)//' <a href="#sections">sections</a> ] ', &
-        '[ Usage of <a href="#rooms">room</a>(s) ] ', &
-        !'[ Classes of <a href="#teachers">teacher</a>(s) ] ', &
-        '[ Other sections in <a href="#block">block</a> ] ', &
-        '[ <a href="#TOP">TOP</a> ] ', &
-        endtd//endtr//'</table>'
+            '<a name="teachers"></a><table border="0" width="100%">'//begintr, &
+            tdnbspendtd//tdalignright, &
+            '[ Other '//trim(Subject(crse)%Name)//' <a href="#sections">sections</a> ] ', &
+            '[ Usage of <a href="#rooms">room</a>(s) ] ', &
+            !'[ Classes of <a href="#teachers">teacher</a>(s) ] ', &
+            '[ Other sections in <a href="#block">block</a> ] ', &
+            '[ <a href="#TOP">TOP</a> ] ', &
+            endtd//endtr//'</table>'
         do idx_meet=1,Section(sect)%NMeets
             tdx = wrk%TeacherIdx(idx_meet)
             if (tdx/=0) then

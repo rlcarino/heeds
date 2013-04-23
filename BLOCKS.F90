@@ -166,12 +166,13 @@ contains
     end subroutine delete_section_from_blocks
 
 
-    subroutine xml_write_blocks(path, NumBlocks, Block, Section, iDept)
+    subroutine xml_write_blocks(path, NumBlocks, Block, Section, iDept, dirOPT)
 
         integer, intent (in) :: iDept, NumBlocks
         character(len=*), intent(in) :: path
         type (TYPE_BLOCK), dimension(0:), intent(in) :: Block
         type (TYPE_SECTION), intent(in) :: Section(0:)
+        character(len=*), intent(in), optional :: dirOPT
 
         integer :: blk, sect, i
 
@@ -180,9 +181,17 @@ contains
 
         ! generate file name
         if (iDept>0) then
-            fileName = trim(dirXML)//trim(path)//'BLOCKS-'//trim(Department(iDept)%Code)//'.XML'
+            if (present(dirOPT)) then
+                fileName = trim(dirOPT)//trim(path)//'BLOCKS-'//trim(Department(iDept)%Code)//'.XML'
+            else
+                fileName = trim(dirXML)//trim(path)//'BLOCKS-'//trim(Department(iDept)%Code)//'.XML'
+            endif
         else
-            fileName = trim(dirXML)//trim(path)//'BLOCKS.XML'
+            if (present(dirOPT)) then
+                fileName = trim(dirOPT)//trim(path)//'BLOCKS.XML'
+            else
+                fileName = trim(dirXML)//trim(path)//'BLOCKS.XML'
+            endif
         end if
 
         write(unitHTML,AFORMAT) '<!-- xml_write_blocks('//trim(fileName)//') -->'
@@ -260,17 +269,17 @@ contains
         numEntries = NumBlocks
         mainEntries = NumBlocks
         noXML = mainEntries==0
-        ! check for blocks edited by departments
-        do ddx=2,NumDepartments-1
-            fileName = trim(dirXML)//UPDATES//trim(path)//'BLOCKS-'//trim(Department(ddx)%Code)//'.XML'
-            call xml_read_blocks(fileName, NumBlocks, Block, NumSections, Section, ierr)
-            partialEntries = NumBlocks-numEntries
-            numEntries = NumBlocks
-            if (partialEntries>0) then ! remove blocks of dept from monolithic file
-                call delete_blocks_from_dept(mainEntries, Block, ddx)
-            end if
-            if (ierr==0) call move_to_backup(filename)
-        end do
+!        ! check for blocks edited by departments
+!        do ddx=2,NumDepartments-1
+!            fileName = trim(dirXML)//UPDATES//trim(path)//'BLOCKS-'//trim(Department(ddx)%Code)//'.XML'
+!            call xml_read_blocks(fileName, NumBlocks, Block, NumSections, Section, ierr)
+!            partialEntries = NumBlocks-numEntries
+!            numEntries = NumBlocks
+!            if (partialEntries>0) then ! remove blocks of dept from monolithic file
+!                call delete_blocks_from_dept(mainEntries, Block, ddx)
+!            end if
+!            if (ierr==0) call move_to_backup(filename)
+!        end do
         numUpdates = NumBlocks-mainEntries
 
         if (NumBlocks==0) then ! really no XML BLOCKS files; try the custom format
@@ -358,6 +367,7 @@ contains
 
                 case ('Term')
                     wrkBlock%Term = atoi(value)
+                    if (wrkBlock%Term==0) wrkBlock%Term = 3
 
                 case ('Owner')
                     tDepartment = adjustl(value)

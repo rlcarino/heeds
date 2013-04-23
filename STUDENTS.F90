@@ -35,13 +35,12 @@ module STUDENTS
     implicit none
 
     integer, parameter :: &
-        MAX_ALL_STUDENTS = 20000, & ! max no. of students
-        MAX_LEN_STUDENT_CODE = 13, & ! length of student numbers: YYYY-PPP-SSSS
-        MAX_LEN_STUDENT_NAME = 40 ! length of student names
+        MAX_ALL_STUDENTS = 15000, & ! max no. of students
+        MAX_LEN_STUDENT_CODE = 13 ! length of student numbers: YYYY-PPP-SSSS
 
     type :: TYPE_STUDENT
         character(len=MAX_LEN_STUDENT_CODE) :: StdNo
-        character(len=MAX_LEN_STUDENT_NAME) :: Name
+        character(len=MAX_LEN_PERSON_NAME) :: Name
         character(len=1) :: Gender
         integer :: CountryIdx
         integer :: CurriculumIdx
@@ -89,11 +88,11 @@ contains
         ! check for students added by program advisers
         numUpdates = 0
         done = .false.
-        do iCurr=1,NumCurricula
+        do iCurr=1,NumCurricula-1
             if (done(iCurr)) cycle
             call xml_read_students (path, iCurr, partialEntries, ierr)
             numUpdates = numUpdates + partialEntries
-            do i = iCurr+1,NumCurricula
+            do i = iCurr+1,NumCurricula-1
                 if (CurrProgCode(iCurr)==CurrProgCode(i)) done(i) = .true.
             end do
         end do
@@ -256,29 +255,24 @@ contains
 
         integer, intent (in) :: std
 
-        character (len=MAX_LEN_STUDENT_CODE+MAX_LEN_STUDENT_NAME+ &
+        character (len=MAX_LEN_STUDENT_CODE+MAX_LEN_PERSON_NAME+ &
             MAX_LEN_CURRICULUM_CODE+MAX_LEN_CURRICULUM_NAME+MAX_LEN_CURRICULUM_NAME+&
-            MAX_LEN_CURRICULUM_NAME) :: tmp, text_student_curriculum
+            MAX_LEN_CURRICULUM_NAME) :: text_student_curriculum
         integer :: idxCURR
 
         idxCURR = Student(std)%CurriculumIdx
-        tmp = SPACE
-        if (Curriculum(idxCURR)%Remark/=SPACE)  &
-        tmp = COMMA//SPACE//trim(Curriculum(idxCURR)%Remark)//tmp
-        if (Curriculum(idxCURR)%Specialization/=SPACE)  &
-        tmp = COMMA//SPACE//trim(Curriculum(idxCURR)%Specialization)//tmp
-        tmp = trim(Student(std)%StdNo)//SPACE//trim(Student(std)%Name)//SPACE//DASH//SPACE// &
-            trim(Curriculum(idxCURR)%Title)//tmp
-        text_student_curriculum = tmp
+        text_student_curriculum = trim(Student(std)%StdNo)//SPACE//trim(Student(std)%Name)//COMMA//SPACE// &
+                text_curriculum_info(idxCURR)
 
         return
     end function text_student_curriculum
 
 
-    subroutine xml_write_students(path, iCurr)
+    subroutine xml_write_students(path, iCurr, dirOPT)
 
         integer, intent (in) :: iCurr
         character(len=*), intent(in) :: path ! YEAR/TERM/
+        character(len=*), intent(in), optional :: dirOPT
 
         integer :: std, idx
 
@@ -287,9 +281,17 @@ contains
 
         ! generate file name
         if (iCurr>0) then
-            fileName = trim(dirXML)//trim(path)//'STUDENTS-'//trim(CurrProgCode(iCurr))//'.XML'
+            if (present(dirOPT)) then
+                fileName = trim(dirOPT)//trim(path)//'STUDENTS-'//trim(CurrProgCode(iCurr))//'.XML'
+            else
+                fileName = trim(dirXML)//trim(path)//'STUDENTS-'//trim(CurrProgCode(iCurr))//'.XML'
+            endif
         else
-            fileName = trim(dirXML)//trim(path)//'STUDENTS.XML'
+            if (present(dirOPT)) then
+                fileName = trim(dirOPT)//trim(path)//'STUDENTS.XML'
+            else
+                fileName = trim(dirXML)//trim(path)//'STUDENTS.XML'
+            endif
         end if
 
         ! write file

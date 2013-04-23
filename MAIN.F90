@@ -1,3 +1,6 @@
+#if defined PRODUCTION
+#else
+#endif
 !======================================================================
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
@@ -44,6 +47,11 @@ program MAIN
     call date_and_time (date=currentDate,time=currentTime)
     startDateTime = currentDate//DASH//currentTime(:6)
 
+#if defined PRODUCTION
+#else
+    write(*,*) 'Started '//startDateTime
+#endif
+
     ! initialize random seed
     call initialize_random_seed()
 
@@ -58,6 +66,10 @@ program MAIN
         end if
     end do
     fileExecutable = fileExecutable(iTmp+1:)
+#if defined PRODUCTION
+#else
+    write(*,*) 'Executable is '//trim(fileExecutable)
+#endif
 
     ! arguments are: UNIV YEAR TERM ACTION
     numArgs = iargc()
@@ -84,28 +96,46 @@ program MAIN
 
         case ('1')
             currentTerm = 1
-            prevYearYear = currentYear-1 ! one school year ago (year)
-            prevYearTerm = 1             ! one school year ago (1st)
-            prevTermYear = currentYear-1 ! year of previous term
-            prevTermTerm = 3             ! term of previous term (summer)
-            nextYear = currentYear       ! year of next term (the same year)
-            nextTerm = 2                 ! next term (2nd)
+
+            cTm3Year = currentYear-1 ! one school year ago (year)
+            cTm3 = 1                 ! 3 terms ago (1st)
+
+            cTm2Year = currentYear-1
+            cTm2 = 2                 ! 2 terms ago (2nd)
+
+            cTm1Year = currentYear-1 ! year of previous term
+            cTm1 = 3                 ! 1 term ago (summer)
+
+            nextYear = currentYear   ! year of next term (the same year)
+            nextTerm = 2             ! next term (2nd)
 
         case ('2')
             currentTerm = 2
-            prevYearYear = currentYear-1
-            prevYearTerm = 2
-            prevTermYear = currentYear
-            prevTermTerm = 1
+
+            cTm3Year = currentYear-1
+            cTm3 = 2
+
+            cTm2Year = currentYear-1
+            cTm2 = 3
+
+            cTm1Year = currentYear
+            cTm1 = 1
+
             nextYear = currentYear
             nextTerm = 3
 
         case ('S')
             currentTerm = 3
-            prevYearYear = currentYear-1
-            prevYearTerm = 3
-            prevTermYear = currentYear
-            prevTermTerm = 2
+
+            cTm3Year = currentYear-1
+            cTm3 = 3
+
+            cTm2Year = currentYear
+            cTm2 = 1
+
+            cTm1Year = currentYear
+            cTm1 = 2
+
             nextYear = currentYear+1
             nextTerm = 1
 
@@ -203,6 +233,9 @@ program MAIN
 
     end select
 
+    ! count REGD grade as passing?
+    advisingPeriod = currentTerm/=nextTerm
+
     write(*,AFORMAT) &
         'Executable is : '//trim(fileExecutable)//SPACE//'('//VERSION//')', &
         'Arguments are : '//trim(UniversityCode)//SPACE//itoa(currentYear)//SPACE// &
@@ -253,6 +286,7 @@ program MAIN
     NumEnlistmentRecords = 0
     call initialize_pre_enlistment(Preenlisted(0))
     Preenlisted = Preenlisted(0)
+    isDirtyPreenlisted = .false.
 
     ! initialize predictions
     NumPredictionRecords = 0
@@ -267,18 +301,22 @@ program MAIN
     ! read the university-level data
     call read_university(pathToYear, errNo)
     if (errNo/=0) call terminate('Error in reading university info')
+    call xml_write_university(pathToYear, dirBAK)
 
     ! read the colleges
     call read_colleges(pathToYear, errNo)
     if (errNo/=0) call terminate('Error in reading the list of colleges')
+    call xml_write_colleges(pathToYear, dirBAK)
 
     ! read the departments
     call read_departments(pathToYear, errNo)
     if (errNo/=0) call terminate('Error in reading the list of departments')
+    call xml_write_departments(pathToYear, dirBAK)
 
     ! read the subjects
     call read_subjects(pathToYear, errNo)
     if (errNo/=0) call terminate('Error in reading the list of subjects')
+    call xml_write_subjects(pathToYear, dirBAK)
 
     ! string representation of percentage grade, float value, reference
     do iTmp=1,100
@@ -303,6 +341,8 @@ program MAIN
     ! read the curricular programs
     call read_curricula(pathToYear, errNo)
     if (errNo/=0) call terminate('Error in reading the list of curricular programs')
+    call xml_write_curricula(pathToYear, dirBAK)
+    call xml_write_equivalencies(pathToYear, dirBAK)
 
 #if defined UPLB
     ! no need to reset term offered of a subject
@@ -329,17 +369,25 @@ program MAIN
 
     ! read the teachers
     call read_teachers(pathToYear, errNo)
-    if (errNo/=0) call terminate('Error in reading the list of teachers')
+    if (errNo/=0) then
+        call regenerate_all_passwords()
+        call sort_alphabetical_teachers()
+        call xml_write_teachers(pathToYear)
+        call write_password_file(pathToYear)
+    end if
+    call xml_write_teachers(pathToYear, dirBAK)
 
     ! reset passwords only?
     if (trim(ACTION)=='Resetpasswords') then
-        call reset_passwords()
+        call regenerate_all_passwords()
+        call xml_write_teachers(pathToYear)
+        call write_password_file(pathToYear)
         call terminate(trim(fileExecutable)//' completed '//ACTION)
     end if
 
     ! read the rooms
     call read_rooms(pathToYear, errNo)
-    if (errNo/=0) call terminate('Error in reading the list of rooms')
+    call xml_write_rooms(pathToYear, dirBAK)
 
     ! mark colleges with subject or curriculum information
     do targetDepartment=1,NumDepartments
@@ -355,22 +403,26 @@ program MAIN
             call qualify_term (kTmp, iTmp, jTmp, dataSource)
             pathToTerm = trim(itoa(iTmp))//DIRSEP//trim(txtSemester(jTmp))//DIRSEP
             ! read the classes
-            call read_classes(pathToTerm, NumSections(kTmp), Section(kTmp,0:), &
-                Offering(kTmp,MAX_ALL_DUMMY_SUBJECTS:), errNo)
+            call read_classes(pathToTerm, NumSections(jTmp), Section(jTmp,0:), &
+                Offering(jTmp,MAX_ALL_DUMMY_SUBJECTS:), errNo)
             ! read the blocks
-            call read_blocks(pathToTerm, NumBlocks(kTmp), Block(kTmp,0:), NumSections(kTmp), Section(kTmp,0:), errNo)
+            call read_blocks(pathToTerm, NumBlocks(jTmp), Block(jTmp,0:), NumSections(jTmp), Section(jTmp,0:), errNo)
             ! get no. of sections by dept
-            call count_sections_by_dept(kTmp, NumSections(kTmp), Section(kTmp,0:))
+            call count_sections_by_dept(jTmp, NumSections(jTmp), Section(jTmp,0:))
+            call xml_write_sections(pathToTerm, NumSections(jTmp), Section(jTmp,0:), 0, dirBAK)
+            call xml_write_blocks(pathToTerm, NumBlocks(jTmp), Block(jTmp,0:), Section(jTmp,0:), 0, dirBAK)
         end do
 
         ! start server-mode
         call server_start()
+        !call execute_log()
 
     end if
 
     ! read the list of students
     call read_students(pathToYear, errNo)
     if (errNo/=0) call terminate('Error in reading the list of students')
+    call xml_write_students(pathToYear, 0, dirBAK)
 
     ! create student directories
     call make_student_directories()
@@ -395,6 +447,9 @@ program MAIN
         pathToTerm = trim(pathToNextYear)//trim(txtSemester(nextTerm))//DIRSEP
         call read_classes(pathToTerm, NumSections(nextTerm), Section(nextTerm,0:), &
             Offering(nextTerm,MAX_ALL_DUMMY_SUBJECTS:), errNo)
+        ! read the blocks
+        call read_blocks(pathToTerm, NumBlocks(nextTerm), Block(nextTerm,0:), &
+            NumSections(nextTerm), Section(nextTerm,0:), errNo)
 
         ! read waivers for next term
         call read_waivers(pathToTerm, NumSections(nextTerm), Section(nextTerm,0:), &
@@ -426,6 +481,10 @@ program MAIN
         call read_classes(pathToTerm, NumSections(nextTerm), Section(nextTerm,0:), &
             Offering(nextTerm,MAX_ALL_DUMMY_SUBJECTS:), errNo)
 
+        ! read the blocks
+        call read_blocks(pathToTerm, NumBlocks(nextTerm), Block(nextTerm,0:), &
+            NumSections(nextTerm), Section(nextTerm,0:), errNo)
+
         ! read waivers for next term
         call read_waivers(pathToTerm, NumSections(nextTerm), Section(nextTerm,0:), &
             Offering(nextTerm,MAX_ALL_DUMMY_SUBJECTS:), NumWaiverRecords, errNo)
@@ -441,6 +500,11 @@ program MAIN
             call xml_write_intake(pathToTerm)
         end if
         call file_log_message('# incoming freshmen next term ='//trim(itoa(sum(NFintake)))//'?')
+
+        call xml_write_sections(pathToTerm, NumSections(nextTerm), Section(nextTerm,0:), 0, dirBAK)
+        call xml_write_blocks(pathToTerm, NumBlocks(nextTerm), Block(nextTerm,0:), Section(nextTerm,0:), 0, dirBAK)
+        call xml_write_waivers(pathToTerm, Section(nextTerm,0:), dirBAK)
+        call xml_write_pre_enlistment(pathToTerm, 'PREDICTIONS', Advised, Section(nextTerm,0:), 0, dirBAK)
 
         ! start server-mode
         call server_start()
@@ -460,9 +524,17 @@ program MAIN
         call read_classes(pathToTerm, NumSections(currentTerm), Section(currentTerm,0:), &
             Offering(currentTerm,MAX_ALL_DUMMY_SUBJECTS:), errNo)
 
+        ! read the blocks
+        call read_blocks(pathToTerm, NumBlocks(currentTerm), Block(currentTerm,0:), &
+            NumSections(currentTerm), Section(currentTerm,0:), errNo)
+
         ! read enlistment files (if any) for currentTerm
         call read_pre_enlistment(pathToTerm, 'ENLISTMENT', 0, 6, &
             NumSections(currentTerm), Section(currentTerm,0:), Preenlisted, NumEnlistmentRecords, errNo)
+
+        call xml_write_sections(pathToTerm, NumSections(currentTerm), Section(currentTerm,0:), 0, dirBAK)
+        call xml_write_blocks(pathToTerm, NumBlocks(currentTerm), Block(currentTerm,0:), Section(currentTerm,0:), 0, dirBAK)
+        call xml_write_pre_enlistment(pathToTerm, 'ENLISTMENT', Advised, Section(currentTerm,0:), 0, dirBAK)
 
         call recalculate_available_seats(Section(currentTerm,0:))
 
@@ -544,8 +616,8 @@ contains
         do iTmp=1,3
             call make_clean_directory( trim(dirXML)//trim(pathToYear)//trim(txtSemester(iTmp))//DIRSEP )
             call make_clean_directory( trim(dirXML)//trim(pathToNextYear)//trim(txtSemester(iTmp))//DIRSEP )
-            call make_clean_directory( trim(dirXML)//UPDATES//trim(pathToYear)//trim(txtSemester(iTmp))//DIRSEP )
-            call make_clean_directory( trim(dirXML)//UPDATES//trim(pathToNextYear)//trim(txtSemester(iTmp))//DIRSEP )
+!            call make_clean_directory( trim(dirXML)//UPDATES//trim(pathToYear)//trim(txtSemester(iTmp))//DIRSEP )
+!            call make_clean_directory( trim(dirXML)//UPDATES//trim(pathToNextYear)//trim(txtSemester(iTmp))//DIRSEP )
         end do
 
         ! directory for backups
@@ -560,8 +632,8 @@ contains
         do iTmp=1,3
             call make_clean_directory( trim(dirBAK)//trim(pathToYear)//trim(txtSemester(iTmp))//DIRSEP, .true.)
             call make_clean_directory( trim(dirBAK)//trim(pathToNextYear)//trim(txtSemester(iTmp))//DIRSEP, .true.)
-            call make_clean_directory( trim(dirBAK)//UPDATES//trim(pathToYear)//trim(txtSemester(iTmp))//DIRSEP, .true.)
-            call make_clean_directory( trim(dirBAK)//UPDATES//trim(pathToNextYear)//trim(txtSemester(iTmp))//DIRSEP, .true.)
+!            call make_clean_directory( trim(dirBAK)//UPDATES//trim(pathToYear)//trim(txtSemester(iTmp))//DIRSEP, .true.)
+!            call make_clean_directory( trim(dirBAK)//UPDATES//trim(pathToNextYear)//trim(txtSemester(iTmp))//DIRSEP, .true.)
         end do
 
         ! reset pathToNextYear
@@ -636,12 +708,12 @@ contains
             call qualify_term (kTmp, iTmp, jTmp, dataSource)
             pathToTerm = trim(itoa(iTmp))//DIRSEP//trim(txtSemester(jTmp))//DIRSEP
             ! read the classes
-            call read_classes(pathToTerm, NumSections(kTmp), Section(kTmp,0:), &
-                Offering(kTmp,MAX_ALL_DUMMY_SUBJECTS:), errNo)
+            call read_classes(pathToTerm, NumSections(jTmp), Section(jTmp,0:), &
+                Offering(jTmp,MAX_ALL_DUMMY_SUBJECTS:), errNo)
             ! read the blocks
-            call read_blocks(pathToTerm, NumBlocks(kTmp), Block(kTmp,0:), NumSections(kTmp), Section(kTmp,0:), errNo)
+            call read_blocks(pathToTerm, NumBlocks(jTmp), Block(jTmp,0:), NumSections(jTmp), Section(jTmp,0:), errNo)
             ! get no. of sections by dept
-            call count_sections_by_dept(kTmp, NumSections(kTmp), Section(kTmp,0:))
+            call count_sections_by_dept(jTmp, NumSections(jTmp), Section(jTmp,0:))
         end do
 
         ! student records
@@ -779,8 +851,8 @@ contains
         do kTmp=termBegin,termEnd
             call qualify_term (kTmp, iTmp, jTmp, dataSource)
             pathToTerm = trim(itoa(iTmp))//DIRSEP//trim(txtSemester(jTmp))//DIRSEP
-            call xml_write_sections(pathToTerm, NumSections(kTmp), Section(kTmp,0:), 0)
-            call xml_write_blocks(pathToTerm, NumBlocks(kTmp), Block(kTmp,0:), Section(kTmp,0:), 0)
+            call xml_write_sections(pathToTerm, NumSections(jTmp), Section(jTmp,0:), 0)
+            call xml_write_blocks(pathToTerm, NumBlocks(jTmp), Block(jTmp,0:), Section(jTmp,0:), 0)
         end do
 
         pathToTerm = trim(pathToNextYear)//trim(txtSemester(nextTerm))//DIRSEP
@@ -825,7 +897,9 @@ contains
         end do
 
         ! teachers
-        call reset_passwords()
+        call regenerate_all_passwords()
+        call xml_write_teachers(pathToYear)
+        call write_password_file(pathToYear)
 
         return
 

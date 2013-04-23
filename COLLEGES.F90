@@ -182,15 +182,20 @@ contains
     end subroutine xml_read_colleges
 
 
-    subroutine xml_write_colleges(path)
+    subroutine xml_write_colleges(path, dirOPT)
 
         character(len=*), intent(in) :: path
+        character(len=*), intent(in), optional :: dirOPT
         integer :: ldx
 
         ! training only?
         if (noWrites) return
 
-        fileName = trim(dirXML)//trim(path)//'COLLEGES.XML'
+        if (present(dirOPT)) then
+            fileName = trim(dirOPT)//trim(path)//'COLLEGES.XML'
+        else
+            fileName = trim(dirXML)//trim(path)//'COLLEGES.XML'
+        endif
 
         call xml_open_file(unitXML, XML_ROOT_COLLEGES, fileName, ldx)
 

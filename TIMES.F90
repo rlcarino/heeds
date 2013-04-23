@@ -34,12 +34,6 @@ module TIMES
 
     implicit none
 
-    ! period in an academic term, for REGIST function availabilities
-    integer :: Period =2
-    character (len=20), dimension(0:4) :: txtPeriod = (/ &
-        ' ERROR              ', ' (Enlistment period)', ' (Mid-term)         ',  &
-        ' (End of term)      ', ' (Term break)       ' /)
-
     ! years, year levels
     integer, parameter :: MAX_LEN_TEXT_YEAR = 7
     character (len=MAX_LEN_TEXT_YEAR), dimension(0:17) :: txtYear = (/ &
@@ -54,6 +48,10 @@ module TIMES
         'ERROR ','FIRST ', 'SECOND', 'SUMMER', &
                  'First ', 'Second', 'Summer',&
                  '1st   ', '2nd   ', 'Summer' /)
+    character (len=10) :: termQualifier(0:9) = (/ &
+        ' ERROR    ', ' SEMESTER ', ' SEMESTER ', ' TERM     ', &
+                      ' Semester ', ' Semester ', ' Term     ', &
+                      ' Sem.     ', ' Sem.     ', ' Term     ' /)
 
     ! days
     character (len = 3), dimension (0:6) :: txtDay = (/       &
@@ -84,10 +82,10 @@ module TIMES
 
     ! special times
     integer, parameter :: &
-    TIME_INDEX_EARLY_DAY=5,  &            ! index of 8:00 am; time before is 'early'
-    TIME_INDEX_BEGIN_LUNCH=13, &          ! begin lunchtime (10:00 am)
-    TIME_INDEX_END_LUNCH=29, &            ! end lunchtime (2:00 pm)
-    TIME_INDEX_LATE_DAY=45                ! index of 6:00 pm
+        TIME_INDEX_EARLY_DAY=5,  &            ! index of 8:00 am; time before is 'early'
+        TIME_INDEX_BEGIN_LUNCH=13, &          ! begin lunchtime (10:00 am)
+        TIME_INDEX_END_LUNCH=29, &            ! end lunchtime (2:00 pm)
+        TIME_INDEX_LATE_DAY=45                ! index of 6:00 pm
 
 
 contains

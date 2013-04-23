@@ -59,9 +59,10 @@ contains
     end subroutine initialize_waiver
 
 
-    subroutine xml_write_waivers(path, Section)
+    subroutine xml_write_waivers(path, Section, dirOPT)
         character (len=*), intent (in) :: path ! YEAR/TERM/WAIVER-COI
         type (TYPE_SECTION), intent(in) :: Section(0:)
+        character(len=*), intent(in), optional :: dirOPT
 
         integer :: std, sect, i
 
@@ -69,7 +70,11 @@ contains
         if (noWrites) return
 
         ! write file
-        fileName = trim(dirXML)//trim(path)//'WAIVER-COI.XML'
+        if (present(dirOPT)) then
+            fileName = trim(dirOPT)//trim(path)//'WAIVER-COI.XML'
+        else
+            fileName = trim(dirXML)//trim(path)//'WAIVER-COI.XML'
+        endif
         call xml_open_file(unitXML, XML_ROOT_WAIVERS, fileName, eof)
         write(unitXML,AFORMAT) &
         '    <comment>', &

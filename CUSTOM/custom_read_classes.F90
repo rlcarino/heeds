@@ -59,7 +59,7 @@ subroutine SIAS_read_classes(fName, NumSections, Section, errNo)
     character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
     character (len=MAX_LEN_ROOM_CODE) :: tRoom
     character (len=MAX_LEN_SECTION_CODE) :: tBlock, tSection
-    character (len=MAX_LEN_TEACHER_NAME) :: tTeacher
+    character (len=MAX_LEN_PERSON_NAME) :: tTeacher
 
     character (len=1) :: ch
     integer :: kdx, rdx, tdx, i, j, subj

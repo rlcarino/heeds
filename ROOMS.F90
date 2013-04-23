@@ -64,6 +64,7 @@ contains
         integer, intent (out) :: errNo
 
         logical :: noXML
+        integer :: iDept
 
         NumRooms = 0
         NumAdditionalRooms = 0
@@ -76,11 +77,21 @@ contains
         if (errNo/=0) then ! something wrong with XML file
             noXML = .true.
             call  custom_read_rooms(path, errNo) ! try custom format
-            if (errNo/=0) return ! something still wrong
+        end if
+        if (NumRooms==0) then ! something still wrong
+            do iDept=2,NumDepartments-1 ! create rooms for each department
+                NumRooms = NumRooms+1
+                call initialize_room(Room(NumRooms), trim(Department(iDept)%Code)//' Room', &
+                    iDept, 0, 0)
+            end do
+            call sort_rooms()
+            noXML = .true.
+            errNo = 0
         end if
 
         ! write the XML ROOMS file?
-        if (noXML .and. NumRooms>0) call xml_write_rooms(path)
+        if (noXML) call xml_write_rooms(path)
+        call file_log_message (itoa(NumRooms)//' rooms')
 
         return
     end subroutine read_rooms
@@ -92,15 +103,11 @@ contains
         character(len=*), intent (in), optional :: tCode
         integer, intent (in), optional :: iDept, iCluster, iCapacity
 
-        character (len=MAX_LEN_DEPARTMENT_CODE) :: tDept
-
         if (present(tCode)) then
             wrkRoom = TYPE_ROOM(tCode, iDept, iCluster, iCapacity)
 
         else
-            tDept = REGISTRAR
-            wrkRoom = TYPE_ROOM(SPACE, index_to_dept(tDept), 0, 0)
-
+            wrkRoom = TYPE_ROOM(SPACE, NumDepartments, 0, 0)
         end if
 
         return
@@ -170,15 +177,20 @@ contains
     end subroutine sort_rooms
 
 
-    subroutine xml_write_rooms(path)
+    subroutine xml_write_rooms(path, dirOPT)
 
         character(len=*), intent(in) :: path
+        character(len=*), intent(in), optional :: dirOPT
         integer :: ldx
 
         ! training only?
         if (noWrites) return
 
-        fileName = trim(dirXML)//trim(path)//'ROOMS.XML'
+        if (present(dirOPT)) then
+            fileName = trim(dirOPT)//trim(path)//'ROOMS.XML'
+        else
+            fileName = trim(dirXML)//trim(path)//'ROOMS.XML'
+        endif
         call xml_open_file(unitXML, XML_ROOT_ROOMS, fileName, ldx)
 
         write(unitXML,AFORMAT) &
@@ -266,7 +278,6 @@ contains
 
         end do
         call xml_close_file(unitXML)
-        call file_log_message (itoa(NumRooms)//' entries in '//fileName)
 
         call sort_rooms()
 

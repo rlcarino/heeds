@@ -46,7 +46,7 @@ contains
 
         character(len=MAX_LEN_STUDENT_CODE) :: tStdNo
         character(len=MAX_LEN_SUBJECT_CODE) :: tSubject, input_name1, input_name2, input_value, currentSubject, update
-        character(len=3*MAX_LEN_SUBJECT_CODE) :: tAction!, search_string
+        character(len=3*MAX_LEN_SUBJECT_CODE) :: tAction, search_string
         character (len=MAX_LEN_TEXT_YEAR) :: tYear
         character (len=MAX_LEN_TEXT_SEMESTER) :: tTerm
         character (len=MAX_LEN_TEXT_GRADE) :: tGrade
@@ -57,9 +57,12 @@ contains
         integer :: crse, year, term, nsubs, nreqs, n_changes
         integer :: crse_required, crse_current, crse_update, rank
         integer :: cdx, gdx, idx, jdx, ierr, i, j, k, l
-        !type (TYPE_PRE_ENLISTMENT) :: Advice
+        type (TYPE_PRE_ENLISTMENT) :: Advice
 
-        write(device,AFORMAT) '<!-- '//'checklist_edit()'//' -->'
+#if defined PRODUCTION
+#else
+        write(device,AFORMAT) '<!-- checklist_edit() -->'
+#endif
 
         ! which student?
         call cgi_get_named_string(QUERY_STRING, 'A1', tStdNo, ierr)
@@ -439,140 +442,142 @@ contains
                 end if
 
 
-!            case ('Revise PREDICTION', 'For PREDICTION')
-!
-!                call initialize_pre_enlistment(Advice)
-!
-!                call cgi_get_named_integer(QUERY_STRING, 'earned', Advice%UnitsEarned, ierr)
-!                call cgi_get_named_integer(QUERY_STRING, 'classification', Advice%StdClassification, ierr)
-!                call cgi_get_named_integer(QUERY_STRING, 'year', Advice%StdYear, ierr)
-!                !write(*,*) 'earned=', Advice%UnitsEarned, ', classif=', Advice%StdClassification, ', year=', Advice%StdYear
-!
-!                call cgi_get_named_integer(QUERY_STRING, 'allowed', Advice%AllowedLoad, ierr)
-!                call cgi_get_named_integer(QUERY_STRING, 'group', Advice%StdPriority, ierr)
-!                call cgi_get_named_integer(QUERY_STRING, 'priority', Advice%NPriority, ierr)
-!                call cgi_get_named_integer(QUERY_STRING, 'alternate', Advice%NAlternates, ierr)
-!                call cgi_get_named_integer(QUERY_STRING, 'current', Advice%NCurrent, ierr)
-!                !write(*,*) 'allow=', Advice%AllowedLoad, ', grp=', Advice%StdPriority, ', NP=', &
-!                !  Advice%NPriority, ', NA=', Advice%NAlternates, ', NC=', Advice%NCurrent
-!
-!                Advice%lenSubject = Advice%NPriority+Advice%NAlternates+Advice%NCurrent
-!                do l=1,Advice%lenSubject
-!                    call cgi_get_named_string(QUERY_STRING, 'pri'//itoa(l), search_string, ierr)
-!                    j = index(search_string,COMMA)
-!                    tSubject = search_string(j+1:)
-!                    read(tSubject,'(f6.4)') Advice%Contrib(l)
-!                    tSubject = search_string(1:j-1)
-!                    crse = index_to_subject(tSubject)
-!                    Advice%Subject(l) = crse
-!                !write(*,*) l, crse, tSubject, Advice%Contrib(l)
-!                end do
-!
-!
-!                if (trim(tAction)=='For PREDICTION') then
-!                    ! update Advised()
-!                    NumPredictionRecords = NumPredictionRecords - Advised(targetStudent)%lenSubject + Advice%lenSubject
-!                    Advised(targetStudent) = Advice
-!                    isDirtyPREDICTIONS = .true.
-!                    mesg = trim(tAction)//' : '//trim(itoa(Advice%lenSubject))//' entries.'
-!                else ! (trim(tAction)=='Revise PREDICTION')
-!                    ! apply deletes
-!                    n_changes = 0
-!                    idx = Advice%NPriority
-!                    jdx = Advice%NAlternates
-!                    do l=1,Advice%lenSubject
-!                        call cgi_get_named_string(QUERY_STRING, 'del'//itoa(l), search_string, ierr)
-!                        if (ierr==-1) cycle ! not found
-!                        if (l<=Advice%NPriority) then
-!                            idx = idx-1
-!                        elseif (l<=Advice%NPriority+Advice%NAlternates) then
-!                            jdx = jdx-1
-!                        end if
-!                        crse = Advice%Subject(l)
-!                        mesg = trim(mesg)//' : Del '//Subject(crse)%Name
-!                        Advice%Contrib(l) = 0.0
-!                        Advice%Subject(l) = 0
-!                        n_changes = n_changes + 1
-!                        isDirtyPREDICTIONS = .true.
-!                        !write(*,*) 'delete', l, Subject(crse)%Name
-!                        ! check if deleted subject is in WaiverCOI
-!                        i = 0
-!                        do j=1,WaiverCOI(targetStudent)%lenSubject
-!                            if (WaiverCOI(targetStudent)%Subject(j)/=crse) cycle
-!                            i = j
-!                            exit
-!                        end do
-!                        if (i/=0) then ! remove from WaiverCOI()
-!                            do j=i,WaiverCOI(targetStudent)%lenSubject-1
-!                                WaiverCOI(targetStudent)%Subject(j) = WaiverCOI(targetStudent)%Subject(j+1)
-!                            end do
-!                            WaiverCOI(targetStudent)%lenSubject = WaiverCOI(targetStudent)%lenSubject-1
-!                            isDirtyWaiverCOI = .true.
-!                        !write(*,*) '  from WaiverCOI() also'
-!                        end if
-!                    end do
-!                    if (n_changes>0) then ! there were deletions
-!                        j = 0
-!                        do l=1,Advice%lenSubject
-!                            if (Advice%Subject(l)>0) then
-!                                j = j+1
-!                                Advice%Subject(j) = Advice%Subject(l)
-!                                Advice%Contrib(j) = Advice%Contrib(l)
-!                            end if
-!                        end do
-!                        Advice%NPriority = idx
-!                        Advice%NAlternates = jdx
-!                        Advice%lenSubject = Advice%lenSubject-n_changes !  n_changes = no. of deletions
-!                        isDirtyPREDICTIONS = .true.
-!                    end if
-!                    ! check if subject added (COI, Waived prereq)
-!                    call cgi_get_named_string(QUERY_STRING, 'additional', search_string, ierr)
-!                    if (search_string/=SPACE) then ! something there
-!                        tSubject = search_string
-!                        crse = index_to_subject(tSubject)
-!                        if (crse>=0) then ! add
-!                            mesg = trim(mesg)//' : Add '//tSubject
-!                            do l=Advice%lenSubject,1,-1
-!                                Advice%Subject(l+1) = Advice%Subject(l)
-!                                Advice%Contrib(l+1) = Advice%Contrib(l)
-!                            end do
-!                            Advice%Subject(1) = crse
-!                            Advice%Contrib(1) = 1.0
-!                            Advice%NPriority = 1+Advice%NPriority
-!                            Advice%lenSubject = 1+Advice%lenSubject
-!                            isDirtyPREDICTIONS = .true.
-!                            ! add to WaiverCOI
-!                            l = WaiverCOI(targetStudent)%lenSubject+1
-!                            WaiverCOI(targetStudent)%lenSubject = l
-!                            WaiverCOI(targetStudent)%Subject(l) = crse
-!                            isDirtyWaiverCOI = .true.
-!                            n_changes = n_changes + 1
-!                        end if
-!                    end if
-!                    if (n_changes>0) then
-!                        mesg = trim(tAction)//mesg
-!                        Advised(targetStudent) = Advice
-!                    end if
-!                end if
+            case ('Revise PREDICTION', 'For PREDICTION')
+
+                !write(device,AFORMAT) '<!-- begin ', trim(tAction)
+
+                call initialize_pre_enlistment(Advice)
+
+                call cgi_get_named_integer(QUERY_STRING, 'earned', Advice%UnitsEarned, ierr)
+                call cgi_get_named_integer(QUERY_STRING, 'classification', Advice%StdClassification, ierr)
+                call cgi_get_named_integer(QUERY_STRING, 'year', Advice%StdYear, ierr)
+                !write(device,*) 'earned=', Advice%UnitsEarned, ', classif=', Advice%StdClassification, ', year=', Advice%StdYear
+
+                call cgi_get_named_integer(QUERY_STRING, 'allowed', Advice%AllowedLoad, ierr)
+                call cgi_get_named_integer(QUERY_STRING, 'group', Advice%StdPriority, ierr)
+                call cgi_get_named_integer(QUERY_STRING, 'priority', Advice%NPriority, ierr)
+                call cgi_get_named_integer(QUERY_STRING, 'alternate', Advice%NAlternates, ierr)
+                call cgi_get_named_integer(QUERY_STRING, 'current', Advice%NCurrent, ierr)
+                !write(device,*) 'allow=', Advice%AllowedLoad, ', grp=', Advice%StdPriority, ', NP=', &
+                !    Advice%NPriority, ', NA=', Advice%NAlternates, ', NC=', Advice%NCurrent
+
+                Advice%lenSubject = Advice%NPriority+Advice%NAlternates+Advice%NCurrent
+                do l=1,Advice%lenSubject
+                    call cgi_get_named_string(QUERY_STRING, 'pri'//itoa(l), search_string, ierr)
+                    j = index(search_string,COMMA)
+                    tSubject = search_string(j+1:)
+                    read(tSubject,'(f6.4)') Advice%Contrib(l)
+                    tSubject = search_string(1:j-1)
+                    crse = index_to_subject(tSubject)
+                    Advice%Subject(l) = crse
+                    !write(device,*) l, crse, tSubject, Advice%Contrib(l)
+                end do
+
+
+                if (trim(tAction)=='For PREDICTION') then ! update Advised()
+                    NumPredictionRecords = NumPredictionRecords - Advised(targetStudent)%lenSubject + Advice%lenSubject
+                    Advised(targetStudent) = Advice
+                    isDirtyPREDICTIONS = .true.
+                    mesg = trim(tAction)//' : '//trim(itoa(Advice%lenSubject))//' entries.'
+                else ! (trim(tAction)=='Revise PREDICTION')
+                    ! apply deletes
+                    n_changes = 0
+                    idx = Advice%NPriority
+                    jdx = Advice%NAlternates
+                    do l=1,Advice%lenSubject
+                        call cgi_get_named_string(QUERY_STRING, 'del'//itoa(l), search_string, ierr)
+                        if (ierr==-1) cycle ! not found
+                        if (l<=Advice%NPriority) then
+                            idx = idx-1
+                        elseif (l<=Advice%NPriority+Advice%NAlternates) then
+                            jdx = jdx-1
+                        end if
+                        crse = Advice%Subject(l)
+                        mesg = trim(mesg)//' : Del '//Subject(crse)%Name
+                        Advice%Contrib(l) = 0.0
+                        Advice%Subject(l) = 0
+                        n_changes = n_changes + 1
+                        isDirtyPREDICTIONS = .true.
+                        !write(device,*) 'delete', l, Subject(crse)%Name
+                        ! check if deleted subject is in WaiverCOI
+                        i = 0
+                        do j=1,WaiverCOI(targetStudent)%lenSubject
+                            if (WaiverCOI(targetStudent)%Subject(j)/=crse) cycle
+                            i = j
+                            exit
+                        end do
+                        if (i/=0) then ! remove from WaiverCOI()
+                            do j=i,WaiverCOI(targetStudent)%lenSubject-1
+                                WaiverCOI(targetStudent)%Subject(j) = WaiverCOI(targetStudent)%Subject(j+1)
+                            end do
+                            WaiverCOI(targetStudent)%lenSubject = WaiverCOI(targetStudent)%lenSubject-1
+                            isDirtyWaiverCOI = .true.
+                            !write(device,*) '  from WaiverCOI() also'
+                        end if
+                    end do
+                    if (n_changes>0) then ! there were deletions
+                        j = 0
+                        do l=1,Advice%lenSubject
+                            if (Advice%Subject(l)>0) then
+                                j = j+1
+                                Advice%Subject(j) = Advice%Subject(l)
+                                Advice%Contrib(j) = Advice%Contrib(l)
+                            end if
+                        end do
+                        Advice%NPriority = idx
+                        Advice%NAlternates = jdx
+                        Advice%lenSubject = Advice%lenSubject-n_changes !  n_changes = no. of deletions
+                        isDirtyPREDICTIONS = .true.
+                    end if
+                    ! check if subject added (COI, Waived prereq)
+                    call cgi_get_named_string(QUERY_STRING, 'additional', search_string, ierr)
+                    if (search_string/=SPACE) then ! something there
+                        tSubject = search_string
+                        crse = index_to_subject(tSubject)
+                        if (crse>=0) then ! add
+                            mesg = trim(mesg)//' : Add '//tSubject
+                            do l=Advice%lenSubject,1,-1
+                                Advice%Subject(l+1) = Advice%Subject(l)
+                                Advice%Contrib(l+1) = Advice%Contrib(l)
+                            end do
+                            Advice%Subject(1) = crse
+                            Advice%Contrib(1) = 1.0
+                            Advice%NPriority = 1+Advice%NPriority
+                            Advice%lenSubject = 1+Advice%lenSubject
+                            isDirtyPREDICTIONS = .true.
+                            ! add to WaiverCOI
+                            l = WaiverCOI(targetStudent)%lenSubject+1
+                            WaiverCOI(targetStudent)%lenSubject = l
+                            WaiverCOI(targetStudent)%Subject(l) = crse
+                            isDirtyWaiverCOI = .true.
+                            n_changes = n_changes + 1
+                        end if
+                    end if
+                    if (n_changes>0) then
+                        mesg = trim(tAction)//mesg
+                        Advised(targetStudent) = Advice
+                    end if
+                end if
+
+                !write(device,AFORMAT) trim(tAction)//' end -->'
 
             case default
 
 
         end select
-        !write(*,*) trim(mesg)
 
         if (isDirtyMCL) then
             call xml_write_substitutions(targetStudent)
         end if
 
-!        if (isDirtyWAIVERCOI) then
-!            call xml_write_pre_enlistment(pathToTerm, 'WAIVER-COI', Preenlisted, Section)
-!        end if
-!
-!        if (isDirtyPREDICTIONS) then
-!            call xml_write_pre_enlistment(pathToTerm, 'PREDICTIONS-'//CurrProgCode(targetCurriculum), &
-!                Advised, Section, targetCurriculum)
-!        end if
+        if (isDirtyWAIVERCOI) then
+            call xml_write_waivers(pathToTerm, Section)
+        end if
+
+        if (isDirtyPREDICTIONS) then
+            call xml_write_pre_enlistment(pathToTerm, 'PREDICTIONS-'//CurrProgCode(targetCurriculum), &
+                Advised, Section, targetCurriculum)
+        end if
 
         call checklist_write_menu (device, UseClasses, isDirtyMCL, Offering, mesg)
 
@@ -588,9 +593,12 @@ contains
 
         character(len=6) :: tProb
         type (TYPE_PRE_ENLISTMENT) :: Advice
-        integer :: k, l, MissingPOCW, NRemaining, lenSubject, notSpecified ! , checklistout
+        integer :: j, k, l, MissingPOCW, NRemaining, lenSubject, notSpecified ! , checklistout
 
-        write(device,AFORMAT) '<!-- '//'checklist_write_menu()'//' -->'
+#if defined PRODUCTION
+#else
+        write(device,AFORMAT) '<!-- checklist_write_menu() -->'
+#endif
 
         ! Plan of Study
         l = Student(targetStudent)%CurriculumIdx
@@ -603,20 +611,43 @@ contains
         end do
 
         call html_write_header(device, Student(targetStudent)%StdNo//nbsp// &
-            trim(Student(targetStudent)%Name)//SPACE//DASH//SPACE//Curriculum(targetCurriculum)%Code, mesg)
+            trim(Student(targetStudent)%Name), mesg)
+
+        if (isRoleAdmin .or. (isRoleSRE .and. CurrProgCode(CurriculumIdxUser)==CurrProgCode(targetCurriculum) ) ) then
+            ! change curriculum form
+            call make_form_start(device, fnEditCheckList, Student(targetStudent)%StdNo)
+            write(device,AFORMAT) &
+                '<select name="A2">'
+            do l=1,NumCurricula-1
+                k = Curriculum(l)%CollegeIdx
+                if (College(k)%Code == ADMINISTRATION) cycle
+                if (l==Student(targetStudent)%CurriculumIdx) then
+                    j = 1
+                else
+                    j = 0
+                end if
+                write(device,AFORMAT) '<option '//trim(selected(j))//' value="'//trim(Curriculum(l)%Code)//'"> '// &
+                    trim(text_curriculum_info(l))
+            end do
+            write(device,AFORMAT) &
+                '</select>', &
+                nbsp//nbsp//'<input type="submit" name="action" value="Change CURRICULUM">', &
+                '</form>'
+        else
+            write(device,AFORMAT) trim(text_curriculum_info(l))
+        end if
+        call checklist_page_links(device, .true.)
 
         call advise_student (targetStudent, UseClasses, Offering, WaiverCOI(targetStudent), Advice, MissingPOCW, NRemaining)
         lenSubject = Advice%NPriority+Advice%NAlternates+Advice%NCurrent
-
-        call checklist_page_links(device, .true.)
 
         call checklist_display (device, targetStudent, Advice, MissingPOCW, NRemaining)
 
         if (isRoleAdmin .or. (isRoleSRE .and. CurrProgCode(CurriculumIdxUser)==CurrProgCode(targetCurriculum) ) ) then
             if (lenSubject>0) then
-                if (Period==1) then ! change mat; switch to subjects from new analysis
+                if (currentTerm==nextTerm) then ! change mat; switch to subjects from new analysis
                     call make_form_start(device, fnChangeMatriculation, Student(targetStudent)%StdNo, 'Switch')
-                else ! Period=2 or 3
+                else ! not enlistment period
                     call make_form_start(device, fnEditCheckList, Student(targetStudent)%StdNo)
                 end if
                 write(device,AFORMAT) &
@@ -635,19 +666,39 @@ contains
                         COMMA//tProb//'">'
                 end do
 
-                if (Period==1) then ! change mat; switch to subjects from new analysis
 
+!                if (currentTerm==nextTerm) then ! change mat; switch to subjects from new analysis
+!
+!                    write(device,AFORMAT) &
+!                        '<br>Use above <b>FEASIBLE</b> subjects '// &
+!                        '<input type="submit" name="action" value="For ENLISTMENT"></form>'
+!
+!                else ! not enlistment period
+!
+!                    write(device,AFORMAT) &
+!                        '<br>Use above <b>FEASIBLE</b> subjects '// &
+!                        '<input type="submit" name="action" value="For PREDICTION"></form>'
+!
+!                end if
+
+                write(device,AFORMAT) '<br><b>Use the subjects </b> <select name="A2">', &
+                    '<option value="0"> Determined above as FEASIBLE'
+                ! manual selection of subjects
+                call rank_to_year_term(Curriculum(Student(targetStudent)%CurriculumIdx)%NumTerms, k, l) !Year, Term)
+                do l=1,k
+                    write(device,AFORMAT) '<option value="'//trim(itoa(l))//'"> During '// &
+                        trim(txtYear(l))//' Year, '//txtSemester(nextTerm+3)//trim(termQualifier(nextTerm+3))
+                end do
+                write(device,AFORMAT) '</select>'//nbsp//nbsp
+
+                if (currentTerm==nextTerm) then
                     write(device,AFORMAT) &
-                        '<br>Use <b>FEASIBLE</b> subjects '// &
-                        '<input type="submit" name="action" value="For ENLISTMENT"></form>'
-
-                else ! Period=2 or 3
-
+                        '<input type="submit" name="action" value="For ENLISTMENT"></form><hr>'
+                else
                     write(device,AFORMAT) &
-                        '<br>Use <b>FEASIBLE</b> subjects '// &
-                        '<input type="submit" name="action" value="For PREDICTION"></form>'
-
+                        '<input type="submit" name="action" value="For PREDICTION"></form><hr>'
                 end if
+
 
                 call checklist_page_links(device) !, .true.)
 
@@ -657,7 +708,7 @@ contains
             return
         end if
 
-        ! revise predictions
+        ! revise previous predictions
         lenSubject = Advised(targetStudent)%NPriority+Advised(targetStudent)%NAlternates+Advised(targetStudent)%NCurrent
         if (lenSubject>0) then
 
@@ -756,32 +807,6 @@ contains
             call checklist_page_links(device) !, .true.)
         end if
 
-        ! change curriculum
-        write(device,AFORMAT) '<a name="Change CURRICULUM"></a><hr>'// &
-            trim(text_student_curriculum(targetStudent))
-        call make_form_start(device, fnEditCheckList, Student(targetStudent)%StdNo)
-        write(device,AFORMAT) &
-            '<b>CHANGE CURRICULUM</b> from '//trim(Curriculum(Student(targetStudent)%CurriculumIdx)%Code)//' to: <br>', &
-            '<select name="A2">', &
-            '<option value="0"> (select curriculum)'
-        do l=1,NumCurricula
-            k = Curriculum(l)%CollegeIdx
-            if (College(k)%Code == 'GS' .or.  College(k)%Code == ADMINISTRATION) cycle
-            if (l==Student(targetStudent)%CurriculumIdx) cycle
-            write(device,AFORMAT) '<option value="'//trim(Curriculum(l)%Code)//'"> '//trim(Curriculum(l)%Code)//' - '// &
-                trim(Curriculum(l)%Title)
-            if (len_trim(Curriculum(l)%Specialization) > 0) then
-                write(device,AFORMAT) ', '//trim(Curriculum(l)%Specialization)
-            end if
-            if (len_trim(Curriculum(l)%Remark) > 0) then
-                write(device,AFORMAT) ', '//trim(Curriculum(l)%Remark)
-            end if
-        end do
-        write(device,AFORMAT) &
-            '</select>', &
-            nbsp//nbsp//'<input type="submit" name="action" value="Change CURRICULUM">', &
-            '</form><hr>'
-        call checklist_page_links(device) !, .true.)
 
         if (notSpecified>0) then
             call substitution_form(device,targetStudent, &
@@ -1065,7 +1090,6 @@ contains
                 '[ Revise <a href="#Revise PREDICTION">PREDICTION</a> ]'
             write(device,AFORMAT) &
                 '[ Change <a href="#Change GRADE">GRADE</a> ]', &
-                '[ Update <a href="#Update ELECTIVE">ELECTIVE</a> ] ', &
                 '[ Subject <a href="#Subject SUBSTITUTION">SUBSTITUTION</a> ] ', &
                 '</small><br><br>'
                 !'[ <a href="#ADDITIONAL subject">ADDITIONAL</a> subject ] ', &
@@ -1074,12 +1098,13 @@ contains
             if (Advised(targetStudent)%lenSubject>0) write(device,AFORMAT) &
                 '[ Revise <a href="#Revise PREDICTION">PREDICTION</a> ]'
             write(device,AFORMAT) &
-                '[ Change <a href="#Change CURRICULUM">CURRICULUM</a> ] ', &
                 '[ Change <a href="#Change GRADE">GRADE</a> ]', &
-                '[ Update <a href="#Update ELECTIVE">ELECTIVE</a> ] ', &
                 '[ Subject <a href="#Subject SUBSTITUTION">SUBSTITUTION</a> ] ', &
                 '</small><br><br><br><br>'
                 !'[ <a href="#ADDITIONAL subject">ADDITIONAL</a> subject ] ', &
+                !'[ Change <a href="#Change CURRICULUM">CURRICULUM</a> ] ', &
+                !'[ Update <a href="#Update ELECTIVE">ELECTIVE</a> ] ', &
+                !'[ Update <a href="#Update ELECTIVE">ELECTIVE</a> ] ', &
         end if
         return
     end subroutine checklist_page_links
@@ -1199,36 +1224,47 @@ contains
             '<br>'//nbsp//' PASS - credit earned/exempted;'//nbsp//' REGD - currently registered;', &
             nbsp//' PriN - Nth priority subject;'//nbsp//' AltK - Kth alternate subject'
 
-        call get_scholastic_three_terms (prevYearYear, prevYearTerm, UnitsPaid, UnitsDropped, UnitsPassed, Standing)
-        write(device,AFORMAT) '<br><br><b>SUMMARY for '//txtSemester(prevYearTerm+6)// &
-            ' Semester '//trim(itoa(prevYearYear))//DASH//trim(itoa(prevYearYear+1)), &
+        call get_scholastic_three_terms (cTm3Year, cTm3, UnitsPaid, UnitsDropped, UnitsPassed, Standing)
+        write(device,AFORMAT) '<br><br><b>SUMMARY for '//txtSemester(cTm3+6)// &
+            ' Semester '//trim(itoa(cTm3Year))//DASH//trim(itoa(cTm3Year+1)), &
             '</b>: Units registered='//trim(itoa(UnitsPaid)), &
             ': '//nbsp//' Dropped='//trim(itoa(UnitsDropped)), &
             ': '//nbsp//' Earned='//trim(itoa(UnitsPassed)), &
             ': '//nbsp//' Scholastic standing='//trim(txtScholastic(Standing))
 
-        call get_scholastic_three_terms (prevTermYear, prevTermTerm, UnitsPaid, UnitsDropped, UnitsPassed, Standing)
-        write(device,AFORMAT) '<br><b>SUMMARY for '//txtSemester(prevTermTerm+6)// &
-            ' Semester '//trim(itoa(prevTermYear))//DASH//trim(itoa(prevTermYear+1)), &
+        call get_scholastic_three_terms (cTm2Year, cTm2, UnitsPaid, UnitsDropped, UnitsPassed, Standing)
+        write(device,AFORMAT) '<br><b>SUMMARY for '//txtSemester(cTm2+6)// &
+            ' Semester '//trim(itoa(cTm2Year))//DASH//trim(itoa(cTm2Year+1)), &
             '</b>: Units registered='//trim(itoa(UnitsPaid)), &
             ': '//nbsp//' Dropped='//trim(itoa(UnitsDropped)), &
             ': '//nbsp//' Earned='//trim(itoa(UnitsPassed)), &
             ': '//nbsp//' Scholastic standing='//trim(txtScholastic(Standing))
 
-        call get_scholastic_three_terms (currentYear, currentTerm, UnitsPaid, UnitsDropped, UnitsPassed, Standing)
-        write(device,AFORMAT) '<br><b>SUMMARY for '//txtSemester(currentTerm+6)// &
-            ' Semester '//trim(itoa(currentYear))//DASH//trim(itoa(currentYear+1)), &
+        call get_scholastic_three_terms (cTm1Year, cTm1, UnitsPaid, UnitsDropped, UnitsPassed, Standing)
+        write(device,AFORMAT) '<br><b>SUMMARY for '//txtSemester(cTm1+6)// &
+            ' Semester '//trim(itoa(cTm1Year))//DASH//trim(itoa(cTm1Year+1)), &
             '</b>: Units registered='//trim(itoa(UnitsPaid)), &
             ': '//nbsp//' Dropped='//trim(itoa(UnitsDropped)), &
             ': '//nbsp//' Earned='//trim(itoa(UnitsPassed)), &
             ': '//nbsp//' Scholastic standing='//trim(txtScholastic(Standing))
+
+        if (nextTerm/=currentTerm) then
+
+            call get_scholastic_three_terms (currentYear, currentTerm, UnitsPaid, UnitsDropped, UnitsPassed, Standing)
+            write(device,AFORMAT) '<br><b>SUMMARY for '//txtSemester(currentTerm+6)// &
+                ' Semester '//trim(itoa(currentYear))//DASH//trim(itoa(currentYear+1)), &
+                '</b>: Units registered='//trim(itoa(UnitsPaid)), &
+                ': '//nbsp//' Dropped='//trim(itoa(UnitsDropped)), &
+                ': '//nbsp//' Earned='//trim(itoa(UnitsPassed)), &
+                ': '//nbsp//' Scholastic standing='//trim(txtScholastic(Standing))
+        end if
 
         if (MissingPOCW>0) then
             write(device,AFORMAT) '<br><br>'//red//'<b>MISSING ELECTIVEs/entries in Plan of Study = '// &
                 trim(itoa(MissingPOCW))//'</b>'//black
         end if
 
-        if (Period>1) then
+        if (advisingPeriod) then ! not enlistment period
             write(device,AFORMAT) '<br><br><b>ASSUMPTION at the end of '//txtSemester(currentTerm+6)// &
                 ' Semester '//trim(itoa(currentYear))//DASH//trim(itoa(currentYear+1)), &
                 '</b>: Units earned='//trim(itoa(Advice%UnitsEarned)), &

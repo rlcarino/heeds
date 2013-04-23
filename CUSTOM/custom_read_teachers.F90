@@ -33,7 +33,7 @@ subroutine custom_read_teachers(path, errNo)
     character(len=*), intent(in) :: path
     integer, intent(out) :: errNo
 
-    character (len=MAX_LEN_TEACHER_NAME) :: tTeacher
+    character (len=MAX_LEN_PERSON_NAME) :: tTeacher
     character (len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
     integer :: i, j, k
     character (len=1) :: ch

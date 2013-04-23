@@ -356,8 +356,6 @@ contains
                         if (trim(tag)==trim(txtGradeType(grdType))) then
                             call index_to_delimiters(COMMA, value, ndels, pos)
                             idx = wrkStudent%Record(1,0)+1
-                            wrkStudent%Record(1,0) = idx
-
                             wrkStudent%Record(1,idx) = grdType ! type
                             wrkStudent%Record(2,idx) = atoi(value(1:pos(2)-1)) ! year
                             tTerm = value(pos(2)+1:pos(3)-1)
@@ -367,14 +365,18 @@ contains
                             wrkStudent%Record(4,idx) = index_to_subject(tSubject) ! subject
                             tGrade = value(pos(4)+1:pos(5)-1)
                             gdx = index_to_grade(tGrade) ! grade
-                            if (gdx<=0 .and. &
+                            if (gdx==gdxREGD .and. .not. advisingPeriod) then
+                                ! exclude
+                                cycle
+                            elseif (gdx<=0 .and. &
                                 wrkStudent%Record(2,idx)==currentYear .and. &
                                 wrkStudent%Record(3,idx)==currentTerm .and. &
-                                Period>1) then
+                                advisingPeriod) then
                                 gdx = gdxREGD
                                 !write(*,*) wrkStudent%Record(2,idx), tTerm, tSubject, tGrade, gdx
                             end if
                             wrkStudent%Record(5,idx) = gdx
+                            wrkStudent%Record(1,0) = idx
                             exit
                         end if
                     end do

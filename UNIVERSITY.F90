@@ -36,14 +36,20 @@ module UNIVERSITY
     ! University
     character (len=20) :: &
         UniversityCode = 'UNIVERSITY CODE'
-    character (len=60) :: &
+
+    character (len=80) :: &
         UniversityName = '(Specify NAME in UNIVERSITY.XML)', &
         UniversityAddress = '(Specify ADDRESS in UNIVERSITY.XML)'
-    character (len=40) :: &
+
+    character (len=MAX_LEN_PERSON_NAME) :: &
         UniversityPresident = 'Firstname MI LastName, PhD', &
+        titleUniversityPresident = 'University President', &
         VPAcademicAffairs = 'Firstname MI LastName, PhD', &
+        titleVPAcademicAffairs = 'Vice-President for Academic Affairs', &
         DeanOfCampus = 'Firstname MI LastName, PhD', &
-        DeanOfInstruction = 'Firstname MI LastName, PhD'
+        titleDeanOfCampus = 'Dean of Campus', &
+        DeanOfInstruction = 'Firstname MI LastName, PhD', &
+        titleDeanOfInstruction = 'Dean Of Instruction'
 
     integer, parameter :: &
         MAX_LEN_COLLEGE_CODE=10, & ! length of college codes
@@ -154,14 +160,19 @@ contains
     end subroutine xml_read_university
 
 
-    subroutine xml_write_university(path)
+    subroutine xml_write_university(path, dirOPT)
 
         character(len=*), intent(in) :: path
+        character(len=*), intent(in), optional :: dirOPT
 
         ! training only?
         if (noWrites) return
 
-        fileName = trim(dirXML)//trim(path)//'UNIVERSITY.XML'
+        if (present(dirOPT)) then
+            fileName = trim(dirOPT)//trim(path)//'UNIVERSITY.XML'
+        else
+            fileName = trim(dirXML)//trim(path)//'UNIVERSITY.XML'
+        endif
         call xml_open_file(unitXML, XML_ROOT_UNIVERSITY, fileName, eof)
 
         write(unitXML,AFORMAT) &

@@ -34,7 +34,8 @@ subroutine custom_read_students (path, numEntries, ier)
 
     call SIAS_read_students (trim(path)//'STUDENTS', numEntries, ier)
     if (numEntries==0) &
-        call SIAS_read_students_from_enlistment(trim(path)//'FINALGRADE', numEntries, ier)
+        call SIAS_read_students_from_enlistment(trim(path)//trim(txtSemester(currentTerm))// &
+            DIRSEP//'FINALGRADE', numEntries, ier)
     ier = 0
 
     return
@@ -171,7 +172,7 @@ subroutine SIAS_read_students_from_enlistment (filePath, numEntries, ier)
     integer :: idxCURR, i, j, indexLoc
 
     numEntries = 0
-    fileName = trim(dirXML)//trim(filePath)//'.CSV'
+    fileName = trim(dirRAW)//trim(filePath)//'.CSV'
     open(unit=unitRAW, file=fileName, status='old', iostat=ier)
     if (ier/=0) return
 
@@ -212,7 +213,7 @@ subroutine SIAS_read_students_from_enlistment (filePath, numEntries, ier)
                 ch = line(i:i)
                 if (index(SPECIAL,ch)>0 .or. ch==COMMA) cycle
                 j = j+1
-                if (j>MAX_LEN_STUDENT_NAME) cycle
+                if (j>MAX_LEN_PERSON_NAME) cycle
                 wrkStudent%Name(j:j) = ch
             end do
             call upper_case(wrkStudent%Name)

@@ -36,10 +36,10 @@ module CURRICULA
 
     ! curriculum variables
     integer, parameter :: &
-    MAX_ALL_CURRICULA = 250, & ! max no. of active curricula
-    MAX_LEN_CURRICULUM_CODE = 20, & ! max length of curriculum codes
-    MAX_LEN_CURRICULUM_NAME = 127, & ! max length of curriculum names
-    MAX_SUBJECTS_IN_CURRICULUM = 200 ! max no. of subjects in a curriculum
+        MAX_ALL_CURRICULA = 250, & ! max no. of active curricula
+        MAX_LEN_CURRICULUM_CODE = 20, & ! max length of curriculum codes
+        MAX_LEN_CURRICULUM_NAME = 127, & ! max length of curriculum names
+        MAX_SUBJECTS_IN_CURRICULUM = 200 ! max no. of subjects in a curriculum
 
     integer, parameter :: &
         MAX_SUBJECTS_PER_TERM = 2*MAX_SUBJECTS_IN_CURRICULUM/3 ! max no. of subjects per term
@@ -80,9 +80,10 @@ contains
 #include "custom_read_curricula.F90"
 
 
-    subroutine xml_write_curricula(path)
+    subroutine xml_write_curricula(path, dirOPT)
 
         character(len=*), intent(in) :: path
+        character(len=*), intent(in), optional :: dirOPT
 
         integer :: idxCOLL, idxCURR, idx, tdx, Year, Term
         character(len=255) :: mesg
@@ -91,7 +92,11 @@ contains
         ! training only?
         if (noWrites) return
 
-        fileName = trim(dirXML)//trim(path)//'CURRICULA.XML'
+        if (present(dirOPT)) then
+            fileName = trim(dirOPT)//trim(path)//'CURRICULA.XML'
+        else
+            fileName = trim(dirXML)//trim(path)//'CURRICULA.XML'
+        endif
         call xml_open_file(unitXML, XML_ROOT_CURRICULA, fileName, idx)
 
         write(unitXML,AFORMAT) &
@@ -318,16 +323,21 @@ contains
     end subroutine xml_read_curricula
 
 
-    subroutine xml_write_equivalencies(path)
+    subroutine xml_write_equivalencies(path, dirOPT)
 
         character(len=*), intent(in) :: path
+        character(len=*), intent(in), optional :: dirOPT
         integer :: idx, tdx
         character(len=255) :: mesg
 
         ! training only?
         if (noWrites) return
 
-        fileName = trim(dirXML)//trim(path)//'EQUIVALENCIES.XML'
+        if (present(dirOPT)) then
+            fileName = trim(dirOPT)//trim(path)//'EQUIVALENCIES.XML'
+        else
+            fileName = trim(dirXML)//trim(path)//'EQUIVALENCIES.XML'
+        endif
         call xml_open_file(unitXML, XML_ROOT_EQUIVALENCIES, fileName, idx)
         write(unitXML,AFORMAT) &
         '    <comment>', &
@@ -508,7 +518,7 @@ contains
         CurrProgNum = 0
         CurrProgCode = SPACE
         k = 0
-        do idx=1,NumCurricula
+        do idx=1,NumCurricula-1
             if (CurrProgNum(idx)==0) then
                 k = k+1
                 CurrProgNum(idx) = k
@@ -520,7 +530,7 @@ contains
                     j = j-1
                 end if
                 CurrProgCode(idx) = Curriculum(idx)%Code(1:j)
-                do i = idx+1,NumCurricula
+                do i = idx+1,NumCurricula-1
                     if (Curriculum(idx)%CollegeIdx==Curriculum(i)%CollegeIdx .and. &
                     Curriculum(idx)%Code(1:j)==Curriculum(i)%Code(1:j) .and. &
                     (Curriculum(i)%Code(j+1:j+1)==SPACE .or. &
@@ -563,7 +573,7 @@ contains
             end do
             if (j>0) then
                 tCurriculum(j:) = SPACE
-                do i=1,NumCurricula
+                do i=1,NumCurricula-1
                     if (tCurriculum==Curriculum(i)%Code) then
                         index_to_curriculum = -i
                         return
@@ -576,7 +586,7 @@ contains
 
         ! find last code whose first few characters (up to the '-') match
         tCurriculum = trim(token)//DASH
-        do i=1,NumCurricula
+        do i=1,NumCurricula-1
             if (index(Curriculum(i)%Code,trim(tCurriculum))==1) then
                 index_to_curriculum = -i
             end if
@@ -609,7 +619,7 @@ contains
         integer, intent (in) :: college_idx, subject_idx
         integer :: i
         found = .false.
-        do i=1,NumCurricula
+        do i=1,NumCurricula-1
             if (Curriculum(i)%CollegeIdx/=college_idx) cycle
             if (index_of_subject_in_curriculum(Curriculum(i), subject_idx)>0) then
                 found = .true.
@@ -836,14 +846,16 @@ contains
     function text_curriculum_info(idxCURR)
         integer, intent (in) :: idxCURR
         character (len=MAX_LEN_CURRICULUM_CODE+MAX_LEN_CURRICULUM_NAME+MAX_LEN_CURRICULUM_NAME+MAX_LEN_CURRICULUM_NAME) :: tmp, &
-        text_curriculum_info
+            text_curriculum_info
         tmp = SPACE
-        if (Curriculum(idxCURR)%Remark/=SPACE)  &
-        tmp = COMMA//SPACE//trim(Curriculum(idxCURR)%Remark)//tmp
-        if (Curriculum(idxCURR)%Specialization/=SPACE)  &
-        tmp = COMMA//SPACE//trim(Curriculum(idxCURR)%Specialization)//tmp
+        if (Curriculum(idxCURR)%Remark/=SPACE .and. &
+            Curriculum(idxCURR)%Remark/='(Edit remark)')  &
+            tmp = COMMA//SPACE//trim(Curriculum(idxCURR)%Remark)//tmp
+        if (Curriculum(idxCURR)%Specialization/=SPACE .and. &
+            Curriculum(idxCURR)%Specialization/='(Edit specialization)')  &
+            tmp = COMMA//SPACE//trim(Curriculum(idxCURR)%Specialization)//tmp
         tmp = trim(Curriculum(idxCURR)%Code)//SPACE//DASH//SPACE// &
-        trim(Curriculum(idxCURR)%Title)//tmp
+            trim(Curriculum(idxCURR)%Title)//tmp
         text_curriculum_info = tmp
         return
     end function text_curriculum_info
@@ -868,7 +880,7 @@ contains
         '        Intake - curriculum,count', &
         '    </comment>'
 
-        do idxCURR=1,NumCurricula
+        do idxCURR=1,NumCurricula-1
             if (NFintake(idxCURR)==0) cycle
             call xml_write_character(unitXML, indent0, 'Intake', &
                 trim(Curriculum(idxCURR)%Code)//COMMA//itoa(NFintake(idxCURR)) )

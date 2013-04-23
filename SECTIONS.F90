@@ -232,9 +232,10 @@ contains
     end subroutine delete_sections_of_dept
 
 
-    subroutine xml_write_sections(path, NumSections, Section, iDept)
+    subroutine xml_write_sections(path, NumSections, Section, iDept, dirOPT)
 
         character(len=*), intent(in) :: path
+        character(len=*), intent(in), optional :: dirOPT
         type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, intent (in) :: NumSections
         integer, intent (in) :: iDept
@@ -246,9 +247,17 @@ contains
 
         ! all sections, or only the sections for given department?
         if (iDept>0) then
-            fileName = trim(dirXML)//trim(path)//'CLASSES-'//trim(Department(iDept)%Code)//'.XML'
+            if (present(dirOPT)) then
+                fileName = trim(dirOPT)//trim(path)//'CLASSES-'//trim(Department(iDept)%Code)//'.XML'
+            else
+                fileName = trim(dirXML)//trim(path)//'CLASSES-'//trim(Department(iDept)%Code)//'.XML'
+            endif
         else
-            fileName = trim(dirXML)//trim(path)//'CLASSES.XML'
+            if (present(dirOPT)) then
+                fileName = trim(dirOPT)//trim(path)//'CLASSES.XML'
+            else
+                fileName = trim(dirXML)//trim(path)//'CLASSES.XML'
+            endif
         end if
         call xml_open_file(unitXML, XML_ROOT_SECTIONS, fileName, sdx)
         write(unitXML,AFORMAT) &
@@ -340,17 +349,17 @@ contains
         noXML = NumSections==0
         mainEntries = NumSections
         numEntries = NumSections
-        ! check for classes edited by departments
-        do ddx=2,NumDepartments-1
-            fileName = trim(dirXML)//UPDATES//trim(path)//'CLASSES-'//trim(Department(ddx)%Code)//'.XML'
-            call xml_read_classes(fileName, NumSections, Section, ierr)
-            partialEntries = NumSections - numEntries
-            numEntries = NumSections
-            if (partialEntries>0) then ! remove classes of dept from monolithic file
-                call delete_sections_of_dept(mainEntries, Section, ddx)
-            end if
-            if (ierr==0) call move_to_backup(filename) ! delete departmental block
-        end do
+!        ! check for classes edited by departments
+!        do ddx=2,NumDepartments-1
+!            fileName = trim(dirXML)//UPDATES//trim(path)//'CLASSES-'//trim(Department(ddx)%Code)//'.XML'
+!            call xml_read_classes(fileName, NumSections, Section, ierr)
+!            partialEntries = NumSections - numEntries
+!            numEntries = NumSections
+!            if (partialEntries>0) then ! remove classes of dept from monolithic file
+!                call delete_sections_of_dept(mainEntries, Section, ddx)
+!            end if
+!            if (ierr==0) call move_to_backup(filename) ! delete departmental block
+!        end do
         numUpdates = NumSections - mainEntries
         if (NumSections==0) then ! try the custom format
             fileName = trim(dirRAW)//trim(path)//'CLASSES'

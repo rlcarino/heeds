@@ -55,7 +55,7 @@ subroutine extract_student_grades()
                     write(*,*) 'File not found: '//trim(fileName)
                     cycle
                 end if
-                write(*,*) 'Retrieving grades from '//trim(fileName)
+                write(unitLOG,AFORMAT) 'Retrieving grades from '//trim(fileName)
                 ! skip first line
                 read (unitRAW, AFORMAT, iostat = eof) line
                 call initialize_student(wrkStudent)
@@ -98,7 +98,7 @@ subroutine extract_student_grades()
                             ch = line(i:i)
                             if (index(SPECIAL,ch)>0 .or. ch==COMMA) cycle
                             j = j+1
-                            if (j>MAX_LEN_STUDENT_NAME) cycle
+                            if (j>MAX_LEN_PERSON_NAME) cycle
                             wrkStudent%Name(j:j) = ch
                         end do
                         call upper_case(wrkStudent%Name)

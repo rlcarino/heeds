@@ -39,23 +39,24 @@ module HTML
     ! index to server functions
     integer, parameter ::  &
         fnLogin                   =  1, & ! login user
-        fnChangeInitialPassword   =  2, & ! change initial password
+        fnGeneratePassword        =  2, & ! generate new password
         fnChangePassword          =  3, & ! change password
         fnLogout                  =  4, & ! logout user
         fnSuspendProgram          =  5, & ! suspend the program
         fnToggleTrainingMode      =  6, & ! toggle training mode
+        fnEditSignatories         =  7, & ! edit signatories
         !
-        fnCollegeLinks            =  7, & ! index to college info
-        fnSubjectList             =  8, & ! view list of subjects administered by a department
-        fnEditSubject             =  9, & ! edit subject
-        fnCurriculumList          = 10, & ! view list of curricular programs administered by a college
-        fnCurriculum              = 11, & ! view a curricular program
-        fnEditCurriculum          = 12, & ! edit curriculum
-        fnActivateCurriculum      = 13, & ! activate curriculum
-        fnDeactivateCurriculum    = 14, & ! deactivate curriculum
-        fnEditRoom                = 15, & ! edit room parameters
-        fnEditTeacher             = 16, & ! edit teacher record
-        fnStop                    = 17, & ! terminate program
+        fnCollegeLinks            =  8, & ! index to college info
+        fnSubjectList             =  9, & ! view list of subjects administered by a department
+        fnEditSubject             = 10, & ! edit subject
+        fnCurriculumList          = 11, & ! view list of curricular programs administered by a college
+        fnCurriculum              = 12, & ! view a curricular program
+        fnEditCurriculum          = 13, & ! edit curriculum
+        fnActivateCurriculum      = 14, & ! activate curriculum
+        fnDeactivateCurriculum    = 15, & ! deactivate curriculum
+        fnEditRoom                = 16, & ! edit room parameters
+        fnEditTeacher             = 17, & ! edit teacher record
+        fnStop                    = 18, & ! terminate program
         !
         fnStudentsByProgram       = 20, & ! view list students in a program
         fnStudentsByCurriculum    = 21, & ! view list students in a curriculum
@@ -104,6 +105,7 @@ module HTML
         !
         fnChangeMatriculation     = 65, & ! change matriculation
         fnFindBlock               = 66, & ! find a block for student
+        fnSelectSubjects          = 67, & ! manually select subjects for student
         !
         fnEnlistmentSummary       = 70, & ! summary of enlistment by subject
         fnNotAccommodated         = 71, & ! students not accommodated in a priority subject
@@ -147,14 +149,17 @@ contains
             case (fnLogout                )
                     fnDescription = 'logout'
 
-            case (fnChangeInitialPassword   )
-                    fnDescription = 'change initial password'
+            case (fnGeneratePassword   )
+                    fnDescription = 'generate new password'
 
             case (fnChangePassword          )
                     fnDescription = 'change password'
 
             case (fnToggleTrainingMode      )
                     fnDescription = 'toggle training mode'
+
+            case (fnEditSignatories)
+                    fnDescription = 'edit signatories'
 
             case (fnCollegeLinks            )
                     fnDescription = 'index to college info'
@@ -218,6 +223,9 @@ contains
 
             case (fnFindBlock               )
                     fnDescription = 'find a block for student'
+
+            case (fnSelectSubjects)
+                    fnDescription = 'manually select subjects for student'
 
             case (fnScheduleOfClasses       )
                     fnDescription = 'display schedule of classes for editing'
@@ -365,13 +373,16 @@ contains
             case (fnLogout                )
                     fnAvailable = .true.
 
-            case (fnChangeInitialPassword   )
+            case (fnGeneratePassword   )
                     fnAvailable = .true.
 
             case (fnChangePassword          )
                     fnAvailable = .true.
 
             case (fnToggleTrainingMode      )
+                    fnAvailable = .true.
+
+            case (fnEditSignatories)
                     fnAvailable = .true.
 
             case (fnCollegeLinks            )
@@ -429,7 +440,7 @@ contains
                     fnAvailable = .true.
 
             case (fnEditCheckList           )
-                    fnAvailable = currentTerm/=nextTerm
+                    fnAvailable = advisingPeriod
 
             case (fnChangeMatriculation     )
                     fnAvailable = currentTerm==nextTerm
@@ -437,23 +448,26 @@ contains
             case (fnFindBlock               )
                     fnAvailable = currentTerm==nextTerm
 
+            case (fnSelectSubjects)
+                    fnAvailable = currentTerm==nextTerm
+
             case (fnScheduleOfClasses       )
                     fnAvailable = .true.
 
             case (fnScheduleOfferSubject    )
-                    fnAvailable = currentTerm/=nextTerm
+                    fnAvailable = advisingPeriod
 
             case (fnScheduleAddLab          )
-                    fnAvailable = currentTerm/=nextTerm
+                    fnAvailable = advisingPeriod
 
             case (fnScheduleDelete          )
-                    fnAvailable = currentTerm/=nextTerm
+                    fnAvailable = advisingPeriod
 
             case (fnScheduleEdit            )
-                    fnAvailable = currentTerm/=nextTerm
+                    fnAvailable = advisingPeriod
 
             case (fnScheduleValidate        )
-                    fnAvailable = currentTerm/=nextTerm
+                    fnAvailable = advisingPeriod
 
             case (fnTeachersByDept          )
                     fnAvailable = .true.
@@ -486,31 +500,31 @@ contains
                     fnAvailable = .true.
 
             case (fnBlockEditName           )
-                    fnAvailable = currentTerm/=nextTerm
+                    fnAvailable = advisingPeriod
 
             case (fnBlockDeleteName         )
-                    fnAvailable = currentTerm/=nextTerm
+                    fnAvailable = advisingPeriod
 
             case (fnBlockDeleteAll          )
-                    fnAvailable = currentTerm/=nextTerm
+                    fnAvailable = advisingPeriod
 
             case (fnBlockNewSelect          )
-                    fnAvailable = currentTerm/=nextTerm
+                    fnAvailable = advisingPeriod
 
             case (fnBlockNewAdd             )
-                    fnAvailable = currentTerm/=nextTerm
+                    fnAvailable = advisingPeriod
 
             case (fnBlockCopy               )
-                    fnAvailable = currentTerm/=nextTerm
+                    fnAvailable = advisingPeriod
 
             case (fnBlockList               )
                     fnAvailable = .true.
 
             case (fnBlockEditSection        )
-                    fnAvailable = currentTerm/=nextTerm
+                    fnAvailable = advisingPeriod
 
             case (fnBlockEditSubject        )
-                    fnAvailable = currentTerm/=nextTerm
+                    fnAvailable = advisingPeriod
 
             case (fnScheduleByArea          )
                     fnAvailable = .true.
@@ -542,7 +556,7 @@ contains
             case (fnGradeSheet              )
                     fnAvailable = .false. !currentTerm==nextTerm
 
-        case (fnDemandFreshmen          )
+            case (fnDemandFreshmen          )
                     fnAvailable = .true.
 
             case (fnUpdateDemandFreshmen    )
@@ -639,7 +653,7 @@ contains
                 write(device,AFORMAT) trim(Department(k)%Code)//nbsp
             end do
             write(device,AFORMAT) &
-                ' ) </li><li>Registrar - <i>view all, modify all</i> ( TeacherID '//trim(REGISTRAR)//' )</li>'
+                ' ) </li><li>Registrar - <i>view all, modify all</i> ( '//trim(REGISTRAR)//' )</li>'
             write(device,AFORMAT) '</ul>'//endtd//endtr//'</table><hr>'
             call html_copyright(device)
 
@@ -1319,12 +1333,14 @@ contains
             tStdNo = Student(targetStudent)%StdNo
             write(device,AFORMAT) '[ <b>'//trim(tStdNo)//'</b>'
 
-            if (NumEnlistmentRecords>0 .and. nItems==0 .and. REQUEST/=fnFindBlock) then
+            !if (NumEnlistmentRecords>0 .and. nItems==0 .and. REQUEST/=fnFindBlock) then
+            if (.not. advisingPeriod .and. nItems==0 .and. REQUEST/=fnFindBlock) then
                 write(device,AFORMAT) trim(make_href(fnFindBlock, 'Find block', &
                     A1=tStdNo, pre=nbsp))
             end if
 
-            if (NumEnlistmentRecords>0 .and. nItems>0 .and. REQUEST/=fnChangeMatriculation) then
+            !if (NumEnlistmentRecords>0 .and. nItems>0 .and. REQUEST/=fnChangeMatriculation) then
+            if (.not. advisingPeriod .and. nItems>0 .and. REQUEST/=fnChangeMatriculation) then
                 write(device,AFORMAT) trim(make_href(fnChangeMatriculation, 'Schedule', &
                     A1=tStdNo, pre=nbsp))
             end if
@@ -1396,7 +1412,6 @@ contains
         if (REQUEST/=fnStop .and. &
             REQUEST/=fnLogout .and. &
             REQUEST/=fnChangePassword .and. &
-            REQUEST/=fnChangeInitialPassword .and. &
             REQUEST/=fnPrintableWorkload .and. &
             REQUEST/=fnPrintableSchedule) then
 
@@ -1528,7 +1543,7 @@ contains
 
         ! any curricular programs
         n_curr = 0
-        do cdx=1,NumCurricula
+        do cdx=1,NumCurricula-1
             if (Curriculum(cdx)%CollegeIdx /= coll) cycle
             n_curr = n_curr+1
             exit
@@ -1546,7 +1561,7 @@ contains
 #else
         ! Subjects administered by program
         do cdx=1,NumSubjectAreas
-            do ldx=1,NumCurricula
+            do ldx=1,NumCurricula-1
                 if (Curriculum(ldx)%CollegeIdx/=coll) cycle
                 if (is_used_in_curriculum_subject_area(Curriculum(ldx), trim(SubjectArea(cdx)%Code)//SPACE)) then
                     tLen = tLen+1
@@ -1591,6 +1606,8 @@ contains
                 write(device,AFORMAT) trim(make_href(fnSuspendProgram, 'Turn it ON', &
                     pre='<li><b>Suspend-mode is '//green//'OFF'//black//'</b>. ', post='</li>'))
             end if
+            write(device,AFORMAT) trim(make_href(fnEditSignatories, 'signatories', &
+                pre='<li><b>Edit '//nbsp, post=nbsp//'in teaching load form</b></li>'))
 
         end if
 
@@ -1623,11 +1640,11 @@ contains
         if (addHR) then
             write(device,AFORMAT) '<li><b>Curricular programs</b> : '
             done = .false.
-            do cdx=1,NumCurricula
+            do cdx=1,NumCurricula-1
                 if (Curriculum(cdx)%CollegeIdx /= coll) cycle
                 if (done(cdx)) cycle
                 n_count = 1
-                do ldx=cdx+1,NumCurricula
+                do ldx=cdx+1,NumCurricula-1
                     if (CurrProgCode(ldx)/=CurrProgCode(cdx)) cycle
                     n_count = n_count+1
                 end do
@@ -1662,6 +1679,7 @@ contains
                 n_count = 0
                 do tdx=1,NumTeachers+NumAdditionalTeachers
                     if (Teacher(tdx)%DeptIdx /= dept) cycle
+                    if (trim(Teacher(tdx)%Role)==trim(REGISTRAR)) cycle
                     n_count = n_count+1
                 end do
                 if (n_count==0) cycle
@@ -1676,6 +1694,7 @@ contains
                 do tdx=1,NumTeachers+NumAdditionalTeachers
                     if (Teacher(tdx)%Name(1:1) /= ch) cycle
                     if (Department(Teacher(tdx)%DeptIdx)%CollegeIdx /= coll) cycle
+                    if (trim(Teacher(tdx)%Role)==trim(REGISTRAR)) cycle
                     n_count = n_count+1
                 end do
                 if (n_count==0) cycle
@@ -2007,29 +2026,34 @@ contains
 
     subroutine links_to_blocks(device, coll, term)
         integer, intent (in) :: device, coll, term
-        integer :: cdx, ldx, blk
+        integer :: cdx, ldx, blk, ncurr
         character (len=MAX_LEN_COLLEGE_CODE) :: tCollege
 
         write(device,AFORMAT) '<!-- '//'links_to_blocks()'//' -->'
-
+        ncurr = 0
         tCollege = College(coll)%Code
         write(device,AFORMAT) '<li><b>Blocks</b> : '//nbsp
         done = .false.
-        do cdx=1,NumCurricula
+        do cdx=1,NumCurricula-1
             if (Curriculum(cdx)%CollegeIdx /= coll) cycle
             if (done(cdx)) cycle
+            if (Curriculum(cdx)%NumTerms==0) cycle
             ldx = 0
             do blk=1,NumBlocks(term)
                 if (CurrProgCode(Block(term,blk)%CurriculumIdx)/=CurrProgCode(cdx)) cycle
                 ldx = ldx+1
             end do
-
+            ncurr = ncurr + 1
             write(device,AFORMAT) trim(make_href(fnBlockList, CurrProgCode(cdx), &
                 A1=CurrProgCode(cdx), post='('//trim(itoa(ldx))//')'//nbsp))
             do ldx=cdx+1,NumCurricula
                 if (CurrProgCode(ldx) == CurrProgCode(cdx)) done(ldx) = .true.
             end do
         end do
+!        if (ncurr>0 .and. isRoleChair .or. isRoleAdmin) then
+!            write(device,AFORMAT) trim(make_href(fnBlockNewSelect, 'Add', &
+!                A1=tCollege, pre='<b> (', post=' block)</b>'))
+!        end if
         write(device,AFORMAT) '</li>'
 
         return

@@ -194,11 +194,6 @@ contains
         character(len=1) :: ch
         character(len=2) :: hex_code
 
-#if defined PRODUCTION
-#else
-        write(unitHTML,AFORMAT) '<!-- cgi_url_decode('//trim(str_in)//') -->'
-#endif
-
         str_out = ' ' ! default return values
         len_str_out = len(str_out) ! dimension of str_out
         idx_out = 1 ! index to str_out
@@ -227,6 +222,11 @@ contains
             idx_out = idx_out + 1
 
         end do
+#if defined PRODUCTION
+#else
+        write(unitHTML,AFORMAT) '<!-- cgi_url_decode('//trim(str_in)//' = '//trim(str_out)//' ) -->'
+#endif
+
 
         return
     end subroutine cgi_url_decode
@@ -241,12 +241,6 @@ contains
         integer, intent (out) :: ierr
 
         integer :: i_start, j_end, l_string, l_lname
-
-#if defined PRODUCTION
-#else
-        write(unitHTML,AFORMAT) '<!-- cgi_get_name_value('// &
-            trim(string)//', '//trim(lname)//') -->'
-#endif
 
         ! default return values
         rvalue = ' '
@@ -272,6 +266,13 @@ contains
         if (j_end==0) j_end = len_trim(cgi_wrk) + 1 ! assume & at end of string
         string(i_start:) = cgi_wrk(j_end+1:) ! update string
         rvalue = cgi_wrk(:j_end-1)
+
+#if defined PRODUCTION
+#else
+        write(unitHTML,AFORMAT) '<!-- cgi_get_name_value('// &
+            trim(string)//', '//trim(lname)//' = '//trim(rvalue)//' ) -->'
+#endif
+
         !write(*,*) lname, '=', rvalue
 
         return
@@ -417,26 +418,7 @@ contains
 
 #if defined PRODUCTION
 #else
-        write(unitNo,AFORMAT) '<!-- FCGI_FCGI_getquery() -->'
-#endif
-        ! the remote IP
-        call get_environment_variable('REMOTE_ADDR', REMOTE_ADDR)
-#if defined PRODUCTION
-#else
-        write(unitNo, AFORMAT) '<!-- REMOTE_ADDR='//REMOTE_ADDR//' -->'
-#endif
-
-        ! the requested script ('/' if none)
-        call get_environment_variable('DOCUMENT_URI', DOCUMENT_URI)
-        iLen = len_trim(DOCUMENT_URI)
-        if ( iLen == 0 ) then
-            ! default is /
-            DOCUMENT_URI = '/'
-        endif
-#if defined PRODUCTION
-#else
-        iLen = len_trim(DOCUMENT_URI)
-        write(unitNo, AFORMAT) '<!-- DOCUMENT_URI='//DOCUMENT_URI(:iLen)//' -->'
+        write(unitNo,AFORMAT) '<!-- FCGI_getquery() -->'
 #endif
 
         ! QUERY_STRING (request method was GET) ?
@@ -466,6 +448,26 @@ contains
 #endif
             end if
         endif
+
+        ! the remote IP
+        call get_environment_variable('REMOTE_ADDR', value=REMOTE_ADDR, length=iLen, status=i)
+#if defined PRODUCTION
+#else
+        write(unitNo, AFORMAT) '<!-- REMOTE_ADDR='//REMOTE_ADDR//SPACE//itoa(iLen)//itoa(i)//' -->'
+#endif
+
+        ! the requested script ('/' if none)
+        call get_environment_variable('DOCUMENT_URI', value=DOCUMENT_URI)
+        iLen = len_trim(DOCUMENT_URI)
+        if ( iLen == 0 ) then
+            ! default is /
+            DOCUMENT_URI = '/'
+        endif
+#if defined PRODUCTION
+#else
+        iLen = len_trim(DOCUMENT_URI)
+        write(unitNo, AFORMAT) '<!-- DOCUMENT_URI='//DOCUMENT_URI(:iLen)//' -->'
+#endif
 
         ! for other environment variables, see <nginx directory>/conf/fastcgi_params
 

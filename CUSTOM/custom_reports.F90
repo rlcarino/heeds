@@ -111,7 +111,7 @@ subroutine student_performance (device, mesg)
                 write(device,AFORMAT) &
                     begintr//tdnbspendtd, &
                     '<td colspan="4" align="left">'//trim(txtSemester(TCG(tdx)%Term))// &
-                    ' SEMESTER, '//trim(itoa(TCG(tdx)%Year))//DASH// &
+                    termQualifier(TCG(tdx)%Term)//COMMA//trim(itoa(TCG(tdx)%Year))//DASH// &
                     trim(itoa(TCG(tdx)%Year+1))//endtd// &
                     '<td colspan="6">'//nbsp//endtd//endtr
             end if

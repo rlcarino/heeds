@@ -44,9 +44,8 @@ module PRE_ENLISTMENT
     end type TYPE_PRE_ENLISTMENT
     type (TYPE_PRE_ENLISTMENT), dimension(0:MAX_ALL_STUDENTS) :: Preenlisted, Advised
 
-    logical :: isDirtyPREDICTIONS = .false.
-    integer :: NumPredictionRecords
-    integer :: NumEnlistmentRecords
+    logical :: isDirtyPREDICTIONS = .false., isDirtyPreenlisted = .false.
+    integer :: NumPredictionRecords=0, NumEnlistmentRecords=0
 
 
     ! private tokens
@@ -95,11 +94,12 @@ contains
     end subroutine delete_students_of_curriculum_from_enlistment
 
 
-    subroutine xml_write_pre_enlistment(path, basename, eList, Section, curriculumFilter)
+    subroutine xml_write_pre_enlistment(path, basename, eList, Section, curriculumFilter, dirOPT)
         character (len=*), intent (in) :: path, basename ! YEAR/TERM/(ENLISTMENT,PREDICTION,WAIVER-COI)
         type (TYPE_PRE_ENLISTMENT), intent(in) :: eList(0:)
         type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, intent (in), optional :: curriculumFilter
+        character(len=*), intent(in), optional :: dirOPT
 
         integer :: std, sect, i, lenRecord, filter
 
@@ -113,7 +113,11 @@ contains
         end if
 
         ! generate file name
-        fileName = trim(dirXML)//trim(path)//basename
+        if (present(dirOPT)) then
+            fileName = trim(dirOPT)//trim(path)//basename
+        else
+            fileName = trim(dirXML)//trim(path)//basename
+        endif
         if (filter>0) then
             fileName = trim(fileName)//DASH//trim(CurrProgCode(filter))//'.XML'
         else
@@ -363,6 +367,21 @@ contains
                 if (partialEntries>0) then ! not empty; move to backup
                     call move_to_backup(trim(dirXML)//trim(path)//trim(basename)//DASH//itoa(grp))
                 end if
+            end do
+            noXML = numEntries==0 ! group enlistment files not available?
+        end if
+        if (.not. noXML) then ! get curriculum group enlistment
+            done = .false.
+            do grp=1,NumCurricula-1
+                if (done(grp)) cycle
+                call xml_read_pre_enlistment(path, trim(basename)//DASH//trim(CurrProgCode(grp)), NumSections, Section, eList, &
+                    partialEntries, ierr)
+                if (partialEntries>0) then ! not empty; move to backup
+                    call move_to_backup(trim(dirXML)//trim(path)//trim(basename)//DASH//trim(CurrProgCode(grp)))
+                end if
+                do ierr=grp,NumCurricula-1
+                    done(ierr) = CurrProgCode(grp)==CurrProgCode(ierr)
+                end do
             end do
         end if
         if (noXML .and. numEntries==0) then ! no XML entries

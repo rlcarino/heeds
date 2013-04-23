@@ -33,10 +33,12 @@ module BASE
     implicit none
 
     ! software version
-    character(len= 7), parameter :: VERSION   = ' v.4.10'
+    character(len= 7), parameter :: VERSION   = ' v.4.13'
 
-    ! Pasword encryption key (16 characters)                 1234567890123456
-    character(len=16), parameter :: passwordEncryptionKey = 'r3pL@c3w!thUr0wn'
+    integer, parameter :: lenPasswordEncryptionKey = 16
+    character(len=lenPasswordEncryptionKey), parameter :: &
+        passwordEncryptionKey = 'w!thUr0wnr3pL@c3'
+        !                        1234567890123456789012345678901234567890
 
     ! OS-specific
 #if defined GLNX
@@ -61,12 +63,14 @@ module BASE
     integer :: currentYear ! year of start of Academic Year
     integer :: currentTerm ! current term 1=1st sem, 2=2nd sem; 3=summer
     integer :: nextYear, nextTerm, targetTerm, termBegin, termEnd
-    integer :: prevTermYear, prevTermTerm, prevYearYear, prevYearTerm
+    integer :: cTm1Year, cTm1, cTm2Year, cTm2, cTm3Year, cTm3
+    logical :: advisingPeriod
 
     character(len=10) :: currentTime ! current time
     character(len= 8) :: currentDate ! current date
     character(len=18) :: startDateTime ! program start date & time
 
+    integer, parameter :: MAX_LEN_PERSON_NAME = 40 ! Max length of a person's name
     integer, parameter :: MAX_LEN_FILE_PATH = 256 ! Max length of file path+name
     integer, parameter :: &
         unitHTML = 999, &   ! file unit for HTML to webserver

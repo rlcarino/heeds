@@ -53,7 +53,10 @@ contains
         ! which dept ?
         call cgi_get_named_string(QUERY_STRING, 'A1', tDepartment, ierr)
 
+#if defined PRODUCTION
+#else
         write(device,AFORMAT) '<!-- room_list_all('//trim(tDepartment)//') -->'
+#endif
 
         targetDepartment = index_to_dept(tDepartment)
         do rdx=1,NumRooms+NumAdditionalRooms
@@ -162,7 +165,10 @@ contains
         ! which college
         call cgi_get_named_string(QUERY_STRING, 'A1', tCollege, ierr)
 
+#if defined PRODUCTION
+#else
         write(device,AFORMAT) '<!-- room_conflicts('//trim(tCollege)//') -->'
+#endif
 
         targetCollege = index_to_college(tCollege)
         do rdx=1,NumRooms+NumAdditionalRooms
@@ -271,7 +277,10 @@ contains
 
         call cgi_get_named_string(QUERY_STRING, 'A1', tRoom, ierr)
 
+#if defined PRODUCTION
+#else
         write(device,AFORMAT) '<!-- room_schedule('//trim(tRoom)//') -->'
+#endif
 
         targetRoom = index_to_room(tRoom)
         targetDepartment = Room(targetRoom)%DeptIdx
@@ -382,21 +391,11 @@ contains
         ! which subject ?
         call cgi_get_named_string(QUERY_STRING, 'A1', tRoom, rdx)
 
+#if defined PRODUCTION
+#else
         write(device,AFORMAT) '<!-- room_edit('//trim(tRoom)//') -->'
-
-        if (rdx/=0 .or. tRoom==SPACE) then
-            mesg = 'Room to edit not specified?'
-        else
-            rdx = index_to_room(tRoom)
-            mesg = 'Room code '//tRoom//' is invalid?'
-        end if
-        if (rdx<=0) then ! subject code is invalid
-            targetCollege = CollegeIdxUser
-            targetDepartment = DeptIdxUser
-            call html_write_header(device, 'Search', '<br><hr>'//trim(mesg))
-            return
-        end if
-
+#endif
+        rdx = index_to_room(tRoom)
         wrk = Room(rdx) ! make a working copy
 
         ! check for other arguments
@@ -417,7 +416,8 @@ contains
                 !write(*,*) 'ierr=', ierr, ', Cluster=', wrk%Cluster
                 if (ierr/=0) wrk%Cluster = Room(rdx)%Cluster
 
-                call cgi_get_named_string(QUERY_STRING, 'Code', wrk%Code, ierr)
+                call cgi_get_named_string(QUERY_STRING, 'Code', mesg, ierr)
+                wrk%Code = trim(mesg)
                 !write(*,*) 'ierr=', ierr, ', Code=', wrk%Code
                 if (ierr/=0) wrk%Code = Room(rdx)%Code
 

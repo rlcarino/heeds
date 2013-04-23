@@ -330,11 +330,13 @@ contains
     end select
 
     if (isDirtyFORM5) then
-        call xml_write_pre_enlistment(pathToTerm, 'ENLISTMENT', Preenlisted, Section)
+        isDirtyPreenlisted = .true.
+        call xml_write_pre_enlistment(pathToTerm, 'ENLISTMENT', Preenlisted, Section, &
+            Student(targetStudent)%CurriculumIdx)
       end if
     
     call html_write_header(device, trim(Student(targetStudent)%StdNo)//SPACE//trim(Student(targetStudent)%Name)// &
-      SPACE//DASH//SPACE//trim(Curriculum(Student(targetStudent)%CurriculumIdx)%Code), mesg)
+        '<br>'//text_curriculum_info(Student(targetStudent)%CurriculumIdx), mesg)
 
     ! collect classes for student 
     call timetable_meetings_of_student(NumSections, Section, targetStudent, Preenlisted, 0, tLen1, tArray, TimeTable, conflicted)
@@ -800,7 +802,7 @@ contains
         else
                 write(device,AFORMAT) red//trim(Subject(crse)%Name)//black//' /'//nbsp
         end if
-        if (mod(bdx,4)==0) then
+        if (mod(bdx,4)==0 .and. Block(blk)%NumClasses>4) then
                 write(device,AFORMAT) endtd//endtr// & ! end row
                   begintr//tdnbspendtd//tdnbspendtd//begintd ! new row with first 2 columns empty
         end if
@@ -812,8 +814,8 @@ contains
             write(device,AFORMAT) begintr//'<td colspan="3">No suitable blocks for this student?'//endtd//endtr
     end if
     write(device,AFORMAT) '</table>', &
-      '<br><i>NOTES</i> : A '//green//'Class ID (seats)'//black//' is open. A '//green//'Class ID '//black// &
-      red//'(0)'//black//' is NOT available. A '//red//'SUBJECT'//black//' is NOT assigned to a section.' // &
+      '<br><i>NOTES</i> : A '//green//'Class ID (seats)'//black//' is open. A '//green//'Class ID '//black, &
+      red//'(0)'//black//' is NOT available. A '//red//'SUBJECT'//black//' is NOT assigned to a section.', &
       ' "Enlist" will enlist the student ONLY in the open sections of a block.', &
       '<hr>'
     return
@@ -827,7 +829,7 @@ contains
     real :: totalUnits, classUnits, totalHours, classHours, totalTuition, classTuition, totalLabFee, classLabFee
 
     write(device,AFORMAT) '<b>'//trim(Student(std)%StdNo)//SPACE//trim(Student(std)%Name)// &
-      SPACE//DASH//SPACE//trim(Curriculum(Student(std)%CurriculumIdx)%Code)//'<br>'// &
+        '<br>'//text_curriculum_info(Student(std)%CurriculumIdx)//'<br>'// &
       trim(txtSemester(currentTerm+3))//' Term, '//text_school_year(currentYear)//'</b><hr>'
 
     if (lenSL < 3) then

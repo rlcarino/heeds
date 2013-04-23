@@ -353,7 +353,10 @@ contains
                 end select
 
         end select
-        write(device,AFORMAT) '<!-- D/targetBlock='//trim(Block(targetBlock)%BlockID)//'@'//itoa(targetBlock)//' -->'
+#if defined PRODUCTION
+#else
+        write(device,AFORMAT) '<!-- targetBlock='//trim(Block(targetBlock)%BlockID)//'@'//itoa(targetBlock)//' -->'
+#endif
 
         if (updateBLOCKS) then
             call sort_alphabetical_blocks(NumBlocks, Block)
@@ -361,7 +364,7 @@ contains
             targetBlock = index_to_block(tBlock, NumBlocks, Block)
 
             call xml_write_blocks(pathToTerm, NumBlocks, Block,  Section, 0)
-            call xml_write_blocks(UPDATES//pathToTerm, NumBlocks, Block,  Section, targetDepartment)
+!            call xml_write_blocks(UPDATES//pathToTerm, NumBlocks, Block,  Section, targetDepartment)
 
             if (fn==fnBlockDeleteAll .or. fn==fnBlockDeleteName) then
                 call html_college_links(device, targetCollege, mesg)
@@ -371,7 +374,7 @@ contains
         if (updateCLASSES) then
             call offerings_summarize(NumSections, Section, Offering)
             call xml_write_sections(pathToTerm, NumSections, Section, 0)
-            call xml_write_sections(UPDATES//pathToTerm, NumSections, Section, targetDepartment)
+!            call xml_write_sections(UPDATES//pathToTerm, NumSections, Section, targetDepartment)
         end if
 
         call html_write_header(device, 'Block schedule '//tBlock, mesg)
@@ -621,22 +624,36 @@ contains
         integer :: ierr, ldx
         character(len=MAX_LEN_COLLEGE_CODE) :: tCollege
 
-        write(device,AFORMAT) '<!-- '//'block_select_curriculum_year()'//' -->'
+#if defined PRODUCTION
+#else
+        write(device,AFORMAT) '<!-- block_select_curriculum_year() -->'
+#endif
 
         call cgi_get_named_string(QUERY_STRING, 'A1', tCollege, ierr)
         targetCollege = index_to_college(tCollege)
         call html_write_header(device, 'Add block(s) in '//tCollege)
+        ierr = 0
+        do ldx=1,NumCurricula-1
+            if (.not. Curriculum(ldx)%Active .or. Curriculum(ldx)%NumTerms==0) cycle
+            if (targetCollege/=Curriculum(ldx)%CollegeIdx) cycle
+            ierr = ierr+1
+            exit
+        end do
+        if (ierr==0) then
+            write(device,AFORMAT) '( No curricular programs in '//tCollege//'?)<hr>'
+            return
+        end if
 
         ! add block
         call make_form_start(device, fnBlockNewAdd)
         write(device,AFORMAT) '<table border="0" width="100%" cellpadding="0" cellspacing="0">', &
             begintr//begintd//'Curriculum:'//endtd//begintd//'<select name="A1">', &
             '<option value=""> (select curriculum)'
-        do ldx=1,NumCurricula
+        do ldx=1,NumCurricula-1
             if (.not. Curriculum(ldx)%Active) cycle
             if (targetCollege/=Curriculum(ldx)%CollegeIdx) cycle
             write(device,AFORMAT) '<option value="'//trim(Curriculum(ldx)%Code)//'"> '// &
-            trim(Curriculum(ldx)%Code)//' - '//trim(Curriculum(ldx)%Title)
+                trim(Curriculum(ldx)%Code)//' - '//trim(Curriculum(ldx)%Title)
         end do
         write(device,AFORMAT) '</select>'//endtd//endtr, &
             begintr//begintd//'Year level:'//endtd//begintd//'<select name="A2">', &
@@ -672,7 +689,10 @@ contains
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
         !character (len=MAX_LEN_CLASS_ID) :: tClassId
 
-        write(device,AFORMAT) '<!-- '//'block_add()'//' -->'
+#if defined PRODUCTION
+#else
+        write(device,AFORMAT) '<!-- block_add() -->'
+#endif
 
         inputError = .false.
 
@@ -785,14 +805,14 @@ contains
 
         call sort_alphabetical_blocks(NumBlocks, Block)
         call xml_write_blocks(pathToTerm, NumBlocks, Block,  Section, 0)
-        call xml_write_blocks(UPDATES//pathToTerm, NumBlocks, Block,  Section, targetDepartment)
+!        call xml_write_blocks(UPDATES//pathToTerm, NumBlocks, Block,  Section, targetDepartment)
 
         if (createClasses) then
 
             call offerings_summarize(NumSections, Section, Offering)
 
             call xml_write_sections(pathToTerm, NumSections, Section, 0)
-            call xml_write_sections(UPDATES//pathToTerm, NumSections, Section, targetDepartment)
+!            call xml_write_sections(UPDATES//pathToTerm, NumSections, Section, targetDepartment)
 
         end if
 
@@ -809,7 +829,10 @@ contains
         type (TYPE_BLOCK), dimension(0:), intent(in out) :: Block
         integer :: crse, idx
 
-        write(unitHTML,AFORMAT) '<!-- '//'block_add_and_create_sections()'//' -->'
+#if defined PRODUCTION
+#else
+        write(unitHTML,AFORMAT) '<!-- block_add_and_create_sections() -->'
+#endif
 
         do idx=1,Block(block_idx)%NumClasses
             crse = Block(block_idx)%Subject(idx)
@@ -831,7 +854,10 @@ contains
         type (TYPE_BLOCK), dimension(0:), intent(in out) :: Block
         integer :: dept, kdx
 
-        write(unitHTML,AFORMAT) '<!-- '//'create_section_for_block()'//' -->'
+#if defined PRODUCTION
+#else
+        write(unitHTML,AFORMAT) '<!-- create_section_for_block() -->'
+#endif
 
         dept = Block(block_idx)%DeptIdx
         kdx = ScheduleCount(Term,dept) + 1 ! new section in department
@@ -886,7 +912,10 @@ contains
         integer :: copy, crse, sect, idx, Year
         character (len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
 
-        write(unitHTML,AFORMAT) '<!-- '//'block_get_all_from_CLASSES()'//' -->'
+#if defined PRODUCTION
+#else
+        write(unitHTML,AFORMAT) '<!-- block_get_all_from_CLASSES() -->'
+#endif
 
         NumBlocks = 0
         call initialize_block(Block(0))
@@ -1019,7 +1048,10 @@ contains
         character(len=MAX_LEN_COLLEGE_CODE) :: tCollege
         character (len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
 
-        write(device,AFORMAT) '<!-- '//'block_list_all()'//' -->'
+#if defined PRODUCTION
+#else
+        write(device,AFORMAT) '<!-- block_list_all() -->'
+#endif
 
         ! which program ?
         call cgi_get_named_string(QUERY_STRING, 'A1', tCurriculum, ierr)

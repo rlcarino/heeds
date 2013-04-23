@@ -107,8 +107,8 @@ subroutine custom_read_curricula(path, errNo)
         Curriculum(NumCurricula)%Code = tCurriculum
         Curriculum(NumCurricula)%CollegeIdx = idxCOLL
         Curriculum(NumCurricula)%Title = line(pos(4)+1:pos(5)-1)
-        Curriculum(NumCurricula)%Specialization = '(Edit specialization)'
-        Curriculum(NumCurricula)%Remark = '(Edit remark)'
+        Curriculum(NumCurricula)%Specialization = SPACE
+        Curriculum(NumCurricula)%Remark = SPACE
         Curriculum(NumCurricula)%NSubjects = 0
 
         if (.not. FlagIsUp) then

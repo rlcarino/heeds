@@ -63,7 +63,7 @@ contains
                 do tdx=1,NumTeachers+NumAdditionalTeachers
                     fac = TeacherRank(tdx)
                     if (targetDepartment/=Teacher(fac)%DeptIdx) cycle
-                    if (REGISTRAR==Teacher(fac)%TeacherID) cycle
+                    if (trim(Teacher(fac)%Role)==trim(REGISTRAR)) cycle
                     nfacs = nfacs+1
                     tArray(nfacs) = fac
                 end do
@@ -77,7 +77,7 @@ contains
                 do tdx=1,NumTeachers+NumAdditionalTeachers
                     fac = TeacherRank(tdx)
                     if (Department(Teacher(fac)%DeptIdx)%CollegeIdx /= targetCollege) cycle
-                    if (REGISTRAR==Teacher(fac)%TeacherID) cycle
+                    if (trim(Teacher(fac)%Role)==trim(REGISTRAR)) cycle
                     if (Teacher(fac)%Name(1:1) /= ch) cycle
                     nfacs = nfacs+1
                     tArray(nfacs) = fac
@@ -103,11 +103,6 @@ contains
                     A1='Guest', pre='<small>('//nbsp, post=' )</small>'))
             end if
             write(device,AFORMAT) endtd//endtr//'</table>'
-            write(device,AFORMAT) '(None?)'
-            if (isRoleAdmin) then
-                write(device,AFORMAT) trim(make_href(fnEditTeacher, ' Add', &
-                    A1='Guest', pre='<br><small>', post=' a teacher</small>'))
-            end if
         else
             ! sort teachers
             do tdx=1,nfacs-1
@@ -465,16 +460,18 @@ contains
     end subroutine teacher_schedule
 
 
-    subroutine teacher_info(device, wrk, header, remark, tAction)
-        integer, intent(in) :: device
+    subroutine teacher_info(device, wrk, header, remark, tAction, tdx)
+        integer, intent(in) :: device, tdx
         type (TYPE_TEACHER), intent(in) :: wrk
         character (len=*), intent(in)  :: header, remark, tAction
         character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
+        character (len=MAX_LEN_PASSWD_VAR) :: Password
         integer :: i, j
 
         tTeacher = wrk%TeacherID
         targetDepartment = wrk%DeptIdx
         targetCollege = Department(targetDepartment)%CollegeIdx
+        call get_password(tdx, Password)
 
         call html_write_header(device, header, remark)
 
@@ -482,8 +479,8 @@ contains
 
         write(device,AFORMAT) '<table border="0" width="100%">', &
             begintr//begintd//'Username '//endtd//begintd//'<input name="Login" size="'//trim(itoa(MAX_LEN_TEACHER_CODE))// &
-            '" value="'//trim(tTeacher)//'"> (Changing the username also re-initializes the password)'//endtd//endtr, &
-            begintr//begintd//'Teacher name '//endtd//begintd//'<input name="Name" size="'//trim(itoa(MAX_LEN_TEACHER_NAME))// &
+            '" value="'//trim(tTeacher)//'">'//endtd//endtr, &
+            begintr//begintd//'Teacher name '//endtd//begintd//'<input name="Name" size="'//trim(itoa(MAX_LEN_PERSON_NAME))// &
             '" value="'//trim(wrk%Name)//'">'//endtd//endtr
         ! dept
         write(device,AFORMAT) &
@@ -571,7 +568,14 @@ contains
                 if (CurrProgCode(i)==CurrProgCode(j)) done(j) = .true.
             end do
         end do
-        write(device,AFORMAT) '</select>'//endtd//endtr, &
+        write(device,AFORMAT) '</select>'//endtd//endtr
+        if (isRoleAdmin) then
+            write(device,AFORMAT) begintr//begintd//'Password'//endtd//begintd//trim(Password)//  &
+                trim(make_href(fnGeneratePassword, 'Reset password', &
+                    A1=tTeacher, pre=' <small>', post='</small>')), &
+                endtd//endtr
+        end if
+        write(device,AFORMAT) &
             '</table><br>'//nbsp//'<input name="action" type="submit" value="'//trim(tAction)//'"></form><hr>'
 
         return
@@ -583,11 +587,11 @@ contains
         character(len=MAX_LEN_TEACHER_CODE) :: tTeacher, tAction
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
         integer :: ierr, tdx, j
-        character (len=255) :: header, remark
+        character (len=255) :: header, remark, tmpRHS
         type (TYPE_TEACHER) :: wrk
         logical :: isDirtyTEACHERS
-        character (len=MAX_LEN_PASSWORD) :: Password
-        integer :: lenP
+        !character (len=MAX_LEN_PASSWD_VAR) :: Password
+        !integer :: lenP
 
         isDirtyTEACHERS = .false.
         remark = SPACE
@@ -611,7 +615,7 @@ contains
                 tAction = 'Update'
             end if
 
-            call teacher_info(device, wrk, header, remark, tAction)
+            call teacher_info(device, wrk, header, remark, tAction, tdx)
 
         else ! action is Add or Update; collect changes
 
@@ -620,10 +624,11 @@ contains
             if (ierr/=0) wrk%TeacherID = Teacher(tdx)%TeacherID
             if (wrk%TeacherID /= Teacher(tdx)%TeacherID) then
                 isDirtyTEACHERS = .true.
-                remark = trim(remark)//': Username/password='//wrk%TeacherID
+                remark = trim(remark)//': Username='//wrk%TeacherID
             end if
 
-            call cgi_get_named_string(QUERY_STRING, 'Name', wrk%Name, ierr)
+            call cgi_get_named_string(QUERY_STRING, 'Name', tmpRHS, ierr)
+            wrk%Name = tmpRHS
             !write(*,*) 'ierr=', ierr, ', Name=', wrk%Name
             if (ierr/=0) wrk%Name = Teacher(tdx)%Name
             if (wrk%Name /= Teacher(tdx)%Name) then
@@ -631,7 +636,8 @@ contains
                 remark = trim(remark)//': Name='//wrk%Name
             end if
 
-            call cgi_get_named_string(QUERY_STRING, 'Bachelor', wrk%Bachelor, ierr)
+            call cgi_get_named_string(QUERY_STRING, 'Bachelor', tmpRHS, ierr)
+            wrk%Bachelor = tmpRHS
             !write(*,*) 'ierr=', ierr, ', Bachelor=', wrk%Bachelor
             if (ierr/=0) wrk%Bachelor = Teacher(tdx)%Bachelor
             if (wrk%Bachelor /= Teacher(tdx)%Bachelor) then
@@ -639,7 +645,8 @@ contains
                 remark = trim(remark)//': Bachelor='//wrk%Bachelor
             end if
 
-            call cgi_get_named_string(QUERY_STRING, 'Master', wrk%Master, ierr)
+            call cgi_get_named_string(QUERY_STRING, 'Master', tmpRHS, ierr)
+            wrk%Master = tmpRHS
             !write(*,*) 'ierr=', ierr, ', Master=', wrk%Master
             if (ierr/=0) wrk%Master = Teacher(tdx)%Master
             if (wrk%Master /= Teacher(tdx)%Master) then
@@ -647,7 +654,8 @@ contains
                 remark = trim(remark)//': Master='//wrk%Master
             end if
 
-            call cgi_get_named_string(QUERY_STRING, 'Doctorate', wrk%Doctorate, ierr)
+            call cgi_get_named_string(QUERY_STRING, 'Doctorate', tmpRHS, ierr)
+            wrk%Doctorate = tmpRHS
             !write(*,*) 'ierr=', ierr, ', Doctorate=', wrk%Doctorate
             if (ierr/=0) wrk%Doctorate = Teacher(tdx)%Doctorate
             if (wrk%Doctorate /= Teacher(tdx)%Doctorate) then
@@ -655,7 +663,8 @@ contains
                 remark = trim(remark)//': Doctorate='//wrk%Doctorate
             end if
 
-            call cgi_get_named_string(QUERY_STRING, 'Specialization', wrk%Specialization, ierr)
+            call cgi_get_named_string(QUERY_STRING, 'Specialization', tmpRHS, ierr)
+            wrk%Specialization = tmpRHS
             !write(*,*) 'ierr=', ierr, ', Specialization=', wrk%Specialization
             if (ierr/=0) wrk%Specialization = Teacher(tdx)%Specialization
             if (wrk%Specialization /= Teacher(tdx)%Specialization) then
@@ -710,14 +719,6 @@ contains
                 if (wrk%TeacherID /= Teacher(tdx)%TeacherID) then  ! new username
                     j = index_to_teacher(wrk%TeacherID)
                     if (j==0) then ! not used
-                        ! reset password to TeacherID
-                        wrk%Password = SPACE
-                        Password = wrk%TeacherID
-                        ! use first 16 characters only
-                        Password(17:) = SPACE
-                        lenP = len_trim(Password)
-                        call encrypt(passwordEncryptionKey, Password)
-                        wrk%Password = Password
 
                         if (trim(tAction)=='Add') then
                             NumTeachers = NumTeachers+1
@@ -741,7 +742,7 @@ contains
                 end if
 
                 header = trim(tAction)//' teacher'
-                call teacher_info(device, wrk, header, remark(3:), tAction)
+                call teacher_info(device, wrk, header, remark(3:), tAction, tdx)
 
                 if (isDirtyTEACHERS) call xml_write_teachers(pathToYear)
 
@@ -825,24 +826,31 @@ contains
         write(device,AFORMAT) '<br><br><br><br><table border="0" width="100%">', &
             begintr//'<td width="50%">Prepared by:<br><br><br><br><br><br>'// &
             trim(College(targetCollege)%Dean)// &
-            '<br>College Dean<br><br><br>'//endtd, &
+            '<br>College Dean, '//trim(College(targetCollege)%Code)//'<br><br><br>'//endtd, &
             '<td width="50%">Received by:<br><br><br><br><br><br>'// &
             trim(Teacher(targetTeacher)%Name)// &
             '<br>Faculty<br><br><br>'//endtd//endtr
-        write(device,AFORMAT) &
-            begintr//'<td width="50%">Recommending Approval:<br><br><br><br><br><br>'// &
-            trim(DeanOfCampus)// &
-            '<br>Dean of Campus<br><br><br>'//endtd, &
-            '<td width="50%">Recommending Approval:<br><br><br><br><br><br>'// &
-            trim(DeanOfInstruction)// &
-            '<br>Dean of Instruction<br><br><br>'//endtd//endtr
+        if (len_trim(DeanOfCampus)>0) then
+            write(device,AFORMAT) &
+                begintr//'<td width="50%">Recommending Approval:<br><br><br><br><br><br>'// &
+                trim(DeanOfCampus)// &
+                '<br>'//trim(titleDeanOfCampus)//'<br><br><br>'//endtd, &
+                '<td width="50%">Recommending Approval:<br><br><br><br><br><br>'// &
+                trim(DeanOfInstruction)// &
+                '<br>'//trim(titleDeanOfInstruction)//'<br><br><br>'//endtd//endtr
+        else
+            write(device,AFORMAT) &
+                begintr//'<td width="50%">Recommending Approval:<br><br><br><br><br><br>'// &
+                trim(DeanOfInstruction)// &
+                '<br>'//trim(titleDeanOfInstruction)//'<br><br><br>'//endtd//tdnbspendtd//endtr
+        end if
         write(device,AFORMAT) &
             begintr//'<td width="50%">Recommending Approval:<br><br><br><br><br><br>'// &
             trim(VPAcademicAffairs)// &
-            '<br>Vice President for Academic Affairs'//endtd, &
+            '<br>'//trim(titleVPAcademicAffairs)//endtd, &
             '<td width="50%">Approved by:<br><br><br><br><br><br>'// &
             trim(UniversityPresident)// &
-            '<br>President'//endtd//endtr
+            '<br>'//trim(titleUniversityPresident)//endtd//endtr
         write(device,AFORMAT) '</table>'
 
         return
@@ -1038,6 +1046,190 @@ contains
 
         return
     end subroutine class_hours_and_load
+
+
+    subroutine change_current_password(device)
+        integer, intent(in) :: device
+
+        character (len=MAX_LEN_PASSWD_VAR) :: t0Password, t1Password, t2Password
+        integer :: ierr
+        logical :: flagIsUp
+
+        flagIsUp = .false.
+        if (REQUEST==fnChangePassword) then
+            call cgi_get_named_string(QUERY_STRING, 'C', t0Password, ierr)
+            if ( len_trim(t0Password)>0 ) then
+                t0Password(17:) = SPACE
+                if (is_password(targetLogin,t0Password) ) then
+                    loginCheckMessage = 'Change current password.'
+                else
+                    loginCheckMessage = 'Current password is incorrect.'
+                    flagIsUp = .true.
+                end if
+            else
+                loginCheckMessage = ''
+                flagIsUp = .true.
+            end if
+        end if
+        if (.not. flagIsUp) then
+            call cgi_get_named_string(QUERY_STRING, 'P', t1Password, ierr)
+            call cgi_get_named_string(QUERY_STRING, 'R', t2Password, ierr)
+            if ( len_trim(t1Password)>0 .and. len_trim(t2Password)>0 ) then
+                if ( t1Password==t2Password ) then
+                    t1Password(17:) = SPACE
+                    if (is_password(targetLogin, t1Password) .or. &
+                            Teacher(targetLogin)%TeacherID==t2Password) then
+                        loginCheckMessage = 'New password is the same as the old password or username'
+                    else
+                        call set_password(Teacher(targetLogin)%Password, t1Password)
+                        call xml_write_teachers(pathToYear)
+                        call write_password_file(pathToYear)
+                        loginCheckMessage = 'Successfully changed password for '//USERNAME
+                        call html_college_links(device, CollegeIdxUser, mesg=loginCheckMessage)
+                        REQUEST = fnCollegeLinks
+                        return
+                    end if
+                else
+                    loginCheckMessage = 'New password and repeat do not match'
+                end if
+            else
+                loginCheckMessage = ''
+            end if
+        end if
+
+        write(device,AFORMAT) &
+            '<html><head><title>'//PROGNAME//VERSION//'</title></head><body>', &
+            '<h2>'//trim(UniversityCode)//nbsp//PROGNAME//' Password Service</h2>'
+        if (len_trim(loginCheckMessage)>0) write(device,AFORMAT) &
+            red//trim(loginCheckMessage)//black
+
+        write(device,AFORMAT) '<br>'//&
+            '<form name="input" method="post" action="'//trim(CGI_PATH)//'">', &
+            '<input type="hidden" name="F" value="'//trim(itoa(REQUEST))//'">', &
+            '<input type="hidden" name="N" value="'//trim(USERNAME)//'">', &
+            '<h3>Change password for '//trim(USERNAME)//'</h3>'
+        if (REQUEST==fnChangePassword) write(device,AFORMAT) &
+            '<b>Old password:</b><br>', &
+            '<input size="20" type="password" name="C" value="">', &
+            '<br><br>'
+        write(device,AFORMAT) &
+            '<b>New password:</b><br>', &
+            '<input size="20" type="password" name="P" value="">', &
+            '<br><br>', &
+            '<b>Repeat new password:</b><br>', &
+            '<input size="20" type="password" name="R" value="">', &
+            '<br><br>', &
+            '<input type="submit" value="Update"></form><hr>'
+
+        return
+    end subroutine change_current_password
+
+
+    subroutine regenerate_all_passwords()
+        integer :: i, k, tdx
+        character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
+
+        ! the teachers
+        do i=1,NumTeachers
+            call set_password(Teacher(i)%Password)
+            if (trim(Teacher(i)%TeacherID)/=trim(Department(Teacher(i)%DeptIdx)%Code)) then
+                Teacher(i)%Role = GUEST
+            else
+                Teacher(i)%Role = Department(Teacher(i)%DeptIdx)%Code
+            end if
+        end do
+        ! default scheduler roles
+        do k=2,NumDepartments
+            tTeacher = Department(k)%Code
+            tdx = index_to_teacher(tTeacher)
+            if (tdx>0) then ! found
+                i = tdx
+            else
+                i = NumTeachers+1
+                NumTeachers = i
+            end if
+            Teacher(i)%TeacherID = tTeacher
+            Teacher(i)%DeptIdx = NumDepartments
+            Teacher(i)%Role = tTeacher
+            Teacher(i)%Name = trim(tTeacher)//' Scheduler'
+            Teacher(i)%MaxLoad = 0
+            Teacher(i)%Specialization = 'Scheduling'
+            call set_password(Teacher(i)%Password)
+        end do
+        ! default adviser roles
+        done = .false.
+        do k=1,NumCurricula-1
+            if (done(k)) cycle
+            tTeacher = CurrProgCode(k)
+            tdx = index_to_teacher(tTeacher)
+            if (tdx>0) then ! found
+                i = tdx
+            else
+                i = NumTeachers+1
+                NumTeachers = i
+            end if
+            Teacher(i)%TeacherID = tTeacher
+            Teacher(i)%DeptIdx = NumDepartments
+            Teacher(i)%Role = tTeacher
+            Teacher(i)%Name = trim(tTeacher)//' Adviser'
+            Teacher(i)%MaxLoad = 0
+            Teacher(i)%Specialization = 'Advising'
+            call set_password(Teacher(i)%Password)
+
+            do i = k+1,NumCurricula
+                if (CurrProgCode(k)==CurrProgCode(i)) done(i) = .true.
+            end do
+        end do
+        ! the Guest account
+        tTeacher = GUEST
+        tdx = index_to_teacher(tTeacher)
+        if (tdx>0) then ! found
+            i = tdx
+        else
+            i = NumTeachers+1
+            NumTeachers = i
+        end if
+        Teacher(i)%TeacherID = GUEST
+        Teacher(i)%Name = 'Guest Account'
+        Teacher(i)%DeptIdx = NumDepartments
+        Teacher(i)%Role = GUEST
+        call set_password(Teacher(i)%Password, GUEST)
+
+        ! the HEEDS Administrator
+        tTeacher = PROGNAME
+        tdx = index_to_teacher(tTeacher)
+        if (tdx>0) then ! found
+            i = tdx
+        else
+            i = NumTeachers+1
+            NumTeachers = i
+        end if
+        Teacher(i)%TeacherID = tTeacher
+        Teacher(i)%DeptIdx = NumDepartments
+        Teacher(i)%Name = PROGNAME//' Administrator'
+        Teacher(i)%Role = REGISTRAR
+        call set_password(Teacher(i)%Password)
+
+        return
+    end subroutine regenerate_all_passwords
+
+
+    subroutine generate_password(device)
+        integer, intent(in) :: device
+        character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
+        integer :: tdx
+
+        ! which teacher ?
+        call cgi_get_named_string(QUERY_STRING, 'A1', tTeacher, tdx)
+        tdx = index_to_teacher(tTeacher)
+        call set_password(Teacher(tdx)%Password)
+        call xml_write_teachers(pathToYear)
+        call write_password_file(pathToYear)
+        call teacher_info(device, Teacher(tdx), 'Edit info for teacher '//tTeacher, &
+            SPACE, 'Update', tdx)
+
+        return
+    end subroutine generate_password
 
 
 end module EditTEACHERS

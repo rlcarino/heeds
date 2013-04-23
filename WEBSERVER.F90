@@ -30,6 +30,7 @@
 
 module WEBSERVER
 
+    use EditUNIVERSITY
     use EditSUBJECTS
     use EditROOMS
     use EditTEACHERS
@@ -44,6 +45,7 @@ module WEBSERVER
     implicit none
 
 contains
+
 
     subroutine server_start()
 
@@ -63,6 +65,10 @@ contains
         ! make "Stop!" page
         call hostnm(QUERY_put, iTmp)
         if (iTmp/=0) QUERY_put = 'localhost'
+#if defined GLNX
+#else
+        QUERY_put = trim(QUERY_put)//':82'
+#endif
         CGI_PATH = 'http://'//trim(QUERY_put)//FSLASH//trim(UniversityCode)//FSLASH//ACTION
         call html_login('Stop-'//trim(UniversityCode)//DASH//trim(ACTION)//'.html', &
             trim(make_href(fnStop, 'Stop', post=nbsp//trim(UniversityCode)//FSLASH//ACTION)))
@@ -212,15 +218,26 @@ contains
                     PROGNAME//FSLASH//trim(Action)//'. Please try again later.<hr>')
 
             case (fnStop)
+                if (isDirtySTUDENTS) then
+                    call xml_write_students(pathToYear, 0)
+                end if
+                if (isDirtyPreenlisted) then
+                    pathToTerm = trim(pathToYear)//trim(txtSemester(currentTerm))//DIRSEP
+                    call xml_write_pre_enlistment(pathToTerm, 'ENLISTMENT', Preenlisted, Section(currentTerm,0:))
+                endif
+
                 call html_landing_page(device, 'The program will stop.')
 
             case (fnLogin)
                 Teacher(targetLogin)%Status = 1
                 call html_college_links(device, CollegeIdxUser, mesg=loginCheckMessage)
 
-            case (fnChangeInitialPassword, fnChangePassword)
+            case (fnChangePassword)
                 Teacher(targetLogin)%Status = 1
                 call change_current_password(device)
+
+            case (fnGeneratePassword)
+                call generate_password(device)
 
             case (fnLogout)
                 Teacher(targetLogin)%Status = 0
@@ -242,6 +259,9 @@ contains
             case (fnToggleTrainingMode)
                 noWrites = .not. noWrites
                 call html_college_links(device, CollegeIdxUser, mesg='Toggled "Training" mode')
+
+            case (fnEditSignatories)
+                call edit_signatories(device)
 
             case (fnDownloadXML)
                 call download_xml(device)
@@ -335,7 +355,6 @@ contains
                     Offering(targetTerm,MAX_ALL_DUMMY_SUBJECTS:), &
                     NumBlocks(targetTerm), Block(targetTerm,0:) )
 
-
             ! schedule conflicts
             case (fnRoomConflicts)
                 call room_conflicts (device, NumSections(targetTerm), Section(targetTerm,0:))
@@ -353,12 +372,12 @@ contains
                 call teacher_schedule_printable(device, NumSections(targetTerm), Section(targetTerm,0:), &
                     NumBlocks(targetTerm), Block(targetTerm,0:) )
 
-            ! students
-            case (fnStudentAddPrompt)
-                call student_prompt_add(device)
-
-            case (fnStudentAdd)
-                call student_add(device)
+!            ! students
+!            case (fnStudentAddPrompt)
+!                call student_prompt_add(device)
+!
+!            case (fnStudentAdd)
+!                call student_add(device)
 
             case (fnStudentsDistribution)
                 call student_distribution(device)
@@ -460,7 +479,7 @@ contains
             '</select>'//endtd//endtr, & ! curriculum
             begintr//begintd//'Curriculum:'//endtd//begintd//'<select name="CurriculumIdx">', &
             '<option value=""> (select curriculum)'
-        do ldx=1,NumCurricula
+        do ldx=1,NumCurricula-1
             if (.not. Curriculum(ldx)%Active) cycle
             write(device,AFORMAT) '<option value="'//trim(Curriculum(ldx)%Code)//'"> '// &
                 trim(Curriculum(ldx)%Code)//' - '//trim(Curriculum(ldx)%Title)
@@ -531,168 +550,11 @@ contains
     end subroutine student_add
 
 
-    subroutine reset_passwords()
-        character (len=MAX_LEN_PASSWORD) :: Password
-        integer :: i, k, lenP
-
-        ! the teachers
-        do i=1,NumTeachers
-            Teacher(i)%Password = SPACE
-            Password = Teacher(i)%TeacherID
-            ! use first 16 characters only
-            Password(17:) = SPACE
-            lenP = len_trim(Password)
-            call encrypt(passwordEncryptionKey, Password)
-            Teacher(i)%Password = Password
-            if (trim(Teacher(i)%TeacherID)/=trim(Department(Teacher(i)%DeptIdx)%Code)) then
-                Teacher(i)%Role = GUEST
-            else
-                Teacher(i)%Role = Department(Teacher(i)%DeptIdx)%Code
-            end if
-        end do
-        ! create default scheduler roles
-        do k=2,NumDepartments
-            i = NumTeachers+k-1
-            Teacher(i)%TeacherID = Department(k)%Code
-            Teacher(i)%DeptIdx = NumDepartments
-            Teacher(i)%Role = Teacher(i)%TeacherID
-            Teacher(i)%Name = trim(Teacher(i)%TeacherID)//' Teaching Load Scheduler'
-            Teacher(i)%MaxLoad = 0
-            Teacher(i)%Specialization = 'Load scheduling'
-            Password = Teacher(i)%TeacherID
-            ! use first 16 characters only
-            Password(17:) = SPACE
-            lenP = len_trim(Password)
-            call encrypt(passwordEncryptionKey, Password)
-            Teacher(i)%Password = Password
-        end do
-        NumTeachers = NumDepartments + NumTeachers -1
-        ! create default adviser roles
-        done = .false.
-        do k=1,NumCurricula
-            if (done(k)) cycle
-            i = NumTeachers + 1
-            NumTeachers = i
-
-            Teacher(i)%TeacherID = CurrProgCode(k)
-            Teacher(i)%DeptIdx = NumDepartments
-            Teacher(i)%Role = Teacher(i)%TeacherID
-            Teacher(i)%Name = trim(Teacher(i)%TeacherID)//' Adviser'
-            Teacher(i)%MaxLoad = 0
-            Teacher(i)%Specialization = 'Student advising'
-            Password = Teacher(i)%TeacherID
-            ! use first 16 characters only
-            Password(17:) = SPACE
-            lenP = len_trim(Password)
-            call encrypt(passwordEncryptionKey, Password)
-            Teacher(i)%Password = Password
-
-            do i = k+1,NumCurricula
-                if (CurrProgCode(k)==CurrProgCode(i)) done(i) = .true.
-            end do
-        end do
-        ! the Guest account
-        i = NumTeachers + 1
-        NumTeachers = i
-        Teacher(i)%TeacherID = GUEST
-        Teacher(i)%Name = 'Guest Account'
-        Password = Teacher(i)%TeacherID
-        ! use first 16 characters only
-        Password(17:) = SPACE
-        lenP = len_trim(Password)
-        call encrypt(passwordEncryptionKey, Password)
-        Teacher(i)%Password = Password
-        Teacher(i)%Role = GUEST
-
-        ! update  TEACHERS.XML
-        call xml_write_teachers(pathToYear)
-
-        return
-    end subroutine reset_passwords
-
-
-    subroutine change_current_password(device)
-        integer, intent(in) :: device
-
-        character (len=MAX_LEN_PASSWORD) :: t0Password, t1Password, t2Password
-        integer :: ierr
-        logical :: flagIsUp
-
-        flagIsUp = .false.
-        if (REQUEST==fnChangePassword) then
-            call cgi_get_named_string(QUERY_STRING, 'C', t0Password, ierr)
-            if ( len_trim(t0Password)>0 ) then
-                t0Password(17:) = SPACE
-                call encrypt(passwordEncryptionKey, t0Password)
-                if (Teacher(targetLogin)%Password/=t0Password) then
-                    loginCheckMessage = 'Current password is incorrect.'
-                    flagIsUp = .true.
-                else
-                    loginCheckMessage = 'Change current password.'
-                end if
-            else
-                loginCheckMessage = ''
-                flagIsUp = .true.
-            end if
-        end if
-        if (.not. flagIsUp) then
-            call cgi_get_named_string(QUERY_STRING, 'P', t1Password, ierr)
-            call cgi_get_named_string(QUERY_STRING, 'R', t2Password, ierr)
-            if ( len_trim(t1Password)>0 .and. len_trim(t2Password)>0 ) then
-                if ( t1Password==t2Password ) then
-                    t1Password(17:) = SPACE
-                    call encrypt(passwordEncryptionKey, t1Password)
-                    if (Teacher(targetLogin)%Password/=t1Password .and. &
-                            Teacher(targetLogin)%TeacherID/=t2Password) then
-                        Teacher(targetLogin)%Password = t1Password
-                        call xml_write_teachers(pathToYear)
-                        loginCheckMessage = 'Successfully changed password for '//USERNAME
-                        call html_college_links(device, CollegeIdxUser, mesg=loginCheckMessage)
-                        return
-                    else
-                        loginCheckMessage = 'New password is the same as the old password or username'
-                    end if
-                else
-                    loginCheckMessage = 'New password and repeat do not match'
-                end if
-            else
-                loginCheckMessage = ''
-            end if
-        end if
-
-        write(device,AFORMAT) &
-            '<html><head><title>'//PROGNAME//VERSION//'</title></head><body>', &
-            '<h2>'//trim(UniversityCode)//nbsp//PROGNAME//' Password Service</h2>'
-        if (len_trim(loginCheckMessage)>0) write(device,AFORMAT) &
-            red//trim(loginCheckMessage)//black
-
-        write(device,AFORMAT) '<br>'//&
-            '<form name="input" method="post" action="'//trim(CGI_PATH)//'">', &
-            '<input type="hidden" name="F" value="'//trim(itoa(REQUEST))//'">', &
-            '<input type="hidden" name="N" value="'//trim(USERNAME)//'">', &
-            '<h3>Change password for '//trim(USERNAME)//'</h3><br>'
-        if (REQUEST==fnChangePassword) write(device,AFORMAT) &
-            '<b>Old password:</b><br>', &
-            '<input size="20" type="password" name="C" value="">', &
-            '<br><br>'
-        write(device,AFORMAT) &
-            '<b>New password:</b><br>', &
-            '<input size="20" type="password" name="P" value="">', &
-            '<br><br>', &
-            '<b>Repeat new password:</b><br>', &
-            '<input size="20" type="password" name="R" value="">', &
-            '<br><br>', &
-            '<input type="submit" value="Update"></form><hr>'
-
-        return
-    end subroutine change_current_password
-
-
     subroutine get_user_request()
 
         character (len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
         character (len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
-        character (len=MAX_LEN_PASSWORD) :: tPassword, cPassword
+        character (len=MAX_LEN_PASSWD_VAR) :: tPassword
         integer :: ierr
 
         isRoleAdmin = .false.
@@ -774,30 +636,18 @@ contains
             return
         end if
 
-        ! Return login page if password not provided
+        ! password provided ?
         call cgi_get_named_string(QUERY_STRING, 'P', tPassword, ierr)
-        if (ierr==-1) then
+        if (ierr==-1) then ! no password
             REQUEST = fnLogout
             loginCheckMessage = 'Username and/or Password not valid.'
-            return
-        end if
-
-        ! Return login page if password not correct for user
-        cPassword = tPassword
-        call encrypt(passwordEncryptionKey, cPassword)
-        if ( trim(Teacher(targetLogin)%Password)/=trim(cPassword) ) then
-            REQUEST = fnLogout
-            loginCheckMessage = 'Username and/or Password not valid.'
-            return
-        end if
-        ! password matched
-
-        ! password same as username?
-        if ( trim(USERNAME)/=trim(tPassword) ) then
-            loginCheckMessage = 'Successful login for '//USERNAME
-        else ! first time to login
-            REQUEST = fnChangeInitialPassword ! initial login; force change password
-            loginCheckMessage = 'Password not set.'
+        else ! password provided
+            if (is_password(targetLogin,tPassword) ) then ! password matched
+                loginCheckMessage = 'Successful login for '//USERNAME
+            else ! return login page
+                REQUEST = fnLogout
+                loginCheckMessage = 'Username and/or Password not valid.'
+            end if
         end if
 
         return
@@ -840,6 +690,121 @@ contains
 
         return
     end subroutine download_xml
+
+
+    subroutine execute_log()
+
+        integer :: unitREPLAY=990, errNo, eof
+        character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
+        character(len=MAX_LEN_FILE_PATH) :: logTeacher, fileName
+        logical :: logExists
+
+        ! disallow xml_write_*() for now
+        !noWrites = .true.
+
+        REMOTE_ADDR = SPACE
+        DOCUMENT_URI = SPACE
+
+        ! reset CGI_PATH
+        CGI_PATH = FSLASH//trim(UniversityCode)//FSLASH//ACTION
+
+        ! notes
+        call file_log_message(trim(fileExecutable)//' started '//ACTION//' execute_log()')
+        if (noWrites) then ! training mode
+            call file_log_message(trim(fileExecutable)//' is in training mode. '// &
+                'Any made changes will be lost after the program exits.')
+        end if
+
+        fileName = 'requests.log'
+        open(unit=unitREPLAY, file=fileName, form='formatted', status='old', iostat=errNo)
+        if (errNo/=0) return
+
+        ! loop until EOF/fnSTOP
+        do
+
+            read(unitREPLAY, AFORMAT, iostat=eof) QUERY_STRING
+            if (eof<0) exit
+            if (QUERY_STRING(1:1)=='#') cycle
+
+            ! timestamp of request
+            call date_and_time (date=currentDate, time=currentTime)
+
+            ! rewind the response file
+            rewind (unitHTML)
+
+            ! make copy of QUERY_STRING
+            cipher = QUERY_STRING
+
+            ! initialize index to target object of REQUEST
+            targetSubject = 0
+            targetSection = 0
+            targetDepartment = 0
+            targetCurriculum = 0
+            targetCollege = 0
+            targetRoom = 0
+            targetTeacher = 0
+            targetBlock = 0
+            targetTerm = 0
+            targetLogin = 0
+            targetStudent = 0
+
+            ! force everyone to be logged in
+            do eof=1,NumTeachers
+                Teacher(eof)%Status = 1
+            end do
+
+            ! Establish USERNAME/ROLE and REQUEST
+            loginCheckMessage = SPACE
+            call get_user_request()
+
+            ! override targetTerm if  is ENLISTMENT
+            if (currentTerm==nextTerm) targetTerm = currentTerm
+
+            ! open user's log file, create if necessary
+            call blank_to_underscore(USERNAME, tTeacher)
+            logTeacher = trim(dirLOG)//trim(tTeacher)//'.log'
+            inquire(file=trim(logTeacher), exist=logExists)
+            if (.not. logExists) then
+                open(unit=unitUSER, file=trim(logTeacher), status='new')
+            else
+                open(unit=unitUSER, file=trim(logTeacher), status='old', position='append')
+            end if
+
+            ! append query to user log file
+            write(unitUSER,AFORMAT) SPACE, &
+                REMOTE_ADDR//' : '//currentDate//DASH//currentTime//' : '// &
+                fnDescription(REQUEST)
+            if (REQUEST>4) then ! no passwords
+                write(unitUSER,AFORMAT) trim(cipher)
+                write(unitREQ, AFORMAT) trim(cipher)
+            end if
+#if defined PRODUCTION
+#else
+            write(unitHTML,AFORMAT) '<!-- '//trim(fnDescription(REQUEST))//' -->'
+#endif
+
+            ! compose response
+            call server_respond(unitHTML)
+
+!            ! send response to server
+!            call FCGI_putfile(unitHTML)
+
+            ! close user log file
+            close(unitUSER)
+
+            ! stop?
+            if (REQUEST==fnStop) exit
+
+        end do
+
+        close(unitREPLAY)
+
+        ! terminate
+        call terminate(trim(fileExecutable)//' completed '//ACTION)
+
+        return
+
+    end subroutine execute_log
 
 
 end module WEBSERVER

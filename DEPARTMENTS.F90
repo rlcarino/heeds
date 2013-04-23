@@ -131,15 +131,21 @@ contains
     end function index_to_dept
 
 
-    subroutine xml_write_departments(path)
+    subroutine xml_write_departments(path, dirOPT)
 
         character(len=*), intent(in) :: path
+        character(len=*), intent(in), optional :: dirOPT
         integer :: ldx
 
         ! training only?
         if (noWrites) return
 
-        fileName = trim(dirXML)//trim(path)//'DEPARTMENTS.XML'
+        if (present(dirOPT)) then
+            fileName = trim(dirOPT)//trim(path)//'DEPARTMENTS.XML'
+        else
+            fileName = trim(dirXML)//trim(path)//'DEPARTMENTS.XML'
+        endif
+
         call xml_open_file(unitXML, XML_ROOT_DEPARTMENTS, fileName, ldx)
         write(unitXML,AFORMAT) &
         '    <comment>', &

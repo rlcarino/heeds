@@ -81,7 +81,7 @@ contains
                     else if (is_grade_passing(gdx) ) then
                         UnitsPassed = UnitsPassed + tUnits
                         HoursPassed = HoursPassed + tHours
-                    else if (is_grade_passing(TCG(i)%ReExam,Period==2) ) then
+                    else if (is_grade_passing(TCG(i)%ReExam,advisingPeriod) ) then
                         UnitsPassed = UnitsPassed + tUnits
                         HoursPassed = HoursPassed + tHours
                     end if

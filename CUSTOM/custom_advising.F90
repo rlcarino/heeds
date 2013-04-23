@@ -78,7 +78,7 @@ subroutine advise_student (std, UseClasses, Offering, WaiverCOI, Advice, Missing
     CLExt = TYPE_CHECKLIST_EXTENSION (0, 0, 0, 0, 0.0, .false., .false., .false., &
     SPACE, SPACE, SPACE, SPACE, SPACE, SPACE, SPACE)
 
-    call get_scholastic_three_terms (prevTermYear, prevTermTerm, UnitsPaid, UnitsDropped, UnitsPassed, Standing)
+    call get_scholastic_three_terms (cTm1Year, cTm1, UnitsPaid, UnitsDropped, UnitsPassed, Standing)
 
     call analyze_checklist (std, UseClasses, Offering, WaiverCOI, Standing, &
         UnitsEarned, StdClassification, StdTerm, StdYear, MissingPOCW, &
@@ -606,7 +606,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                         if (TCG(l)%Code /= 2) cycle
                         if (TCG(l)%Subject == Substitution(j) .and. &
                         !is_grade_numeric_pass(TCG(l)%Grade) ) then
-                            is_grade_passing(TCG(l)%Grade,Period==2) &
+                            is_grade_passing(TCG(l)%Grade,advisingPeriod) &
                             .and. (.not. TCG(l)%Used) ) then
                             p(j-k) = l
                             gdx = TCG(l)%Grade
@@ -658,8 +658,8 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
         SpecifiedUnits(rank) = SpecifiedUnits(rank) + k
         ! units passed, conditional in curriculum; expected from REGD subjects
         if (CLExt(idx)%Grade==gdxREGD ) then
-            if (Period==2) then
-                UnitsExpected = UnitsExpected + k*Failrate(CheckList%SubjectIdx(idx),prevTermTerm)
+            if (advisingPeriod) then
+                UnitsExpected = UnitsExpected + k*Failrate(CheckList%SubjectIdx(idx),cTm1)
                 UnitsEarned = UnitsEarned + k ! optimistic units earned
             end if
         else if (is_grade_passing(CLExt(idx)%Grade) ) then
@@ -697,7 +697,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
         ! count towards units enrolled
         PERFUnitsEnrolled = PERFUnitsEnrolled + credit
         ! count towards units earned
-        if (is_grade_passing(gdx,Period==2)) then
+        if (is_grade_passing(gdx,advisingPeriod)) then
             PERFUnitsEarned = PERFUnitsEarned + credit
         else if (is_grade_conditional(gdx) .and. is_grade_passing(TCG(idx)%ReExam)) then
             PERFUnitsEarned = PERFUnitsEarned + credit
@@ -904,7 +904,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
     Slack = 0
     do idx=1,CheckList%NSubjects
         gdx = CLExt(idx)%Grade
-        if (gdx==0 .or. is_grade_failing(gdx) .or. (Period/=2 .and. gdx==gdxREGD) ) EarlyTime(idx) = 1
+        if (gdx==0 .or. is_grade_failing(gdx) .or. (.not. advisingPeriod .and. gdx==gdxREGD) ) EarlyTime(idx) = 1
     end do
     Latest = 0
     do ! loop while an EarlyTime() changed
@@ -998,7 +998,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
         CLExt(idx)%Disp_Units = ftoa(Subject(crse)%Units,1)
         if (.not. isRoleChair) then ! Adviser or REGISTRAR
             CLExt(idx)%Disp_Grade = txtGrade(pGrade(CLExt(idx)%Grade))
-        elseif (is_grade_passing(CLExt(idx)%Grade,Period==2)) then ! Dept. Chair
+        elseif (is_grade_passing(CLExt(idx)%Grade,advisingPeriod)) then ! Dept. Chair
             CLExt(idx)%Disp_Grade = 'PASS'
         else
             CLExt(idx)%Disp_Grade = txtGrade(pGrade(CLExt(idx)%Grade))
@@ -1018,8 +1018,8 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
             if (jdx>0) then ! a subject in the checklist
                 tSubject = Subject(CheckList%SubjectIdx(jdx))%Name
                 if (CLExt(jdx)%Grade==gdxREGD) then
-                    if (Period==2) then
-                        prob(j) = 1.0-Failrate(CheckList%SubjectIdx(jdx),prevTermTerm)
+                    if (advisingPeriod) then
+                        prob(j) = 1.0-Failrate(CheckList%SubjectIdx(jdx),cTm1)
                         tmpPreq(j) = 1
                     else
                         tmpPreq(j) = 0
@@ -1190,7 +1190,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                 do k=1,lenTCG
                     if (TCG(k)%Code /= 2) cycle
                     if (-TCG(k)%Subject == jdx-NumDummySubjects .and. &
-                        is_grade_passing(TCG(k)%Grade,Period==2) ) then
+                        is_grade_passing(TCG(k)%Grade,advisingPeriod) ) then
                         prob(j) = 1.0
                         tmpPreq(j) = 1
 #ifdef DBprereq
@@ -1233,8 +1233,8 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
 #endif
         ! problem with records?
         if (CLExt(idx)%Grade==gdxREGD) then
-            !write(token, '(f5.2)') 1.0-Failrate(crse,prevTermTerm)
-            if (Period/=2) CLExt(idx)%Disp_Grade = '(NG)'
+            !write(token, '(f5.2)') 1.0-Failrate(crse,cTm1)
+            if (.not. advisingPeriod) CLExt(idx)%Disp_Grade = '(NG)'
             CLExt(idx)%Disp_Remarks = SPACE
         else if (is_grade_passing(CLExt(idx)%Grade) ) then
             CLExt(idx)%Disp_Remarks = SPACE
@@ -1271,7 +1271,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
     !r = 0.0
     do idx=1,CheckList%NSubjects
         gdx = CLExt(idx)%Grade
-        if ( gdx==0 .or. is_grade_failing(gdx) .or. (gdx==gdxREGD .and. Period/=2) ) then ! no grade or failed
+        if ( gdx==0 .or. is_grade_failing(gdx) .or. (gdx==gdxREGD .and. .not. advisingPeriod) ) then ! no grade or failed
             if (CLExt(idx)%OKPreq .and. CheckList%SubjectIdx(idx) > 0) then ! named subject, not passed, prereq is satisfied
 
                 FlagIsUp = .true. ! by default, add to list of subjects with satisfied prereqs
@@ -1288,7 +1288,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
 #endif
                     kdx = index_of_subject_in_curriculum(CheckList, cdx)
                     if (kdx>0) then ! found in checklist; should be passed, or at least, prereq is satisfied
-                        if (is_grade_passing(CLExt(kdx)%Grade,Period==2)) then ! co-req is passed
+                        if (is_grade_passing(CLExt(kdx)%Grade,advisingPeriod)) then ! co-req is passed
 #ifdef DBcoreq
                             write(unitLOG,*) '  - which is a required subject already passed; ADD.'
 #endif
@@ -1324,7 +1324,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
 #endif
                         kdx = index_of_subject_in_curriculum(CheckList, cdx)
                         if (kdx>0) then ! found in checklist; should be passed, or at least, prereq is satisfied
-                            if (is_grade_passing(CLExt(kdx)%Grade,Period==2)) then ! conc. pre-req is passed
+                            if (is_grade_passing(CLExt(kdx)%Grade,advisingPeriod)) then ! conc. pre-req is passed
 #ifdef DBconcpreq
                                 write(unitLOG,*) '  - which is a required subject already passed; ADD.'
 #endif
@@ -1407,9 +1407,9 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
             do idx=1,CheckList%NSubjects
                 crse = CheckList%SubjectIdx(idx)
                 if (crse<=0) cycle ! subject not specified in PlanOfStudy
-                if (CLExt(idx)%Grade==gdxREGD .and. Period==2 .and. &
+                if (CLExt(idx)%Grade==gdxREGD .and. advisingPeriod .and. &
                     (is_offered(crse,nextTerm) .or. Offering(crse)%NSections>0)) then
-                    CLExt(idx)%Contrib = Failrate(crse,prevTermTerm) ! CHANGE THIS LATER TO CONDITIONAL PROBABILITY
+                    CLExt(idx)%Contrib = Failrate(crse,cTm1) ! CHANGE THIS LATER TO CONDITIONAL PROBABILITY
                     ! list as alternate; contribute failure rate to forecast
                     NCurrent = NCurrent + 1
                     CLExt(NPriority+NAlternates+NCurrent)%PriorityRank = idx
@@ -1938,11 +1938,11 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
     do idx=1,CheckList%NSubjects
         crse = CheckList%SubjectIdx(idx)
         if (crse<=0) cycle ! subject not specified in PlanOfStudy
-        if (CLExt(idx)%Grade==gdxREGD .and. Period==2 .and. &
+        if (CLExt(idx)%Grade==gdxREGD .and. advisingPeriod .and. &
             (is_offered(crse,nextTerm) .or. Offering(crse)%NSections>0)) then
             n = n+1
             p(n) = idx
-            prob(n) = Failrate(crse,prevTermTerm)
+            prob(n) = Failrate(crse,cTm1)
         !write(unitLOG,*) n, Subject(crse)%Name, prob(n)
         end if
     end do
@@ -1970,12 +1970,12 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
         idx = p(i)
         if (idx==0) cycle
         crse = CheckList%SubjectIdx(idx)
-        fCredit = Failrate(crse,prevTermTerm)*Subject(crse)%Units
-        !write(unitLOG,*) i, Subject(crse)%Name, Failrate(crse,prevTermTerm), fCredit
+        fCredit = Failrate(crse,cTm1)*Subject(crse)%Units
+        !write(unitLOG,*) i, Subject(crse)%Name, Failrate(crse,cTm1), fCredit
         !if (pLoad + fCredit < AllowedLoad + addnl) then
         if (pLoad < AllowedLoad + addnl) then
             ! list as alternate; contribute failure rate to forecast
-            CLExt(idx)%Contrib = Failrate(crse,prevTermTerm) ! CHANGE THIS LATER TO CONDITIONAL PROBABILITY
+            CLExt(idx)%Contrib = Failrate(crse,cTm1) ! CHANGE THIS LATER TO CONDITIONAL PROBABILITY
             NCurrent = NCurrent + 1
             CLExt(NPriority+NAlternates+NCurrent)%PriorityRank = idx
             pLoad = pLoad + fCredit
@@ -1996,9 +1996,9 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
                 if (FlagIsUp) then ! found co-requisite
                     !write(unitLOG,*) 'Adding current as alternate: '//Subject(crse)%Name//' and as co-requisite: ' &
                     !    //Subject(coreq)%Name
-                    fCredit = Failrate(coreq,prevTermTerm)*Subject(coreq)%Units
+                    fCredit = Failrate(coreq,cTm1)*Subject(coreq)%Units
                     ! list as alternate; contribute failure rate to forecast
-                    CLExt(kdx)%Contrib = Failrate(coreq,prevTermTerm) ! CHANGE THIS LATER TO CONDITIONAL PROBABILITY
+                    CLExt(kdx)%Contrib = Failrate(coreq,cTm1) ! CHANGE THIS LATER TO CONDITIONAL PROBABILITY
                     NCurrent = NCurrent + 1
                     CLExt(NPriority+NAlternates+NCurrent)%PriorityRank = kdx
                     pLoad = pLoad + fCredit
@@ -2022,9 +2022,9 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
             if (FlagIsUp) then ! found concpreq
                 !write(unitLOG,*) 'Adding current as alternate: '//Subject(CheckList%SubjectIdx(idx))%Name// &
                 !  ' and its concurrent pre-requisite: '//Subject(concpreq)%Name
-                fCredit = Failrate(concpreq,prevTermTerm)*Subject(concpreq)%Units
+                fCredit = Failrate(concpreq,cTm1)*Subject(concpreq)%Units
                 ! list as alternate; contribute failure rate to forecast
-                CLExt(kdx)%Contrib = Failrate(concpreq,prevTermTerm) ! CHANGE THIS LATER TO CONDITIONAL PROBABILITY
+                CLExt(kdx)%Contrib = Failrate(concpreq,cTm1) ! CHANGE THIS LATER TO CONDITIONAL PROBABILITY
                 NCurrent = NCurrent + 1
                 CLExt(NPriority+NAlternates+NCurrent)%PriorityRank = kdx
                 pLoad = pLoad + fCredit
@@ -2048,9 +2048,9 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
             if (FlagIsUp) then ! found crse
                 !write(unitLOG,*) 'Adding current as alternate: '//Subject(CheckList%SubjectIdx(idx))%Name// &
                 !  ' which is concurrent pre-requisite to: '//Subject(concpreq)%Name
-                fCredit = Failrate(crse,prevTermTerm)*Subject(crse)%Units
+                fCredit = Failrate(crse,cTm1)*Subject(crse)%Units
                 ! list as alternate; contribute failure rate to forecast
-                CLExt(kdx)%Contrib = Failrate(crse,prevTermTerm) ! CHANGE THIS LATER TO CONDITIONAL PROBABILITY
+                CLExt(kdx)%Contrib = Failrate(crse,cTm1) ! CHANGE THIS LATER TO CONDITIONAL PROBABILITY
                 NCurrent = NCurrent + 1
                 CLExt(NPriority+NAlternates+NCurrent)%PriorityRank = kdx
                 pLoad = pLoad + fCredit
@@ -2067,7 +2067,7 @@ subroutine analyze_checklist (std, UseClasses, Offering, WaiverCOI, stdScholasti
     !      crse = CheckList%SubjectIdx(idx)
     !      if (crse<=0) cycle ! subject not specified in PlanOfStudy
     !      if (CLExt(idx)%Grade==gdxREGD .and. (is_offered(crse,nextTerm) .or. Offering(crse)%NSections>0)) then
-    !        CLExt(idx)%Contrib = Failrate(crse,prevTermTerm) ! CHANGE THIS LATER TO CONDITIONAL PROBABILITY
+    !        CLExt(idx)%Contrib = Failrate(crse,cTm1) ! CHANGE THIS LATER TO CONDITIONAL PROBABILITY
     !        ! list as alternate; contribute failure rate to forecast
     !        NCurrent = NCurrent + 1
     !        CLExt(NPriority+NAlternates+NCurrent)%PriorityRank = idx
