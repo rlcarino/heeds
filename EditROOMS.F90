@@ -53,10 +53,7 @@ contains
         ! which dept ?
         call cgi_get_named_string(QUERY_STRING, 'A1', tDepartment, ierr)
 
-#if defined PRODUCTION
-#else
-        write(device,AFORMAT) '<!-- room_list_all('//trim(tDepartment)//') -->'
-#endif
+        call html_comment('room_list_all('//trim(tDepartment)//')')
 
         targetDepartment = index_to_dept(tDepartment)
         do rdx=1,NumRooms+NumAdditionalRooms
@@ -70,7 +67,13 @@ contains
         call html_write_header(device, mesg)
 
         if (n_count == 0) then
-            write(device,AFORMAT) '(None?)'
+            write(device,AFORMAT) '<table border="0">', &
+                begintr//begintd//'(None?)'//endtd//tdalignright
+            if (isRoleAdmin) then
+                write(device,AFORMAT) trim(make_href(fnEditRoom, 'Add room', &
+                    A1='TBA', pre='<small>('//nbsp, post=' )</small>', alt=SPACE))
+            end if
+            write(device,AFORMAT) endtd//endtr//'</table>'
         else
             ! sort rooms
             do tdx=1,n_count-1
@@ -83,7 +86,13 @@ contains
                 end do
             end do
 
-            write(device,AFORMAT) '<table border="0" width="75%">'//&
+            if (isRoleAdmin) then
+                write(device,AFORMAT) trim(make_href(fnEditRoom, 'Add room', &
+                    A1='TBA', pre='<small>('//nbsp, post=' )</small>', alt=SPACE))//'<br>'
+            end if
+
+            write(device,AFORMAT) '<i>Note: Number under Term links to classes in the room.</i><br>', &
+                '<table border="0" width="75%">'//&
                 begintr//thalignleft//'Code'//endth// &
                 thaligncenter//'Cluster'//endth, &
                 thaligncenter//'Capacity'//endth
@@ -125,7 +134,7 @@ contains
                 write(device,AFORMAT) begintr//begintd//trim(Room(rdx)%Code)
                 if (isRoleAdmin .or. (isRoleChair .and. Room(rdx)%DeptIdx==DeptIdxUser)) then
                     write(device,AFORMAT) trim(make_href(fnEditRoom, 'Edit', &
-                        A1=QUERY_put, pre=nbsp//'<small>', post='</small>'))
+                        A1=QUERY_put, pre=nbsp//'<small>', post='</small>', alt=SPACE))
                 end if
                 write(device,AFORMAT) &
                     endtd//tdaligncenter//trim(itoa(Room(rdx)%Cluster))//endtd// &
@@ -144,7 +153,7 @@ contains
         end if
         write(device,AFORMAT) '<hr>'
 
-        return
+
     end subroutine room_list_all
 
 
@@ -165,10 +174,7 @@ contains
         ! which college
         call cgi_get_named_string(QUERY_STRING, 'A1', tCollege, ierr)
 
-#if defined PRODUCTION
-#else
-        write(device,AFORMAT) '<!-- room_conflicts('//trim(tCollege)//') -->'
-#endif
+        call html_comment('room_conflicts('//trim(tCollege)//')')
 
         targetCollege = index_to_college(tCollege)
         do rdx=1,NumRooms+NumAdditionalRooms
@@ -241,7 +247,7 @@ contains
                 write(device,AFORMAT) begintr//begintd//trim(Room(rdx)%Code)
                 if (isRoleAdmin .or. (isRoleChair .and. Room(rdx)%DeptIdx==DeptIdxUser)) then
                     write(device,AFORMAT) trim(make_href(fnEditRoom, 'Edit', &
-                        A1=QUERY_put, pre=nbsp//'<small>', post='</small>'))
+                        A1=QUERY_put, pre=nbsp//'<small>', post='</small>', alt=SPACE))
                 end if
                 write(device,AFORMAT) &
                     endtd//tdaligncenter//trim(itoa(Room(rdx)%Cluster))//endtd// &
@@ -258,7 +264,7 @@ contains
         end if
         write(device,AFORMAT) '<hr>'
 
-        return
+
     end subroutine room_conflicts
 
 
@@ -277,10 +283,7 @@ contains
 
         call cgi_get_named_string(QUERY_STRING, 'A1', tRoom, ierr)
 
-#if defined PRODUCTION
-#else
-        write(device,AFORMAT) '<!-- room_schedule('//trim(tRoom)//') -->'
-#endif
+        call html_comment('room_schedule('//trim(tRoom)//')')
 
         targetRoom = index_to_room(tRoom)
         targetDepartment = Room(targetRoom)%DeptIdx
@@ -316,8 +319,10 @@ contains
 
         ! collect classes in room rdx
         call timetable_meetings_in_room(NumSections, Section, targetRoom, 0, tLen1, tArray, TimeTable, conflicted)
-        if (tLen1>0) call timetable_display(device, Section, TimeTable)
+
         call list_sections_to_edit(device, Section, tLen1, tArray, fnRoomSchedule, tRoom, 'Del', allowed_to_edit)
+
+        if (tLen1>0) call timetable_display(device, Section, TimeTable)
         write(device,AFORMAT) '<hr>'
 
         ! make list of TBA sections LoadSource that fit the schedule of room
@@ -375,7 +380,7 @@ contains
         end do
         write(device,AFORMAT) '</select>'//nbsp//'<input type="submit" value="Find classes"></form><hr>'
 
-        return
+
     end subroutine room_schedule
 
 
@@ -383,110 +388,146 @@ contains
         integer, intent(in) :: device
         character(len=MAX_LEN_ROOM_CODE) :: tRoom, tAction
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
-        integer :: ierr, rdx, i, j
+        integer :: ierr, rdx, j
         character (len=255) :: mesg, remark
         type (TYPE_ROOM) :: wrk
         logical :: isDirtyROOMS
 
         ! which subject ?
         call cgi_get_named_string(QUERY_STRING, 'A1', tRoom, rdx)
+        if (rdx/=0) tRoom = 'TBA'
 
-#if defined PRODUCTION
-#else
-        write(device,AFORMAT) '<!-- room_edit('//trim(tRoom)//') -->'
-#endif
+        call html_comment('room_edit('//trim(tRoom)//') ')
         rdx = index_to_room(tRoom)
-        wrk = Room(rdx) ! make a working copy
+        targetDepartment = Room(rdx)%DeptIdx
+        targetCollege = Department(targetDepartment)%CollegeIdx
 
-        ! check for other arguments
-        call cgi_get_named_string(QUERY_STRING, 'action', tAction, ierr)
-        !write(*,*) 'ierr=', ierr, ', action=', tAction
+        wrk = Room(rdx) ! make a working copy
         isDirtyROOMS = .false.
         remark = SPACE
+        mesg = SPACE
 
-        select case (trim(tAction))
+        ! check for requested action
+        call cgi_get_named_string(QUERY_STRING, 'action', tAction, ierr)
 
-            case ('Update')
+        if (ierr/=0 .or. tAction==SPACE) then ! no action; display existing info
 
-                call cgi_get_named_integer(QUERY_STRING, 'MaxCapacity', wrk%MaxCapacity, ierr)
-                !write(*,*) 'ierr=', ierr, ', MaxCapacity=', wrk%MaxCapacity
-                if (ierr/=0) wrk%MaxCapacity = Room(rdx)%MaxCapacity
+            if (trim(tRoom)=='TBA') then
+                mesg = 'Add new room'
+                tAction = 'Add'
+            else
+                mesg = 'Edit info for room '//tRoom
+                tAction = 'Update'
+            end if
 
-                call cgi_get_named_integer(QUERY_STRING, 'Cluster', wrk%Cluster, ierr)
-                !write(*,*) 'ierr=', ierr, ', Cluster=', wrk%Cluster
-                if (ierr/=0) wrk%Cluster = Room(rdx)%Cluster
+            call room_info(device, wrk, mesg, remark, tAction)
 
-                call cgi_get_named_string(QUERY_STRING, 'Code', mesg, ierr)
-                wrk%Code = trim(mesg)
-                !write(*,*) 'ierr=', ierr, ', Code=', wrk%Code
-                if (ierr/=0) wrk%Code = Room(rdx)%Code
+        else ! action is Add or Update; collect changes
 
-                call cgi_get_named_string(QUERY_STRING, 'Department', tDepartment, ierr)
-                wrk%DeptIdx = index_to_dept(tDepartment)
-                !write(*,*) 'ierr=', ierr, ', DeptIdx=', wrk%DeptIdx
-                if (ierr/=0 .or. wrk%DeptIdx<=0) wrk%DeptIdx = Room(rdx)%DeptIdx
 
-                if (wrk%Code /= Room(rdx)%Code) then
-                    isDirtyROOMS = .true.
-                    remark = trim(remark)//': Code changed to '//wrk%Code
-                end if
+            call cgi_get_named_integer(QUERY_STRING, 'MaxCapacity', wrk%MaxCapacity, ierr)
+            !write(*,*) 'ierr=', ierr, ', MaxCapacity=', wrk%MaxCapacity
+            if (ierr/=0) wrk%MaxCapacity = Room(rdx)%MaxCapacity
 
-                if (wrk%DeptIdx /= Room(rdx)%DeptIdx) then
-                    isDirtyROOMS = .true.
-                    remark = trim(remark)//': Department changed to '//Department(wrk%DeptIdx)%Code
-                end if
+            call cgi_get_named_integer(QUERY_STRING, 'Cluster', wrk%Cluster, ierr)
+            !write(*,*) 'ierr=', ierr, ', Cluster=', wrk%Cluster
+            if (ierr/=0) wrk%Cluster = Room(rdx)%Cluster
 
-                if ( wrk%MaxCapacity /= Room(rdx)%MaxCapacity) then
-                    isDirtyROOMS = .true.
-                    remark = trim(remark)//': Max seating capacity changed to '//itoa(wrk%MaxCapacity)
-                end if
+            call cgi_get_named_string(QUERY_STRING, 'Code', mesg, ierr)
+            wrk%Code = trim(mesg)
+            !write(*,*) 'ierr=', ierr, ', Code=', wrk%Code
+            if (ierr/=0) wrk%Code = Room(rdx)%Code
 
-                if ( wrk%Cluster /= Room(rdx)%Cluster) then
-                    isDirtyROOMS = .true.
-                    remark = trim(remark)//': Cluster changed to '//itoa(wrk%Cluster)
-                end if
+            call cgi_get_named_string(QUERY_STRING, 'Department', tDepartment, ierr)
+            wrk%DeptIdx = index_to_dept(tDepartment)
+            !write(*,*) 'ierr=', ierr, ', DeptIdx=', wrk%DeptIdx
+            if (ierr/=0 .or. wrk%DeptIdx<=0) wrk%DeptIdx = Room(rdx)%DeptIdx
 
-                if (isDirtyROOMS) then
-                    if ( wrk%Code /= Room(rdx)%Code) then
-                        ! add new subject?
-                        j = index_to_room(wrk%Code)
-                        if (j==0) then
+            if (wrk%Code /= Room(rdx)%Code) then
+                isDirtyROOMS = .true.
+                remark = trim(remark)//': Code changed to '//wrk%Code
+            end if
+
+            if (wrk%DeptIdx /= Room(rdx)%DeptIdx) then
+                isDirtyROOMS = .true.
+                remark = trim(remark)//': Department changed to '//Department(wrk%DeptIdx)%Code
+            end if
+
+            if ( wrk%MaxCapacity /= Room(rdx)%MaxCapacity) then
+                isDirtyROOMS = .true.
+                remark = trim(remark)//': Max seating capacity changed to '//itoa(wrk%MaxCapacity)
+            end if
+
+            if ( wrk%Cluster /= Room(rdx)%Cluster) then
+                isDirtyROOMS = .true.
+                remark = trim(remark)//': Cluster changed to '//itoa(wrk%Cluster)
+            end if
+
+            if (isDirtyROOMS) then ! some changes
+
+                if (wrk%Code /= Room(rdx)%Code) then  ! new code; check if room already exists
+
+                    j = index_to_room(wrk%Code)
+                    if (j==0) then ! not used
+
+                        if (trim(tAction)=='Add') then
                             NumAdditionalRooms = NumAdditionalRooms+1
                             Room(NumRooms+NumAdditionalRooms) = wrk
                             rdx = NumRooms+NumAdditionalRooms
                             tRoom = wrk%Code
                             remark = ': Added new room '//wrk%Code
                         else
-                            remark = ': Add new room failed; "'//trim(wrk%Code)//'" already exists.'
-                            isDirtyROOMS = .false.
+                            ! update existing
+                            Room(rdx) = wrk
                         end if
+
                     else
-                        ! update existing
-                        Room(rdx) = wrk
+
+                        remark = ': Add/edit room failed; "'//trim(wrk%Code)//'" already exists.'
+                        isDirtyROOMS = .false.
+
                     end if
+                else
+                    ! same code; update other fields
+                    Room(rdx) = wrk
                 end if
 
-            case default
-                    !write(*,*) 'Unknown action: '//tAction
+                if (isDirtyROOMS) call xml_write_rooms(pathToYear)
 
+            else ! Add or Update clicked, but no changes made
+                remark = ': No changes made?'
 
-        end select
+            end if
 
-        if (isDirtyROOMS) then
-            call xml_write_rooms(pathToYear)
-            call html_college_links(device, Department(wrk%DeptIdx)%CollegeIdx, trim(tRoom)//remark)
-            return
+            call html_college_links(device, Department(wrk%DeptIdx)%CollegeIdx, &
+                trim(tRoom)//remark)
+
         end if
 
-        targetDepartment = Room(rdx)%DeptIdx
+    end subroutine room_edit
 
-        call html_write_header(device, 'Edit room '//tRoom, remark(3:))
+
+    subroutine room_info(device, wrk, header, remark, tAction)
+        integer, intent(in) :: device
+        type (TYPE_ROOM), intent(in) :: wrk
+        character (len=*), intent(in)  :: header, remark, tAction
+        character(len=MAX_LEN_ROOM_CODE) :: tRoom
+        integer :: i, j
+
+        tRoom = wrk%Code
+        targetDepartment = wrk%DeptIdx
+        targetCollege = Department(targetDepartment)%CollegeIdx
+
+        call html_write_header(device, header, remark)
+
         call make_form_start(device, fnEditRoom, tRoom)
-        write(device,AFORMAT) '<table border="0" width="100%">', &
-        begintr//begintd//'Room code'//endtd//begintd//'<input name="Code" size="'//trim(itoa(MAX_LEN_ROOM_CODE))// &
-        '" value="'//trim(tRoom)//'"> (A new room will be created if this is changed)'//endtd//endtr
+
+        write(device,AFORMAT) '<table border="0" width="80%">', &
+            begintr//begintd//'Room code'//endtd//begintd//'<input name="Code" size="'//trim(itoa(MAX_LEN_ROOM_CODE))// &
+            '" value="'//trim(tRoom)//'">'//endtd//endtr
+
         write(device,AFORMAT) &
-        begintr//begintd//'Responsible department'//endtd//begintd//'<select name="Department">'
+            begintr//begintd//'Responsible department'//endtd//begintd//'<select name="Department">'
         do i=2,NumDepartments
             if (i/=targetDepartment) then
                 j=0
@@ -497,17 +538,18 @@ contains
             trim(Department(i)%Name)
         end do
         write(device,AFORMAT) '</select>'//endtd//endtr, &
-        begintr//begintd//'Maximum seating capacity'//endtd//begintd//'<input name="MaxCapacity" size="3" value="'// &
-        trim(itoa(Room(rdx)%MaxCapacity))//'">'//endtd//endtr, &
-        begintr//begintd//'Cluster'//endtd//begintd//'<input name="Cluster" size="3" value="'// &
-        trim(itoa(Room(rdx)%Cluster))//'">'//endtd//endtr
+            begintr//begintd//'Maximum seating capacity'//endtd//begintd//'<input name="MaxCapacity" size="3" value="'// &
+            trim(itoa(wrk%MaxCapacity))//'">'//endtd//endtr, &
+            begintr//begintd//'Cluster'//endtd//begintd//'<input name="Cluster" size="3" value="'// &
+            trim(itoa(wrk%Cluster))//'">'//endtd//endtr
 
-        write(device,AFORMAT) '</table><br>'//nbsp//'<input name="action" type="submit" value="Update"></form><pre>', &
-        'NOTE: Rooms that are located in buildings within walking distance of each other must belong to the same cluster.', &
-        '</pre><hr>'
+        write(device,AFORMAT) '</table><br>'//nbsp// &
+            '<input name="action" type="submit" value="'//trim(tAction)//'"></form><pre>', &
+            'NOTE: Rooms that are within walking distance of each other must belong to the same cluster.', &
+            '</pre><hr>'
 
-        return
-    end subroutine room_edit
+
+    end subroutine room_info
 
 
 end module EditROOMS

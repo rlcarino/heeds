@@ -71,7 +71,7 @@ contains
     subroutine initialize_section(S)
         type (TYPE_SECTION) :: S
         S = TYPE_SECTION (SPACE, SPACE, SPACE, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-        return
+
     end subroutine initialize_section
 
 
@@ -88,7 +88,7 @@ contains
             exit
         end do
         index_to_section = sdx
-        return
+
     end function index_to_section
 
 
@@ -99,7 +99,7 @@ contains
         ! returns true if sect is a lecture class (no DASH in section code)
         is_lecture_class = index(Section(sect)%Code,DASH)==0 .or. &
            Subject(Section(sect)%SubjectIdx)%Name(1:3)=='PE '
-        return
+
     end function is_lecture_class
 
 
@@ -133,7 +133,7 @@ contains
             line = 'TBA'
         end if
         text_days_of_section = line
-        return
+
     end function text_days_of_section
 
 
@@ -151,7 +151,7 @@ contains
             end do
         end do
         call initialize_section(Section(0))
-        return
+
     end subroutine offerings_sort
 
 
@@ -187,7 +187,7 @@ contains
                 end if
             end if
         end do
-        return
+
     end subroutine offerings_summarize
 
 
@@ -211,7 +211,7 @@ contains
             ScheduleCount(Term,dept) = max(atoi(Section(sect)%Code(2:)), ScheduleCount(Term,dept))
         end do
 #endif
-        return
+
     end subroutine count_sections_by_dept
 
 
@@ -221,14 +221,14 @@ contains
         integer, intent (in) :: DeptIdx
         integer :: sect
 
-        write(*,*) 'Removing classes in '//Department(DeptIdx)%Code
+        write(unitLOG,*) 'Removing classes in '//Department(DeptIdx)%Code
         do sect=1,NumSections
             if (Section(sect)%SubjectIdx==0) cycle
             if (DeptIdx==Section(sect)%DeptIdx) then
                 call initialize_section(Section(sect))
             end if
         end do
-        return
+
     end subroutine delete_sections_of_dept
 
 
@@ -250,13 +250,13 @@ contains
             if (present(dirOPT)) then
                 fileName = trim(dirOPT)//trim(path)//'CLASSES-'//trim(Department(iDept)%Code)//'.XML'
             else
-                fileName = trim(dirXML)//trim(path)//'CLASSES-'//trim(Department(iDept)%Code)//'.XML'
+                fileName = trim(dirDATA)//trim(path)//'CLASSES-'//trim(Department(iDept)%Code)//'.XML'
             endif
         else
             if (present(dirOPT)) then
                 fileName = trim(dirOPT)//trim(path)//'CLASSES.XML'
             else
-                fileName = trim(dirXML)//trim(path)//'CLASSES.XML'
+                fileName = trim(dirDATA)//trim(path)//'CLASSES.XML'
             endif
         end if
         call xml_open_file(unitXML, XML_ROOT_SECTIONS, fileName, sdx)
@@ -327,7 +327,7 @@ contains
 
         call xml_close_file(unitXML, XML_ROOT_SECTIONS)
 
-        return
+
     end subroutine xml_write_sections
 
 
@@ -339,19 +339,19 @@ contains
         type (TYPE_OFFERED_SUBJECTS), intent (in out), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS) :: Offering
         integer, intent (out) :: errNo
 
-        integer :: ddx, ierr, mainEntries, numUpdates, partialEntries, numEntries
+        integer :: ierr, mainEntries, numUpdates, numEntries !, ddx, partialEntries
         logical :: noXML
 
         errNo = 0 ! 0 is OK; there might be no classes entered yet
 
-        fileName = trim(dirXML)//trim(path)//'CLASSES.XML'
+        fileName = trim(dirDATA)//trim(path)//'CLASSES.XML'
         call xml_read_classes(fileName, NumSections, Section, ierr)
         noXML = NumSections==0
         mainEntries = NumSections
         numEntries = NumSections
 !        ! check for classes edited by departments
 !        do ddx=2,NumDepartments-1
-!            fileName = trim(dirXML)//UPDATES//trim(path)//'CLASSES-'//trim(Department(ddx)%Code)//'.XML'
+!            fileName = trim(dirDATA)//trim(path)//'CLASSES-'//trim(Department(ddx)%Code)//'.XML'
 !            call xml_read_classes(fileName, NumSections, Section, ierr)
 !            partialEntries = NumSections - numEntries
 !            numEntries = NumSections
@@ -362,7 +362,7 @@ contains
 !        end do
         numUpdates = NumSections - mainEntries
         if (NumSections==0) then ! try the custom format
-            fileName = trim(dirRAW)//trim(path)//'CLASSES'
+            fileName = trim(dirDATA)//trim(path)//'CLASSES'
             call custom_read_classes(fileName, NumSections, Section, ierr)
             numUpdates = 0
         end if
@@ -375,7 +375,7 @@ contains
         if ( (noXML .and. NumSections>0) .or. numUpdates>0 ) &
             call xml_write_sections(path, NumSections, Section, 0)
 
-        return
+
     end subroutine read_classes
 
 
@@ -492,7 +492,7 @@ contains
                             if (iidx>0) then
                                 ndays = ndays+1
                                 if (ndays>6) then
-                                    write(*,*) 'Too many days: '//trim(value)
+                                    write(unitLOG,*) 'Too many days: '//trim(value)
                                     ndays = 1 ! force to be TBA
                                     dayidx = 0
                                     btime = 0
@@ -576,7 +576,7 @@ contains
         call xml_close_file(unitXML)
         call file_log_message (itoa(NumSections)//' sections after reading '//fName)
 
-        return
+
     end subroutine xml_read_classes
 
 
@@ -599,7 +599,7 @@ contains
         end do
         is_regular_schedule = sameTime .and. sameRoom .and. sameTeacher
 
-        return
+
     end function is_regular_schedule
 
 

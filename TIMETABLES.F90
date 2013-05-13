@@ -57,7 +57,7 @@ contains
         TimeTable = 0
         TimeTable(59,1:6) = 60 ! earliest time
         TimeTable(60,1:6) = 1  ! latest time
-        return
+
     end subroutine timetable_clear
 
 
@@ -83,7 +83,7 @@ contains
                 end do
             end do loop_meets
         end if
-        return
+
     end function is_conflict_timetable_with_section
 
 
@@ -130,7 +130,7 @@ contains
         else if (sect<0) then
             write(unitLOG,*) 'Invalid section', sect, ' in timetable_add_section(); called from', loc
         end if
-        return
+
     end subroutine timetable_add_section
 
 
@@ -157,7 +157,7 @@ contains
                 end do
             end do loop_meets
         end if
-        return
+
     end function is_conflict_timetable_with_section_meetings
 
 
@@ -199,7 +199,7 @@ contains
                 TimeTable(60,jdx) = Section(sect)%eTimeIdx(mdx)
             end if
         end do
-        return
+
     end subroutine timetable_add_meetings_of_section
 
 
@@ -222,7 +222,7 @@ contains
                 end if
             end do
         end do loop_meets
-        return
+
     end function is_conflict_timetable_with_struct_section
 
 
@@ -258,7 +258,7 @@ contains
                 TimeTable(60,jdx) = Section%eTimeIdx(mdx)
             end if
         end do
-        return
+
     end subroutine timetable_add_struct_section
 
 
@@ -303,7 +303,7 @@ contains
                 TimeTable(60,jdx) = idx
             end do
         end if
-        return
+
     end subroutine timetable_remove_section
 
 
@@ -336,7 +336,7 @@ contains
             SectionHours = Subject(idx)%LabHours
         end if
         is_consistent_section_hours_with_subject_defn = 4.0*SectionHours==n15
-        return
+
     end function is_consistent_section_hours_with_subject_defn
 
 
@@ -371,7 +371,7 @@ contains
             end if
         end if
         is_conflict_free_section_hours = tDetermination
-        return
+
     end function is_conflict_free_section_hours
 
 
@@ -504,7 +504,7 @@ contains
                 if (.not. ignore) nconflicts = nconflicts + 1
             end if
         end do
-        return
+
     end subroutine sections_compound
 
 
@@ -522,7 +522,7 @@ contains
                 meetings(n_meetings) = i
             end if
         end do
-        return
+
     end subroutine meetings_of_section_by_teacher
 
 
@@ -540,7 +540,7 @@ contains
                 meetings(n_meetings) = i
             end if
         end do
-        return
+
     end subroutine meetings_of_section_in_room
 
 
@@ -553,6 +553,7 @@ contains
         logical, intent(out) :: conflicted
         integer :: n_meetings, meetings(MAX_SECTION_MEETINGS)
         integer :: idx, conflict_loc, sdx
+
         len_list = 0 ! initialize list
         call timetable_clear(TimeTable) ! initialize weekly schedule
         conflicted = .false.
@@ -579,7 +580,8 @@ contains
         list(len_list+1) = 0
         list(len_list+2) = 0
         list(len_list+3) = 0
-        return
+
+
     end subroutine timetable_meetings_of_teacher
 
 
@@ -618,7 +620,7 @@ contains
         list(len_list+1) = 0
         list(len_list+2) = 0
         list(len_list+3) = 0
-        return
+
     end subroutine timetable_meetings_in_room
 
 
@@ -772,7 +774,7 @@ contains
                 end if
             end do
         end do
-        return
+
     end subroutine timetable_undesirability
 
 end module TIMETABLES

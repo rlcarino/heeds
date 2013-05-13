@@ -64,7 +64,7 @@ module GRADES
         'LOA ',  'LOA.',  'Loa ',  'Loa.',  & ! 17, 42-45
         'REGD',                             & ! 18, 46
         'FAIL',  'Fail',                    & ! 19, 47-48
-        '****',                             & ! 20, 49
+        'NFE ',                             & ! 20, 49
         ('    ',  iTmp=1,100) /)
 
     ! pointer to grade
@@ -74,10 +74,10 @@ module GRADES
         (0, iTmp=21,ZERO_PERCENT_GRADE+100) /)
 
     ! shorcuts to certain grades
-    integer ::  &
+    integer, parameter ::  &
         gdx4    = 10, gdxINC  = 11, gdx5     = 12, gdxDRP = 13, &
         gdxS    = 14, gdxU    = 15, gdxPASS  = 16, gdxLOA = 17, &
-        gdxREGD = 18, gdxFAIL = 19, gdxRECOM = 20
+        gdxREGD = 18, gdxFAIL = 19, gdxNFE   = 20
 
     real, dimension(0:ZERO_PERCENT_GRADE+100) :: fGrade = (/  & ! float value for grades
         0.00,                   & ! error
@@ -115,8 +115,8 @@ contains
         end if
         is_grade_numeric_pass = GradeIdx>=(ZERO_PERCENT_GRADE+75) .or. &
             (GradeIdx>0 .and. GradeIdx<10) .or. &
-            GradeIdx==gdxPASS .or. (GradeIdx==18 .and. includeREGD)
-        return
+            GradeIdx==gdxPASS .or. (GradeIdx==gdxREGD .and. includeREGD)
+
     end function is_grade_numeric_pass
 
 
@@ -133,18 +133,18 @@ contains
         is_grade_passing = GradeIdx>=(ZERO_PERCENT_GRADE+75) .or. &
             GradeIdx==gdxS .or. &
             (GradeIdx>0 .and. GradeIdx<10) .or. &
-            GradeIdx==gdxPASS .or. (GradeIdx==18 .and. includeREGD)
-        return
+            GradeIdx==gdxPASS .or. (GradeIdx==gdxREGD .and. includeREGD)
+
     end function is_grade_passing
 
 
     function is_grade_failing(GradeIdx)
         logical :: is_grade_failing
         integer, intent (in) :: GradeIdx
-        is_grade_failing = GradeIdx==gdx5 .or. GradeIdx==gdxU .or. &
+        is_grade_failing = GradeIdx==gdx5 .or. GradeIdx==gdxU .or. GradeIdx==gdxNFE .or. &
             GradeIdx==gdxDRP .or. GradeIdx==gdxLOA .or. GradeIdx==gdxFAIL .or. &
             (GradeIdx>ZERO_PERCENT_GRADE .and. GradeIdx<(ZERO_PERCENT_GRADE+75))
-        return
+
     end function is_grade_failing
 
 
@@ -152,7 +152,7 @@ contains
         logical :: is_grade_conditional
         integer, intent (in) :: GradeIdx
         is_grade_conditional = GradeIdx==gdx4 .or. GradeIdx==gdxINC
-        return
+
     end function is_grade_conditional
 
 
@@ -165,7 +165,7 @@ contains
             Idx = Idx+ZERO_PERCENT_GRADE
         else
             Idx = -99
-            do i = 0, 19
+            do i = 0, 20
                 do j=pGrade(i), pGrade(i+1)-1
                     if (txtGrade(j)==Token) then
                         Idx = i
@@ -201,7 +201,7 @@ contains
             end if
         end if
         index_to_grade = Idx
-        return
+
     end function index_to_grade
 
 

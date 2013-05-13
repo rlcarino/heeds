@@ -270,7 +270,7 @@ contains
         end if
         write(device,AFORMAT) '<hr>'
 
-        return
+
     end subroutine student_distribution
 
 
@@ -304,7 +304,7 @@ contains
         call list_students(device, n_count, tArray, targetSubject, Preenlisted)
         write(device,AFORMAT) '<hr>'
 
-        return
+
     end subroutine enlistment_not_accommodated
 
 
@@ -527,23 +527,16 @@ contains
                         begintd//trim(Student(std)%Name)//endtd// &
                         begintd//trim(Curriculum(Student(std)%CurriculumIdx)%Code)//endtd//begintd
 
-                    if (fnAvailable(fnChangeMatriculation) ) then
-                        write(device,AFORMAT) trim(make_href(fnChangeMatriculation, 'schedule', &
-                            A1=Student(std)%StdNo, &
-                            pre=' [ ', post=' ]'))
-                    end if
-                    if (fnAvailable(fnEditCheckList) ) then
-                        write(device,AFORMAT) trim(make_href(fnEditCheckList, 'checklist', &
-                            A1=Student(std)%StdNo, &
-                            pre=' [ ', post=' ]'))
-                    end if
-                    if (fnAvailable(fnStudentPerformance) ) then
-                        write(device,AFORMAT) trim(make_href(fnStudentPerformance, 'performance', &
-                            A1=Student(std)%StdNo, &
-                            pre=' [ ', post=' ]'))
-                    end if
+                    write(device,AFORMAT) trim(make_href(fnChangeMatriculation, 'schedule', &
+                        A1=Student(std)%StdNo, &
+                        pre=' [ ', post=' ]', alt=SPACE))
 
-                    !end if
+                    write(device,AFORMAT) trim(make_href(fnEditCheckList, 'checklist', &
+                        A1=Student(std)%StdNo, &
+                        pre=' [ ', post=' ]', alt=SPACE))
+                    write(device,AFORMAT) trim(make_href(fnStudentPerformance, 'performance', &
+                        A1=Student(std)%StdNo, &
+                        pre=' [ ', post=' ]', alt=SPACE))
 
                     write(device,AFORMAT) endtd//endtr
                 end do
@@ -552,7 +545,7 @@ contains
 
         end select
 
-        return
+
     end subroutine enlistment_summarize
 
 

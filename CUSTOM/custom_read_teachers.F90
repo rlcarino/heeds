@@ -39,7 +39,7 @@ subroutine custom_read_teachers(path, errNo)
     character (len=1) :: ch
     type(TYPE_TEACHER) :: wrkTeacher
 
-    fileName = trim(dirRAW)//trim(path)//'TEACHERS.CSV'
+    fileName = trim(dirDATA)//trim(path)//'TEACHERS.CSV'
     open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
     if (errNo/=0) return
 
@@ -69,7 +69,7 @@ subroutine custom_read_teachers(path, errNo)
         j = 0
         do i=pos(4)+1,pos(5)-1
             ch = line(i:i)
-            if (index(SPECIAL,ch)>0 .or. ch==COMMA) cycle
+            if (index(SPECIAL,ch)>0) cycle
             !if ((ch>='A' .and. ch<='Z') .or. (ch>='a' .and. ch<='z') .or. ch==SPACE .or. ch==DASH) then
             j = j+1
             tTeacher(j:j) = ch

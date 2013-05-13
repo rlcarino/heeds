@@ -54,23 +54,7 @@ module CGI
      /)
 
     ! some HTML tokens
-    character(len=20), parameter :: Blue = '<font color=#0000FF>'
-    character(len=20), parameter :: Fuchsia = '<font color=#FF00FF>'
-    character(len=20), parameter :: Gray = '<font color=#808080>'
-    character(len=20), parameter :: Green = '<font color=#008000>'
-    character(len=20), parameter :: Lime = '<font color=#00FF00>'
-    character(len=20), parameter :: Maroon = '<font color=#800000>'
-    character(len=20), parameter :: Navy = '<font color=#000080>'
-    character(len=20), parameter :: Olive = '<font color=#808000>'
-    character(len=20), parameter :: Purple = '<font color=#800080>'
-    character(len=20), parameter :: Red = '<font color=#FF0000>'
-    character(len=20), parameter :: Silver = '<font color=#C0C0C0>'
-    character(len=20), parameter :: Teal = '<font color=#008080>'
-    character(len=20), parameter :: White = '<font color=#FFFFFF>'
-    character(len=20), parameter :: Yellow = '<font color=#FFFF00>'
-    character(len= 7), parameter :: black='</font>'
     character(len= 6), parameter :: nbsp='&nbsp;'
-
     character(len=19), parameter :: tdaligncenter= '<td align="center">', thaligncenter= '<th align="center">'
     character(len=18), parameter :: tdalignright= '<td align="right">', thalignright= '<th align="right">'
     character(len=17), parameter :: thalignleft= '<th align="left">'
@@ -180,7 +164,6 @@ contains
             idx_out = idx_out + 1 ! advance idx_out by 1
         end do
 
-        return
     end subroutine cgi_url_encode
 
 
@@ -222,13 +205,9 @@ contains
             idx_out = idx_out + 1
 
         end do
-#if defined PRODUCTION
-#else
-        write(unitHTML,AFORMAT) '<!-- cgi_url_decode('//trim(str_in)//' = '//trim(str_out)//' ) -->'
-#endif
 
+        call html_comment('cgi_url_decode() = '//str_out)
 
-        return
     end subroutine cgi_url_decode
 
 
@@ -267,15 +246,8 @@ contains
         string(i_start:) = cgi_wrk(j_end+1:) ! update string
         rvalue = cgi_wrk(:j_end-1)
 
-#if defined PRODUCTION
-#else
-        write(unitHTML,AFORMAT) '<!-- cgi_get_name_value('// &
-            trim(string)//', '//trim(lname)//' = '//trim(rvalue)//' ) -->'
-#endif
+        call html_comment('cgi_get_name_value() : '//lname//'='//rvalue)
 
-        !write(*,*) lname, '=', rvalue
-
-        return
     end subroutine cgi_get_name_value
 
 
@@ -296,7 +268,7 @@ contains
             call cgi_url_decode(tmp, rvalue) ! decode
         end if
 
-        return
+
     end subroutine cgi_get_named_string
 
 
@@ -315,7 +287,6 @@ contains
             rvalue = atoi(cgi_int) ! convert
         end if
 
-        return
     end subroutine cgi_get_named_integer
 
 
@@ -335,7 +306,6 @@ contains
             rvalue = atof(cgi_flt) ! convert
         end if
 
-        return
     end subroutine cgi_get_named_float
 
 
@@ -351,12 +321,6 @@ contains
         integer :: w_start, i_start, j_end, l_string, l_lname, l_wild
         character(len=MAX_CGI_WRK_LEN) :: tmp
 
-#if defined PRODUCTION
-#else
-        write(unitHTML,AFORMAT) '<!-- cgi_get_wild_name_value('// &
-            trim(string)//', '//trim(wild)//') -->'
-#endif
-
         ! default return values
         lname  = ' '
         rvalue = ' '
@@ -371,7 +335,7 @@ contains
         w_start = index(string, cgi_wrk(:l_wild))
         if (w_start==0) then ! not found
             ierr = -1
-            return
+
         end if
 
         ! yes; collect lname
@@ -396,7 +360,8 @@ contains
         tmp = cgi_wrk(:j_end-1)
         call cgi_url_decode(tmp, rvalue) ! decode
 
-        return
+        call html_comment('cgi_get_wild_name_value() : '//wild//lname//'= '//rvalue)
+
     end subroutine cgi_get_wild_name_value
 
 
@@ -416,25 +381,25 @@ contains
         ! write to the beginning of file unitNo
         rewind (unitNo)
 
-#if defined PRODUCTION
-#else
-        write(unitNo,AFORMAT) '<!-- FCGI_getquery() -->'
-#endif
+        call html_comment('FCGI_getquery()')
+
+        ! the remote IP
+        call get_environment_variable('REMOTE_ADDR', value=REMOTE_ADDR, length=iLen, status=i)
+
+        call html_comment('REMOTE_ADDR='//REMOTE_ADDR//SPACE//itoa(iLen)//itoa(i))
 
         ! QUERY_STRING (request method was GET) ?
         call get_environment_variable( "QUERY_STRING", value=QUERY_STRING, length=iLen )
+
         if ( iLen > 0 ) then
-#if defined PRODUCTION
-#else
-                write(unitNo, AFORMAT) '<!-- QUERY_STRING='//QUERY_STRING(:iLen)//' -->'
-#endif
+
+                call html_comment('QUERY_STRING='//QUERY_STRING(:iLen))
+
         else
             ! anything in CONTENT_LENGTH (request method was POST) ?
             call get_environment_variable( "CONTENT_LENGTH", value=cLen, length=iLen )
-#if defined PRODUCTION
-#else
-            write(unitNo, AFORMAT) '<!-- CONTENT_LENGTH='//trim(cLen)//' -->'
-#endif
+            call html_comment('CONTENT_LENGTH='//trim(cLen))
+
             if ( iLen > 0 ) then
                 read( cLen, * ) iLen
                 do i=1,iLen
@@ -442,19 +407,9 @@ contains
                     QUERY_STRING( i:i ) = ch
                 end do
                 QUERY_STRING( iLen+1: ) = ' '
-#if defined PRODUCTION
-#else
-                write(unitNo, AFORMAT) '<!-- CONTENT='//QUERY_STRING(:10)//'... -->'
-#endif
+                call html_comment('CONTENT='//trim(QUERY_STRING))
             end if
         endif
-
-        ! the remote IP
-        call get_environment_variable('REMOTE_ADDR', value=REMOTE_ADDR, length=iLen, status=i)
-#if defined PRODUCTION
-#else
-        write(unitNo, AFORMAT) '<!-- REMOTE_ADDR='//REMOTE_ADDR//SPACE//itoa(iLen)//itoa(i)//' -->'
-#endif
 
         ! the requested script ('/' if none)
         call get_environment_variable('DOCUMENT_URI', value=DOCUMENT_URI)
@@ -463,11 +418,8 @@ contains
             ! default is /
             DOCUMENT_URI = '/'
         endif
-#if defined PRODUCTION
-#else
-        iLen = len_trim(DOCUMENT_URI)
-        write(unitNo, AFORMAT) '<!-- DOCUMENT_URI='//DOCUMENT_URI(:iLen)//' -->'
-#endif
+
+        call html_comment('DOCUMENT_URI='//DOCUMENT_URI(:iLen))
 
         ! for other environment variables, see <nginx directory>/conf/fastcgi_params
 
@@ -481,10 +433,8 @@ contains
         integer, intent(in) :: unitNo
         integer :: iStat
 
-#if defined PRODUCTION
-#else
-        write(unitNo,AFORMAT) '<!-- FCGI_putfile() -->'
-#endif
+        call html_comment('FCGI_putfile()')
+
         ! flush any pending writes
         flush(unitNo)
 

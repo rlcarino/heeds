@@ -158,7 +158,7 @@ contains
         end if
         write(device,AFORMAT) '<hr>'
 
-        return
+
     end subroutine subject_list_all
 
 
@@ -400,8 +400,8 @@ contains
         j = index(tSubject,SPACE)
         if ( j<len_trim(tSubject) ) then
             write(device,AFORMAT) &
-            trim(make_href(fnSubjectList, tSubject(:j-1), A1=tSubject(:j-1), &
-            pre='<small><i>Edit another '//nbsp, post=' subject</i></small>'))
+                trim(make_href(fnSubjectList, tSubject(:j-1), A1=tSubject(:j-1), &
+                pre='<small><i>Edit another '//nbsp, post=' subject</i></small>', alt=SPACE))
         end if
 
         call make_form_start(device, fnEditSubject, tSubject)
@@ -501,7 +501,7 @@ contains
             '   8. OR+6+6, OR+6+7, OR+7+7, AND+7+7', &
             '</pre><hr>'
 
-        return
+
     end subroutine subject_edit
 
 

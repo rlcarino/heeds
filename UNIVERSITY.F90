@@ -95,7 +95,7 @@ contains
         ! write the UNIVERSITY file in XML?
         if (noXML) call xml_write_university(path)
 
-        return
+
     end subroutine read_university
 
 
@@ -105,7 +105,7 @@ contains
         integer, intent (out) :: errNo
 
         ! open file, return on any error
-        fileName = trim(dirXML)//trim(path)//'UNIVERSITY.XML'
+        fileName = trim(dirDATA)//trim(path)//'UNIVERSITY.XML'
         call xml_open_file(unitXML, XML_ROOT_UNIVERSITY, fileName, errNo, forReading)
         if (errNo/=0) return
 
@@ -156,7 +156,7 @@ contains
         call xml_close_file(unitXML)
         call file_log_message(trim(UniversityName)//' @ '//UniversityAddress)
 
-        return
+
     end subroutine xml_read_university
 
 
@@ -171,7 +171,7 @@ contains
         if (present(dirOPT)) then
             fileName = trim(dirOPT)//trim(path)//'UNIVERSITY.XML'
         else
-            fileName = trim(dirXML)//trim(path)//'UNIVERSITY.XML'
+            fileName = trim(dirDATA)//trim(path)//'UNIVERSITY.XML'
         endif
         call xml_open_file(unitXML, XML_ROOT_UNIVERSITY, fileName, eof)
 
@@ -193,7 +193,7 @@ contains
 
         call xml_close_file(unitXML, XML_ROOT_UNIVERSITY)
 
-        return
+
     end subroutine xml_write_university
 
 

@@ -88,7 +88,7 @@ contains
         write(device,AFORMAT) &
             '</table><br>'//nbsp//'<input name="action" type="submit" value="Update"></form><hr>'
 
-        return
+
     end subroutine display_signatories
 
 
@@ -198,7 +198,7 @@ contains
 
         call display_signatories(device)
 
-        return
+
     end subroutine edit_signatories
 
 

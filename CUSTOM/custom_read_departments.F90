@@ -38,7 +38,7 @@ subroutine custom_read_departments (path, errNo)
     character (len=MAX_LEN_COLLEGE_CODE) :: tCollege
     character (len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
 
-    fileName = trim(dirRAW)//trim(path)//'DEPARTMENTS.CSV'
+    fileName = trim(dirDATA)//trim(path)//'DEPARTMENTS.CSV'
     open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
     if (errNo/=0) return
 

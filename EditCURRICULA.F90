@@ -56,24 +56,17 @@ contains
                 targetCurriculum = index_to_curriculum(tCurriculum)
 
             case default
-                do ldx=1,NumCurricula
+                do ldx=1,NumCurricula-1
                     if (CurrProgCode(ldx) /= tCurriculum) cycle
                     targetCurriculum = ldx
                     exit
                 end do
-                do ldx=1,NumCurricula
+                do ldx=1,NumCurricula-1
                     if (CurrProgCode(ldx) /= tCurriculum) cycle
                     ncurr = ncurr + 1
                 end do
 
         end select
-
-        if (ierr/=0 .or. targetCurriculum<=0) then
-            write(device,AFORMAT) '<br>'//red//'Curriculum "'//tCurriculum//'" not found.'//black//'<br>'
-            targetCollege = CollegeIdxUser
-            return
-        end if
-
         targetCollege = Curriculum(targetCurriculum)%CollegeIdx
 
         ! if ony one curriculum, display the curriculum
@@ -105,7 +98,7 @@ contains
 
         ! collect curricula
         write(device,AFORMAT) '<ol>'
-        do ldx=1,NumCurricula
+        do ldx=1,NumCurricula-1
 
             if (CurrProgCode(ldx) /= tCurriculum) cycle
 
@@ -128,9 +121,9 @@ contains
 
             if (isRoleAdmin) then
                 write(device,AFORMAT) trim(make_href(fnAction, tAction, A1=Curriculum(ldx)%Code, &
-                    pre=nbsp//'<small>', post=nbsp))
+                    pre=nbsp//'<small>', post=nbsp, alt=SPACE))
                 write(device,AFORMAT) trim(make_href(fnEditCurriculum, 'Edit', A1=Curriculum(ldx)%Code, &
-                    pre=nbsp, post='</small>'))
+                    pre=nbsp, post='</small>', alt=SPACE))
             end if
 
             write(device,AFORMAT) '</li>'
@@ -138,7 +131,7 @@ contains
         end do
         write(device,AFORMAT) '</ol><hr>'
 
-        return
+
     end subroutine curriculum_list_all
 
 
@@ -181,12 +174,16 @@ contains
         write(device,AFORMAT) nbsp//'<i> '//tStatus//'</i>'//nbsp
         if (isRoleAdmin) then
             write(device,AFORMAT) trim(make_href(fnAction, tAction, A1=Curriculum(targetCurriculum)%Code, &
-                pre=nbsp//'<small>', post=nbsp))
+                pre=nbsp//'<small>', post=nbsp, alt=SPACE))
             write(device,AFORMAT) trim(make_href(fnEditCurriculum, 'Edit', A1=Curriculum(targetCurriculum)%Code, &
-                pre=nbsp, post='</small>'))
+                pre=nbsp, post='</small>', alt=SPACE))
         end if
 
-        write(device,AFORMAT) '<br><table border="1" width="100%">'
+        write(device,AFORMAT) '<br>Note: A '//red//'SUBJECT'//black//' in column <b><i>Prerequisite</i></b> ', &
+            ' indicates an inconsistency. '//red//'Said SUBJECT'//black// &
+            ' is not be present in the curriculum, or is not taken in a prior term, ', &
+            ' or the prerequisite expression should be "SUBJECT1 OR SUBJECT2" where either one is taken in a prior term.', &
+            '<br><table border="1" width="100%">'
         cumulative = 0
         do tdx=1,Curriculum(targetCurriculum)%NumTerms
 
@@ -239,7 +236,7 @@ contains
 
         write(device,AFORMAT) '</table><hr>'
 
-        return
+
     end subroutine curriculum_display
 
 
@@ -251,7 +248,7 @@ contains
         character(len=MAX_LEN_COLLEGE_CODE) :: tCollege
         character(len=10) :: tStatus ! (ACTIVE)/(INACTIVE)
 
-        character (len=255) :: mesg, remark
+        character (len=255) :: mesg, remark, tokenizeErr
         type (TYPE_CURRICULUM) :: wrk
         logical :: changed
         integer, dimension(MAX_SECTION_MEETINGS) :: subjectList
@@ -356,18 +353,17 @@ contains
                         cycle
                     end if
 
-                    call tokenize_subjects(mesg, COMMA, MAX_SECTION_MEETINGS, m, subjectList, ierr)
-                    if (ierr==0) then
-                        write(unitLOG,*) 'TOKENIZE TERM: ierr=',ierr, ('; '//trim(Subject(subjectList(i))%Name),i=1,m)
+                    call tokenize_subjects(mesg, COMMA, MAX_SECTION_MEETINGS, m, subjectList, ierr, tokenizeErr)
+                    if (len_trim(tokenizeErr)>0) remark = trim(remark)//' : '//tokenizeErr
+                    if (m>0) then
+                        write(unitLOG,*) 'TOKENIZE TERM: m=',m, ('; '//trim(Subject(subjectList(i))%Name),i=1,m)
                         do i=1,m
                             if (subjectList(i)==INDEX_TO_NONE) cycle
                             idx = wrk%NSubjects + i
                             wrk%SubjectIdx(idx) = subjectList(i)
                             wrk%SubjectTerm(idx) = tdx
-                            if (wrk%SubjectIdx(idx)/=Curriculum(targetCurriculum)%SubjectIdx(idx) .or. &
-                                wrk%SubjectTerm(idx)/=Curriculum(targetCurriculum)%SubjectTerm(idx)) then
+                            if (index_of_subject_in_curriculum (Curriculum(targetCurriculum), wrk%SubjectIdx(idx))==0) then
                                 j = j + 1
-                                write(unitLOG,*) j, ':', txtYear(Year), ', ', txtSemester(Term), ', ', Subject(subjectList(i))%Name
                             end if
                         end do
                         wrk%NSubjects = wrk%NSubjects + m
@@ -422,9 +418,12 @@ contains
                                 if (Substitution(k) == NumCurricula+1) Substitution(k) = NumCurricula+2
                             end do
 
+                            ! bump OTHER
                             Curriculum(NumCurricula+1) = Curriculum(NumCurricula)
+                            ! add new curriculum
                             Curriculum(NumCurricula) = wrk
                             targetCurriculum = NumCurricula
+
                             NumCurricula = NumCurricula+1
                             targetCollege = wrk%CollegeIdx
                             tCurriculum = wrk%Code
@@ -455,7 +454,7 @@ contains
         call html_write_header(device, 'Edit curriculum '//tCurriculum, remark(3:))
         write(device,AFORMAT) trim(make_href(fnCurriculumList, CurrProgCode(targetCurriculum), &
             A1=CurrProgCode(targetCurriculum), &
-            pre='<small>Edit other'//nbsp, post=' option</small><br>'))
+            pre='<small>Edit other'//nbsp, post=' option</small>', alt=SPACE))//'<br>'
 
         call make_form_start(device, fnEditCurriculum, tCurriculum)
         write(device,AFORMAT) '<table border="0" width="100%">', &
@@ -546,7 +545,7 @@ contains
             !'NOTE: Subjects for a term are specified by COMMA-separated subjects codes.', &
             '</pre><hr>'
 
-        return
+
     end subroutine curriculum_edit
 
 

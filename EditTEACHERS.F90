@@ -100,7 +100,7 @@ contains
                 begintr//begintd//'(None?)'//endtd//tdalignright
             if (isRoleAdmin) then
                 write(device,AFORMAT) trim(make_href(fnEditTeacher, 'Add teacher', &
-                    A1='Guest', pre='<small>('//nbsp, post=' )</small>'))
+                    A1='Guest', pre='<small>('//nbsp, post=' )</small>', alt=SPACE))
             end if
             write(device,AFORMAT) endtd//endtr//'</table>'
         else
@@ -116,11 +116,11 @@ contains
             end do
 
             write(device,AFORMAT) '<table border="0">', begintr//begintd// &
-                '<i>(Numbers per term are: No. of classes / Lect hrs / Lab hrs / Teaching load)</i>', &
+                '<i>(Numbers per term are: # classes / Lect hrs / Lab hrs)</i>', &
                 endtd//tdalignright
             if (isRoleAdmin) then
                 write(device,AFORMAT) trim(make_href(fnEditTeacher, 'Add teacher', &
-                    A1='Guest', pre='<small>('//nbsp, post=' )</small>'))
+                    A1='Guest', pre='<small>('//nbsp, post=' )</small>', alt=SPACE))
             end if
             write(device,AFORMAT) endtd//endtr//'</table>'
 
@@ -179,7 +179,7 @@ contains
 
                 if (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==Teacher(fac)%DeptIdx) ) then
                     write(device,AFORMAT) trim(make_href(fnEditTeacher, 'Edit', &
-                        A1=QUERY_put, pre=nbsp//'<small>', post='</small>'))
+                        A1=QUERY_put, pre=nbsp//'<small>( ', post=' )</small>', alt=SPACE))
                 end if
 
                 write(device,AFORMAT) endtd
@@ -188,10 +188,10 @@ contains
                 do term=termBegin,termEnd
                     call qualify_term (term, tYear, targetTerm, tDesc)
 
-                    write(stats,'(i2,3(a,f5.1))') &
+                    write(stats,'(i2,2(a,f5.1))') &
                         nsect(targetTerm), SPACE//FSLASH//SPACE, totalLect(targetTerm), SPACE//FSLASH//SPACE, &
-                        totalLab(targetTerm), SPACE//FSLASH//SPACE, totalUnits(targetTerm)
-                    write(device,AFORMAT) trim(make_href(fnTeacherSchedule, stats, &
+                        totalLab(targetTerm) ! , SPACE//FSLASH//SPACE, totalUnits(targetTerm)
+                    write(device,AFORMAT) trim(make_href(fnTeacherClasses, stats, &
                         A1=QUERY_put, pre=tdaligncenter//nbsp, post=nbsp//endtd))
 
                 end do
@@ -204,7 +204,7 @@ contains
         end if
         write(device,AFORMAT) '<hr>'
 
-        return
+
     end subroutine teacher_list_all
 
 
@@ -313,17 +313,17 @@ contains
                     ' ('//trim(Teacher(fac)%Specialization)//')'
                 if (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==Teacher(fac)%DeptIdx) ) then
                     write(device,AFORMAT) trim(make_href(fnEditTeacher, 'Edit', &
-                        A1=QUERY_put, pre=nbsp//'<small>', post='</small>'))
+                        A1=QUERY_put, pre=nbsp//'<small>', post='</small>', alt=SPACE))
                 end if
                 write(device,AFORMAT) endtd//tdaligncenter//trim(Teacher(fac)%Role)//endtd, &
-                    tdaligncenter//itoa(nsect)//trim(make_href(fnTeacherSchedule, 'Edit', &
-                    A1=QUERY_put, pre=' <small>', post='</small>'))
+                    tdaligncenter//itoa(nsect)//trim(make_href(fnTeacherEditSchedule, 'Edit', &
+                    A1=QUERY_put, pre=' <small>', post='</small>', alt=SPACE))
                 write(device,'(2(a,f5.1), a,f5.2,a)') endtd//tdaligncenter, totalLect, &
                     endtd//tdaligncenter, totalLab, &
                     endtd//tdaligncenter, totalUnits, &
                     '/'//trim(itoa(Teacher(fac)%MaxLoad))// &
                     trim(make_href(fnPrintableWorkload, 'Printable', &
-                    A1=QUERY_put, pre=nbsp//'<small>', post='</small>'))//endtd// &
+                    A1=QUERY_put, pre=nbsp//'<small>', post='</small>', alt=SPACE))//endtd// &
                     tdaligncenter//trim(mesg)//endtd//endtr
             end do
             write(device,AFORMAT) '</table>'
@@ -331,7 +331,7 @@ contains
         end if
         write(device,AFORMAT) '<hr>'
 
-        return
+
     end subroutine teacher_conflicts
 
 
@@ -351,12 +351,6 @@ contains
         ! which teacher?
         call cgi_get_named_string(QUERY_STRING, 'A1', tTeacher, ierr)
         targetTeacher = index_to_teacher(tTeacher)
-        if (ierr/=0 .or. targetTeacher==0) then
-            targetCollege = CollegeIdxUser
-            targetDepartment = DeptIdxUser
-            call html_write_header(device, 'Teacher schedule', '<br><hr>Teacher "'//tTeacher//'" not found')
-            return
-        end if
         targetDepartment = Teacher(targetTeacher)%DeptIdx
         targetCollege = Department(targetDepartment)%CollegeIdx
         allowed_to_edit = isRoleAdmin .or. (isRoleChair .and. targetDepartment==DeptIdxUser)
@@ -387,15 +381,13 @@ contains
             end if
         end if
 
-        call html_write_header(device, make_href(fnPrintableWorkload, 'printable', &
-            A1=tTeacher, pre='Teaching schedule of '//trim(Teacher(targetTeacher)%Name)//' (', &
-            post=')'), mesg)
+        call html_write_header(device, 'Teaching schedule of '//trim(Teacher(targetTeacher)%Name), mesg)
 
         ! collect meetings of teacher targetTeacher
         call timetable_meetings_of_teacher(NumSections, Section, targetTeacher, 0, tLen1, tArray, TimeTable, conflicted)
         !write(*, '(3i6)') (tArray(mdx), mdx=1,tLen1)
         !if (conflicted) write(*,*) 'Conflict in schedule '//trim(Teacher(targetTeacher)%Name)
-        call list_sections_to_edit(device, Section, tLen1, tArray, fnTeacherSchedule, tTeacher, 'Del', allowed_to_edit)
+        call list_sections_to_edit(device, Section, tLen1, tArray, fnTeacherEditSchedule, tTeacher, 'Del', allowed_to_edit)
         !write(*, '(3i6)') (tArray(mdx), mdx=1,tLen1)
         if (tLen1>0) call timetable_display(device, Section, TimeTable)
 
@@ -436,14 +428,14 @@ contains
         tArray(tLen1+tLen2+2) = 0
         tArray(tLen1+tLen2+3) = 0
         if (tLen2>0) then
-            call list_sections_to_edit(device, Section, tLen2, tArray(tLen1+1), fnTeacherSchedule, tTeacher, 'Add', &
+            call list_sections_to_edit(device, Section, tLen2, tArray(tLen1+1), fnTeacherEditSchedule, tTeacher, 'Add', &
             allowed_to_edit, &
             '<b>Classes with TBA teachers in '//trim(Department(LoadFromDept)%Code)// &
             ' that fit the schedule of '//trim(Teacher(targetTeacher)%Name)//'</b>')
         end if
 
         ! search for feasible classes in another department?
-        call make_form_start(device, fnTeacherSchedule, tTeacher)
+        call make_form_start(device, fnTeacherEditSchedule, tTeacher)
 
         write(device,AFORMAT) '<br>Search for feasible classes in : <select name="A4">'
         do mdx=2,NumDepartments
@@ -456,7 +448,7 @@ contains
             trim(Department(mdx)%Code)//DASH//trim(Department(mdx)%Name)
         end do
         write(device,AFORMAT) '</select>'//nbsp//'<input type="submit" value="Find classes"></form><hr>'
-        return
+
     end subroutine teacher_schedule
 
 
@@ -578,7 +570,7 @@ contains
         write(device,AFORMAT) &
             '</table><br>'//nbsp//'<input name="action" type="submit" value="'//trim(tAction)//'"></form><hr>'
 
-        return
+
     end subroutine teacher_info
 
 
@@ -601,6 +593,10 @@ contains
         if (tdx/=0 .or. tTeacher==SPACE) tTeacher = 'Guest'
         tdx = index_to_teacher(tTeacher)
         wrk = Teacher(tdx)
+
+        targetTeacher = tdx
+        targetDepartment = Teacher(targetTeacher)%DeptIdx
+        targetCollege = Department(targetDepartment)%CollegeIdx
 
         ! check for requested action
         call cgi_get_named_string(QUERY_STRING, 'action', tAction, ierr)
@@ -741,7 +737,11 @@ contains
                     Teacher(tdx) = wrk
                 end if
 
-                header = trim(tAction)//' teacher'
+                if (trim(tAction)=='Add') then
+                    header = 'Add new teacher'
+                else
+                    header = 'Edit info for teacher '//tTeacher
+                end if
                 call teacher_info(device, wrk, header, remark(3:), tAction, tdx)
 
                 if (isDirtyTEACHERS) call xml_write_teachers(pathToYear)
@@ -754,7 +754,7 @@ contains
 
         end if
 
-        return
+
     end subroutine teacher_edit
 
 
@@ -772,12 +772,6 @@ contains
         ! which teacher?
         call cgi_get_named_string(QUERY_STRING, 'A1', tTeacher, ierr)
         targetTeacher = index_to_teacher(tTeacher)
-        if (ierr/=0 .or. targetTeacher==0) then
-            targetCollege = CollegeIdxUser
-            targetDepartment = DeptIdxUser
-            call html_write_header(device, 'Teacher schedule', '<br><hr>Teacher "'//tTeacher//'" not found')
-            return
-        end if
 
         ! collect meetings of teacher targetTeacher
         call timetable_meetings_of_teacher(NumSections, Section, targetTeacher, 0, tLen1, tArray, TimeTable, conflicted)
@@ -853,7 +847,7 @@ contains
             '<br>'//trim(titleUniversityPresident)//endtd//endtr
         write(device,AFORMAT) '</table>'
 
-        return
+
     end subroutine teacher_schedule_printable
 
 
@@ -985,7 +979,7 @@ contains
 
         write(device,AFORMAT) '</table>'
 
-        return
+
     end subroutine teacher_workload
 
 
@@ -1044,7 +1038,7 @@ contains
             end if
         end if
 
-        return
+
     end subroutine class_hours_and_load
 
 
@@ -1121,7 +1115,7 @@ contains
             '<br><br>', &
             '<input type="submit" value="Update"></form><hr>'
 
-        return
+
     end subroutine change_current_password
 
 
@@ -1176,7 +1170,7 @@ contains
             Teacher(i)%Specialization = 'Advising'
             call set_password(Teacher(i)%Password)
 
-            do i = k+1,NumCurricula
+            do i = k+1,NumCurricula-1
                 if (CurrProgCode(k)==CurrProgCode(i)) done(i) = .true.
             end do
         end do
@@ -1210,7 +1204,7 @@ contains
         Teacher(i)%Role = REGISTRAR
         call set_password(Teacher(i)%Password)
 
-        return
+
     end subroutine regenerate_all_passwords
 
 
@@ -1228,7 +1222,7 @@ contains
         call teacher_info(device, Teacher(tdx), 'Edit info for teacher '//tTeacher, &
             SPACE, 'Update', tdx)
 
-        return
+
     end subroutine generate_password
 
 

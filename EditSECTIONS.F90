@@ -98,7 +98,7 @@ contains
             end do
             if (skip) cycle ! done with this teacher
             teacher_count = teacher_count+1
-            write(device,AFORMAT) trim(make_href(fnTeacherSchedule, Teacher(tdx)%Name, &
+            write(device,AFORMAT) trim(make_href(fnTeacherEditSchedule, Teacher(tdx)%Name, &
                 A1=Teacher(tdx)%TeacherID, &
                 pre=begintr//begintd, &
                 post=endtd//begintd//'['//trim(itoa(ncol))//']'))
@@ -111,7 +111,7 @@ contains
             begintr//'<td colspan="2"><i>(No teachers available during specified times, or time not specified)</i>'//endtd//endtr
         write(device,AFORMAT) '</table>'
 
-        return
+
     end subroutine teacher_search_given_time
 
 
@@ -190,7 +190,7 @@ contains
             begintr//'<td colspan="2"><i>(No rooms available during specified times, or time not specified)</i>'//endtd//endtr
         write(device,AFORMAT) '</table>'
 
-        return
+
     end subroutine room_search_given_time
 
 
@@ -211,7 +211,9 @@ contains
         character (len=MAX_LEN_SUBJECT_CODE) :: tSubject, tSeats, searchString
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
         character(len=MAX_LEN_COLLEGE_CODE) :: tCollege
-        logical :: isLecture, okToAdd
+        character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
+        logical :: isLecture, okToAdd, conflicted, isUserTeacher
+        integer, dimension(60,6) :: TimeTable
 
         targetDepartment = DeptIdxUser
         targetCollege = CollegeIdxUser
@@ -255,6 +257,14 @@ contains
                 tDepartment = tCollege
                 targetDepartment = index_to_dept(tDepartment)
 #endif
+
+            case (fnTeacherClasses)
+                call cgi_get_named_string(QUERY_STRING, 'A1', tTeacher, i)
+                targetTeacher = index_to_teacher(tTeacher)
+                targetDepartment = Teacher(targetTeacher)%DeptIdx
+                targetCollege = Department(targetDepartment)%CollegeIdx
+                header = 'Classes of '//Teacher(targetTeacher)%Name
+
         end select
 
         if (present(mesg)) then
@@ -298,6 +308,13 @@ contains
                         okToAdd = i>0
                     end if
 
+                case (fnTeacherClasses)
+                        i = 0
+                        do ncol=1,Section(sdx)%NMeets
+                            if (Section(sdx)%TeacherIdx(ncol)==targetTeacher) i = i+1
+                        end do
+                        okToAdd = i>0
+
             end select
 
             if (okToAdd) then
@@ -307,7 +324,12 @@ contains
 
         end do ! sdx=1,NumSections
         if (nsections==0) then
-            write(device,AFORMAT) '<br>(None)<hr>'
+            if (fn==fnTeacherClasses) then
+                write(device,AFORMAT) trim(make_href(fnTeacherEditSchedule, 'Add', &
+                    A1=tTeacher, pre='<br>( ', post=' )<hr>'))
+            else
+                write(device,AFORMAT) '<br>( None )<hr>'
+            end if
             return
         end if
 
@@ -336,30 +358,33 @@ contains
         end do
         !write(*,*) nopen, ' subjects'
 
-        ! write shortcut to subjects
-        write(device,AFORMAT) '<table border="0" width="100%">'
-        ncol = 0
-        do idx=1,nopen
-            tSubject = Subject(tArray(nsections+idx))%Name
-            i = index(tSubject, DASH)
-            if (tSubject(1:3) /= 'PE ' .and. i > 0) cycle
-            ncol = ncol + 1
-            if (ncol == 1) then
-                write(device,AFORMAT) begintr//begintd//'<a href="#'//trim(tSubject)//'">'//trim(tSubject)//'</a>'//endtd
-            else if (ncol == maxcol) then
-                write(device,AFORMAT) begintd//'<a href="#'//trim(tSubject)//'">'//trim(tSubject)//'</a>'//endtd//endtr
-                ncol = 0
-            else
-                write(device,AFORMAT) begintd//'<a href="#'//trim(tSubject)//'">'//trim(tSubject)//'</a>'//endtd
-            end if
-        end do
-        if (ncol /= 0)  then
-            do i=ncol+1,maxcol
-                write(device,AFORMAT) tdnbspendtd
+        if (fn/=fnTeacherClasses) then
+            ! write shortcut to subjects
+            write(device,AFORMAT) '<table border="0" width="100%">'
+            ncol = 0
+            do idx=1,nopen
+                tSubject = Subject(tArray(nsections+idx))%Name
+                i = index(tSubject, DASH)
+                if (tSubject(1:3) /= 'PE ' .and. i > 0) cycle
+                ncol = ncol + 1
+                if (ncol == 1) then
+                    write(device,AFORMAT) begintr//begintd//'<a href="#'//trim(tSubject)//'">'//trim(tSubject)//'</a>'//endtd
+                else if (ncol == maxcol) then
+                    write(device,AFORMAT) begintd//'<a href="#'//trim(tSubject)//'">'//trim(tSubject)//'</a>'//endtd//endtr
+                    ncol = 0
+                else
+                    write(device,AFORMAT) begintd//'<a href="#'//trim(tSubject)//'">'//trim(tSubject)//'</a>'//endtd
+                end if
             end do
-            write(device,AFORMAT) endtr
+            if (ncol /= 0)  then
+                do i=ncol+1,maxcol
+                    write(device,AFORMAT) tdnbspendtd
+                end do
+                write(device,AFORMAT) endtr
+            end if
+            write(device,AFORMAT) '</table>'
         end if
-        write(device,AFORMAT) '</table>'
+
 
         nclosed = 0
         ! make list of closed subjects here, starting at tArray(nsections+nopen+1)
@@ -380,22 +405,25 @@ contains
         end do
 #endif
 
-        ! offer to open sections
-        if (fnAvailable(fnScheduleOfferSubject) .and. &
-                nclosed>0 .and. (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==targetDepartment))) then
-            call make_form_start(device, fnScheduleOfferSubject, A2=Department(targetDepartment)%Code)
-            write(device,AFORMAT) &
-                '<table border="0" width="100%">'//begintr//'<td colspan="'//trim(itoa(maxcol))//'" align="right">', &
-                'Open a section in <select name="A1"> <option value=""> (select subject)'
-            do idx=1,nclosed
-                tSubject = Subject(tArray(nsections+nopen+idx))%Name
-                write(device,AFORMAT) '<option value="'//trim(tSubject)//'"> '//tSubject
-            end do
-            write(device,AFORMAT) '</select> '//nbsp//nbsp//' <input type="submit" value="Submit">'// &
-            endtd//endtr//'</table></form>'
+        if (fn/=fnTeacherClasses) then
+            ! offer to open sections
+            if (fnAvailable(fnScheduleOfferSubject) .and. &
+                    nclosed>0 .and. (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==targetDepartment))) then
+                call make_form_start(device, fnScheduleOfferSubject, A2=Department(targetDepartment)%Code)
+                write(device,AFORMAT) &
+                    '<table border="0" width="100%">'//begintr//'<td colspan="'//trim(itoa(maxcol))//'" align="right">', &
+                    'Open a section in <select name="A1"> <option value=""> (select subject)'
+                do idx=1,nclosed
+                    tSubject = Subject(tArray(nsections+nopen+idx))%Name
+                    write(device,AFORMAT) '<option value="'//trim(tSubject)//'"> '//tSubject
+                end do
+                write(device,AFORMAT) '</select> '//nbsp//nbsp//' <input type="submit" value="Submit">'// &
+                endtd//endtr//'</table></form>'
+            end if
+            write(device,AFORMAT) '<hr><br>'
         end if
 
-        write(device,AFORMAT) '<hr><br>', &
+        write(device,AFORMAT) &
             '<i>Note: If the hyperlinks are active, the section code links to the gradesheet,', &
             ' the block name links to the block schedule, and the no. of seats links to the classlist. ', &
             ' Deleting a lecture section automatically deletes the associated laboratory or recitation sections. ', &
@@ -442,7 +470,7 @@ contains
             write(device,AFORMAT) '('//trim(text_term_offered_separated(Subject(cdx)%TermOffered))//')'
             if (isRoleAdmin) then
                 write(device,AFORMAT) trim(make_href(fnEditSubject, 'Edit', A1=Subject(cdx)%Name, &
-                    pre=nbsp//'<small>[ ', post=' ]</small>'))
+                    pre=nbsp//'<small>[ ', post=' ]</small>', alt=SPACE))
             end if
             write(device,AFORMAT) endtd//endtr, &
                 begintr//tdnbspendtd//'<td colspan="7">'//nbsp//'Pr. '//trim(text_prerequisite_of_subject(cdx,0))//endtd
@@ -454,7 +482,7 @@ contains
             okToAdd = isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==targetDepartment)
 #endif
 
-            if (fnAvailable(fnScheduleOfferSubject) .and. okToAdd) then
+            if (fn/=fnTeacherClasses .and. okToAdd) then
                 write(device,AFORMAT) begintd//'<small>', &
                     trim(make_href(fnScheduleOfferSubject, 'Add '//tDepartment, &
                     A1=QUERY_put, A2=Department(targetDepartment)%Code, &
@@ -467,6 +495,12 @@ contains
             do jdx=1,nsections
                 sdx = tArray(jdx)
                 if (Section(sdx)%SubjectIdx/=cdx) cycle
+
+                ! does USER teach the section?
+                isUserTeacher = .false.
+                do i=1,Section(sdx)%NMeets
+                    if (Section(sdx)%TeacherIdx(i)==targetLogin) isUserTeacher = .true.
+                end do
 
                 owner_dept = Section(sdx)%DeptIdx
                 owner_coll = Department(owner_dept)%CollegeIdx
@@ -483,8 +517,8 @@ contains
                 write(device,AFORMAT) begintr//tdnbspendtd
 
                 ! section code, link to gradesheet entry form
-                if (fnAvailable(fnGradeSheet) .and. &
-                    (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==owner_dept))) then
+                if ( (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==owner_dept) .or. &
+                     isUserTeacher) ) then
                     write(device,AFORMAT) trim(make_href(fnGradeSheet, trim(Section(sdx)%Code), &
                         A1=QUERY_PUT, pre=begintd, post=endtd))
                 else
@@ -497,12 +531,8 @@ contains
                 write(device,AFORMAT) endtd
 
                 ! seats, link to classlist
-                if (fnAvailable(fnClassList)) then
-                    write(device,AFORMAT) trim(make_href(fnClassList, tSeats, &
-                        A1=QUERY_PUT, pre=begintd, post=endtd))
-                else
-                    write(device,AFORMAT) begintd//trim(tSeats)//endtd
-                end if
+                write(device,AFORMAT) trim(make_href(fnClassList, tSeats, &
+                    A1=QUERY_PUT, pre=begintd, post=endtd))
 
                 ! time, day, room, teacher
                 if (is_regular_schedule(sdx, Section)) then
@@ -512,12 +542,22 @@ contains
                         begintd//trim(text_days_of_section(sdx, NumSections, Section))//endtd// &
                         begintd//trim(text_time_period(Section(sdx)%bTimeIdx(1), Section(sdx)%eTimeIdx(1)))//endtd
                     if (rdx/=0) then
-                        write(device,AFORMAT) begintd//trim(Room(rdx)%Code)//endtd
+                        if (fn==fnRoomSchedule) then
+                            write(device,AFORMAT) begintd//trim(Room(rdx)%Code)//endtd
+                        else
+                            write(device,AFORMAT) trim(make_href(fnRoomSchedule, Room(rdx)%Code, &
+                                A1=Room(rdx)%Code, pre=begintd, post=endtd))
+                        end if
                     else
                         write(device,AFORMAT) begintd//red//trim(Room(rdx)%Code)//black//endtd
                     end if
                     if (tdx/=0) then
-                        write(device,AFORMAT) begintd//trim(Teacher(tdx)%Name)//endtd
+                        if (fn==fnTeacherClasses) then
+                            write(device,AFORMAT) begintd//trim(Teacher(tdx)%Name)//endtd
+                        else
+                            write(device,AFORMAT) trim(make_href(fnTeacherClasses, Teacher(tdx)%Name, &
+                                A1=Teacher(tdx)%TeacherID, pre=begintd, post=endtd))
+                        end if
                     else
                         write(device,AFORMAT) begintd//red//trim(Teacher(tdx)%Name)//black//endtd
                     end if
@@ -531,12 +571,22 @@ contains
                             begintd//txtDay(Section(sdx)%DayIdx(ncol))//endtd// &
                             begintd//trim(text_time_period(Section(sdx)%bTimeIdx(ncol), Section(sdx)%eTimeIdx(ncol)))//endtd
                         if (rdx/=0) then
-                            write(device,AFORMAT) begintd//trim(Room(rdx)%Code)//endtd
+                            if (fn==fnRoomSchedule) then
+                                write(device,AFORMAT) begintd//trim(Room(rdx)%Code)//endtd
+                            else
+                                write(device,AFORMAT) trim(make_href(fnRoomSchedule, Room(rdx)%Code, &
+                                    A1=Room(rdx)%Code, pre=begintd))
+                            end if
                         else
                             write(device,AFORMAT) begintd//red//trim(Room(rdx)%Code)//black//endtd
                         end if
                         if (tdx/=0) then
-                            write(device,AFORMAT) begintd//trim(Teacher(tdx)%Name)
+                            if (fn==fnTeacherClasses) then
+                                write(device,AFORMAT) begintd//trim(Teacher(tdx)%Name)
+                            else
+                                write(device,AFORMAT) trim(make_href(fnTeacherClasses, Teacher(tdx)%Name, &
+                                    A1=Teacher(tdx)%TeacherID, pre=begintd))
+                            end if
                         else
                             write(device,AFORMAT) begintd//red//trim(Teacher(tdx)%Name)//black
                         end if
@@ -550,8 +600,7 @@ contains
 
                 end if
                 write(device,AFORMAT) begintd//'<small>'
-                if (fnAvailable(fnScheduleEdit) .and. &
-                        isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==owner_dept)) then
+                if (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==owner_dept)) then
                     write(device,AFORMAT) trim(make_href(fnScheduleEdit, ' Edit', &
                         A1=QUERY_put))
                     write(device,AFORMAT) trim(make_href(fnScheduleDelete, ' Del', &
@@ -579,9 +628,14 @@ contains
             end do
 
         end do
-        write(device,AFORMAT) '</table><hr>'
+        write(device,AFORMAT) '</table><br>'
+        if (fn==fnTeacherClasses) then
+            call timetable_meetings_of_teacher(NumSections, Section, targetTeacher, 0, nsections, tArray, TimeTable, conflicted)
+            if (nsections>0) call timetable_display(device, Section, TimeTable)
+        end if
+        write(device,AFORMAT) '<hr>'
 
-        return
+
     end subroutine section_list_all
 
 
@@ -652,7 +706,7 @@ contains
         call section_list_all (device, NumSections, Section, Offering, NumBlocks, Block,  &
             fnScheduleOfClasses, dept, 'Opened a section in '//tSubject)
 
-        return
+
     end subroutine section_offer_subject
 
 
@@ -697,7 +751,7 @@ contains
         call section_list_all (device, NumSections, Section, Offering, NumBlocks, Block,  &
             fnScheduleOfClasses, dept, 'Opened new section '//trim(Subject(crse)%Name)//' '//tSection)
 
-        return
+
     end subroutine section_add_laboratory
 
 
@@ -760,7 +814,7 @@ contains
         call section_list_all (device, NumSections, Section, Offering, NumBlocks, Block,  &
             fnScheduleOfClasses, dept, trim(mesg))
 
-        return
+
     end subroutine section_delete
 
 
@@ -785,7 +839,7 @@ contains
         call section_validation_form(device, NumSections, Section, NumBlocks, Block,  &
             1, sect, Section(sect), targetDepartment, targetDepartment)
 
-        return
+
     end subroutine section_edit
 
 
@@ -924,7 +978,7 @@ contains
         write(device,AFORMAT) '</table>', &
             '<br><i>If you made a change above,</i> &nbsp; <input type="submit" name="action" value="Validate">', &
             '</form><hr>'
-        return
+
     end subroutine section_write_edit_form
 
 
@@ -985,7 +1039,7 @@ contains
         !  trim(Room(tSection%RoomIdx(idx))%Code)//SPACE, &
         !  trim(Teacher(tSection%TeacherIdx(idx))%TeacherID), idx=1,idx_meet)
 
-        return
+
     end subroutine section_build_from_query
 
 
@@ -1053,7 +1107,7 @@ contains
         call html_write_header(device, 'Proposed changes to section '//tClassId)
         call section_validation_form(device, NumSections, Section, NumBlocks, Block,  &
             action_index, sect, wrk, teacher_dept, room_dept)
-        return
+
     end subroutine section_validate_inputs
 
 
@@ -1168,7 +1222,12 @@ contains
         write(device,AFORMAT) &
             '<input type="hidden" name="code" value="'//trim(wrk%Code)//'">'// &
             '<input type="hidden" name="slots" value="'//trim(itoa(wrk%Slots))//'">'
+        tLen = 0
         do idx=1,wrk%NMeets
+            tArray(tLen+1) = sect
+            tArray(tLen+2) = idx
+            tArray(tLen+3) = 0
+            tLen = tLen+3
             write(device,AFORMAT) &
                 '<input type="hidden" name="day'//trim(itoa(idx))//'" value="'//trim(itoa(wrk%DayIdx(idx)))//'">', &
                 '<input type="hidden" name="btime'//trim(itoa(idx))//'" value="'//trim(itoa(wrk%bTimeIdx(idx)))//'">', &
@@ -1176,11 +1235,14 @@ contains
                 '<input type="hidden" name="room'//trim(itoa(idx))//'" value="'//trim(Room(wrk%RoomIdx(idx))%Code)//'">', &
             '<input type="hidden" name="teacher'//trim(itoa(idx))//'" value="'//trim(Teacher(wrk%teacherIdx(idx))%TeacherID)//'">'
         end do
+        tArray(tLen+1) = 0
+        tArray(tLen+2) = 0
+        tArray(tLen+3) = 0
 
         if (ierr==0 .and. REQUEST==fnScheduleValidate) then ! nothing wrong?
-            write(device,AFORMAT) '<table border="0" width="100%">'//begintr// &
-                tdalignright//'<input type="submit" name="action" value="Confirm"> <i>changes.</i>', &
-                endtd//endtr//'</table><hr>'
+            call list_sections_to_edit(device, Section, tLen, tArray, 0, SPACE, SPACE, .false.)
+            write(device,AFORMAT) '<i>No fatal error in section.</i> '// &
+                '<input type="submit" name="action" value="Confirm"><hr>'
         end if
 
         if (conflict_room .or. action_index==3) then ! tAction=='Find rooms') then
@@ -1372,7 +1434,7 @@ contains
 
         write(device,AFORMAT) '</form>'
 
-        return
+
     end subroutine section_validation_form
 
 

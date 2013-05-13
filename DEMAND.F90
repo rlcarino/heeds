@@ -68,7 +68,7 @@ contains
 
         else ! extract from QUERY_STRING
             ! INTAKE
-            do idxCURR=1,NumCurricula-1
+            do idxCURR=1,NumCurricula
                 call cgi_get_named_integer(QUERY_STRING, trim(Curriculum(idxCURR)%Code), nstd, ierr)
                 if (ierr==0) then
                     write(*,*) Curriculum(idxCURR)%Code, nstd, ierr
@@ -105,7 +105,7 @@ contains
         call html_write_header(device, 'Demand for subjects by New Freshmen entering ')
 
         ! count demand for 1st sem subjects of each specified curriculum
-        do idxCURR=1,NumCurricula-1
+        do idxCURR=1,NumCurricula
             if (NFintake(idxCURR)==0) cycle
             do j=1,Curriculum(idxCURR)%NSubjects
                 if (Curriculum(idxCURR)%SubjectTerm(j) /= 1) cycle
@@ -115,7 +115,7 @@ contains
         end do
         ! enable edit
         call make_form_start(device, fnUpdateDemandFreshmen, tCollege)
-        do idxCURR=1,NumCurricula-1
+        do idxCURR=1,NumCurricula
             if (NFintake(idxCURR)/=0) then
                 write(device,AFORMAT) '<input type="hidden" name="'//trim(Curriculum(idxCURR)%Code)// &
                 '" value="'//trim(itoa(NFintake(idxCURR)))//'">'
@@ -124,7 +124,7 @@ contains
         write(device,AFORMAT) &
         '<i>Change count for <select name="curriculum">', &
         '<option value="select"> -Select curriculum-'
-        do idxCURR=1,NumCurricula-1
+        do idxCURR=1,NumCurricula
             if ( (Curriculum(idxCURR)%CollegeIdx==CollegeIdxUser .or. isRoleAdmin) .and. &
             Curriculum(idxCURR)%NSubjects/=0) then
                 write(device,AFORMAT) &
@@ -143,7 +143,7 @@ contains
         !'<td align="center" valign="bottom"><p>E<br>X<br>C<br>E<br>S<br>S</p>'//endtd//&
         !'<td align="center" valign="bottom"><p>A<br>V<br>A<br>I<br>L</p>'//endtd//&
         '<td align="center" valign="bottom"><p>D<br>E<br>M<br>A<br>N<br>D</p>'//endtd
-        do idxCURR=1,NumCurricula-1
+        do idxCURR=1,NumCurricula
             if (NFintake(idxCURR)==0) cycle
             tCurriculum = Curriculum(idxCURR)%Code
             l = len_trim(tCurriculum)
@@ -153,7 +153,7 @@ contains
         end do
         ! approximate blocks
         write(device,AFORMAT) endtr//begintr//'<td width="8%">BLOCKS'//endtd//tdnbspendtd
-        do idxCURR=1,NumCurricula-1
+        do idxCURR=1,NumCurricula
             if (NFintake(idxCURR)==0) cycle
             write(device,AFORMAT) tdalignright//trim(itoa((1+NFintake(idxCURR))/25))//endtd
         end do
@@ -165,7 +165,7 @@ contains
             !'tdalignright//trim(itoabz(-Offering(crse)%Demand+Offering(crse)%TotalSlots))//endtd, &
             !'tdalignright//trim(itoabz(Offering(crse)%TotalSlots))//endtd, &
             tdalignright//trim(itoabz(Offering(crse)%Demand))//endtd
-            do idxCURR=1,NumCurricula-1
+            do idxCURR=1,NumCurricula
                 if (NFintake(idxCURR)==0) cycle
                 j =  index_of_subject_in_curriculum (Curriculum(idxCURR), crse)
                 if (j==0) then ! crse not in curriculum
@@ -182,7 +182,7 @@ contains
         end do
         write(device,AFORMAT) '</table><hr>'
 
-        return
+
     end subroutine demand_by_new_freshmen
 
 

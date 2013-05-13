@@ -69,12 +69,12 @@ contains
 #else
         QUERY_put = trim(QUERY_put)//':82'
 #endif
-        CGI_PATH = 'http://'//trim(QUERY_put)//FSLASH//trim(UniversityCode)//FSLASH//ACTION
+        CGI_PATH = 'http://'//trim(QUERY_put)//FSLASH//ACTION
         call html_login('Stop-'//trim(UniversityCode)//DASH//trim(ACTION)//'.html', &
-            trim(make_href(fnStop, 'Stop', post=nbsp//trim(UniversityCode)//FSLASH//ACTION)))
+            trim(make_href(fnStop, 'Stop', post=nbsp//ACTION) ) )
 
         ! reset CGI_PATH
-        CGI_PATH = FSLASH//trim(UniversityCode)//FSLASH//ACTION
+        CGI_PATH = FSLASH//ACTION
 
         ! notes
         call file_log_message(trim(fileExecutable)//' started '//ACTION)
@@ -137,7 +137,7 @@ contains
 
             ! open user's log file, create if necessary
             call blank_to_underscore(USERNAME, tTeacher)
-            logTeacher = trim(dirLOG)//trim(tTeacher)//'.log'
+            logTeacher = trim(dirBACKUP)//trim(tTeacher)//'.log'
             inquire(file=trim(logTeacher), exist=logExists)
             if (.not. logExists) then
                 open(unit=unitUSER, file=trim(logTeacher), status='new')
@@ -153,10 +153,8 @@ contains
                 write(unitUSER,AFORMAT) trim(cipher)
                 write(unitREQ, AFORMAT) trim(cipher)
             end if
-#if defined PRODUCTION
-#else
-            write(unitHTML,AFORMAT) '<!-- '//trim(fnDescription(REQUEST))//' -->'
-#endif
+
+            call html_comment(fnDescription(REQUEST))
 
             ! compose response
             call server_respond(unitHTML)
@@ -178,8 +176,6 @@ contains
         ! terminate
         call terminate(trim(fileExecutable)//' completed '//ACTION)
 
-        return
-
     end subroutine server_start
 
 
@@ -188,10 +184,8 @@ contains
 
         integer :: tYear, tTerm
 
-#if defined PRODUCTION
-#else
-        write(unitHTML,AFORMAT) '<!-- server_respond() -->'
-#endif
+        call html_comment('server_respond()')
+
         ! target directory if files are to be modified
         if (targetTerm>0) then
             if (targetTerm<currentTerm) then ! next school year
@@ -326,7 +320,7 @@ contains
 
 
             ! schedule of classes
-            case (fnScheduleOfClasses, fnScheduleByArea, fnTBARooms, fnTBATeachers)
+            case (fnScheduleOfClasses, fnScheduleByArea, fnTBARooms, fnTBATeachers, fnTeacherClasses)
                 call section_list_all (device, NumSections(targetTerm), Section(targetTerm,0:), &
                     Offering(targetTerm,MAX_ALL_DUMMY_SUBJECTS:), &
                     NumBlocks(targetTerm), Block(targetTerm,0:), REQUEST)
@@ -365,7 +359,7 @@ contains
             case (fnTeacherConflicts)
                 call teacher_conflicts (device, NumSections(targetTerm), Section(targetTerm,0:))
 
-            case (fnTeacherSchedule)
+            case (fnTeacherEditSchedule)
                 call teacher_schedule(device, NumSections(targetTerm), Section(targetTerm,0:) )
 
             case (fnPrintableWorkload)
@@ -390,7 +384,8 @@ contains
 
             case (fnEditCheckList)
                  call checklist_edit(device, .false., &
-                    Section(nextTerm,0:), Offering(nextTerm,MAX_ALL_DUMMY_SUBJECTS:))
+                    Section(nextTerm,0:), Offering(nextTerm,MAX_ALL_DUMMY_SUBJECTS:), &
+                    trim(pathToNextYear)//trim(txtSemester(nextTerm))//DIRSEP)
 
             ! cases for next semester's predicted demand for subjects
             case (fnDemandFreshmen,fnUpdateDemandFreshmen)
@@ -412,11 +407,11 @@ contains
             case (fnNotAccommodated)
                 call enlistment_not_accommodated(device, Preenlisted)
 
-!            case (fnGradeSheet)
-!                call enlistment_grades(device, NumSections(currentTerm), Section(currentTerm,0:))
+            case (fnGradeSheet)
+                call enlistment_grades(device, NumSections(currentTerm), Section(currentTerm,0:))
 
             case (fnClassList)
-                call class_list(device, NumSections(currentTerm), Section(currentTerm,0:), Preenlisted)
+                call class_list(device, NumSections(currentTerm), Section(currentTerm,0:))
 
             case (fnChangeMatriculation)
                 call enlistment_edit(device, NumSections(currentTerm), Section(currentTerm,0:), &
@@ -441,7 +436,6 @@ contains
 
         call html_write_footer(device)
 
-        return
     end subroutine server_respond
 
 
@@ -479,7 +473,7 @@ contains
             '</select>'//endtd//endtr, & ! curriculum
             begintr//begintd//'Curriculum:'//endtd//begintd//'<select name="CurriculumIdx">', &
             '<option value=""> (select curriculum)'
-        do ldx=1,NumCurricula-1
+        do ldx=1,NumCurricula
             if (.not. Curriculum(ldx)%Active) cycle
             write(device,AFORMAT) '<option value="'//trim(Curriculum(ldx)%Code)//'"> '// &
                 trim(Curriculum(ldx)%Code)//' - '//trim(Curriculum(ldx)%Title)
@@ -498,7 +492,6 @@ contains
             '</table><br><input type="submit" name="action" value="Add student">', &
             '</form><hr>'
 
-        return
     end subroutine student_prompt_add
 
 
@@ -546,7 +539,7 @@ contains
 
         targetStudent = index_to_student(tStdNo)
         call html_college_links(device, CollegeIdxUser, 'Added '//trim(text_student_info(targetStudent)))
-        return
+
     end subroutine student_add
 
 
@@ -650,7 +643,6 @@ contains
             end if
         end if
 
-        return
     end subroutine get_user_request
 
 
@@ -664,10 +656,10 @@ contains
 
         call cgi_get_named_string(QUERY_STRING, 'A1', XMLfile, ierr)
 
-        fileName = trim(dirXML)//trim(pathToYear)//XMLfile
+        fileName = trim(dirDATA)//trim(pathToYear)//XMLfile
         inquire(file=fileName, exist=fileExists)
         if (.not. fileExists) then
-            fileName = trim(dirXML)//trim(pathToTerm)//XMLfile
+            fileName = trim(dirDATA)//trim(pathToTerm)//XMLfile
             inquire(file=fileName, exist=fileExists)
         end if
         if (fileExists) then
@@ -688,7 +680,6 @@ contains
             REQUEST = 0
         end if
 
-        return
     end subroutine download_xml
 
 
@@ -706,7 +697,7 @@ contains
         DOCUMENT_URI = SPACE
 
         ! reset CGI_PATH
-        CGI_PATH = FSLASH//trim(UniversityCode)//FSLASH//ACTION
+        CGI_PATH = FSLASH//trim(ACTION)//FSLASH//UniversityCode
 
         ! notes
         call file_log_message(trim(fileExecutable)//' started '//ACTION//' execute_log()')
@@ -762,7 +753,7 @@ contains
 
             ! open user's log file, create if necessary
             call blank_to_underscore(USERNAME, tTeacher)
-            logTeacher = trim(dirLOG)//trim(tTeacher)//'.log'
+            logTeacher = trim(dirBACKUP)//trim(tTeacher)//'.log'
             inquire(file=trim(logTeacher), exist=logExists)
             if (.not. logExists) then
                 open(unit=unitUSER, file=trim(logTeacher), status='new')
@@ -778,10 +769,8 @@ contains
                 write(unitUSER,AFORMAT) trim(cipher)
                 write(unitREQ, AFORMAT) trim(cipher)
             end if
-#if defined PRODUCTION
-#else
-            write(unitHTML,AFORMAT) '<!-- '//trim(fnDescription(REQUEST))//' -->'
-#endif
+
+            call html_comment(fnDescription(REQUEST))
 
             ! compose response
             call server_respond(unitHTML)
@@ -802,9 +791,354 @@ contains
         ! terminate
         call terminate(trim(fileExecutable)//' completed '//ACTION)
 
-        return
-
     end subroutine execute_log
+
+
+    subroutine rename_university()
+
+        character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
+        character (len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
+        character (len=MAX_LEN_FILE_PATH) :: dataSource
+        !character(len=MAX_LEN_STUDENT_CODE) :: tStdNo
+        real :: harvest
+        integer :: iTmp, jTmp, kTmp, lTmp, errNo
+
+        ! read schedules
+        do kTmp=termBegin,termEnd
+            call qualify_term (kTmp, iTmp, jTmp, dataSource)
+            pathToTerm = trim(itoa(iTmp))//DIRSEP//trim(txtSemester(jTmp))//DIRSEP
+            ! read the classes
+            call read_classes(pathToTerm, NumSections(jTmp), Section(jTmp,0:), &
+                Offering(jTmp,MAX_ALL_DUMMY_SUBJECTS:), errNo)
+            ! read the blocks
+            call read_blocks(pathToTerm, NumBlocks(jTmp), Block(jTmp,0:), NumSections(jTmp), Section(jTmp,0:), errNo)
+            ! get no. of sections by dept
+            call count_sections_by_dept(jTmp, NumSections(jTmp), Section(jTmp,0:))
+        end do
+
+        ! student records
+        do iTmp = 1,NumStudents
+            if (mod(iTmp,1000) == 0) then
+                write(*,*) trim(itoa(iTmp))//' / '//itoa(NumStudents)//' done reading ...'
+            end if
+            TCG = TYPE_STUDENT_RECORD (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, .false., SPACE, SPACE)
+            lenTCG = 0
+            call custom_read_substitutions (iTmp)
+            call custom_read_student_grades (iTmp)
+        end do
+
+        ! read waivers for next term
+        pathToTerm = trim(pathToNextYear)//trim(txtSemester(nextTerm))//DIRSEP
+        call read_waivers(pathToTerm, NumSections(nextTerm), Section(nextTerm,0:), &
+            Offering(nextTerm,MAX_ALL_DUMMY_SUBJECTS:), NumWaiverRecords, errNo)
+
+        ! read predictions for next term
+        call read_predictions(pathToTerm, NumSections(nextTerm), Section(nextTerm,0:), &
+            Advised, NumPredictionRecords, errNo)
+
+        ! read enlistment files (if any)
+        call read_pre_enlistment(pathToTerm, 'ENLISTMENT', 0, 6, &
+            NumSections(nextTerm), Section(nextTerm,0:), Preenlisted, NumEnlistmentRecords, errNo)
+
+        ! rename University
+        UniversityName = 'DEMO University'
+        UniversityAddress = '(University Address)'
+        UniversityPresident = 'Firstname MI. Lastname, Ph.D.'
+        DeanOfInstruction = 'Firstname MI. Lastname, Ph.D.'
+        VPAcademicAffairs = 'Firstname MI. Lastname, Ph.D.'
+        DeanOfCampus = 'Firstname MI. Lastname, Ph.D.'
+        REGISTRAR = 'Registrar'
+        call xml_write_university(pathToYear)
+
+!        ! rename colleges
+!        do jTmp=1,NumColleges-1
+!            College(jTmp)%Code = 'COLL'//itoa2bz(jTmp)
+!            College(jTmp)%Name = 'College '//itoa2bz(jTmp)
+!            College(jTmp)%Dean =  'Dean of College '//itoa2bz(jTmp)
+!        end do
+        jTmp = NumColleges
+        College(jTmp)%Code = ADMINISTRATION
+        College(jTmp)%Name = trim(UniversityName)//SPACE//ADMINISTRATION
+        College(jTmp)%Dean = VPAcademicAffairs
+        call xml_write_colleges(pathToYear)
+
+!        ! rename departments
+!        do iTmp=2,NumDepartments-1
+!            Department(iTmp)%Code = 'DEPT'//itoa2bz(iTmp)
+!            Department(iTmp)%Name = 'Department '//itoa2bz(iTmp)//' in '//College(Department(iTmp)%CollegeIdx)%Name
+!        end do
+        iTmp = NumDepartments
+        REGISTRAR = 'Registrar'
+        Department(iTmp)%Code = 'Registrar'
+        Department(iTmp)%Name = trim(UniversityName)//SPACE//REGISTRAR
+        Department(iTmp)%SectionPrefix = SPACE
+        call xml_write_departments(pathToYear)
+
+        ! rename rooms
+        do jTmp=1,NumDepartments
+            kTmp = 0
+            do iTmp=1,NumRooms+NumAdditionalRooms
+                if (jTmp/=Room(iTmp)%DeptIdx) cycle
+                kTmp = kTmp + 1
+                Room(iTmp)%Code = trim(Department(jTmp)%Code)//' Rm'//itoa2bz(kTmp)
+            end do
+        end do
+        call xml_write_rooms(pathToYear)
+
+!        ! rename teachers
+!        do jTmp=1,NumDepartments
+!            kTmp = 0
+!            do iTmp=1,NumTeachers+NumAdditionalTeachers
+!                if (jTmp/=Teacher(iTmp)%DeptIdx) cycle
+!                kTmp = kTmp + 1
+!                Teacher(iTmp)%TeacherID = 'T'//itoa2bz(kTmp)//'D'//itoa2bz(jTmp)
+!                Teacher(iTmp)%Name = itoa2bz(kTmp)//'TeacherID in '//Department(jTmp)%Code
+!            end do
+!        end do
+
+        ! rename subjects
+        tSubject(1:) = 'X'
+        iTmp = 0 ! area number
+        kTmp = 0 ! topic number in area
+        do jTmp=1,NumSubjects
+            errNo = index(Subject(jTmp)%Name, SPACE)
+            if (tSubject(:errNo)==Subject(jTmp)%Name(:errNo)) then ! same as previous area
+                kTmp = kTmp + 1
+            else ! new area
+                iTmp = iTmp+1
+                kTmp = 1
+                tSubject = Subject(jTmp)%Name(:errNo)
+            end if
+            Subject(jTmp)%Name = Subject(jTmp)%Name(:errNo)//itoa3bz(kTmp)
+            !Subject(jTmp)%Name = 'A'//itoa3bz(iTmp)//SPACE//itoa3bz(kTmp)
+            !Subject(jTmp)%Title = 'Subject area '//itoa3bz(iTmp)//', Topic '//itoa3bz(kTmp)
+        end do
+
+        iTmp = 0 ! area number for (Must be in Plan Of Study)
+        kTmp = 0 ! topic number in area
+        do jTmp=NumDummySubjects,0
+            if (trim(Subject(jTmp)%Title)/='(Must be in Plan Of Study)') cycle
+            kTmp = kTmp + 1
+            Subject(jTmp)%Name = 'ELEC '//itoa3bz(kTmp)
+            Subject(jTmp)%Title = 'Elective type '//itoa3bz(kTmp)//' - Must be in Plan Of Study '
+        end do
+        call xml_write_subjects(pathToYear)
+
+        ! rename curricular programs
+        done = .false.
+        lTmp = 0
+        do jTmp=1,NumCurricula
+            if (done(jTmp)) cycle
+            lTmp = lTmp+1
+            kTmp = 0
+            tCurriculum = CurrProgCode(jTmp)
+            do iTmp=jTmp,NumCurricula
+                if (CurrProgCode(iTmp)/=tCurriculum) cycle
+                kTmp = kTmp+1
+!                Curriculum(iTmp)%Code = 'P'//itoa3bz(lTmp)//DASH//'V'//itoa2bz(kTmp)
+!                Curriculum(iTmp)%Title = 'Program '//itoa3bz(lTmp)
+!                Curriculum(iTmp)%Specialization = 'Variant '//itoa2bz(kTmp)
+!                Curriculum(iTmp)%Remark = SPACE
+!                CurrProgCode(iTmp) = 'P'//itoa3bz(lTmp)
+                Curriculum(iTmp)%Code = trim(CurrProgCode(iTmp))//'-V'//itoa2bz(kTmp)
+                done(iTmp) = .true.
+            end do
+        end do
+        call xml_write_curricula(pathToYear)
+        call xml_write_equivalencies(pathToYear)
+
+        ! rewrite classes
+        do kTmp=termBegin,termEnd
+            call qualify_term (kTmp, iTmp, jTmp, dataSource)
+            pathToTerm = trim(itoa(iTmp))//DIRSEP//trim(txtSemester(jTmp))//DIRSEP
+            call xml_write_sections(pathToTerm, NumSections(jTmp), Section(jTmp,0:), 0)
+            call xml_write_blocks(pathToTerm, NumBlocks(jTmp), Block(jTmp,0:), Section(jTmp,0:), 0)
+        end do
+
+        pathToTerm = trim(pathToNextYear)//trim(txtSemester(nextTerm))//DIRSEP
+        ! rewrite waivers for next term
+        call xml_write_waivers(pathToTerm, Section(nextTerm,0:) )
+        ! rewrite predictions for next term
+        call xml_write_pre_enlistment(pathToTerm, 'PREDICTIONS', Advised, Section(nextTerm,0:) )
+        ! rewrite enlistment for next term
+        call xml_write_pre_enlistment(pathToTerm, 'ENLISTMENT', Preenlisted, Section(nextTerm,0:) )
+
+    !        ! rename student
+    !        tArray = 0 ! count for each curriculum
+    !        do lTmp = 1,NumStudents
+    !            kTmp = Student(lTmp)%CurriculumIdx
+    !            iTmp = tArray(kTmp)+1
+    !            tArray(kTmp) = iTmp
+    !            Student(lTmp)%StdNo = Student(lTmp)%StdNo(:5)//itoa3bz(kTmp)//DASH//itoa3bz(iTmp)//'0'
+    !            Student(lTmp)%Name = itoa3bz(iTmp)//'Student of Program '//trim(Curriculum(kTmp)%Code)
+    !        end do
+        call xml_write_students(pathToYear, 0)
+        do lTmp = 1,NumStudents
+            if (mod(lTmp,1000) == 0) then
+                write(*,*) trim(itoa(lTmp))//' / '//itoa(NumStudents)//' done writing...'
+            end if
+
+            ! generate random passing grades
+            do iTmp=1,Student(lTmp)%Record(1,0)
+                if (Student(lTmp)%Record(4,iTmp)<=0) cycle
+                jTmp = Student(lTmp)%Record(5,iTmp)
+                kTmp = jTmp
+                if (jTmp>0 .and. jTmp<10) then ! numeric pass
+                    do while (kTmp==jTmp .or. kTmp==0)
+                        call random_number(harvest)
+                        kTmp = int(harvest*10.0)
+                    end do
+                end if
+                Student(lTmp)%Record(5,iTmp) = kTmp
+            end do
+            call xml_write_student_grades(lTmp)
+
+            call xml_write_substitutions(lTmp)
+        end do
+
+        ! teachers
+        call regenerate_all_passwords()
+        call xml_write_teachers(pathToYear)
+        call write_password_file(pathToYear)
+
+    end subroutine rename_university
+
+
+    subroutine add_data_from_enlistment(path, basename, NumSections, Section)
+        character(len=*), intent(in) :: path, basename
+        integer, intent (in out) :: NumSections
+        type (TYPE_SECTION), intent(in out) :: Section(0:)
+
+        character (len=MAX_LEN_STUDENT_CODE) :: tStdNo
+        character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
+        character (len=MAX_LEN_CLASS_ID) :: tSection
+        character(len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
+        integer :: cdx, k, sdx, std, ier, nSubj, nSect, nStd
+        type (TYPE_STUDENT) :: wrk
+
+        character (len=MAX_LEN_FILE_PATH) :: fileName
+        character (len=MAX_LEN_XML_LINE) :: line
+        integer :: eof, ndels, pos(60)
+
+        fileName = trim(dirDATA)//trim(path)//basename//'.CSV'
+        open(unit=unitRAW, file=fileName, form='formatted', status='old', iostat=ier)
+        if (ier/=0) return
+
+        call file_log_message ('Retrieving additional info from '//fileName)
+
+        nSubj = 0
+        nSect =0
+        nStd = 0
+
+        loop_ENLISTMENT  : &
+        do
+            read (unitRAW, AFORMAT, iostat = eof) line
+            if (eof<0) exit loop_ENLISTMENT
+            if (line(1:1)=='#' .or. line(1:3)=='   ') cycle loop_ENLISTMENT
+
+        !#STUDNO,SUBJECT CODE,CLASS CODE,SutdName,Course,TERM,COLLEGE,TEACHER,SECTION
+        !1      2            3          4        5      6    7       8       9       10       11      12     13        14          15
+        !08-09517,EM 218,G007,"Abbariao, Cristopher Adolfo",MAED-SS,13-S,GS,To Be Assigned,GS
+        !08-09517,MA 204,G022,"Abbariao, Cristopher Adolfo",MAED-SS,13-S,GS,To Be Assigned,GS
+        !08-09517,SOC SCI 218A,G052,"Abbariao, Cristopher Adolfo",MAED-SS,13-S,GS,To Be Assigned,GS
+        !08-09517,SS 217,G053,"Abbariao, Cristopher Adolfo",MAED-SS,13-S,GS,To Be Assigned,GS
+        !06-00593,BA 72,B120,"Accad, Leonard Andrew Bramaje",BSENT,13-S,CBEA,"Gonzaga, Jeremiah",BSENT-3C
+        !06-00593,BA 66,B128,"Accad, Leonard Andrew Bramaje",BSENT,13-S,CBEA,"Singson, Marcial",BSENT-3C
+        !08-02956,ENG 13,E028,"Adviento, Baby Jane Concepcion",BSED-FIL,13-S,CTE,"Clemente, Beatriz",BSED 1K
+        !
+            call index_to_delimiters(COMMA, line, ndels, pos)
+
+            ! subject
+            tSubject = line(pos(2)+1:pos(3)-1)
+            cdx = index_to_subject(tSubject)
+            if (cdx<=0) then ! add it
+                NumAdditionalSubjects = NumAdditionalSubjects+1
+                cdx = NumSubjects + NumAdditionalSubjects
+
+                Subject(cdx)%Name = tSubject
+                Subject(cdx)%Title = tSubject
+                Subject(cdx)%DeptIdx = NumDepartments
+                Subject(cdx)%Units = 3.0
+
+                Subject(cdx)%TermOffered = 7
+                Subject(cdx)%LectHours = 3.0
+                Subject(cdx)%MinLectSize = 50
+                Subject(cdx)%MaxLectSize = 50
+                Subject(cdx)%LectLoad = 0.0
+                Subject(cdx)%LabHours = 0.0
+                Subject(cdx)%MinLabSize = 50
+                Subject(cdx)%MaxLabSize = 50
+                Subject(cdx)%LabLoad = 0.0
+
+                k = 1
+                Subject(cdx)%lenPreq = k
+                Subject(cdx)%Prerequisite(k) = INDEX_TO_NONE
+                Subject(cdx)%lenCoreq = k
+                Subject(cdx)%Corequisite = INDEX_TO_NONE
+                Subject(cdx)%lenConc = k
+                Subject(cdx)%Concurrent = INDEX_TO_NONE
+                Subject(cdx)%lenConcPreq = k
+                Subject(cdx)%ConcPrerequisite= INDEX_TO_NONE
+
+                Subject(cdx)%LabFee = 0.0
+                Subject(cdx)%Tuition = 0.0
+
+                nSubj = nSubj + 1
+                call file_log_message ('Added subject '//tSubject)
+
+            end if
+
+            ! section
+            tSection = trim(tSubject)//SPACE//line(pos(3)+1:pos(4)-1)
+            sdx = index_to_section(tSection, NumSections, Section)
+            if (sdx==0 .and. (pos(3)+1/=pos(4)) ) then
+                do k=1,NumDepartments
+                    if (Department(k)%SectionPrefix==line(poS(3)+1:pos(3)+1) ) exit
+                end do
+                NumSections = NumSections+1
+                Section(NumSections) = TYPE_SECTION (tSection, line(pos(3)+1:pos(4)-1), SPACE, &
+                    k, cdx, Subject(cdx)%MaxLectSize, Subject(cdx)%MaxLectSize, 1, 0, 0, 0, 0, 0)
+                nSect = nSect + 1
+                call file_log_message ('Added section '//tSection)
+            end if
+
+            ! student
+            tStdNo = line(1:pos(2)-1)
+            std = index_to_student(tStdNo)
+            if (std==0) then
+        !#STUDNO,SUBJECT CODE,CLASS CODE,SutdName,Course,TERM,COLLEGE,TEACHER,SECTION
+        !1      2            3          4        5      6    7       8       9       10       11      12     13        14          15
+        !08-09517,EM 218,G007,"Abbariao, Cristopher Adolfo",MAED-SS,13-S,GS,To Be Assigned,GS
+        !08-09517,MA 204,G022,"Abbariao, Cristopher Adolfo",MAED-SS,13-S,GS,To Be Assigned,GS
+                k = index(line, '",')
+                call initialize_student(wrk)
+                wrk%StdNo = tStdNo
+                wrk%Name = line(pos(4)+2:k-1)
+                tCurriculum = line(k+2:)
+                k = index(tCurriculum, COMMA)
+                tCurriculum(k:) = SPACE
+                k = index_to_curriculum(tCurriculum)
+                if (k<0) then
+                    k = -k
+                elseif (k==0) then
+                    k = NumCurricula
+                end if
+                wrk%CurriculumIdx = k
+                call update_student_info(wrk, k)
+                if (k<0) call file_log_message ('Added '//tStdNo//trim(tCurriculum)//' - '// &
+                    trim(text_student_curriculum(-k)) )
+                nStd = nStd + 1
+
+            end if
+
+        end do loop_ENLISTMENT
+        close(unitRAW)
+
+        if (nSubj>0) call xml_write_subjects(pathToYear)
+        if (nSect>0) call xml_write_sections(path, NumSections, Section, 0)
+        if (nStd>0) call xml_write_students(pathToYear, 0)
+
+    end subroutine add_data_from_enlistment
 
 
 end module WEBSERVER

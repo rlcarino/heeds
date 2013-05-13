@@ -44,7 +44,7 @@ subroutine custom_read_curricula(path, errNo)
     character (len=MAX_LEN_FILE_PATH) :: currFile
     character (len=1) :: ch
 
-    fileName = trim(dirRAW)//trim(path)//'CURRICULA.CSV'
+    fileName = trim(dirDATA)//trim(path)//'CURRICULA.CSV'
     open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
     if (errNo/=0) return
 
@@ -78,12 +78,12 @@ subroutine custom_read_curricula(path, errNo)
             cycle
         end if
 
-        currFile = trim(dirRAW)//trim(path)//line(pos(2)+1:pos(3)-1)//'.CSV'
+        currFile = trim(dirDATA)//trim(path)//line(pos(2)+1:pos(3)-1)//'.CSV'
         inquire(file=currFile, exist=FlagIsUp)
         if (.not. FlagIsUp) then
             !write(*,*) 'File not found: '//trim(currFile)
             if (ndels>=8 .and. pos(9)-pos(8)>1) then
-                currFile =trim(dirRAW)//trim(path)//line(pos(8)+1:pos(9)-1)
+                currFile =trim(dirDATA)//trim(path)//line(pos(8)+1:pos(9)-1)
                 inquire(file=currFile, exist=FlagIsUp)
                 !if (.not. FlagIsUp) then
                 !    write(*,*) 'File not found: '//trim(currFile)

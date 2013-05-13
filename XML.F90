@@ -52,7 +52,6 @@ module XML
     character(len=21), parameter :: XML_ROOT_EQUIVALENCIES = 'LIST_OF_EQUIVALENCIES'
     character(len=14), parameter :: XML_ROOT_BLOCKS        = 'LIST_OF_BLOCKS'
     character(len=16), parameter :: XML_ROOT_STUDENTS      = 'LIST_OF_STUDENTS'
-    character(len=13), parameter :: XML_ROOT_LOGIN         = 'LIST_OF_LOGINS'
     character(len=11), parameter :: XML_ROOT_PREDICTIONS   = 'PREDICTIONS'
     character(len=11), parameter :: XML_ROOT_WAIVERS       = 'WAIVERS_COI'
     character(len=10), parameter :: XML_ROOT_ENLISTMENT    = 'ENLISTMENT'
@@ -128,7 +127,7 @@ contains
                 end if
             end if
         end if
-        return
+
     end subroutine xml_open_file
 
 
@@ -137,7 +136,7 @@ contains
         character (len=*), intent (in), optional :: rootName
         if (present(rootName)) write(device,AFORMAT) '</'//rootName//'>'
         close(device)
-        return
+
     end subroutine xml_close_file
 
 
@@ -160,7 +159,7 @@ contains
         else
             write(device, AFORMAT) indentation(:indent)//'<'//trim(tag)//'>'
         end if
-        return
+
     end subroutine xml_write_character
 
 
@@ -169,7 +168,7 @@ contains
         character (len=*), intent (in) :: tag
         integer, intent (in) :: value
         call xml_write_character(device, indent, tag, itoa(value))
-        return
+
     end subroutine xml_write_integer
 
 
@@ -180,7 +179,7 @@ contains
         integer, intent (in), optional :: dadp
 
         call xml_write_character(device, indent, tag, ftoa(value,dadp))
-        return
+
     end subroutine xml_write_float
 
 
@@ -230,65 +229,65 @@ contains
             value = line(pos(1,2)+1:pos(2,1)-1)
         end if
 
-        return
+
     end subroutine xml_parse_line
 
 
-    subroutine pma_xml_begin_row(device, indent, name)
-        integer, intent (in) :: device, indent
-        character (len=*), intent (in) :: name
-        write(device, AFORMAT) indentation(:indent)//'<table name="'//name//'">'
-        return
-    end subroutine pma_xml_begin_row
-
-    subroutine pma_xml_end_row(device, indent)
-        integer, intent (in) :: device, indent
-        write(device, AFORMAT) indentation(:indent)//'</table>'
-        return
-    end subroutine pma_xml_end_row
-
-    subroutine pma_xml_column(device, indent, tag, value)
-        integer, intent (in) :: device, indent
-        character (len=*), intent (in) :: tag, value
-        if (len_trim(value)>0) then
-            write(device, AFORMAT) indentation(:indent)// &
-                '<column name="'//tag//'">'//trim(value)//'</column>'
-        else
-            write(device, AFORMAT) indentation(:indent)// &
-                '<column name="'//tag//'">('//tag//')</column>'
-        end if
-        return
-    end subroutine pma_xml_column
-
-
-    subroutine pma_xml_parse_line(line, name, value)
-        character(len=MAX_LEN_XML_LINE), intent (in out) :: line
-        character(len=MAX_LEN_XML_TAG), intent (out) :: name
-        character(len=MAX_LEN_XML_LINE), intent (out) :: value
-        ! locals
-        integer :: nL, nR ! positions of "> and </
-
-        ! initialize return values
-        name = SPACE
-        value = SPACE
-        line = adjustl(line)
+!    subroutine pma_xml_begin_row(device, indent, name)
+!        integer, intent (in) :: device, indent
+!        character (len=*), intent (in) :: name
+!        write(device, AFORMAT) indentation(:indent)//'<table name="'//name//'">'
+!
+!    end subroutine pma_xml_begin_row
+!
+!    subroutine pma_xml_end_row(device, indent)
+!        integer, intent (in) :: device, indent
+!        write(device, AFORMAT) indentation(:indent)//'</table>'
+!
+!    end subroutine pma_xml_end_row
+!
+!    subroutine pma_xml_column(device, indent, tag, value)
+!        integer, intent (in) :: device, indent
+!        character (len=*), intent (in) :: tag, value
+!        if (len_trim(value)>0) then
+!            write(device, AFORMAT) indentation(:indent)// &
+!                '<column name="'//tag//'">'//trim(value)//'</column>'
+!        else
+!            write(device, AFORMAT) indentation(:indent)// &
+!                '<column name="'//tag//'">('//tag//')</column>'
+!        end if
+!
+!    end subroutine pma_xml_column
+!
+!
+!    subroutine pma_xml_parse_line(line, name, value)
+!        character(len=MAX_LEN_XML_LINE), intent (in out) :: line
+!        character(len=MAX_LEN_XML_TAG), intent (out) :: name
+!        character(len=MAX_LEN_XML_LINE), intent (out) :: value
+!        ! locals
+!        integer :: nL, nR ! positions of "> and </
+!
+!        ! initialize return values
+!        name = SPACE
+!        value = SPACE
+!        line = adjustl(line)
 !<table name="name">
 !<column name="name">value</column>
 !1234567890123456
 !</table>
-        if (index(line, '<column name="') > 0) then ! start of column
-            nL = index(line, '">') ! end of name
-            nR = index(line, '</') ! end of value
-            name = line(15:nL-1)
-            value = line(nL+2:nR-1)
-        elseif (index(line, '<table name="') > 0) then ! start of row
-            name = line(14:len_trim(line)-2)
-        elseif (index(line, '</table>') > 0) then ! end of row
-            name = '/table'
-        end if
-
-        return
-    end subroutine pma_xml_parse_line
+!        if (index(line, '<column name="') > 0) then ! start of column
+!            nL = index(line, '">') ! end of name
+!            nR = index(line, '</') ! end of value
+!            name = line(15:nL-1)
+!            value = line(nL+2:nR-1)
+!        elseif (index(line, '<table name="') > 0) then ! start of row
+!            name = line(14:len_trim(line)-2)
+!        elseif (index(line, '</table>') > 0) then ! end of row
+!            name = '/table'
+!        end if
+!
+!
+!    end subroutine pma_xml_parse_line
 
 
 end module XML

@@ -84,7 +84,7 @@ contains
                 call initialize_room(Room(NumRooms), trim(Department(iDept)%Code)//' Room', &
                     iDept, 0, 0)
             end do
-            call sort_rooms()
+            !call sort_rooms()
             noXML = .true.
             errNo = 0
         end if
@@ -93,7 +93,7 @@ contains
         if (noXML) call xml_write_rooms(path)
         call file_log_message (itoa(NumRooms)//' rooms')
 
-        return
+
     end subroutine read_rooms
 
 
@@ -110,7 +110,7 @@ contains
             wrkRoom = TYPE_ROOM(SPACE, NumDepartments, 0, 0)
         end if
 
-        return
+
     end subroutine initialize_room
 
 
@@ -119,62 +119,65 @@ contains
         integer :: index_to_room
         character (len=MAX_LEN_ROOM_CODE), intent (in) :: tRoom
 
-        integer :: i, j, rdx
+        integer :: rdx ! i, j,
+
+        index_to_room = 0
 
         ! try the newly added rooms
-        do rdx=NumRooms+1,NumRooms+NumAdditionalRooms
+        !do rdx=NumRooms+1,NumRooms+NumAdditionalRooms
+        do rdx=1,NumRooms+NumAdditionalRooms
             if (tRoom==Room(rdx)%Code) then
                 index_to_room = rdx
                 return
             end if
         end do
 
-        ! try the orignal rooms
-        i = 1
-        j = NumRooms
-        do
-            if (i>j) then
-                rdx = 0
-                exit
-            else
-                rdx = (i + j)/2
-                if (tRoom==Room(rdx)%Code) then
-                    exit
-                else if (tRoom<Room(rdx)%Code) then
-                    j = rdx-1
-                else
-                    i = rdx+1
-                end if
-            end if
-        end do
-        index_to_room = rdx
+!        ! try the orignal rooms
+!        i = 1
+!        j = NumRooms
+!        do
+!            if (i>j) then
+!                rdx = 0
+!                exit
+!            else
+!                rdx = (i + j)/2
+!                if (tRoom==Room(rdx)%Code) then
+!                    exit
+!                else if (tRoom<Room(rdx)%Code) then
+!                    j = rdx-1
+!                else
+!                    i = rdx+1
+!                end if
+!            end if
+!        end do
+!        index_to_room = rdx
 
-        return
+
     end function index_to_room
 
 
-    subroutine sort_rooms()
-
-        type(TYPE_ROOM) :: wrkRoom
-        integer :: i, j
-
-        ! sort
-        do i=1,NumRooms-1
-
-            do j=i+1,NumRooms
-                if (Room(i)%Code>Room(j)%Code) then
-
-                    wrkRoom = Room(i)
-                    Room(i) = Room(j)
-                    Room(j) = wrkRoom
-
-                end if
-            end do
-
-        end do
-
-        return
-    end subroutine sort_rooms
+!    subroutine sort_rooms()
+!
+!        type(TYPE_ROOM) :: wrkRoom
+!        integer :: i, j
+!
+!        ! sort
+!        do i=1,NumRooms-1
+!
+!            do j=i+1,NumRooms
+!                if (Room(i)%Code>Room(j)%Code) then
+!
+!                    wrkRoom = Room(i)
+!                    Room(i) = Room(j)
+!                    Room(j) = wrkRoom
+!
+!                end if
+!            end do
+!
+!        end do
+!
+!
+!    end subroutine sort_rooms
 
 
     subroutine xml_write_rooms(path, dirOPT)
@@ -189,7 +192,7 @@ contains
         if (present(dirOPT)) then
             fileName = trim(dirOPT)//trim(path)//'ROOMS.XML'
         else
-            fileName = trim(dirXML)//trim(path)//'ROOMS.XML'
+            fileName = trim(dirDATA)//trim(path)//'ROOMS.XML'
         endif
         call xml_open_file(unitXML, XML_ROOT_ROOMS, fileName, ldx)
 
@@ -214,7 +217,7 @@ contains
 
         call xml_close_file(unitXML, XML_ROOT_ROOMS)
 
-        return
+
     end subroutine xml_write_rooms
 
 
@@ -230,7 +233,7 @@ contains
         character (len=MAX_LEN_DEPARTMENT_CODE) :: tDept
 
         ! open file, return on any error
-        fileName = trim(dirXML)//trim(path)//'ROOMS.XML'
+        fileName = trim(dirDATA)//trim(path)//'ROOMS.XML'
         call xml_open_file(unitXML, XML_ROOT_ROOMS, fileName, errNo, forReading)
         if (errNo/=0) return
 
@@ -279,9 +282,9 @@ contains
         end do
         call xml_close_file(unitXML)
 
-        call sort_rooms()
+        !call sort_rooms()
 
-        return
+
     end subroutine xml_read_rooms
 
 

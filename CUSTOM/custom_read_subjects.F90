@@ -116,7 +116,7 @@ subroutine SIAS_read_subjects(path, errNo)
     NumDummySubjects = -19
     INDEX_TO_NONE = -13 ! index to NONE (the prerequisite of "No prerequisite" subjects)
 
-    fileName = trim(dirRAW)//trim(path)//'SUBJECTS.CSV'
+    fileName = trim(dirDATA)//trim(path)//'SUBJECTS.CSV'
     open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
     if (errNo/=0) return
 
@@ -233,7 +233,7 @@ subroutine SIAS_read_assessment(path, errNo)
     character :: tType
     real :: tFee
 
-    fileName = trim(dirRAW)//trim(path)//'ASSESSMENT.CSV'
+    fileName = trim(dirDATA)//trim(path)//'ASSESSMENT.CSV'
     open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
     if (errNo/=0) return
 
@@ -281,7 +281,7 @@ subroutine custom_read_subjects_prerequisites(path, errNo)
     character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
     integer :: cdx
 
-    fileName = trim(dirRAW)//trim(path)//'SUBJECTS-PREREQUISITES'
+    fileName = trim(dirDATA)//trim(path)//'SUBJECTS-PREREQUISITES'
     open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
     if (errNo/=0) return
 
@@ -323,7 +323,7 @@ subroutine custom_read_prerequisites(path, errNo)
     character (len=MAX_LEN_SUBJECT_CODE) :: tSubject, preq1, preq2, preq3, coreq1, coreq2
     integer :: cdx, pdx1, pdx2, pdx3, rdx1, rdx2
 
-    fileName = trim(dirRAW)//trim(path)//'PREREQUISITES.CSV'
+    fileName = trim(dirDATA)//trim(path)//'PREREQUISITES.CSV'
     open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
     if (errNo/=0) return
 

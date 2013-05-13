@@ -91,7 +91,7 @@ contains
         ! write the XML DEPARTMENTS file?
         if (noXML) call xml_write_departments(path)
 
-        return
+
     end subroutine read_departments
 
 
@@ -107,7 +107,7 @@ contains
             wrkDepartment = typeDEPARTMENT(SPACE, SPACE, SPACE, 0, .false.)
         end if
 
-        return
+
     end subroutine initialize_department
 
 
@@ -127,7 +127,7 @@ contains
             end if
         end do
 
-        return
+
     end function index_to_dept
 
 
@@ -143,7 +143,7 @@ contains
         if (present(dirOPT)) then
             fileName = trim(dirOPT)//trim(path)//'DEPARTMENTS.XML'
         else
-            fileName = trim(dirXML)//trim(path)//'DEPARTMENTS.XML'
+            fileName = trim(dirDATA)//trim(path)//'DEPARTMENTS.XML'
         endif
 
         call xml_open_file(unitXML, XML_ROOT_DEPARTMENTS, fileName, ldx)
@@ -169,7 +169,7 @@ contains
 
         call xml_close_file(unitXML, XML_ROOT_DEPARTMENTS)
 
-        return
+
     end subroutine xml_write_departments
 
 
@@ -185,7 +185,7 @@ contains
         character (len=MAX_LEN_COLLEGE_CODE) :: tColl
 
         ! open file, return on any error
-        fileName = trim(dirXML)//trim(path)//'DEPARTMENTS.XML'
+        fileName = trim(dirDATA)//trim(path)//'DEPARTMENTS.XML'
         call xml_open_file(unitXML, XML_ROOT_DEPARTMENTS, fileName, errNo, forReading)
         if (errNo/=0) return
 
@@ -235,7 +235,7 @@ contains
         call xml_close_file(unitXML)
         call file_log_message (itoa(NumDepartments)//' entries in '//fileName)
 
-        return
+
     end subroutine xml_read_departments
 
 

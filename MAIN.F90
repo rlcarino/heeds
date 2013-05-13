@@ -1,6 +1,3 @@
-#if defined PRODUCTION
-#else
-#endif
 !======================================================================
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
@@ -33,7 +30,17 @@
 
 program MAIN
 
-    use WEBSERVER
+    use EditUNIVERSITY
+    use EditSUBJECTS
+    use EditROOMS
+    use EditTEACHERS
+    use EditSECTIONS
+    use EditBLOCKS
+    use EditCURRICULA
+    use EditPREDICTIONS
+    use EditENLISTMENT
+    use DEMAND
+    use REPORTS
 !    use SCHEDULING
 
     implicit none
@@ -46,11 +53,6 @@ program MAIN
     ! program starts
     call date_and_time (date=currentDate,time=currentTime)
     startDateTime = currentDate//DASH//currentTime(:6)
-
-#if defined PRODUCTION
-#else
-    write(*,*) 'Started '//startDateTime
-#endif
 
     ! initialize random seed
     call initialize_random_seed()
@@ -66,31 +68,31 @@ program MAIN
         end if
     end do
     fileExecutable = fileExecutable(iTmp+1:)
-#if defined PRODUCTION
-#else
-    write(*,*) 'Executable is '//trim(fileExecutable)
-#endif
 
     ! arguments are: UNIV YEAR TERM ACTION
-    numArgs = iargc()
+    numArgs = iargc() ! UNIV YEAR TERM ACTION
     if (numArgs<4) call usage('Error: Not enough command arguments')
 
-    ! get UNIV YEAR TERM ACTION
-    call getarg(1, UniversityCode)
-
-    ! HEEDS root directory
+    ! user's HOME directory
 #if defined GLNX
     call get_environment_variable("HOME", dirHEEDS)
 #else
     call get_environment_variable("HOMEDRIVE", dirHEEDS)
 #endif
-    dirHEEDS = trim(dirHEEDS)//DIRSEP//'HEEDS'//DIRSEP//'dat'//DIRSEP//trim(UniversityCode)//DIRSEP
+
+    ! University code
+    call getarg(1, UniversityCode)
+
+    ! append University code to HOME directory
+    dirHEEDS = trim(dirHEEDS)//DIRSEP//'HEEDS'//DIRSEP//trim(UniversityCode)//DIRSEP
     inquire(file=trim(dirHEEDS), exist=pathExists)
     if (.not. pathExists) call usage('Error: directory '//trim(dirHEEDS)//' does not exist')
 
+    ! current YEAR
     call getarg(2, dataSource)
     currentYear = atoi(dataSource)
 
+    ! current TERM
     call getarg(3, dataSource)
     select case (trim(dataSource))
 
@@ -152,6 +154,8 @@ program MAIN
     ! show schedules for which terms ?
     termBegin = currentTerm
     termEnd = termBegin+2
+    isActionAdvising = .false.
+    isActionClasslists = .false.
 
     ! allow files to be rewritten by default
     noWrites = .false.
@@ -161,8 +165,6 @@ program MAIN
     call upper_case(ACTION(1:1))
 
     select case (trim(ACTION))
-
-!        case ('Randomize')
 
         case ('Rename')
             termBegin = currentTerm
@@ -181,7 +183,7 @@ program MAIN
                 UseCLASSES = .false.
             end if
 
-        case ('Pre-enlist') ! get priority group
+        case ('Preenlist') ! get priority group
             idxGrp = -1
             if (numArgs>4) then
                 call getarg(5, dataSource)
@@ -199,7 +201,7 @@ program MAIN
                 if (maxAlternates<0) maxAlternates = 0
             end if
 
-        case ('Classes')
+        case ('Schedules')
             termBegin = currentTerm
             termEnd = termBegin+2
             if (numArgs>4) then
@@ -216,8 +218,9 @@ program MAIN
                 call lower_case(dataSource)
                 noWrites = trim(dataSource)=='training'
             end if
+            isActionAdvising = .true.
 
-        case ('Enlistment')
+        case ('Classlists')
             nextYear = currentYear
             nextTerm = currentTerm
             termBegin = currentTerm
@@ -227,6 +230,7 @@ program MAIN
                 call lower_case(dataSource)
                 noWrites = trim(dataSource)=='training'
             end if
+            isActionClasslists = .true.
 
         case default
             call usage('Error: ACTION "'//trim(ACTION)//'" is not recognized.')
@@ -236,29 +240,29 @@ program MAIN
     ! count REGD grade as passing?
     advisingPeriod = currentTerm/=nextTerm
 
-    write(*,AFORMAT) &
-        'Executable is : '//trim(fileExecutable)//SPACE//'('//VERSION//')', &
-        'Arguments are : '//trim(UniversityCode)//SPACE//itoa(currentYear)//SPACE// &
-        txtSemester(currentTerm)//SPACE//trim(ACTION)
-
     ! set up directories
     call make_heeds_directories()
 
     ! open the I/O log file
-    open(unit=unitLOG, file=trim(dirLOG)//trim(fileExecutable)//'.log', status='unknown')
+    open(unit=unitLOG, file=trim(dirBACKUP)//trim(fileExecutable)//'.log', status='unknown')
     call file_log_message( '-------', 'Begins '//currentDate//DASH//currentTime, '-------', &
         'Executable is : '//trim(fileExecutable)//SPACE//DASH//SPACE//'( '//PROGNAME//VERSION//')', &
         'Arguments are : '//trim(UniversityCode)//SPACE//itoa(currentYear)//SPACE// &
         txtSemester(currentTerm)//SPACE//trim(ACTION) )
 
     ! open log for requests only
-    open(unit=unitREQ, file=trim(dirLOG)//'requests.log', status='unknown')
+    open(unit=unitREQ, file=trim(dirBACKUP)//'requests.log', status='unknown')
+    write(unitREQ,AFORMAT) '#-------', '#Begins '//currentDate//DASH//currentTime, '#-------', &
+        '#Executable is : '//trim(fileExecutable)//SPACE//DASH//SPACE//'( '//PROGNAME//VERSION//')', &
+        '#Arguments are : '//trim(UniversityCode)//SPACE//itoa(currentYear)//SPACE// &
+        txtSemester(currentTerm)//SPACE//trim(ACTION) 
+    close(unitREQ)
 
     ! open a 'scratch' HTML response file
 #if defined PRODUCTION
     open(unit=unitHTML, form='formatted', status='scratch')
 #else
-    open(unit=unitHTML, file=trim(dirLOG)//'scratch.html', form='formatted', status='unknown')
+    open(unit=unitHTML, file=trim(dirBACKUP)//'scratch.html', form='formatted', status='unknown')
 #endif
 
     ! initialize data on classes
@@ -301,22 +305,22 @@ program MAIN
     ! read the university-level data
     call read_university(pathToYear, errNo)
     if (errNo/=0) call terminate('Error in reading university info')
-    call xml_write_university(pathToYear, dirBAK)
+    call xml_write_university(pathToYear, dirBACKUP)
 
     ! read the colleges
     call read_colleges(pathToYear, errNo)
     if (errNo/=0) call terminate('Error in reading the list of colleges')
-    call xml_write_colleges(pathToYear, dirBAK)
+    call xml_write_colleges(pathToYear, dirBACKUP)
 
     ! read the departments
     call read_departments(pathToYear, errNo)
     if (errNo/=0) call terminate('Error in reading the list of departments')
-    call xml_write_departments(pathToYear, dirBAK)
+    call xml_write_departments(pathToYear, dirBACKUP)
 
     ! read the subjects
     call read_subjects(pathToYear, errNo)
     if (errNo/=0) call terminate('Error in reading the list of subjects')
-    call xml_write_subjects(pathToYear, dirBAK)
+    call xml_write_subjects(pathToYear, dirBACKUP)
 
     ! string representation of percentage grade, float value, reference
     do iTmp=1,100
@@ -327,7 +331,7 @@ program MAIN
 
     ! generate checklists only?
     if (trim(ACTION)=='Checklists') then
-        ! extract grades from FINALGRADE(.CSV) in dirRAW
+        ! extract grades from FINALGRADE(.CSV) in dirDATA
         call extract_student_grades()
         ! create student directories
         call make_student_directories()
@@ -341,8 +345,8 @@ program MAIN
     ! read the curricular programs
     call read_curricula(pathToYear, errNo)
     if (errNo/=0) call terminate('Error in reading the list of curricular programs')
-    call xml_write_curricula(pathToYear, dirBAK)
-    call xml_write_equivalencies(pathToYear, dirBAK)
+    call xml_write_curricula(pathToYear, dirBACKUP)
+    call xml_write_equivalencies(pathToYear, dirBACKUP)
 
 #if defined UPLB
     ! no need to reset term offered of a subject
@@ -375,7 +379,7 @@ program MAIN
         call xml_write_teachers(pathToYear)
         call write_password_file(pathToYear)
     end if
-    call xml_write_teachers(pathToYear, dirBAK)
+    call xml_write_teachers(pathToYear, dirBACKUP)
 
     ! reset passwords only?
     if (trim(ACTION)=='Resetpasswords') then
@@ -387,7 +391,7 @@ program MAIN
 
     ! read the rooms
     call read_rooms(pathToYear, errNo)
-    call xml_write_rooms(pathToYear, dirBAK)
+    call xml_write_rooms(pathToYear, dirBACKUP)
 
     ! mark colleges with subject or curriculum information
     do targetDepartment=1,NumDepartments
@@ -396,7 +400,7 @@ program MAIN
     end do
 
     ! preparing the schedule of classes ?
-    if (trim(ACTION)=='Classes') then
+    if (trim(ACTION)=='Schedules') then
 
         ! read schedules
         do kTmp=termBegin,termEnd
@@ -409,8 +413,8 @@ program MAIN
             call read_blocks(pathToTerm, NumBlocks(jTmp), Block(jTmp,0:), NumSections(jTmp), Section(jTmp,0:), errNo)
             ! get no. of sections by dept
             call count_sections_by_dept(jTmp, NumSections(jTmp), Section(jTmp,0:))
-            call xml_write_sections(pathToTerm, NumSections(jTmp), Section(jTmp,0:), 0, dirBAK)
-            call xml_write_blocks(pathToTerm, NumBlocks(jTmp), Block(jTmp,0:), Section(jTmp,0:), 0, dirBAK)
+            call xml_write_sections(pathToTerm, NumSections(jTmp), Section(jTmp,0:), 0, dirBACKUP)
+            call xml_write_blocks(pathToTerm, NumBlocks(jTmp), Block(jTmp,0:), Section(jTmp,0:), 0, dirBACKUP)
         end do
 
         ! start server-mode
@@ -422,23 +426,10 @@ program MAIN
     ! read the list of students
     call read_students(pathToYear, errNo)
     if (errNo/=0) call terminate('Error in reading the list of students')
-    call xml_write_students(pathToYear, 0, dirBAK)
+    call xml_write_students(pathToYear, 0, dirBACKUP)
 
     ! create student directories
     call make_student_directories()
-
-!    ! randomize grades?
-!    if (trim(ACTION)=='Randomize') then
-!        write(*,*)  'Randomizing grades... please wait...'
-!        do iTmp = 1,NumStudents
-!            if (mod(iTmp,1000) == 0) then
-!                write(*,*) trim(itoa(iTmp))//' / '//itoa(NumStudents)//' done...'
-!            end if
-!            jTmp = StdRank(iTmp)
-!            call remake_student_records (jTmp)
-!        end do
-!        call terminate(trim(fileExecutable)//' completed '//ACTION)
-!    end if
 
     ! predict for nextTerm?
     if (trim(ACTION)=='Predict') then
@@ -451,6 +442,9 @@ program MAIN
         call read_blocks(pathToTerm, NumBlocks(nextTerm), Block(nextTerm,0:), &
             NumSections(nextTerm), Section(nextTerm,0:), errNo)
 
+        ! get no. of sections by dept
+        call count_sections_by_dept(nextTerm, NumSections(nextTerm), Section(nextTerm,0:))
+
         ! read waivers for next term
         call read_waivers(pathToTerm, NumSections(nextTerm), Section(nextTerm,0:), &
             Offering(nextTerm,MAX_ALL_DUMMY_SUBJECTS:), NumWaiverRecords, errNo)
@@ -462,7 +456,7 @@ program MAIN
         call xml_write_pre_enlistment(pathToTerm, 'PREDICTIONS', Advised, Section(nextTerm,0:))
 
         ! invalidate pre-enlistment by moving ENLISTMENT files to backup
-        dataSource = trim(dirXML)//trim(pathToTerm)//'ENLISTMENT'
+        dataSource = trim(dirDATA)//trim(pathToTerm)//'ENLISTMENT'
 
         call move_to_backup(trim(dataSource)//'.XML') ! the monolithic enlistment file
 
@@ -485,6 +479,9 @@ program MAIN
         call read_blocks(pathToTerm, NumBlocks(nextTerm), Block(nextTerm,0:), &
             NumSections(nextTerm), Section(nextTerm,0:), errNo)
 
+        ! get no. of sections by dept
+        call count_sections_by_dept(nextTerm, NumSections(nextTerm), Section(nextTerm,0:))
+
         ! read waivers for next term
         call read_waivers(pathToTerm, NumSections(nextTerm), Section(nextTerm,0:), &
             Offering(nextTerm,MAX_ALL_DUMMY_SUBJECTS:), NumWaiverRecords, errNo)
@@ -501,10 +498,10 @@ program MAIN
         end if
         call file_log_message('# incoming freshmen next term ='//trim(itoa(sum(NFintake)))//'?')
 
-        call xml_write_sections(pathToTerm, NumSections(nextTerm), Section(nextTerm,0:), 0, dirBAK)
-        call xml_write_blocks(pathToTerm, NumBlocks(nextTerm), Block(nextTerm,0:), Section(nextTerm,0:), 0, dirBAK)
-        call xml_write_waivers(pathToTerm, Section(nextTerm,0:), dirBAK)
-        call xml_write_pre_enlistment(pathToTerm, 'PREDICTIONS', Advised, Section(nextTerm,0:), 0, dirBAK)
+        call xml_write_sections(pathToTerm, NumSections(nextTerm), Section(nextTerm,0:), 0, dirBACKUP)
+        call xml_write_blocks(pathToTerm, NumBlocks(nextTerm), Block(nextTerm,0:), Section(nextTerm,0:), 0, dirBACKUP)
+        call xml_write_waivers(pathToTerm, Section(nextTerm,0:), dirBACKUP)
+        call xml_write_pre_enlistment(pathToTerm, 'PREDICTIONS', Advised, Section(nextTerm,0:), 0, dirBACKUP)
 
         ! start server-mode
         call server_start()
@@ -512,15 +509,16 @@ program MAIN
     end if
 
 !    ! pre-enlist students?
-!    if (trim(ACTION)=='Pre-enlist') then
+!    if (trim(ACTION)=='Preenlist') then
 !        call generate_initial_schedules(idxGrp, maxAlternates)
 !        call terminate(trim(fileExecutable)//' completed '//ACTION)
 !    end if
 
-    if (trim(ACTION)=='Enlistment') then
+    if (trim(ACTION)=='Classlists') then
+
+        pathToTerm = trim(pathToYear)//trim(txtSemester(currentTerm))//DIRSEP
 
         ! read classes for current term
-        pathToTerm = trim(pathToYear)//trim(txtSemester(currentTerm))//DIRSEP
         call read_classes(pathToTerm, NumSections(currentTerm), Section(currentTerm,0:), &
             Offering(currentTerm,MAX_ALL_DUMMY_SUBJECTS:), errNo)
 
@@ -528,13 +526,26 @@ program MAIN
         call read_blocks(pathToTerm, NumBlocks(currentTerm), Block(currentTerm,0:), &
             NumSections(currentTerm), Section(currentTerm,0:), errNo)
 
+        ! get no. of sections by dept
+        call count_sections_by_dept(currentTerm, NumSections(currentTerm), Section(currentTerm,0:))
+
+        ! add subjects, sections, students from ENLISTMENT
+        inquire(file=trim(dirDATA)//trim(pathToTerm)//'ENLISTMENT.XML', exist=pathExists)
+        if (.not. pathExists) then
+            call add_data_from_enlistment(pathToTerm, 'ENLISTMENT', NumSections(currentTerm), Section(currentTerm,0:))
+            call offerings_sort(NumSections(currentTerm), Section(currentTerm,0:))
+            call offerings_summarize(NumSections(currentTerm), Section(currentTerm,0:), &
+                Offering(currentTerm,MAX_ALL_DUMMY_SUBJECTS:), 0)
+            call sort_alphabetical_students()
+        end if
+
         ! read enlistment files (if any) for currentTerm
         call read_pre_enlistment(pathToTerm, 'ENLISTMENT', 0, 6, &
             NumSections(currentTerm), Section(currentTerm,0:), Preenlisted, NumEnlistmentRecords, errNo)
 
-        call xml_write_sections(pathToTerm, NumSections(currentTerm), Section(currentTerm,0:), 0, dirBAK)
-        call xml_write_blocks(pathToTerm, NumBlocks(currentTerm), Block(currentTerm,0:), Section(currentTerm,0:), 0, dirBAK)
-        call xml_write_pre_enlistment(pathToTerm, 'ENLISTMENT', Advised, Section(currentTerm,0:), 0, dirBAK)
+        call xml_write_sections(pathToTerm, NumSections(currentTerm), Section(currentTerm,0:), 0, dirBACKUP)
+        call xml_write_blocks(pathToTerm, NumBlocks(currentTerm), Block(currentTerm,0:), Section(currentTerm,0:), 0, dirBACKUP)
+        call xml_write_pre_enlistment(pathToTerm, 'ENLISTMENT', Preenlisted, Section(currentTerm,0:), 0, dirBACKUP)
 
         call recalculate_available_seats(Section(currentTerm,0:))
 
@@ -557,7 +568,7 @@ contains
 
         character(len=*), intent(in), optional :: mesg
 
-        write(*,AFORMAT) trim(fileExecutable)//' is version'//VERSION//' of '//PROGNAME
+        write(*,AFORMAT) trim(fileExecutable)//' ('//PROGNAME//VERSION//')'
         if (present(mesg)) write(*,AFORMAT) trim(mesg)
         write(*,AFORMAT) SPACE, &
             'Non-interactive usage: '//trim(fileExecutable)//' UNIV YEAR TERM ACTION', &
@@ -565,10 +576,10 @@ contains
             '  YEAR - chronological year when the current School Year started', &
             '  TERM - current term: 1=1st Sem, 2=2nd Sem, S=summer', &
             '  ACTION - ', &
-            '      resetpasswords - reset passwords to usernames, based on TEACHERS.XML for current term', &
-            '      checklists - create enrollment records of students from raw grades', &
-            '      predict [use_classes] - predict subject demand for next term [use CLASSES.XML for subjects offered]', &
-            '      pre-enlist group maxalt - pre-enlist group, use max no. of alternate subjects, for next term', &
+            '      Resetpasswords - reset passwords to usernames, based on TEACHERS.XML for current term', &
+            '      Checklists - create enrollment records of students from raw grades', &
+            '      Predict [use_classes] - predict subject demand for next term [use CLASSES.XML for subjects offered]', &
+            '      Preenlist group maxalt - pre-enlist group, use max no. of alternate subjects, for next term', &
             SPACE
 #if defined GLNX
         write(*,AFORMAT) &
@@ -581,104 +592,85 @@ contains
             '  IP_ADDRESS, PORT_NUM - as specified by fastcgi_pass in nginx configuration', &
             '  UNIV, YEAR, TERM - same as above', &
             '  ACTION - ', &
-            '      classes - edit the schedule of classes, for the current and next two terms', &
-            '      advising - advise students, on their subjects next term', &
-            '      enlistment - finalize enlistment of students into classes, for the current term', SPACE
+            '      Classlists - edit classlists and enter grades for the current term', &
+            '      Advising - advise students, on their subjects next term', &
+            '      Schedules - edit the schedule of classes, for the next three terms', &
+            SPACE
+
          stop
+
     end subroutine usage
 
 
     subroutine make_heeds_directories()
 
-        ! directory for raw input data
-        dirRAW = trim(dirHEEDS)//'raw'//DIRSEP
-
-        ! directory for the School Year
+        ! directory for start of School Year
         pathToYear = trim(itoa(currentYear))//DIRSEP
-        ! temporarily set pathToNextYear to absolute next year; reset before exit
-        pathToNextYear = trim(itoa(currentYear+1))//DIRSEP
-
-        ! directory for log files
-#if defined PRODUCTION
-        dirLOG = trim(dirHEEDS)//'log'//DIRSEP//trim(startDateTime)//DIRSEP
-#else
-        dirLOG = trim(dirHEEDS)//'log'//DIRSEP//'debug'//DIRSEP
-#endif
-        call make_clean_directory( dirLOG, .true. )
-
-        ! directory for XML data
-        dirXML = trim(dirHEEDS)//'xml'//DIRSEP
-        call make_clean_directory( dirXML )
-        lenDirXML = len_trim(dirXML)
-
-        call make_clean_directory( trim(dirXML)//pathToYear )
-        call make_clean_directory( trim(dirXML)//pathToNextYear )
-        do iTmp=1,3
-            call make_clean_directory( trim(dirXML)//trim(pathToYear)//trim(txtSemester(iTmp))//DIRSEP )
-            call make_clean_directory( trim(dirXML)//trim(pathToNextYear)//trim(txtSemester(iTmp))//DIRSEP )
-!            call make_clean_directory( trim(dirXML)//UPDATES//trim(pathToYear)//trim(txtSemester(iTmp))//DIRSEP )
-!            call make_clean_directory( trim(dirXML)//UPDATES//trim(pathToNextYear)//trim(txtSemester(iTmp))//DIRSEP )
-        end do
-
-        ! directory for backups
-#if defined PRODUCTION
-        dirBAK = trim(dirHEEDS)//'bak'//DIRSEP//trim(startDateTime)//DIRSEP
-#else
-        dirBAK = trim(dirHEEDS)//'bak'//DIRSEP//'debug'//DIRSEP
-#endif
-        call make_clean_directory( dirBAK )
-        call make_clean_directory( trim(dirBAK)//pathToYear )
-        call make_clean_directory( trim(dirBAK)//pathToNextYear )
-        do iTmp=1,3
-            call make_clean_directory( trim(dirBAK)//trim(pathToYear)//trim(txtSemester(iTmp))//DIRSEP, .true.)
-            call make_clean_directory( trim(dirBAK)//trim(pathToNextYear)//trim(txtSemester(iTmp))//DIRSEP, .true.)
-!            call make_clean_directory( trim(dirBAK)//UPDATES//trim(pathToYear)//trim(txtSemester(iTmp))//DIRSEP, .true.)
-!            call make_clean_directory( trim(dirBAK)//UPDATES//trim(pathToNextYear)//trim(txtSemester(iTmp))//DIRSEP, .true.)
-        end do
-
-        ! reset pathToNextYear
+        ! directory for year of next term
         pathToNextYear = trim(itoa(nextYear))//DIRSEP
 
-        return
+        ! absolute next year
+        dataSource = trim(itoa(currentYear+1))//DIRSEP
+
+        ! data directory
+        dirDATA = trim(dirHEEDS)//'data'//DIRSEP
+        call make_directory( dirDATA )
+        lenDirDAT = len_trim(dirDATA)
+
+        call make_directory( trim(dirDATA)//pathToYear )
+        call make_directory( trim(dirDATA)//dataSource )
+        do iTmp=1,3
+            call make_directory( trim(dirDATA)//trim(pathToYear)//trim(txtSemester(iTmp))//DIRSEP )
+            call make_directory( trim(dirDATA)//trim(dataSource)//trim(txtSemester(iTmp))//DIRSEP )
+        end do
+
+        ! backup directory
+#if defined PRODUCTION
+        dirBACKUP = trim(dirHEEDS)//'backup-'//trim(startDateTime)//DASH//trim(ACTION)//DIRSEP
+#else
+        dirBACKUP = trim(dirHEEDS)//'debug-'//trim(ACTION)//DIRSEP
+#endif
+        call make_directory( dirBACKUP, .true. )
+        call make_directory( trim(dirBACKUP)//pathToYear )
+        call make_directory( trim(dirBACKUP)//dataSource )
+        do iTmp=1,3
+            call make_directory( trim(dirBACKUP)//trim(pathToYear)//trim(txtSemester(iTmp))//DIRSEP, .true.)
+            call make_directory( trim(dirBACKUP)//trim(dataSource)//trim(txtSemester(iTmp))//DIRSEP, .true.)
+        end do
+
     end subroutine make_heeds_directories
 
 
     subroutine make_student_directories()
 
         ! create student directories
-        dirSUBSTITUTIONS    = trim(dirXML)//'substitutions'//DIRSEP ! directory for input/UNEDITED checklists from Registrar
-        dirTRANSCRIPTS      = trim(dirXML)//'transcripts'//DIRSEP ! directory for raw transcripts
-        dirEditedCHECKLISTS = trim(dirXML)//'edited-checklists'//DIRSEP ! for output/EDITED checklists from College Secretaries
+        dirSUBSTITUTIONS    = trim(dirDATA)//'substitutions'//DIRSEP ! directory for input/UNEDITED checklists from Registrar
+        dirTRANSCRIPTS      = trim(dirDATA)//'transcripts'//DIRSEP ! directory for raw transcripts
 
-        call make_clean_directory( dirTRANSCRIPTS )
-        call make_clean_directory( dirSUBSTITUTIONS )
-        call make_clean_directory( dirEditedCHECKLISTS )
+        call make_directory( dirTRANSCRIPTS )
+        call make_directory( dirSUBSTITUTIONS )
 
-        call make_clean_directory( trim(dirBAK)//'transcripts' )
-        call make_clean_directory( trim(dirBAK)//'substitutions' )
-        call make_clean_directory( trim(dirBAK)//'edited-checklists' )
+        call make_directory( trim(dirBACKUP)//'transcripts' )
+        call make_directory( trim(dirBACKUP)//'substitutions' )
 
         call collect_prefix_years()
         itmp = 1
         do jtmp=2,len_trim(StdNoPrefix)
             if (StdNoPrefix(jtmp:jtmp)/=':') cycle
 
-            call make_clean_directory( trim(dirXML)//'transcripts'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
-            call make_clean_directory( trim(dirXML)//'substitutions'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
-            call make_clean_directory( trim(dirXML)//'edited-checklists'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
+            call make_directory( trim(dirDATA)//'transcripts'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
+            call make_directory( trim(dirDATA)//'substitutions'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
 
-            call make_clean_directory( trim(dirBAK)//'transcripts'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
-            call make_clean_directory( trim(dirBAK)//'substitutions'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
-            call make_clean_directory( trim(dirBAK)//'edited-checklists'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
+            call make_directory( trim(dirBACKUP)//'transcripts'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
+            call make_directory( trim(dirBACKUP)//'substitutions'//DIRSEP//StdNoPrefix(itmp+1:jtmp-1) )
 
             itmp = jtmp
         end do
 
-        return
     end subroutine make_student_directories
 
 
-    subroutine make_clean_directory(dirName, clean)
+    subroutine make_directory(dirName, clean)
         character(len=*), intent (in) :: dirName
         logical, intent (in), optional :: clean
         logical :: pathExists
@@ -691,17 +683,784 @@ contains
             call system(delCmd//trim(dirName)//'*', ierr)
         end if
 
-        return
-    end subroutine make_clean_directory
+    end subroutine make_directory
+
+
+    subroutine server_start()
+
+        integer :: iTmp, kStart
+        character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
+        character(len=MAX_LEN_FILE_PATH) :: logTeacher
+        logical :: logExists
+        real :: harvest    ! random number
+
+        ! initialize QUERY_STRING encryption key
+        do iTmp=1,MAX_LEN_QUERY_STRING
+            call random_number(harvest)
+            kStart = 1 + int(255*harvest)
+            queryEncryptionKey(iTmp:iTmp) = achar(kStart)
+        end do
+
+        ! make "Stop!" page
+        call hostnm(QUERY_put, iTmp)
+        if (iTmp/=0) QUERY_put = 'localhost'
+#if defined GLNX
+#else
+        QUERY_put = trim(QUERY_put)//':82'
+#endif
+        CGI_PATH = 'http://'//trim(QUERY_put)//FSLASH//ACTION
+        call html_login('Stop-'//trim(UniversityCode)//DASH//trim(ACTION)//'.html', &
+            trim(make_href(fnStop, 'Stop', post=nbsp//ACTION) ) )
+
+        ! reset CGI_PATH
+        CGI_PATH = FSLASH//ACTION
+
+        ! notes
+        call file_log_message(trim(fileExecutable)//' started '//ACTION)
+        if (noWrites) then ! training mode
+            call file_log_message(trim(fileExecutable)//' is in training mode. '// &
+                'Any made changes will be lost after the program exits.')
+        end if
+
+        ! loop until killed/fnSTOP
+        do while (FCGI_Accept() >= 0)
+
+            ! timestamp of request
+            call date_and_time (date=currentDate, time=currentTime)
+
+            ! tell the webserver to expect text/html
+            iTmp = FCGI_puts ('Content-type: text/html'//CRLF//NUL)
+
+            ! rewind the response file
+            rewind (unitHTML)
+
+            ! Retrieve DOCUMENT_URI and QUERY_STRING/CONTENT
+            call FCGI_getquery(unitHTML)
+
+#if defined PRODUCTION
+            ! encrypted query ?
+            call cgi_get_named_string(QUERY_STRING, 'q', cipher, iTmp)
+            if (iTmp==0) then
+                iTmp = len_trim(cipher)
+                kStart = atoi( cipher(iTmp-3:iTmp) )
+                if (kStart>MAX_LEN_QUERY_STRING/2 .and. kStart<MAX_LEN_QUERY_STRING) then
+                    cipher(iTmp-3:iTmp) = SPACE
+                    call decrypt(queryEncryptionKey(:kStart), cipher)
+                    QUERY_STRING = trim(cipher)//'&'//QUERY_STRING
+                else
+                    QUERY_STRING = '(invalid)'
+                end if
+            end if
+#else
+            call cgi_get_named_string(QUERY_STRING, 'q', cipher, iTmp)
+            if (iTmp==0) then
+                QUERY_STRING = trim(cipher)//'&'//QUERY_STRING
+                call html_comment('revised CONTENT='//trim(QUERY_STRING))
+            end if
+#endif
+            ! make copy of QUERY_STRING
+            cipher = QUERY_STRING
+
+            ! initialize index to target object of REQUEST
+            targetSubject = 0
+            targetSection = 0
+            targetDepartment = 0
+            targetCurriculum = 0
+            targetCollege = 0
+            targetRoom = 0
+            targetTeacher = 0
+            targetBlock = 0
+            targetTerm = 0
+            targetLogin = 0
+            targetStudent = 0
+
+            ! Establish USERNAME/ROLE and REQUEST
+            loginCheckMessage = SPACE
+            call get_user_request()
+
+            ! override targetTerm
+            if (isActionClasslists) then
+                targetTerm = currentTerm
+            elseif (isActionAdvising) then
+                targetTerm = nextTerm
+            end if
+
+            ! open user's log file, create if necessary
+            call blank_to_underscore(USERNAME, tTeacher)
+            logTeacher = trim(dirBACKUP)//trim(tTeacher)//'.log'
+            inquire(file=trim(logTeacher), exist=logExists)
+            if (.not. logExists) then
+                open(unit=unitUSER, file=trim(logTeacher), status='new')
+            else
+                open(unit=unitUSER, file=trim(logTeacher), status='old', position='append')
+            end if
+            open(unit=unitREQ, file=trim(dirBACKUP)//'requests.log', status='old', position='append')
+
+            ! append query to user log file
+            write(unitUSER,AFORMAT) SPACE, &
+                REMOTE_ADDR//' : '//currentDate//DASH//currentTime//' : '// &
+                fnDescription(REQUEST)
+            write(unitREQ,AFORMAT) '#'// &
+                REMOTE_ADDR//' : '//currentDate//DASH//currentTime//' : '// &
+                fnDescription(REQUEST)
+            if (REQUEST>4) then ! no passwords
+                write(unitUSER,AFORMAT) trim(cipher)
+                write(unitREQ, AFORMAT) trim(cipher)
+            end if
+
+            call html_comment(fnDescription(REQUEST))
+
+            ! compose response
+            call server_respond(unitHTML)
+
+            ! send response to server
+            call FCGI_putfile(unitHTML)
+
+            ! close user log file
+            close(unitREQ)
+            close(unitUSER)
+
+            ! stop?
+            if (REQUEST==fnStop) exit
+
+        end do ! while (FCGI_Accept() >= 0)
+
+        ! remove "Stop" link
+        call unlink('Stop-'//trim(UniversityCode)//DASH//trim(ACTION)//'.html')
+
+        ! terminate
+        call terminate(trim(fileExecutable)//' completed '//ACTION)
+
+    end subroutine server_start
+
+
+    subroutine server_respond (device)
+        integer, intent (in) :: device
+
+        integer :: tYear, tTerm
+
+        call html_comment('server_respond()')
+
+        ! target directory if files are to be modified
+        if (targetTerm>0) then
+            if (targetTerm<currentTerm) then ! next school year
+                call qualify_term (3+targetTerm, tYear, tTerm, termDescription)
+            else
+                call qualify_term (targetTerm, tYear, tTerm, termDescription)
+            end if
+            termDescription = ' for '//termDescription
+            pathToTerm = trim(itoa(tYear))//DIRSEP//trim(txtSemester(tTerm))//DIRSEP
+        else
+            termDescription = SPACE
+            pathToTerm = trim(itoa(currentYear))//DIRSEP
+        end if
+
+        ! suspended ?
+        if (isSuspended .and. .not. isRoleAdmin) REQUEST = 0
+
+        select case (REQUEST)
+
+            case (0)
+                Teacher(targetLogin)%Status = 0
+                call html_landing_page(device, &
+                    '<hr>The '//trim(UniversityCode)//SPACE//trim(REGISTRAR)//' has temporarily suspended '// &
+                    PROGNAME//FSLASH//trim(Action)//'. Please try again later.<hr>')
+
+            case (fnStop)
+                if (isDirtySTUDENTS) then
+                    call xml_write_students(pathToYear, 0)
+                end if
+                if (isDirtyPreenlisted) then
+                    pathToTerm = trim(pathToYear)//trim(txtSemester(currentTerm))//DIRSEP
+                    call xml_write_pre_enlistment(pathToTerm, 'ENLISTMENT', Preenlisted, Section(currentTerm,0:))
+                endif
+
+                call html_landing_page(device, 'The program will stop.')
+
+            case (fnLogin)
+                Teacher(targetLogin)%Status = 1
+                call html_college_links(device, CollegeIdxUser, mesg=loginCheckMessage)
+
+            case (fnChangePassword)
+                Teacher(targetLogin)%Status = 1
+                call change_current_password(device)
+
+            case (fnGeneratePassword)
+                call generate_password(device)
+
+            case (fnLogout)
+                Teacher(targetLogin)%Status = 0
+                call html_landing_page(device, SPACE)
+
+            case (fnSuspendProgram)
+                if (isRoleAdmin) then
+                    if (isDirtySTUDENTS) then
+                        call xml_write_students(pathToYear, 0)
+                    end if
+                    isSuspended = .not. isSuspended
+                    call html_college_links(device, CollegeIdxUser, mesg='Toggled "Suspend" mode')
+                else
+                    REQUEST = fnLogout
+                    Teacher(targetLogin)%Status = 0
+                    call html_landing_page(device, SPACE)
+                end if
+
+            case (fnToggleTrainingMode)
+                noWrites = .not. noWrites
+                call html_college_links(device, CollegeIdxUser, mesg='Toggled "Training" mode')
+
+            case (fnEditSignatories)
+                call edit_signatories(device)
+
+            case (fnDownloadXML)
+                call download_xml(device)
+
+            ! college info
+            case (fnCollegeLinks)
+                call html_college_links(device)
+
+
+            ! subject info
+            case (fnSubjectList)
+                call subject_list_all (device)
+
+            case (fnEditSubject)
+                call subject_edit (device)
+
+
+            ! curriculum info
+            case (fnCurriculumList, fnActivateCurriculum, fnDeactivateCurriculum)
+                call curriculum_list_all(device, REQUEST)
+
+            case (fnCurriculum)
+                call curriculum_display(device)
+
+            case (fnEditCurriculum)
+                call curriculum_edit (device)
+
+
+            ! room info
+            case (fnRoomList)
+                call room_list_all (device)
+
+            case (fnEditRoom)
+                call room_edit (device)
+
+
+            ! teacher info
+            case (fnTeachersByDept, fnTeachersByName)
+                call teacher_list_all (device, REQUEST)
+
+            case (fnEditTeacher)
+                call teacher_edit (device)
+
+
+            ! blocks
+            case (fnBlockList)
+                call block_list_all(device, NumBlocks(targetTerm), Block(targetTerm,0:))
+
+            case (fnBlockSchedule, fnBlockDeleteName, fnBlockEditName, fnBlockCopy, fnBlockDeleteAll, &
+                fnBlockEditSection, fnBlockEditSubject)
+                call block_show_schedule(device, NumSections(targetTerm), Section(targetTerm,0:), &
+                    Offering(targetTerm,MAX_ALL_DUMMY_SUBJECTS:), &
+                    NumBlocks(targetTerm), Block(targetTerm,0:), REQUEST)
+
+            case (fnBlockNewSelect)
+                call block_select_curriculum_year(device, NumSections(targetTerm), Section(targetTerm,0:), &
+                    NumBlocks(targetTerm), Block(targetTerm,0:) )
+
+            case (fnBlockNewAdd)
+                call block_add(device, targetTerm, NumSections(targetTerm), Section(targetTerm,0:), &
+                    Offering(targetTerm,MAX_ALL_DUMMY_SUBJECTS:), NumBlocks(targetTerm), Block(targetTerm,0:) )
+
+
+            ! schedule of classes
+            case (fnScheduleOfClasses, fnScheduleByArea, fnTBARooms, fnTBATeachers, fnTeacherClasses)
+                call section_list_all (device, NumSections(targetTerm), Section(targetTerm,0:), &
+                    Offering(targetTerm,MAX_ALL_DUMMY_SUBJECTS:), &
+                    NumBlocks(targetTerm), Block(targetTerm,0:), REQUEST)
+
+            case (fnScheduleOfferSubject)
+                call section_offer_subject (device, NumSections(targetTerm), Section(targetTerm,0:), &
+                    Offering(targetTerm,MAX_ALL_DUMMY_SUBJECTS:), &
+                    NumBlocks(targetTerm), Block(targetTerm,0:) )
+
+            case (fnScheduleDelete)
+                call section_delete(device, NumSections(targetTerm), Section(targetTerm,0:), &
+                    Offering(targetTerm,MAX_ALL_DUMMY_SUBJECTS:), &
+                    NumBlocks(targetTerm), Block(targetTerm,0:) )
+
+            case (fnScheduleAddLab)
+                call section_add_laboratory(device, NumSections(targetTerm), Section(targetTerm,0:), &
+                    Offering(targetTerm,MAX_ALL_DUMMY_SUBJECTS:), &
+                    NumBlocks(targetTerm), Block(targetTerm,0:) )
+
+            case (fnScheduleEdit)
+                call section_edit(device, NumSections(targetTerm), Section(targetTerm,0:), &
+                    NumBlocks(targetTerm), Block(targetTerm,0:) )
+
+            case (fnScheduleValidate)
+                call section_validate_inputs (device, NumSections(targetTerm), Section(targetTerm,0:), &
+                    Offering(targetTerm,MAX_ALL_DUMMY_SUBJECTS:), &
+                    NumBlocks(targetTerm), Block(targetTerm,0:) )
+
+            ! schedule conflicts
+            case (fnRoomConflicts)
+                call room_conflicts (device, NumSections(targetTerm), Section(targetTerm,0:))
+
+            case (fnRoomSchedule)
+                call room_schedule(device, NumSections(targetTerm), Section(targetTerm,0:) )
+
+            case (fnTeacherConflicts)
+                call teacher_conflicts (device, NumSections(targetTerm), Section(targetTerm,0:))
+
+            case (fnTeacherEditSchedule)
+                call teacher_schedule(device, NumSections(targetTerm), Section(targetTerm,0:) )
+
+            case (fnPrintableWorkload)
+                call teacher_schedule_printable(device, NumSections(targetTerm), Section(targetTerm,0:), &
+                    NumBlocks(targetTerm), Block(targetTerm,0:) )
+
+!            ! students
+!            case (fnStudentAddPrompt)
+!                call student_prompt_add(device)
+!
+!            case (fnStudentAdd)
+!                call student_add(device)
+
+            case (fnStudentsDistribution)
+                call student_distribution(device)
+
+            case (fnStudentsByCurriculum,fnStudentsByname,fnStudentsByYear,fnStudentsByProgram)
+                call links_to_students(device, REQUEST)
+
+            case (fnStudentPerformance)
+                call student_performance(device)
+
+            case (fnEditCheckList)
+                 call checklist_edit(device, .not. advisingPeriod, &
+                    Section(nextTerm,0:), Offering(nextTerm,MAX_ALL_DUMMY_SUBJECTS:), &
+                    trim(pathToNextYear)//trim(txtSemester(nextTerm))//DIRSEP)
+
+            ! cases for next semester's predicted demand for subjects
+            case (fnDemandFreshmen,fnUpdateDemandFreshmen)
+                call demand_by_new_freshmen(device, Offering(nextTerm,MAX_ALL_DUMMY_SUBJECTS:))
+
+            case (fnDemandForSubjects)
+                call demand_for_subjects(device, NumSections(nextTerm), Section(nextTerm,0:), &
+                    Offering(nextTerm,MAX_ALL_DUMMY_SUBJECTS:))
+
+            case (fnPotentialStudents)
+                call list_potential_students(device)
+
+
+            ! cases for current semester enlistment
+            case (fnEnlistmentSummary, fnBottleneck, fnExtraSlots, fnUnderloadSummary, fnUnderloadedStudents)
+                call enlistment_summarize(device, NumSections(currentTerm), Section(currentTerm,0:), &
+                    Offering(currentTerm,MAX_ALL_DUMMY_SUBJECTS:), Preenlisted, REQUEST)
+
+            case (fnNotAccommodated)
+                call enlistment_not_accommodated(device, Preenlisted)
+
+            case (fnGradeSheet)
+                call enlistment_grades(device, NumSections(currentTerm), Section(currentTerm,0:))
+
+            case (fnClassList)
+                call class_list(device, NumSections(currentTerm), Section(currentTerm,0:))
+
+            case (fnChangeMatriculation)
+                call enlistment_edit(device, NumSections(currentTerm), Section(currentTerm,0:), &
+                    NumBlocks(currentTerm), Block(currentTerm,0:) )
+
+            case (fnFindBlock)
+                call enlistment_find_block(device, NumSections(currentTerm), Section(currentTerm,0:), &
+                    NumBlocks(currentTerm), Block(currentTerm,0:) )
+
+            case (fnPrintableSchedule)
+                call enlistment_printable(device, NumSections(currentTerm), Section(currentTerm,0:))
+
+            case default
+                targetCollege = CollegeIdxUser
+                targetDepartment = DeptIdxUser
+                termDescription = SPACE
+                call html_write_header(device, SPACE, &
+                    '<hr>The functionality "'//trim(fnDescription(REQUEST))// &
+                    '" is not activated in '//PROGNAME//VERSION)
+
+        end select
+
+        call html_write_footer(device)
+
+    end subroutine server_respond
+
+
+    subroutine terminate(msg)
+
+        character(len=*), intent (in) :: msg
+
+        call file_log_message(msg, 'Ends '//currentDate//DASH//currentTime )
+
+        close(unitHTML)
+        close(unitLOG)
+
+        stop
+    end subroutine terminate
+
+
+    subroutine student_prompt_add(device)
+        integer, intent (in) :: device
+        integer :: ldx
+
+        call html_write_header(device, 'Add a student')
+        call make_form_start(device, fnStudentAdd)
+        write(device,AFORMAT) &
+            '<table border="0" width="100%" cellpadding="0" cellspacing="0">', &
+            begintr//begintd//'Student Number:'//endtd//begintd// &  ! student number
+            '<input name="StdNo" value="StdNo">'//endtd//endtr, & ! name
+            begintr//begintd//'Lastname Firstname MI:'//endtd//begintd// &
+            '<input name="Name" size="40" value="Lastname Firstname MI">'//endtd//endtr, & ! gender
+            begintr//begintd//'Gender:'//endtd//begintd//'<select name="Gender">', &
+            '<option value=""> (select) <option value="F"> Female <option value="M"> Male', &
+            '</select>'//endtd//endtr, & ! country index
+            begintr//begintd//'Country:'//endtd//begintd//'<select name="CountryIdx">', &
+            '<option value="1"> Philippines <option value="0"> Other ', &
+            '</select>'//endtd//endtr, & ! curriculum
+            begintr//begintd//'Curriculum:'//endtd//begintd//'<select name="CurriculumIdx">', &
+            '<option value=""> (select curriculum)'
+        do ldx=1,NumCurricula
+            if (.not. Curriculum(ldx)%Active) cycle
+            write(device,AFORMAT) '<option value="'//trim(Curriculum(ldx)%Code)//'"> '// &
+                trim(Curriculum(ldx)%Code)//' - '//trim(Curriculum(ldx)%Title)
+        end do
+        write(device,AFORMAT) '</select>'//endtd//endtr
+        ! classification
+        write(device,AFORMAT) &
+            begintr//begintd//'Year level:'//endtd//begintd//'<select name="Classification">'
+        do ldx=1,8
+            write(device,AFORMAT) '<option value="'//trim(itoa(ldx))//'"> '// &
+                trim(txtYear(ldx+9))
+        end do
+        write(device,AFORMAT) '</select>'//endtd//endtr
+        ! Add button
+        write(device,AFORMAT) &
+            '</table><br><input type="submit" name="action" value="Add student">', &
+            '</form><hr>'
+
+    end subroutine student_prompt_add
+
+
+    subroutine student_add(device)
+        integer, intent (in) :: device
+
+        character(len=MAX_LEN_STUDENT_CODE) :: tStdNo
+        character (len=MAX_LEN_TEXT_YEAR) :: tYear
+        character(len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
+        type (TYPE_STUDENT) :: wrk
+        integer :: ierr
+
+        ! student exists?
+        call cgi_get_named_string(QUERY_STRING, 'StdNo', tStdNo, ierr)
+        targetStudent = index_to_student(tStdNo)
+
+        if (ierr/=0 .or. tStdNo==SPACE) then
+            call html_college_links(device, CollegeIdxUser, 'Add student: student number not specified?')
+            return
+        else if (targetStudent/=0) then
+            call html_college_links(device, CollegeIdxUser, 'Add student: student "'//tStdNo//'" already on record.')
+            return
+        end if
+        wrk%StdNo = tStdNo
+
+        call cgi_get_named_string(QUERY_STRING, 'Name', wrk%Name, ierr)
+        call cgi_get_named_string(QUERY_STRING, 'Gender', wrk%Gender, ierr)
+
+        call cgi_get_named_string(QUERY_STRING, 'CurriculumIdx', tCurriculum, ierr)
+        wrk%CurriculumIdx = index_to_curriculum(tCurriculum)
+        call cgi_get_named_string(QUERY_STRING, 'Classification', tYear, ierr)
+        wrk%Classification = index_to_year(tYear)
+        call cgi_get_named_integer(QUERY_STRING, 'CountryIdx', wrk%CountryIdx, ierr)
+
+        targetStudent = NumStudents
+        do while (tStdNo<Student(targetStudent)%StdNo)
+            Student(targetStudent+1) = Student(targetStudent)
+            targetStudent = targetStudent-1
+        end do
+        Student(targetStudent+1) = wrk
+        NumStudents = NumStudents + 1
+        isDirtySTUDENTS = .false.
+
+        call sort_alphabetical_students()
+
+        targetStudent = index_to_student(tStdNo)
+        call html_college_links(device, CollegeIdxUser, 'Added '//trim(text_student_info(targetStudent)))
+
+    end subroutine student_add
+
+
+    subroutine get_user_request()
+
+        character (len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
+        character (len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
+        character (len=MAX_LEN_PASSWD_VAR) :: tPassword
+        integer :: ierr
+
+        isRoleAdmin = .false.
+        isRoleSRE = .false.
+        isRoleChair = .false.
+        isRoleStudent = .false.
+        isRoleGuest = .false.
+
+        DeptIdxUser = 0
+        CollegeIdxUser = 0
+        CurriculumIdxUser = 0
+
+        ! Get USERNAME
+        call cgi_get_named_string(QUERY_STRING, 'N', USERNAME, ierr)
+        targetLogin = index_to_teacher(USERNAME)
+
+        if (targetLogin>0) then
+            ROLE = Teacher(targetLogin)%Role
+        else ! not in Teachers(); assume Guest
+            USERNAME = GUEST
+            ROLE = GUEST
+        end if
+
+        if (trim(ROLE)==GUEST) then ! Guest
+            isRoleGuest = .true.
+            if (trim(USERNAME)/=GUEST) then
+                DeptIdxUser = Teacher(targetLogin)%DeptIdx
+                CollegeIdxUser = Department(DeptIdxUser)%CollegeIdx
+            end if
+        elseif (trim(ROLE)==REGISTRAR) then ! Administrator
+            isRoleAdmin = .true.
+            DeptIdxUser = NumDepartments
+            CollegeIdxUser = Department(DeptIdxUser)%CollegeIdx
+        else ! Chair or Adviser ?
+            tDepartment = ROLE
+            targetDepartment = index_to_dept(tDepartment)
+            if (targetDepartment/=0) then ! Chair
+                isRoleChair = .true.
+                DeptIdxUser = targetDepartment
+                CollegeIdxUser = Department(targetDepartment)%CollegeIdx
+            else
+                tCurriculum = ROLE
+                targetCurriculum = abs(index_to_curriculum(tCurriculum))
+                if (targetCurriculum/=0) then ! adviser
+                    isRoleSRE = .true.
+                    ROLE = CurrProgCode(targetCurriculum)
+                    CurriculumIdxUser = targetCurriculum
+                    CollegeIdxUser = Curriculum(targetCurriculum)%CollegeIdx
+                    DeptIdxUser = 0
+                else
+                    isRoleGuest = .true.
+                end if
+            end if
+        end if
+
+        ! Establish REQUESTed function if any, else return the landing page
+        call cgi_get_named_integer(QUERY_STRING, 'F', REQUEST, ierr)
+        if (ierr==-1) then
+            REQUEST = fnLogout
+            return
+        end if
+
+        ! Establish TERM if required
+        if (REQUEST>=fnScheduleOfClasses) then
+            call cgi_get_named_integer(QUERY_STRING, 'A9', targetTerm, ierr)
+        end if
+
+        if (REQUEST/=fnLogin) then ! not logging in
+            ! previously logged out?  force user to login
+            if (Teacher(targetLogin)%Status==0 .and. .not. isRoleGuest) REQUEST = fnLogout
+            return
+        end if
+        ! request is login; validate POSTed data
+
+        ! Always allow Guest account
+        if (trim(USERNAME)==GUEST) then ! Guest
+            loginCheckMessage = &
+                ' You are logged in as Guest. Contact the '//REGISTRAR//' to obtain an account.'
+            return
+        end if
+
+        ! password provided ?
+        call cgi_get_named_string(QUERY_STRING, 'P', tPassword, ierr)
+        if (ierr==-1) then ! no password
+            REQUEST = fnLogout
+            loginCheckMessage = 'Username and/or Password not valid.'
+        else ! password provided
+            if (is_password(targetLogin,tPassword) ) then ! password matched
+                loginCheckMessage = 'Successful login for '//USERNAME
+            else ! return login page
+                REQUEST = fnLogout
+                loginCheckMessage = 'Username and/or Password not valid.'
+            end if
+        end if
+
+    end subroutine get_user_request
+
+
+    subroutine download_xml(device)
+        integer, intent(in) :: device
+
+        character (len=MAX_LEN_FILE_PATH) :: XMLfile, fileName
+        character (len=MAX_LEN_XML_LINE) :: line
+        integer :: ierr, eof
+        logical :: fileExists
+
+        call cgi_get_named_string(QUERY_STRING, 'A1', XMLfile, ierr)
+
+        fileName = trim(dirDATA)//trim(pathToYear)//XMLfile
+        inquire(file=fileName, exist=fileExists)
+        if (.not. fileExists) then
+            fileName = trim(dirDATA)//trim(pathToTerm)//XMLfile
+            inquire(file=fileName, exist=fileExists)
+        end if
+        if (fileExists) then
+            write(device,AFORMAT) '<comment>', &
+                'Save as '//trim(fileName), '</comment>'
+            open(unit=unitXML, file=fileName, form='formatted', status='old')
+            do
+                read(unitXML, AFORMAT, iostat=eof) line
+                if (eof<0) exit
+                write(device,AFORMAT) trim(line)
+            end do
+            close(unitXML)
+        else
+            targetCollege = CollegeIdxUser
+            targetDepartment = DeptIdxUser
+            termDescription = SPACE
+            call html_write_header(device, SPACE, '<hr>File not found "'//trim(fileName))
+            REQUEST = 0
+        end if
+
+    end subroutine download_xml
+
+
+    subroutine execute_log()
+
+        integer :: unitREPLAY=990, errNo, eof
+        character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
+        character(len=MAX_LEN_FILE_PATH) :: logTeacher, fileName
+        logical :: logExists
+
+        ! disallow xml_write_*() for now
+        !noWrites = .true.
+
+        REMOTE_ADDR = SPACE
+        DOCUMENT_URI = SPACE
+
+        ! reset CGI_PATH
+        CGI_PATH = FSLASH//trim(ACTION)//FSLASH//UniversityCode
+
+        ! notes
+        call file_log_message(trim(fileExecutable)//' started '//ACTION//' execute_log()')
+        if (noWrites) then ! training mode
+            call file_log_message(trim(fileExecutable)//' is in training mode. '// &
+                'Any made changes will be lost after the program exits.')
+        end if
+
+        fileName = 'requests.log'
+        open(unit=unitREPLAY, file=fileName, form='formatted', status='old', iostat=errNo)
+        if (errNo/=0) return
+
+        ! loop until EOF/fnSTOP
+        do
+
+            read(unitREPLAY, AFORMAT, iostat=eof) QUERY_STRING
+            if (eof<0) exit
+            if (QUERY_STRING(1:1)=='#') cycle
+
+            ! timestamp of request
+            call date_and_time (date=currentDate, time=currentTime)
+
+            ! rewind the response file
+            rewind (unitHTML)
+
+            ! make copy of QUERY_STRING
+            cipher = QUERY_STRING
+
+            ! initialize index to target object of REQUEST
+            targetSubject = 0
+            targetSection = 0
+            targetDepartment = 0
+            targetCurriculum = 0
+            targetCollege = 0
+            targetRoom = 0
+            targetTeacher = 0
+            targetBlock = 0
+            targetTerm = 0
+            targetLogin = 0
+            targetStudent = 0
+
+            ! force everyone to be logged in
+            do eof=1,NumTeachers
+                Teacher(eof)%Status = 1
+            end do
+
+            ! Establish USERNAME/ROLE and REQUEST
+            loginCheckMessage = SPACE
+            call get_user_request()
+
+            ! override targetTerm
+            if (isActionClasslists) then
+                targetTerm = currentTerm
+            elseif (isActionAdvising) then
+                targetTerm = nextTerm
+            end if
+
+
+            ! open user's log file, create if necessary
+            call blank_to_underscore(USERNAME, tTeacher)
+            logTeacher = trim(dirBACKUP)//trim(tTeacher)//'.log'
+            inquire(file=trim(logTeacher), exist=logExists)
+            if (.not. logExists) then
+                open(unit=unitUSER, file=trim(logTeacher), status='new')
+            else
+                open(unit=unitUSER, file=trim(logTeacher), status='old', position='append')
+            end if
+
+            ! append query to user log file
+            write(unitUSER,AFORMAT) SPACE, &
+                REMOTE_ADDR//' : '//currentDate//DASH//currentTime//' : '// &
+                fnDescription(REQUEST)
+            if (REQUEST>4) then ! no passwords
+                write(unitUSER,AFORMAT) trim(cipher)
+                write(unitREQ, AFORMAT) trim(cipher)
+            end if
+
+            call html_comment(fnDescription(REQUEST))
+
+            ! compose response
+            call server_respond(unitHTML)
+
+!            ! send response to server
+!            call FCGI_putfile(unitHTML)
+
+            ! close user log file
+            close(unitUSER)
+
+            ! stop?
+            if (REQUEST==fnStop) exit
+
+        end do
+
+        close(unitREPLAY)
+
+        ! terminate
+        call terminate(trim(fileExecutable)//' completed '//ACTION)
+
+    end subroutine execute_log
 
 
     subroutine rename_university()
 
         character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
         character (len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
+        character (len=MAX_LEN_FILE_PATH) :: dataSource
         !character(len=MAX_LEN_STUDENT_CODE) :: tStdNo
         real :: harvest
-        integer :: lTmp
+        integer :: iTmp, jTmp, kTmp, lTmp, errNo
 
         ! read schedules
         do kTmp=termBegin,termEnd
@@ -901,9 +1660,144 @@ contains
         call xml_write_teachers(pathToYear)
         call write_password_file(pathToYear)
 
-        return
-
     end subroutine rename_university
+
+
+    subroutine add_data_from_enlistment(path, basename, NumSections, Section)
+        character(len=*), intent(in) :: path, basename
+        integer, intent (in out) :: NumSections
+        type (TYPE_SECTION), intent(in out) :: Section(0:)
+
+        character (len=MAX_LEN_STUDENT_CODE) :: tStdNo
+        character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
+        character (len=MAX_LEN_CLASS_ID) :: tSection
+        character(len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
+        integer :: cdx, k, sdx, std, ier, nSubj, nSect, nStd
+        type (TYPE_STUDENT) :: wrk
+
+        character (len=MAX_LEN_FILE_PATH) :: fileName
+        character (len=MAX_LEN_XML_LINE) :: line
+        integer :: eof, ndels, pos(60)
+
+        fileName = trim(dirDATA)//trim(path)//basename//'.CSV'
+        open(unit=unitRAW, file=fileName, form='formatted', status='old', iostat=ier)
+        if (ier/=0) return
+
+        call file_log_message ('Retrieving additional info from '//fileName)
+
+        nSubj = 0
+        nSect =0
+        nStd = 0
+
+        loop_ENLISTMENT  : &
+        do
+            read (unitRAW, AFORMAT, iostat = eof) line
+            if (eof<0) exit loop_ENLISTMENT
+            if (line(1:1)=='#' .or. line(1:3)=='   ') cycle loop_ENLISTMENT
+
+        !#STUDNO,SUBJECT CODE,CLASS CODE,SutdName,Course,TERM,COLLEGE,TEACHER,SECTION
+        !1      2            3          4        5      6    7       8       9       10       11      12     13        14          15
+        !08-09517,EM 218,G007,"Abbariao, Cristopher Adolfo",MAED-SS,13-S,GS,To Be Assigned,GS
+        !08-09517,MA 204,G022,"Abbariao, Cristopher Adolfo",MAED-SS,13-S,GS,To Be Assigned,GS
+        !08-09517,SOC SCI 218A,G052,"Abbariao, Cristopher Adolfo",MAED-SS,13-S,GS,To Be Assigned,GS
+        !08-09517,SS 217,G053,"Abbariao, Cristopher Adolfo",MAED-SS,13-S,GS,To Be Assigned,GS
+        !06-00593,BA 72,B120,"Accad, Leonard Andrew Bramaje",BSENT,13-S,CBEA,"Gonzaga, Jeremiah",BSENT-3C
+        !06-00593,BA 66,B128,"Accad, Leonard Andrew Bramaje",BSENT,13-S,CBEA,"Singson, Marcial",BSENT-3C
+        !08-02956,ENG 13,E028,"Adviento, Baby Jane Concepcion",BSED-FIL,13-S,CTE,"Clemente, Beatriz",BSED 1K
+        !
+            call index_to_delimiters(COMMA, line, ndels, pos)
+
+            ! subject
+            tSubject = line(pos(2)+1:pos(3)-1)
+            cdx = index_to_subject(tSubject)
+            if (cdx<=0) then ! add it
+                NumAdditionalSubjects = NumAdditionalSubjects+1
+                cdx = NumSubjects + NumAdditionalSubjects
+
+                Subject(cdx)%Name = tSubject
+                Subject(cdx)%Title = tSubject
+                Subject(cdx)%DeptIdx = NumDepartments
+                Subject(cdx)%Units = 3.0
+
+                Subject(cdx)%TermOffered = 7
+                Subject(cdx)%LectHours = 3.0
+                Subject(cdx)%MinLectSize = 50
+                Subject(cdx)%MaxLectSize = 50
+                Subject(cdx)%LectLoad = 0.0
+                Subject(cdx)%LabHours = 0.0
+                Subject(cdx)%MinLabSize = 50
+                Subject(cdx)%MaxLabSize = 50
+                Subject(cdx)%LabLoad = 0.0
+
+                k = 1
+                Subject(cdx)%lenPreq = k
+                Subject(cdx)%Prerequisite(k) = INDEX_TO_NONE
+                Subject(cdx)%lenCoreq = k
+                Subject(cdx)%Corequisite = INDEX_TO_NONE
+                Subject(cdx)%lenConc = k
+                Subject(cdx)%Concurrent = INDEX_TO_NONE
+                Subject(cdx)%lenConcPreq = k
+                Subject(cdx)%ConcPrerequisite= INDEX_TO_NONE
+
+                Subject(cdx)%LabFee = 0.0
+                Subject(cdx)%Tuition = 0.0
+
+                nSubj = nSubj + 1
+                call file_log_message ('Added subject '//tSubject)
+
+            end if
+
+            ! section
+            tSection = trim(tSubject)//SPACE//line(pos(3)+1:pos(4)-1)
+            sdx = index_to_section(tSection, NumSections, Section)
+            if (sdx==0 .and. (pos(3)+1/=pos(4)) ) then
+                do k=1,NumDepartments
+                    if (Department(k)%SectionPrefix==line(poS(3)+1:pos(3)+1) ) exit
+                end do
+                NumSections = NumSections+1
+                Section(NumSections) = TYPE_SECTION (tSection, line(pos(3)+1:pos(4)-1), SPACE, &
+                    k, cdx, Subject(cdx)%MaxLectSize, Subject(cdx)%MaxLectSize, 1, 0, 0, 0, 0, 0)
+                nSect = nSect + 1
+                call file_log_message ('Added section '//tSection)
+            end if
+
+            ! student
+            tStdNo = line(1:pos(2)-1)
+            std = index_to_student(tStdNo)
+            if (std==0) then
+        !#STUDNO,SUBJECT CODE,CLASS CODE,SutdName,Course,TERM,COLLEGE,TEACHER,SECTION
+        !1      2            3          4        5      6    7       8       9       10       11      12     13        14          15
+        !08-09517,EM 218,G007,"Abbariao, Cristopher Adolfo",MAED-SS,13-S,GS,To Be Assigned,GS
+        !08-09517,MA 204,G022,"Abbariao, Cristopher Adolfo",MAED-SS,13-S,GS,To Be Assigned,GS
+                k = index(line, '",')
+                call initialize_student(wrk)
+                wrk%StdNo = tStdNo
+                wrk%Name = line(pos(4)+2:k-1)
+                tCurriculum = line(k+2:)
+                k = index(tCurriculum, COMMA)
+                tCurriculum(k:) = SPACE
+                k = index_to_curriculum(tCurriculum)
+                if (k<0) then
+                    k = -k
+                elseif (k==0) then
+                    k = NumCurricula
+                end if
+                wrk%CurriculumIdx = k
+                call update_student_info(wrk, k)
+                if (k<0) call file_log_message ('Added '//tStdNo//trim(tCurriculum)//' - '// &
+                    trim(text_student_curriculum(-k)) )
+                nStd = nStd + 1
+
+            end if
+
+        end do loop_ENLISTMENT
+        close(unitRAW)
+
+        if (nSubj>0) call xml_write_subjects(pathToYear)
+        if (nSect>0) call xml_write_sections(path, NumSections, Section, 0)
+        if (nStd>0) call xml_write_students(pathToYear, 0)
+
+    end subroutine add_data_from_enlistment
 
 
 end program MAIN

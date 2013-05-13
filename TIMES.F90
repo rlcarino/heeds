@@ -95,16 +95,19 @@ contains
         ! returns index of tYear in the list of Years
         integer :: index_to_year
         character (len=MAX_LEN_TEXT_YEAR), intent (in) :: tYear
-        integer :: i
-        index_to_year = 0
+        integer :: i, idx
+
+        idx = 0
         do i=1,17
             if (tYear==txtYear(i)) then
-                index_to_year = i
+                idx = i
                 exit
             end if
         end do
-        if (index_to_year>9) index_to_year =index_to_year-9
-        return
+        if (idx>9) idx = idx-9
+        index_to_year = idx
+
+
     end function index_to_year
 
 
@@ -118,7 +121,7 @@ contains
           !call file_log_message('Error in time index. Aborting...')
           !stop
         end if
-        return
+
     end function text_time_period
 
 
@@ -134,7 +137,7 @@ contains
             end if
         end do
         index_to_time = hdx
-        return
+
     end function index_to_time
 
 
@@ -153,7 +156,7 @@ contains
         end do
         if (index_to_term>6) index_to_term = index_to_term - 3
         if (index_to_term>3) index_to_term = index_to_term - 3
-        return
+
     end function index_to_term
 
 
@@ -165,7 +168,7 @@ contains
         integer, intent(out) :: Year, Term
         Year = (rank+2)/3
         Term = rank-3*(Year-1)
-        return
+
     end subroutine rank_to_year_term
 
 
@@ -186,7 +189,7 @@ contains
         else
             description = 'Summer Term, '//text_school_year(Year)
         end if
-        return
+
     end subroutine qualify_term
 
 
@@ -216,7 +219,7 @@ contains
         if (i==1) term = '1'//term
         text_term_offered = term
 
-        return
+
     end function text_term_offered
 
 
@@ -252,7 +255,7 @@ contains
 
         text_term_offered_separated = term
 
-        return
+
     end function text_term_offered_separated
 
 
@@ -264,7 +267,7 @@ contains
 
         text_school_year = 'SY '//trim(itoa(year))//dash//itoa2bz(mod(year+1,1000))
 
-        return
+
     end function text_school_year
 
 

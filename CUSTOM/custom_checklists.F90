@@ -37,7 +37,7 @@ subroutine extract_student_grades()
     character (len=4) :: dirYear
     character (len=1) :: ch
     integer :: idxYear, idxTerm, idxGrd, idxCurr
-    integer :: cdx, fdx, gdx, idx, std, ier, i, j
+    integer :: cdx, fdx, gdx, idx, std, ier, i, j, k
     integer, dimension(MAX_ALL_SUBJECTS,2,1:3) :: GrandTotal
 
     GrandTotal = 0 ! grade counter
@@ -47,7 +47,7 @@ subroutine extract_student_grades()
         do idxTerm = 1,3
 
             do idxGrd = 1,1 ! 0,3
-                fileName = trim(dirRAW)//dirYEAR//DIRSEP//trim(txtSemester(idxTerm))//DIRSEP// &
+                fileName = trim(dirDATA)//dirYEAR//DIRSEP//trim(txtSemester(idxTerm))//DIRSEP// &
                 trim(txtGradeType(idxGrd))//'.CSV'
 
                 open(unit=unitRAW,file=fileName,status='old', iostat=ier)
@@ -114,9 +114,40 @@ subroutine extract_student_grades()
                         tSubject = adjustl(line(pos(idx)+1:pos(idx+1)-1))
                         cdx = index_to_subject(tSubject)
                         if (cdx<=0) then
-                            call file_log_message (trim(wrkStudent%Name)//' - "'//trim(tSubject)// &
-                                '" not in catalog')
-                            cycle
+                            !call file_log_message (trim(wrkStudent%Name)//' - "'//trim(tSubject)// &
+                            !    '" not in catalog')
+                            !cycle
+                            NumAdditionalSubjects = NumAdditionalSubjects+1
+                            cdx = NumSubjects + NumAdditionalSubjects
+
+                            Subject(cdx)%Name = tSubject
+                            Subject(cdx)%Title = tSubject
+                            Subject(cdx)%DeptIdx = NumDepartments
+                            Subject(cdx)%Units = 3.0
+
+                            Subject(cdx)%TermOffered = 7
+                            Subject(cdx)%LectHours = 3.0
+                            Subject(cdx)%MinLectSize = 50
+                            Subject(cdx)%MaxLectSize = 50
+                            Subject(cdx)%LectLoad = 0.0
+                            Subject(cdx)%LabHours = 0.0
+                            Subject(cdx)%MinLabSize = 50
+                            Subject(cdx)%MaxLabSize = 50
+                            Subject(cdx)%LabLoad = 0.0
+
+                            k = 1
+                            Subject(cdx)%lenPreq = k
+                            Subject(cdx)%Prerequisite(k) = INDEX_TO_NONE
+                            Subject(cdx)%lenCoreq = k
+                            Subject(cdx)%Corequisite = INDEX_TO_NONE
+                            Subject(cdx)%lenConc = k
+                            Subject(cdx)%Concurrent = INDEX_TO_NONE
+                            Subject(cdx)%lenConcPreq = k
+                            Subject(cdx)%ConcPrerequisite= INDEX_TO_NONE
+
+                            Subject(cdx)%LabFee = 0.0
+                            Subject(cdx)%Tuition = 0.0
+
                         end if
                         tGrade  = adjustl(line(pos(idx+2)+1:pos(idx+3)-1))
                         if (tGrade==SPACE) then
@@ -156,4 +187,23 @@ subroutine extract_student_grades()
 
     return
 end subroutine extract_student_grades
+
+
+
+subroutine custom_read_student_grades (std, DoNotRename)
+    integer, intent (in) :: std
+    logical, optional, intent (in) :: DoNotRename
+
+
+    return
+end subroutine custom_read_student_grades
+
+
+subroutine  custom_read_substitutions (std, DoNotRename)
+    integer, intent (in) :: std
+    logical, optional, intent (in) :: DoNotRename
+
+
+    return
+end subroutine custom_read_substitutions
 

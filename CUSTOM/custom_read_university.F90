@@ -33,7 +33,7 @@
         character(len=*), intent(in) :: path
         integer, intent(out) :: errNo
 
-        fileName = trim(dirRAW)//trim(path)//'UNIVERSITY'
+        fileName = trim(dirDATA)//trim(path)//'UNIVERSITY'
         open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
         if (errNo/=0) return
 

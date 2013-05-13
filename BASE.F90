@@ -33,7 +33,7 @@ module BASE
     implicit none
 
     ! software version
-    character(len= 7), parameter :: VERSION   = ' v.4.13'
+    character(len= 7), parameter :: VERSION   = ' v.4.16'
 
     integer, parameter :: lenPasswordEncryptionKey = 16
     character(len=lenPasswordEncryptionKey), parameter :: &
@@ -47,24 +47,23 @@ module BASE
     character(len= 9), parameter :: mkdirCmd = 'mkdir -p '
     character(len= 6), parameter :: mvCmd = 'mv -f '
     character(len= 1), parameter :: DIRSEP = '/'
-    character(len= 8), parameter :: UPDATES = 'UPDATES/'
 #else
     ! file separator; delete, directory, mkdir commands
     character(len= 7), parameter :: delCmd = 'del /q '
     character(len= 6), parameter :: mkdirCmd = 'mkdir '
     character(len= 8), parameter :: mvCmd = 'move /y '
     character(len= 1), parameter :: DIRSEP = '\'
-    character(len= 8), parameter :: UPDATES = 'UPDATES\'
 #endif
 
-    ! flag to control generation of backups
-    logical, parameter :: DO_NOT_BACKUP = .false. ! .false. ! create backups?
-
+    ! from the command line
+    ! the Academic Year
     integer :: currentYear ! year of start of Academic Year
     integer :: currentTerm ! current term 1=1st sem, 2=2nd sem; 3=summer
     integer :: nextYear, nextTerm, targetTerm, termBegin, termEnd
     integer :: cTm1Year, cTm1, cTm2Year, cTm2, cTm3Year, cTm3
-    logical :: advisingPeriod
+    ! ACTION
+    character (len=20) :: ACTION
+    logical :: advisingPeriod, isActionClasslists, isActionAdvising
 
     character(len=10) :: currentTime ! current time
     character(len= 8) :: currentDate ! current date
@@ -88,20 +87,17 @@ module BASE
     ! data & output paths (set in MAIN.F90)
     character (len=MAX_LEN_FILE_PATH) :: &
         dirHEEDS, & ! HEEDS root directory
-        dirBAK, & ! directory for backup files
-        dirLOG, & ! directory for log files
-        dirRAW, & ! directory for raw data files
-        dirXML, & ! directory for XML data files
-        dirSUBSTITUTIONS, & ! directory for input/UNEDITED checklists from Registrar
-        dirTRANSCRIPTS, & ! directory for raw transcripts
-        dirEditedCHECKLISTS, & ! directory for output/EDITED checklists from College Secretaries
+        dirBACKUP, & ! directory for backup files
+        dirDATA, & ! directory for XML data files
+        dirSUBSTITUTIONS, & ! directory for subject substitutions
+        dirTRANSCRIPTS, & ! directory for individual enrollment records
         pathToYear, pathToNextYear, &  ! path data files for the year, next year
         pathToTerm, & ! path to files of changes by stand-alone users
         fileExecutable, & ! name of executable
         CGI_PATH ! URI
 
-    ! position of last character in dirXML (to simplify derivation of path to backup)
-    integer :: lenDirXML
+    ! position of last character in dirDATA (to simplify derivation of path to backup)
+    integer :: lenDirDAT
 
     ! constants
     character(len= 1), parameter :: &
@@ -114,7 +110,24 @@ module BASE
     character(len=16), parameter :: HEXDIGITS = '0123456789ABCDEF'
     character(len=24), parameter :: SPECIAL = '<>"#%{}|^~[]`;/?:=&$+().'
 
-    !                                            123456789A123456789B123456789C123456789D123456789E
+    ! some HTML colors
+    character(len=20), parameter :: Blue = '<font color=#0000FF>'
+    character(len=20), parameter :: Fuchsia = '<font color=#FF00FF>'
+    character(len=20), parameter :: Gray = '<font color=#808080>'
+    character(len=20), parameter :: Green = '<font color=#008000>'
+    character(len=20), parameter :: Lime = '<font color=#00FF00>'
+    character(len=20), parameter :: Maroon = '<font color=#800000>'
+    character(len=20), parameter :: Navy = '<font color=#000080>'
+    character(len=20), parameter :: Olive = '<font color=#808000>'
+    character(len=20), parameter :: Purple = '<font color=#800080>'
+    character(len=20), parameter :: Red = '<font color=#FF0000>'
+    character(len=20), parameter :: Silver = '<font color=#C0C0C0>'
+    character(len=20), parameter :: Teal = '<font color=#008080>'
+    character(len=20), parameter :: White = '<font color=#FFFFFF>'
+    character(len=20), parameter :: Yellow = '<font color=#FFFF00>'
+    character(len= 7), parameter :: black='</font>'
+
+    !                                              123456789A123456789B123456789C123456789D123456789E
     character(len= 5), parameter :: PROGNAME  = 'HEEDS'
     character(len=45), parameter :: COPYRIGHT = 'Copyright (C) 2012, 2013 Ricolindo L. Carino'
     character(len=38), parameter :: EMAIL     = 'Ricolindo.Carino@AcademicForecasts.com'
@@ -142,7 +155,6 @@ contains
 
         deallocate(seed)
 
-        return
     end subroutine initialize_random_seed
 
 
@@ -159,7 +171,7 @@ contains
             i = i-1
             if (i==0) i = lenKey
         end do
-        return
+
     end subroutine encrypt
 
 
@@ -168,10 +180,7 @@ contains
         character(len=*), intent (in out) :: text ! in=cipher, out=plaintext
         integer :: i, j, k, lenKey, lenText, intText
 
-#if defined PRODUCTION
-#else
-        write(unitHTML,AFORMAT) '<!-- decrypt('//trim(text)//') -->'
-#endif
+        call html_comment('decrypt('//trim(text)//')')
 
         lenKey = len_trim(key)
         lenText = len_trim(text)/2
@@ -184,7 +193,7 @@ contains
             if (i==0) i = lenKey
         end do
         text = text(lenText+1:) ! move to front
-        return
+
     end subroutine decrypt
 
 
@@ -197,7 +206,7 @@ contains
         do i=1,l
             if (outString(i:i)==SPACE) outString(i:i) = '_'
         end do
-        return
+
     end subroutine blank_to_underscore
 
 
@@ -210,7 +219,7 @@ contains
         do i=1,l
             if (outString(i:i)=='_') outString(i:i) = SPACE
         end do
-        return
+
     end subroutine underscore_to_blank
 
 
@@ -224,7 +233,7 @@ contains
             if (string(i:i) .gt. 'z') cycle
             string(i:i) = char(ichar(string(i:i))-32)
         end do
-        return
+
     end subroutine upper_case
 
 
@@ -238,7 +247,7 @@ contains
             if (string(i:i) .gt. 'Z') cycle
             string(i:i) = char(ichar(string(i:i))+32)
         end do
-        return
+
     end subroutine lower_case
 
 
@@ -270,7 +279,7 @@ contains
             end do
         end if
         atoi = num*pref
-        return
+
     end function atoi
 
 
@@ -315,7 +324,7 @@ contains
         else
             atof = num*pref
         end if
-        return
+
     end function atof
 
   
@@ -335,7 +344,7 @@ contains
         end do
         if (num < 0) str10 = DASH//str10
         itoa = str10
-        return
+
     end function itoa
 
 
@@ -368,7 +377,6 @@ contains
         if (num < 0) str10 = DASH//str10
         ftoa = str10
 
-        return
     end function ftoa
 
 
@@ -380,7 +388,7 @@ contains
         else
             itoabz = itoa(num)
         end if
-        return
+
     end function itoabz
   
 
@@ -404,7 +412,7 @@ contains
             end do
         end if
         itoa2bz = str2
-        return
+
     end function itoa2bz
 
 
@@ -430,7 +438,7 @@ contains
             end do
         end if
         itoa3bz = str3
-        return
+
     end function itoa3bz
 
 
@@ -451,7 +459,7 @@ contains
             end if
         end do
         pos(nsymbols+1) = k+1
-        return
+
     end subroutine index_to_delimiters
 
 
@@ -465,7 +473,6 @@ contains
             stop
         end if
 
-        return
     end subroutine check_array_bound
 
 
@@ -489,23 +496,47 @@ contains
 
         flush(unitLOG)
 
-        return
     end subroutine file_log_message
 
 
     subroutine move_to_backup(fname)
-        character (len=*), intent (in) :: fname ! must be in dirXML
+        character (len=*), intent (in) :: fname ! must be in dirDATA
         character (len=MAX_LEN_FILE_PATH) :: path
         integer :: iStat
 
         if (noWrites) return ! no backups
 
-        path = trim(dirBAK)//fname(lenDirXML+1:)
+        path = trim(dirBACKUP)//fname(lenDirDAT+1:)
         call rename (fname, path, iStat)
         if (iStat/=0) call file_log_message('Status='//trim(itoa(iStat))//' in moving to '//trim(path) )
 
-        return
     end subroutine move_to_backup
+
+
+    subroutine html_comment(str1, str2, str3, str4, str5)
+        character(len=*), intent(in) :: str1
+        character(len=*), intent(in), optional :: str2, str3, str4, str5
+
+#if defined PRODUCTION
+#else
+        if (present(str2)) then
+            write(unitHTML,AFORMAT) '<!--', trim(str1), trim(str2)
+            if (present(str3)) then
+                write(unitHTML,AFORMAT) trim(str3)
+                if (present(str4)) then
+                    write(unitHTML,AFORMAT) trim(str4)
+                    if (present(str5)) then
+                        write(unitHTML,AFORMAT) trim(str5)
+                    end if
+                end if
+            end if
+            write(unitHTML,AFORMAT) '--> '
+        else
+            write(unitHTML,AFORMAT) '<!-- '//trim(str1)//' -->'
+        end if
+#endif
+
+    end subroutine html_comment
 
 
 end module BASE

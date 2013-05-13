@@ -130,7 +130,7 @@ contains
             1, INDEX_TO_NONE, & !     lenConc, Concurrent(MAX_ALL_SUBJECT_CONCURRENT), &
             1, INDEX_TO_NONE) !     lenConcPreq, ConcPrerequisite(MAX_ALL_SUBJECT_CONCPREQ)
 
-        return
+
     end subroutine initialize_subject
 
 
@@ -148,7 +148,7 @@ contains
         if (present(dirOPT)) then
             fileName = trim(dirOPT)//trim(path)//'SUBJECTS.XML'
         else
-            fileName = trim(dirXML)//trim(path)//'SUBJECTS.XML'
+            fileName = trim(dirDATA)//trim(path)//'SUBJECTS.XML'
         endif
         call xml_open_file(unitXML, XML_ROOT_SUBJECTS, fileName, i)
 
@@ -247,7 +247,7 @@ contains
 
         call xml_close_file(unitXML, XML_ROOT_SUBJECTS)
 
-        return
+
     end subroutine xml_write_subjects
 
 
@@ -312,7 +312,7 @@ contains
             call custom_read_failrates(path, eof)
         end if
 
-        return
+
     end subroutine read_subjects
 
 
@@ -329,7 +329,7 @@ contains
         character (len=MAX_LEN_SUBJECT_CODE) :: token
 
         ! open file for basic info on subjects, return on any error
-        fileName = trim(dirXML)//trim(path)//'SUBJECTS.XML'
+        fileName = trim(dirDATA)//trim(path)//'SUBJECTS.XML'
         call xml_open_file(unitXML, XML_ROOT_SUBJECTS, fileName, errNo, forReading)
         if (errNo/=0) return
 
@@ -505,7 +505,7 @@ contains
         call xml_close_file(unitETC)
         call file_log_message (itoa(NumSubjects)//' subjects in '//fileName)
 
-        return
+
     end subroutine xml_read_subjects
 
 
@@ -521,7 +521,7 @@ contains
 
         ! additional subject info
         errNo = 0
-        fileName = trim(dirXML)//trim(path)//'SUBJECTS-OTHER.XML'
+        fileName = trim(dirDATA)//trim(path)//'SUBJECTS-OTHER.XML'
         call xml_open_file(unitETC, XML_ROOT_SUBJECTS, fileName, errNo, forReading)
         if (errNo/=0) return
 
@@ -564,7 +564,7 @@ contains
                         wrkSubject%lenCoreq, wrkSubject%Corequisite, eof)
                     if (eof>0) exit
                     if (wrkSubject%lenCoreq>0 .and. Subject(wrkSubject%Corequisite(1))%Name/='NONE') then
-                        write(*,*) trim(wrkSubject%Name)//' has co-requisite ', &
+                        write(unitLOG,*) trim(wrkSubject%Name)//' has co-requisite ', &
                             (Subject(wrkSubject%Corequisite(j))%Name, j=1,wrkSubject%lenCoreq)
                     end if
 
@@ -572,7 +572,7 @@ contains
                     call tokenize_subjects(value, '+', MAX_ALL_SUBJECT_CONCURRENT, wrkSubject%lenConc, wrkSubject%Concurrent, eof)
                     if (eof>0) exit
                     if (wrkSubject%lenConc>0 .and. Subject(wrkSubject%Concurrent(1))%Name/='NONE') then
-                        write(*,*) trim(wrkSubject%Name)//' is concurrent with ', &
+                        write(unitLOG,*) trim(wrkSubject%Name)//' is concurrent with ', &
                             (Subject(wrkSubject%Concurrent(j))%Name, j=1,wrkSubject%lenConc)
                     end if
 
@@ -581,7 +581,7 @@ contains
                     wrkSubject%ConcPrerequisite, eof)
                     if (eof>0) exit
                     if (wrkSubject%lenConcPreq>0 .and. Subject(wrkSubject%ConcPrerequisite(1))%Name/='NONE') then
-                        write(*,*) trim(wrkSubject%Name)//' has pre-req that can be concurrent: ', &
+                        write(unitLOG,*) trim(wrkSubject%Name)//' has pre-req that can be concurrent: ', &
                             (Subject(wrkSubject%ConcPrerequisite(j))%Name, j=1,wrkSubject%lenConcPreq)
                     end if
 
@@ -598,7 +598,7 @@ contains
 
         call xml_close_file(unitETC)
 
-        return
+
     end subroutine xml_read_subjects_other
 
 
@@ -646,7 +646,7 @@ contains
             end if
         end do
         index_to_subject = cdx
-        return
+
     end function index_to_subject
 
 
@@ -673,36 +673,44 @@ contains
             end if
         end do
         index_to_new_subject = cdx
-        return
+
     end function index_to_new_subject
 
 
-    subroutine tokenize_subjects(subline, symbol, maxTokens, nTokens, tokenArray, ier)
+    subroutine tokenize_subjects(subline, symbol, maxTokens, nTokens, tokenArray, ier, mesg)
         integer, intent (in) :: maxTokens
         integer, intent (out) :: nTokens, tokenArray(maxTokens), ier
         character, intent (in) :: symbol ! delimiter
         character(len=*), intent (in) :: subline
+        character(len=*), intent (out), optional :: mesg
         integer :: i, j, k, ndelsub, posub(30)
         character (len=MAX_LEN_SUBJECT_CODE) :: token
+        character (len=MAX_LEN_FILE_PATH) :: errMsg
 
         !write(*,*) 'String is : '//subline
+        errMsg = SPACE
         ier = 0
         k = 0
         call index_to_delimiters(symbol, subline, ndelsub, posub)
         do j=1,ndelsub
             token = adjustl(subline(posub(j)+1:posub(j+1)-1))
             i = index_to_subject(token)
-            !write(*,*) i, token
             if (i==0) then
-                ier = 113 ! not listed
-                call file_log_message ('Tokenize(): '//subline, trim(token)//' is not in catalog?')
-            else
-                k = k+1
-                tokenArray(k) = i
+                    errMsg = ', '//token
+                    cycle
             end if
+            k = k+1
+            tokenArray(k) = i
         end do
-        nTokens = ndelsub
-        return
+        nTokens = k
+        if (present(mesg)) then
+            if (len_trim(errMsg)>0) then
+                mesg = 'Not found -'//errMsg(2:)
+            else
+                mesg = SPACE
+            end if
+        end if
+
     end subroutine tokenize_subjects
 
 
@@ -724,7 +732,7 @@ contains
         tSubject = tSubject(f:l)
         num = atoi(tSubject)
         is_graduate_level_subject = num>200
-        return
+
     end function is_graduate_level_subject
 
 
@@ -740,7 +748,7 @@ contains
         (term==1 .and. mod(j,2)==1) .or. & ! offered 1,12,1S
         (term==2 .and. (j==2 .or. j==3 .or. j==6) ) .or. & ! offered 2,12,2S
         (term==3 .and. (j>3) ) ! offered S,1S,2S
-        return
+
     end function is_offered
 
 
@@ -749,7 +757,7 @@ contains
         logical :: is_lecture_lab_subject
         ! returns true if subj is a lecture-lab/recit subject
         is_lecture_lab_subject = Subject(subj)%LectHours*Subject(subj)%LabHours/=0.0
-        return
+
     end function is_lecture_lab_subject
 
 
@@ -867,7 +875,7 @@ contains
             end if
         end if
         text_prerequisite_of_subject = displayStr
-        return
+
     end function text_prerequisite_of_subject
 
 
@@ -879,7 +887,7 @@ contains
         integer :: cdx, i, j, k, l
         character (len=MAX_LEN_SUBJECT_CODE) :: token
 
-        fileName = trim(dirRAW)//trim(path)//'FAILRATES'
+        fileName = trim(dirDATA)//trim(path)//'FAILRATES'
         open (unit=unitRAW, file=fileName, form='formatted', status='old', iostat=eof)
         if (eof/=0) return
 
@@ -918,7 +926,7 @@ contains
         ! success
         eof = 0
 
-        return
+
     end subroutine custom_read_failrates
 
 
@@ -933,7 +941,7 @@ contains
         character(len=MAX_LEN_XML_TAG) :: tag
 
         ! open file, return on any error
-        fileName = trim(dirXML)//trim(path)//'FAILRATES.XML'
+        fileName = trim(dirDATA)//trim(path)//'FAILRATES.XML'
         call xml_open_file(unitXML, XML_FAILRATES, fileName, eof, forReading)
         if (eof/=0) return
 
@@ -970,7 +978,7 @@ contains
         end do
         call xml_close_file(unitXML)
 
-        return
+
     end subroutine xml_read_failrates
 
 
@@ -984,7 +992,7 @@ contains
         ! training only?
         if (noWrites) return
 
-        fileName = trim(dirXML)//trim(path)//'FAILRATES.XML'
+        fileName = trim(dirDATA)//trim(path)//'FAILRATES.XML'
         call xml_open_file(unitXML, XML_FAILRATES, fileName, cdx)
         write(unitXML,AFORMAT) &
         '    <comment>', &
@@ -1007,7 +1015,7 @@ contains
         end do
         call xml_close_file(unitXML, XML_FAILRATES)
 
-        return
+
     end subroutine xml_write_failrates
 
 

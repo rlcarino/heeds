@@ -52,7 +52,7 @@ subroutine SIAS_read_students (filePath, numEntries, ier)
     integer :: idxCURR, i, j, indexLoc
 
     numEntries = 0
-    fileName = trim(dirRAW)//trim(filePath)//'.CSV'
+    fileName = trim(dirDATA)//trim(filePath)//'.CSV'
     open(unit=unitRAW, file=fileName, status='old', iostat=ier)
     if (ier/=0) return
 
@@ -140,7 +140,7 @@ subroutine SIAS_read_students (filePath, numEntries, ier)
         j = 0
         do i=pos(4)+1,pos(5)-1
             ch = line(i:i)
-            if (ch==COMMA .or. index(SPECIAL,ch)>0) cycle
+            if (index(SPECIAL,ch)>0) cycle
             j = j+1
             wrkStudent%Name(j:j) = ch
         end do
@@ -172,7 +172,7 @@ subroutine SIAS_read_students_from_enlistment (filePath, numEntries, ier)
     integer :: idxCURR, i, j, indexLoc
 
     numEntries = 0
-    fileName = trim(dirRAW)//trim(filePath)//'.CSV'
+    fileName = trim(dirDATA)//trim(filePath)//'.CSV'
     open(unit=unitRAW, file=fileName, status='old', iostat=ier)
     if (ier/=0) return
 
@@ -211,7 +211,7 @@ subroutine SIAS_read_students_from_enlistment (filePath, numEntries, ier)
             j = 0
             do i=pos(4)+1,pos(5)-1
                 ch = line(i:i)
-                if (index(SPECIAL,ch)>0 .or. ch==COMMA) cycle
+                if (index(SPECIAL,ch)>0) cycle
                 j = j+1
                 if (j>MAX_LEN_PERSON_NAME) cycle
                 wrkStudent%Name(j:j) = ch

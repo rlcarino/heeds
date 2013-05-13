@@ -76,15 +76,16 @@ module HTML
         fnScheduleValidate        = 35, & ! check correctness of edit inputs
         fnTeachersByDept          = 36, & ! view list teachers belonging to a college
         fnTeachersByName          = 37, & ! view alphabetical list of teachers in a college
-        fnTeacherSchedule         = 38, & ! view weekly schedule of a teacher
-        fnRoomList                = 39, & ! view list rooms administered by a college
-        fnRoomSchedule            = 40, & ! view weekly schedule of a room
-        fnRoomConflicts           = 41, & ! view list of rooms with conflicts
-        fnTeacherConflicts        = 42, & ! view list of teachers with conflicts
-        fnTBARooms                = 43, & ! view list of sections with TBA rooms
-        fnTBATeachers             = 44, & ! view list of sections with TBA teachers
-        fnPrintableWorkload       = 45, & ! printable teaching load
-        fnScheduleByArea          = 46, & ! display schedule of classes for editing, by area
+        fnTeacherClasses          = 38, & ! view classes of a teacher
+        fnTeacherEditSchedule     = 39, & ! edit weekly schedule of a teacher
+        fnRoomList                = 40, & ! view list rooms administered by a college
+        fnRoomSchedule            = 41, & ! view weekly schedule of a room
+        fnRoomConflicts           = 42, & ! view list of rooms with conflicts
+        fnTeacherConflicts        = 43, & ! view list of teachers with conflicts
+        fnTBARooms                = 44, & ! view list of sections with TBA rooms
+        fnTBATeachers             = 45, & ! view list of sections with TBA teachers
+        fnPrintableWorkload       = 46, & ! printable teaching load
+        fnScheduleByArea          = 47, & ! display schedule of classes for editing, by area
         !
         fnBlockSchedule           = 50, & ! display schedule of block section
         fnBlockEditName           = 51, & ! edit name of block section
@@ -114,14 +115,11 @@ module HTML
         fnUnderloadSummary        = 74, & ! summary of underloading
         fnUnderloadedStudents     = 75, & ! underloaded students
         fnClassList               = 76, & ! view list of students in a class
-        fnGradeSheet              = 77, &    ! enter grades
+        fnGradeSheet              = 77, & ! enter grades
         fnDownloadXML             = 78 ! download XML data file
 
     ! the requested server function
     integer :: REQUEST
-
-    ! argument 'ACTION' from command line
-    character (len=20) :: ACTION
 
     ! the target of the fucntion
     integer :: targetCollege, targetDepartment, targetSubject, targetRoom, targetTeacher, &
@@ -251,8 +249,11 @@ contains
             case (fnTeachersByName          )
                     fnDescription = 'view alphabetical list of teachers in a college'
 
-            case (fnTeacherSchedule         )
-                    fnDescription = 'view weekly schedule of a teacher'
+            case (fnTeacherClasses         )
+                    fnDescription = 'view classes of a teacher'
+
+            case (fnTeacherEditSchedule         )
+                    fnDescription = 'edit weekly schedule of a teacher'
 
             case (fnRoomList                )
                     fnDescription = 'view list rooms administered by a college'
@@ -354,7 +355,7 @@ contains
                     fnDescription = 'download XML data file'
 
         end select
-        return
+
     end function fnDescription
 
 
@@ -392,7 +393,7 @@ contains
                     fnAvailable = .true.
 
             case (fnEditSubject             )
-                    fnAvailable = .true.
+                    fnAvailable = isActionAdvising
 
             case (fnCurriculumList          )
                     fnAvailable = .true.
@@ -401,19 +402,19 @@ contains
                     fnAvailable = .true.
 
             case (fnEditCurriculum          )
-                    fnAvailable = .true.
+                    fnAvailable = isActionAdvising
 
             case (fnActivateCurriculum      )
-                    fnAvailable = .true.
+                    fnAvailable = isActionAdvising
 
             case (fnDeactivateCurriculum    )
-                    fnAvailable = .true.
+                    fnAvailable = isActionAdvising
 
             case (fnEditRoom                )
-                    fnAvailable = .true.
+                    fnAvailable = isActionAdvising
 
             case (fnEditTeacher             )
-                    fnAvailable = .true.
+                    fnAvailable = isActionAdvising
 
             case (fnStudentsByProgram       )
                     fnAvailable = .true.
@@ -440,34 +441,34 @@ contains
                     fnAvailable = .true.
 
             case (fnEditCheckList           )
-                    fnAvailable = advisingPeriod
+                    fnAvailable = .true.
 
             case (fnChangeMatriculation     )
-                    fnAvailable = currentTerm==nextTerm
+                    fnAvailable = isActionClasslists
 
             case (fnFindBlock               )
-                    fnAvailable = currentTerm==nextTerm
+                    fnAvailable = isActionClasslists
 
             case (fnSelectSubjects)
-                    fnAvailable = currentTerm==nextTerm
+                    fnAvailable = isActionClasslists
 
             case (fnScheduleOfClasses       )
                     fnAvailable = .true.
 
             case (fnScheduleOfferSubject    )
-                    fnAvailable = advisingPeriod
+                    fnAvailable = .true.
 
             case (fnScheduleAddLab          )
-                    fnAvailable = advisingPeriod
+                    fnAvailable = .true.
 
             case (fnScheduleDelete          )
-                    fnAvailable = advisingPeriod
+                    fnAvailable = .true.
 
             case (fnScheduleEdit            )
-                    fnAvailable = advisingPeriod
+                    fnAvailable = .true.
 
             case (fnScheduleValidate        )
-                    fnAvailable = advisingPeriod
+                    fnAvailable = .true.
 
             case (fnTeachersByDept          )
                     fnAvailable = .true.
@@ -475,7 +476,10 @@ contains
             case (fnTeachersByName          )
                     fnAvailable = .true.
 
-            case (fnTeacherSchedule         )
+            case (fnTeacherClasses         )
+                    fnAvailable = .true.
+
+            case (fnTeacherEditSchedule         )
                     fnAvailable = .true.
 
             case (fnRoomList                )
@@ -500,31 +504,31 @@ contains
                     fnAvailable = .true.
 
             case (fnBlockEditName           )
-                    fnAvailable = advisingPeriod
+                    fnAvailable = .true.
 
             case (fnBlockDeleteName         )
-                    fnAvailable = advisingPeriod
+                    fnAvailable = .true.
 
             case (fnBlockDeleteAll          )
-                    fnAvailable = advisingPeriod
+                    fnAvailable = .true.
 
             case (fnBlockNewSelect          )
-                    fnAvailable = advisingPeriod
+                    fnAvailable = .true.
 
             case (fnBlockNewAdd             )
-                    fnAvailable = advisingPeriod
+                    fnAvailable = .true.
 
             case (fnBlockCopy               )
-                    fnAvailable = advisingPeriod
+                    fnAvailable = .true.
 
             case (fnBlockList               )
                     fnAvailable = .true.
 
             case (fnBlockEditSection        )
-                    fnAvailable = advisingPeriod
+                    fnAvailable = .true.
 
             case (fnBlockEditSubject        )
-                    fnAvailable = advisingPeriod
+                    fnAvailable = .true.
 
             case (fnScheduleByArea          )
                     fnAvailable = .true.
@@ -533,28 +537,28 @@ contains
                     fnAvailable = .true.
 
             case (fnEnlistmentSummary       )
-                    fnAvailable = currentTerm==nextTerm
+                    fnAvailable = isActionClasslists
 
             case (fnNotAccommodated         )
-                    fnAvailable = currentTerm==nextTerm
+                    fnAvailable = isActionClasslists
 
             case (fnBottleneck              )
-                    fnAvailable = currentTerm==nextTerm
+                    fnAvailable = isActionClasslists
 
             case (fnExtraSlots              )
-                    fnAvailable = currentTerm==nextTerm
+                    fnAvailable = isActionClasslists
 
             case (fnUnderloadSummary        )
-                    fnAvailable = currentTerm==nextTerm
+                    fnAvailable = isActionClasslists
 
             case (fnUnderloadedStudents     )
-                    fnAvailable = currentTerm==nextTerm
+                    fnAvailable = isActionClasslists
 
             case (fnClassList               )
-                    fnAvailable = currentTerm==nextTerm
+                    fnAvailable = isActionClasslists
 
             case (fnGradeSheet              )
-                    fnAvailable = .false. !currentTerm==nextTerm
+                    fnAvailable = isActionClasslists
 
             case (fnDemandFreshmen          )
                     fnAvailable = .true.
@@ -563,7 +567,7 @@ contains
                     fnAvailable = .true.
 
             case (fnPrintableSchedule       )
-                    fnAvailable = currentTerm==nextTerm
+                    fnAvailable = isActionClasslists
 
             case (fnDemandForSubjects       )
                     fnAvailable = .true.
@@ -578,14 +582,162 @@ contains
                     fnAvailable = .true.
 
         end select
-        return
+
     end function fnAvailable
+
+
+    function make_href(fn, label, pre, post, A1, A2, A3, A4, A5, anchor, newtab, alt)
+    ! build HTML href, like:
+    !   pre<a href="CGI_PATH?F=fn&A1=A1&...A5=A5 #anchor target=newtab">label</a>post
+
+        integer, intent (in) :: fn
+        character(len=*), intent (in) :: label
+        character(len=*), intent (in), optional :: A1, A2, A3, A4, A5
+        character(len=*), intent (in), optional :: pre, post, anchor, newtab, alt
+
+        character(len=MAX_LEN_QUERY_STRING) :: make_href
+        character(len=MAX_CGI_WRK_LEN) :: cgi_wrk
+
+#if defined PRODUCTION
+        integer :: kStart
+        real :: harvest ! random number
+#endif
+
+        if (.not. fnAvailable(fn)) then
+            if (present(alt)) then
+                make_href = alt
+            else
+                make_href = pre//trim(label)//SPACE//post
+            end if
+            return
+        end if
+
+        ! the function and user name
+        cipher = 'F='//trim(itoa(fn))//'&N='//USERNAME
+        ! the term if specified
+        if (targetTerm>0) then
+            cipher = trim(cipher)//'&A9='//itoa(targetTerm)
+        end if
+
+        ! the arguments to the function
+        if (present(A1)) then
+            call cgi_url_encode(A1,cgi_wrk)
+            cipher = trim(cipher)//'&A1='//cgi_wrk
+        end if
+        if (present(A2)) then
+            call cgi_url_encode(A2,cgi_wrk)
+            cipher = trim(cipher)//'&A2='//cgi_wrk
+        end if
+        if (present(A3)) then
+            call cgi_url_encode(A3,cgi_wrk)
+            cipher = trim(cipher)//'&A3='//cgi_wrk
+        end if
+        if (present(A4)) then
+            call cgi_url_encode(A4,cgi_wrk)
+            cipher = trim(cipher)//'&A4='//cgi_wrk
+        end if
+        if (present(A5)) then
+            call cgi_url_encode(A5,cgi_wrk)
+            cipher = trim(cipher)//'&A5='//cgi_wrk
+        end if
+
+#if defined PRODUCTION
+        ! encrypt
+        call random_number(harvest)
+        kStart = MAX_LEN_QUERY_STRING/2 + int(harvest*MAX_LEN_QUERY_STRING/2)
+        call encrypt(queryEncryptionKey(:kStart), cipher)
+        cipher = '<a href="'//trim(CGI_PATH)//'?q='//trim(cipher)//itoa(kStart)
+#else
+        cipher = '<a href="'//trim(CGI_PATH)//'?'//trim(cipher)//'&'
+#endif
+
+        ! preamble (text before href)
+        if (present(pre)) cipher = pre//cipher
+
+        ! the anchor
+        if (present(anchor)) cipher = trim(cipher)//'#'//anchor
+
+        ! the target
+        if (present(newtab)) cipher = trim(cipher)//' target='//newtab
+
+        ! end href & the label
+        cipher = trim(cipher)//'">'//trim(label)//'</a>'
+
+        ! the text after the href
+        if (present(post)) cipher = trim(cipher)//post
+
+        make_href = cipher
+
+
+    end function make_href
+
+
+
+    subroutine make_form_start(device, fn, A1, A2, A3, A4, A5)
+    ! write to device the start an HTML form, like:
+    !   <form name="input" method="post" action="/heeds">
+    !   <input type="hidden" name="F" value="91">
+    !   <input type="hidden" name="N" value="REGISTRAR">
+    !   <input type="hidden" name="A1" value="CLINLAB">
+
+        integer, intent (in) :: device, fn
+        character(len=*), intent (in), optional :: A1, A2, A3, A4, A5
+
+        character(len=MAX_CGI_WRK_LEN) :: cgi_wrk
+
+#if defined PRODUCTION
+        integer :: kStart
+        real :: harvest ! random number
+#endif
+
+        ! the function and user name
+        cipher = 'F='//trim(itoa(fn))//'&N='//USERNAME
+        ! the term if specified
+        if (targetTerm>0) then
+            cipher = trim(cipher)//'&A9='//itoa(targetTerm)
+        end if
+
+        ! the arguments to the function
+        if (present(A1)) then
+            call cgi_url_encode(A1,cgi_wrk)
+            cipher = trim(cipher)//'&A1='//cgi_wrk
+        end if
+        if (present(A2)) then
+            call cgi_url_encode(A2,cgi_wrk)
+            cipher = trim(cipher)//'&A2='//cgi_wrk
+        end if
+        if (present(A3)) then
+            call cgi_url_encode(A3,cgi_wrk)
+            cipher = trim(cipher)//'&A3='//cgi_wrk
+        end if
+        if (present(A4)) then
+            call cgi_url_encode(A4,cgi_wrk)
+            cipher = trim(cipher)//'&A4='//cgi_wrk
+        end if
+        if (present(A5)) then
+            call cgi_url_encode(A5,cgi_wrk)
+            cipher = trim(cipher)//'&A5='//cgi_wrk
+        end if
+
+#if defined PRODUCTION
+        ! encrypt
+        call random_number(harvest)
+        kStart = MAX_LEN_QUERY_STRING/2 + int(harvest*MAX_LEN_QUERY_STRING/2)
+        call encrypt(queryEncryptionKey(:kStart), cipher)
+        write(device,AFORMAT) &
+          '<form name="input" method="post" action="'//trim(CGI_PATH)//'">', &
+          '<input type="hidden" name="q" value="'//trim(cipher)//trim(itoa(kStart))//'">'
+#else
+        write(device,AFORMAT) &
+          '<form name="input" method="post" action="'//trim(CGI_PATH)//'">', &
+          '<input type="hidden" name="q" value="'//trim(cipher)//'">'
+#endif
+
+    end subroutine make_form_start
 
 
     subroutine html_copyright(device)
         integer, intent(in) :: device
-
-        write(device,AFORMAT) '<!-- '//'html_copyright()'//' -->'
 
         write(device,AFORMAT) &
             '<small><i>'//PROGNAME//nbsp//COPYRIGHT//'<br>', &
@@ -598,7 +750,7 @@ contains
             WEB//'</a><br>', &
             CONTACT//'</i></small><hr>'
 
-        return
+
     end subroutine html_copyright
 
 
@@ -606,6 +758,16 @@ contains
         integer, intent(in) :: device
         character(len=*), intent(in) :: mesg
         integer :: j, k
+        character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
+        character (len=MAX_LEN_PASSWD_VAR) :: tPassword
+
+#if defined PRODUCTION
+        tTeacher = GUEST
+#else
+        tTeacher = PROGNAME
+#endif
+        j = index_to_teacher(tTeacher)
+        call get_password(j, tPassword)
 
         write(device,AFORMAT) &
             '<html><head><title>'//trim(UniversityCode)//SPACE//PROGNAME//'</title></head><body>'
@@ -618,17 +780,17 @@ contains
                 write(device,AFORMAT)'<br><br><a href="/">Index</a>'
         else ! Login page
             write(device,AFORMAT) &
-                '<h2>Welcome to '//trim(UniversityCode)//SPACE//PROGNAME//FSLASH//trim(ACTION)// &
+                '<h2>Welcome to '//trim(UniversityCode)//SPACE//trim(ACTION)// &
                 ' for '//text_school_year(currentYear)//'</h2><hr>'
             write(device,AFORMAT) '<table border="0" width="100%">'//begintr, &
                 '<td valign="top" width="25%">', &
                 '<form method="post" action="'//trim(CGI_PATH)//'">', &
                 '<input type="hidden" name="F" value="'//trim(itoa(fnLogin))//'">', &
                 '<b>Username</b> (case sensitive):<br>', &
-                '<input size="20" type="text" name="N" value="Guest">', & !OUR">', & !
+                '<input size="20" type="text" name="N" value="'//trim(tTeacher)//'">', &
                 '<br><br>', &
                 '<b>Password:</b><br>', &
-                '<input size="20" type="password" name="P" value="Guest">', & !q">', & ! 
+                '<input size="20" type="password" name="P" value="'//trim(tPassword)//'">', &
                 '<br><br>', &
                 '<input type="submit" value="Login"></form>'
             if (len_trim(loginCheckMessage)>0) write(device,AFORMAT) &
@@ -639,7 +801,7 @@ contains
             write(device,AFORMAT) &
                 '<li>Curriculum advisers - <i>view all data, modify records of students in curriculum</i> ( TeacherID '
             done = .false.
-            do k=1,NumCurricula-2
+            do k=1,NumCurricula-1
                 if (done(k)) cycle
                 write(device,AFORMAT) trim(CurrProgCode(k))//nbsp
                 do j = k+1,NumCurricula-1
@@ -659,7 +821,7 @@ contains
 
         end if
 
-        return
+
     end subroutine html_landing_page
 
 
@@ -672,7 +834,7 @@ contains
         write(device,AFORMAT) '</body></html>'
         close(device)
 
-        return
+
     end subroutine html_login
 
 
@@ -680,18 +842,22 @@ contains
         integer, intent(in) :: device, TimeTable(60,6)
         type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, parameter :: period = 2 ! no. of 15 minute intervals
-        integer :: i, color, ncol, sect, j, mcol
+        integer :: i, color, ncol, sect, j, mcol, minTime, maxTime
         character (len=1024) :: line
         integer :: colorIdx(60,6)
 
-        write(device,AFORMAT) '<!-- '//'timetable_display()'//' -->'
+        call html_comment('timetable_display()')
 
+        minTime = 56
+        maxTime = 1
         ! background colors
         colorIdx = 0
         color = 0
         do ncol=1,56,period
             do i=6,1,-1
                 if (TimeTable(ncol,i)<=0) cycle ! no class at this time
+                if (ncol<minTime) minTime = ncol
+                if (ncol>maxTime) maxTime = ncol
                 if (colorIdx(ncol,i)/=0) cycle ! already has a color
                 ! section not colored yet
                 sect = TimeTable(ncol,i)
@@ -710,7 +876,7 @@ contains
             thaligncenter//'Mon'//endth//thaligncenter//'Tue'//endth//thaligncenter//'Wed'//endth//&
             thaligncenter//'Thu'//endth//thaligncenter//'Fri'//endth//thaligncenter//'Sat'//endth//&
             endtr
-        do ncol=1,56,period
+        do ncol=minTime,maxTime,period ! 1,56,period
             line = SPACE
             do i=6,1,-1
                 sect = TimeTable(ncol,i)
@@ -727,7 +893,7 @@ contains
             write (device,AFORMAT) begintr//trim(line)//endtr
         end do
         write(device,AFORMAT) '</small></table>'
-        return
+
     end subroutine timetable_display
 
 
@@ -743,7 +909,7 @@ contains
         logical :: countUnits, sectionDone
         real :: totalUnits, meetingUnits, totalHours, meetingHours
 
-        write(device,AFORMAT) '<!-- '//'list_sections_to_edit()'//' -->'
+        call html_comment('list_sections_to_edit()')
 
         if (present(heading)) write(device,AFORMAT) heading
         if (lenSL < 3) then
@@ -875,10 +1041,18 @@ contains
                         write(device,AFORMAT) begintd//'TBA'//endtd
                     end if
 
-                    if (target_fn==fnRoomSchedule .or. target_fn==fnTeacherSchedule) then
+                    if (target_fn==fnRoomSchedule .or. target_fn==fnTeacherEditSchedule) then
                         if ( permitted ) then
                             write(device,AFORMAT) trim(make_href(target_fn, target_action, &
                                 A1=target_name, A2=target_action, A3=QUERY_put, &
+                                pre=begintd//'<small>', post='</small>'//endtd//endtr))
+                        else
+                            write(device,AFORMAT) tdnbspendtd//endtr
+                        end if
+                    elseif (target_fn==fnTeacherClasses) then
+                        if ( permitted .and. tdx>0) then
+                            write(device,AFORMAT) trim(make_href(target_fn, target_action, &
+                                A1=Teacher(tdx)%TeacherID, &
                                 pre=begintd//'<small>', post='</small>'//endtd//endtr))
                         else
                             write(device,AFORMAT) tdnbspendtd//endtr
@@ -946,7 +1120,7 @@ contains
                     trim(Section(conflict)%ClassId)//black//endtd//endtr
                 write(device,AFORMAT) begintr//begintd//endtd//begintd//endtd//begintd//endtd//begintd//endtd
             else
-                if (target_fn==fnRoomSchedule .or. target_fn==fnTeacherSchedule) then
+                if (target_fn==fnRoomSchedule .or. target_fn==fnTeacherEditSchedule) then
                     if ( permitted ) then
                         write(device,AFORMAT) trim(make_href(target_fn, target_action, &
                             A1=target_name, A2=target_action, A3=QUERY_put, &
@@ -982,7 +1156,7 @@ contains
         end if
         write(device,AFORMAT) '</table>'
 
-        return
+
     end subroutine list_sections_to_edit
 
   
@@ -995,7 +1169,7 @@ contains
         character(len=127) :: header
         character(len=1) :: ch
 
-        write(device,AFORMAT) '<!-- '//'links_to_students()'//' -->'
+        call html_comment('links_to_students()')
 
         ! collect students
         n_count = 0
@@ -1083,14 +1257,14 @@ contains
                     if (ncol>0) then
                         write(device,AFORMAT) trim(make_href(fnChangeMatriculation, 'schedule', &
                             A1=Student(std)%StdNo, &
-                            pre=' [ ', post=' ]'))
+                            pre=' [ ', post=' ]', alt=SPACE))
                     end if
                     write(device,AFORMAT) trim(make_href(fnEditCheckList, 'checklist', &
                         A1=Student(std)%StdNo, &
-                        pre=' [ ', post=' ]'))
+                        pre=' [ ', post=' ]', alt=SPACE))
                     write(device,AFORMAT) trim(make_href(fnStudentPerformance, 'performance', &
                         A1=Student(std)%StdNo, &
-                        pre=' [ ', post=' ]'))
+                        pre=' [ ', post=' ]', alt=SPACE))
                 end if
 
                 write(device,AFORMAT) endtd//endtr
@@ -1099,7 +1273,7 @@ contains
         end if
         write(device,AFORMAT) '<hr>'
 
-        return
+
     end subroutine links_to_students
 
 
@@ -1109,7 +1283,7 @@ contains
         integer :: ldx, tdx, std, ncol
         character (len=MAX_LEN_SUBJECT_CODE) :: tNum
 
-        write(device,AFORMAT) '<!-- '//'list_students()'//' -->'
+        call html_comment('list_students()')
 
         if (n_count == 0) then
             write(device,AFORMAT) '<br>None?<br>'
@@ -1141,17 +1315,16 @@ contains
                 if (isRoleGuest) then
                     ! do not provide student info to Guest
                 else
-                    if (ncol>0 .and. fnAvailable(fnChangeMatriculation)) &
+                    if (ncol>0) &
                         write(device,AFORMAT) trim(make_href(fnChangeMatriculation, 'schedule', &
                             A1=Student(std)%StdNo, &
-                            pre=' [ ', post=' ]'))
-                    if (fnAvailable(fnEditCheckList)) &
-                        write(device,AFORMAT) trim(make_href(fnEditCheckList, 'checklist', &
-                            A1=Student(std)%StdNo, &
-                            pre=' [ ', post=' ]'))
+                            pre=' [ ', post=' ]', alt=SPACE))
+                    write(device,AFORMAT) trim(make_href(fnEditCheckList, 'checklist', &
+                        A1=Student(std)%StdNo, &
+                        pre=' [ ', post=' ]', alt=SPACE))
                     write(device,AFORMAT) trim(make_href(fnStudentPerformance, 'performance', &
                         A1=Student(std)%StdNo, &
-                        pre=' [ ', post=' ]'))
+                        pre=' [ ', post=' ]', alt=SPACE))
                 end if
 
                 write(device,AFORMAT) endtd//endtr
@@ -1159,26 +1332,31 @@ contains
             write(device,AFORMAT) '</table>'
         end if
 
-        return
+
     end subroutine list_students
 
 
-    subroutine class_list (device, NumSections, Section, Preenlisted)
+    subroutine class_list (device, NumSections, Section)
 
         integer, intent (in) :: device, NumSections
         type (TYPE_SECTION), intent(in) :: Section(0:)
-        type (TYPE_PRE_ENLISTMENT), intent(in) :: Preenlisted(0:)
 
         integer :: ldx, n_count, tdx, std, ierr, sect, ncol, crse
         character(len=MAX_LEN_CLASS_ID) :: tClassId
+        character(len=255) :: header
 
-        write(device,AFORMAT) '<!-- '//'class_list()'//' -->'
+        call html_comment('class_list()')
 
         ! which section?
         call cgi_get_named_string(QUERY_STRING, 'A1', tClassId, ierr)
         targetSection = index_to_section(tClassId, NumSections, Section)
         crse = Section(targetSection)%SubjectIdx
+#if defined UPLB
         targetDepartment = Subject(crse)%DeptIdx
+#else
+        targetDepartment = Section(targetSection)%DeptIdx
+#endif
+        targetCollege = Department(targetDepartment)%CollegeIdx
 
         ! collect students
         n_count = 0
@@ -1203,12 +1381,44 @@ contains
             end do
         end do
 
-        call html_write_header(device, 'Students in '//Section(targetSection)%ClassId)
+        if (is_lecture_lab_subject(crse)) then
+            header = trim(ftoa(Subject(crse)%LectHours+Subject(crse)%LabHours,2))//' hrs ('// &
+                trim(ftoa(Subject(crse)%LectHours,2))//' lect + '// &
+                trim(ftoa(Subject(crse)%LabHours,2))//' lab/recit).'
+        else if (Subject(crse)%LectHours > 0.0) then
+            header = trim(ftoa(Subject(crse)%LectHours,2))//' hrs lect.'
+        else if (Subject(crse)%LabHours > 0.0) then
+            header = trim(ftoa(Subject(crse)%LabHours,2))//' hrs lab/recit.'
+        end if
+        header = trim(Subject(crse)%Title)//'/ '//trim(ftoa(Subject(crse)%Units,1))//' units/ '//header
+
+        ncol = n_count
+        do tdx=1,Section(targetSection)%NMeets
+            tArray(ncol+1) = targetSection
+            tArray(ncol+2) = tdx
+            tArray(ncol+3) = 0
+            ncol = ncol+3
+        end do
+        tArray(ncol+1) = 0
+        tArray(ncol+2) = 0
+        tArray(ncol+3) = 0
+
+        call html_write_header(device, SPACE)
+        call list_sections_to_edit(device, Section, ncol-n_count, tArray(n_count+1:), 0, SPACE, SPACE, .false., &
+            '<b>CLASSLIST for '//trim(Subject(crse)%Name)//' - '//trim(header)//'</b><br><br>')
 
         if (n_count == 0) then
-            write(device,AFORMAT) '(None?)'
+            write(device,AFORMAT) '<br>(No students?)'
         else
-            write(device,AFORMAT) '<table border="0" width="100%">'
+            write(device,AFORMAT) '<br><table border="0" width="100%">', &
+                begintr//thalignleft//'#'//endth//thalignleft//'Student No.'//endth, &
+                thalignleft//'Student Name'//endth//thalignleft//'Curriculum'//endth//thalignleft
+            if (isRoleGuest) then
+            else
+                write(device,AFORMAT) 'Links'
+            end if
+            write(device,AFORMAT) endth//endtr
+
             do tdx=1,n_count
                 std = tArray(tdx)
                 ldx = Student(std)%CurriculumIdx
@@ -1225,14 +1435,14 @@ contains
                     if (ncol>0) then
                         write(device,AFORMAT) trim(make_href(fnChangeMatriculation, 'schedule', &
                             A1=Student(std)%StdNo, &
-                            pre=' [ ', post=' ]'))
+                            pre=' [ ', post=' ]', alt=SPACE))
                     end if
                     write(device,AFORMAT) trim(make_href(fnEditCheckList, 'checklist', &
                         A1=Student(std)%StdNo, &
-                        pre=' [ ', post=' ]'))
+                        pre=' [ ', post=' ]', alt=SPACE))
                     write(device,AFORMAT) trim(make_href(fnStudentPerformance, 'performance', &
                         A1=Student(std)%StdNo, &
-                        pre=' [ ', post=' ]'))
+                        pre=' [ ', post=' ]', alt=SPACE))
                 end if
 
                 write(device,AFORMAT) endtd//endtr
@@ -1241,7 +1451,7 @@ contains
         end if
         write(device,AFORMAT) '<hr>'
 
-        return
+
     end subroutine class_list
 
 
@@ -1252,10 +1462,10 @@ contains
         character(len=MAX_LEN_COLLEGE_CODE) :: tCollege
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
         character(len=MAX_LEN_STUDENT_CODE) :: tStdNo
-        integer :: fdx, gdx, nItems !, cdx
+        integer :: fdx, gdx, nEnlisted, nAdvised
         character (len=80) :: description
 
-        write(device,AFORMAT) '<!-- html_write_header('//trim(header)//') -->'
+        call html_comment('html_write_header('//trim(header)//')')
         ! override text for TERM+YEAR ?
 
         if (termBegin==termEnd) then
@@ -1274,7 +1484,7 @@ contains
         ! banner line 1: user context & shortcuts
         write(device,AFORMAT) &
             '<table border="0" width="100%" cellpadding="0" cellspacing="0">', &
-            begintr//begintd//'<h2>'//trim(UniversityCode)//SPACE//PROGNAME//FSLASH//trim(ACTION)// &
+            begintr//begintd//'<h2>'//trim(UniversityCode)//SPACE//trim(ACTION)// &
             trim(description)//'</h2>'//endtd, &
             '<td align="right" valign="top"><small>User is '
 
@@ -1317,7 +1527,17 @@ contains
         ! end of line 1
         write(device,AFORMAT) '</small>'//endtd//endtr
 
-        ! line 2 for banner: higher level context for selected function
+        ! line 2 for banner: colleges
+        write(device,AFORMAT) begintr//'<td colspan="2"><small>[ <b>Colleges:</b>'
+        do gdx = 1,NumColleges
+            if (.not. College(gdx)%hasInfo) cycle
+            ! fnCollegeLinks requested already printed above?
+            write(device,AFORMAT) trim(make_href(fnCollegeLinks, College(gdx)%Code, &
+                A1=College(gdx)%Code, pre=nbsp))
+        end do
+        write(device,AFORMAT) ' ]</small>'//endtd//endtr
+
+        ! line 3 for banner: higher level context for selected function
         write(device,AFORMAT) begintr//'<td colspan="2"><small>'
 
         ! show student options ?
@@ -1325,34 +1545,35 @@ contains
             (IsRoleAdmin .or. &
             (IsRoleSRE .and. CurrProgCode(Student(targetStudent)%CurriculumIdx)==CurrProgCode(CurriculumIdxUser))) ) then
 
-            nItems = 0 ! how many enlisted subjects
+            nAdvised = 0 ! how many advised subjects
+            nEnlisted = 0 ! how many enlisted subjects
             do fdx=1,Preenlisted(targetStudent)%lenSubject
-                if (Preenlisted(targetStudent)%Section(fdx)>0) nItems=nItems+1
+                if (Preenlisted(targetStudent)%Subject(fdx)>0) nAdvised=nAdvised+1
+                if (Preenlisted(targetStudent)%Section(fdx)>0) nEnlisted=nEnlisted+1
             end do
 
             tStdNo = Student(targetStudent)%StdNo
             write(device,AFORMAT) '[ <b>'//trim(tStdNo)//'</b>'
 
-            !if (NumEnlistmentRecords>0 .and. nItems==0 .and. REQUEST/=fnFindBlock) then
-            if (.not. advisingPeriod .and. nItems==0 .and. REQUEST/=fnFindBlock) then
-                write(device,AFORMAT) trim(make_href(fnFindBlock, 'Find block', &
-                    A1=tStdNo, pre=nbsp))
-            end if
-
-            !if (NumEnlistmentRecords>0 .and. nItems>0 .and. REQUEST/=fnChangeMatriculation) then
-            if (.not. advisingPeriod .and. nItems>0 .and. REQUEST/=fnChangeMatriculation) then
-                write(device,AFORMAT) trim(make_href(fnChangeMatriculation, 'Schedule', &
-                    A1=tStdNo, pre=nbsp))
+            if (.not. advisingPeriod .and. nAdvised>0) then
+                if (nEnlisted==0 .and. REQUEST/=fnFindBlock) then
+                    write(device,AFORMAT) trim(make_href(fnFindBlock, 'Find block', &
+                        A1=tStdNo, pre=nbsp, alt=SPACE))
+                end if
+                if (REQUEST/=fnChangeMatriculation) then
+                    write(device,AFORMAT) trim(make_href(fnChangeMatriculation, 'Schedule', &
+                        A1=tStdNo, pre=nbsp, alt=SPACE))
+                end if
             end if
 
             if (REQUEST/=fnEditCheckList) then
                 write(device,AFORMAT) trim(make_href(fnEditCheckList, 'Checklist', &
-                    A1=tStdNo, pre=nbsp))
+                    A1=tStdNo, pre=nbsp, alt=SPACE))
             end if
 
             if (REQUEST/=fnStudentPerformance) then
                 write(device,AFORMAT) trim(make_href(fnStudentPerformance, 'Performance', &
-                    A1=tStdNo, pre=nbsp))
+                    A1=tStdNo, pre=nbsp, alt=SPACE))
             end if
 
             write(device,AFORMAT) ' ] '//nbsp
@@ -1368,6 +1589,30 @@ contains
             end if
         end if
 
+
+        ! a teacher ?
+        if (targetTeacher>0) then
+            write(device,AFORMAT) '[ <b>'//trim(Teacher(targetTeacher)%Name)//'</b> '
+            if (REQUEST/=fnEditTeacher .and. &
+                 (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==Teacher(targetTeacher)%DeptIdx) ) ) then
+                write(device,AFORMAT) trim(make_href(fnEditTeacher, 'Info', &
+                    A1=Teacher(targetTeacher)%TeacherID, pre=nbsp, alt=SPACE))
+            end if
+            if (REQUEST/=fnTeacherClasses) then
+                write(device,AFORMAT) trim(make_href(fnTeacherClasses, 'Classes', &
+                    A1=Teacher(targetTeacher)%TeacherID, pre=nbsp))
+            end if
+            if (REQUEST/=fnTeacherEditSchedule) then
+                write(device,AFORMAT) trim(make_href(fnTeacherEditSchedule, 'Load', &
+                    A1=Teacher(targetTeacher)%TeacherID, pre=nbsp))
+            end if
+            if (REQUEST/=fnPrintableWorkload) then
+                write(device,AFORMAT) trim(make_href(fnPrintableWorkload, 'Form', &
+                    A1=Teacher(targetTeacher)%TeacherID, pre=nbsp))
+            end if
+            write(device,AFORMAT) ' ] '//nbsp
+        end if
+
         ! show department options ?
         if (targetDepartment>0 .and. DeptIdxUser/=targetDepartment .and. REQUEST/=fnLogin) then
             tDepartment = Department(targetDepartment)%Code
@@ -1376,17 +1621,17 @@ contains
             write(device,AFORMAT) ' ] '//nbsp
         end if
 
-        write(device,AFORMAT) '[ <b>Colleges:</b>'
-        do gdx = 1,NumColleges
-            if (.not. College(gdx)%hasInfo) cycle
-            ! fnCollegeLinks requested already printed above?
-            if (REQUEST==fnCollegeLinks .and. gdx==targetCollege) cycle
-            write(device,AFORMAT) trim(make_href(fnCollegeLinks, College(gdx)%Code, &
-                A1=College(gdx)%Code, pre=nbsp))
-        end do
-        write(device,AFORMAT) ' ]</small>'//endtd//endtr
+!        write(device,AFORMAT) '[ <b>Colleges:</b>'
+!        do gdx = 1,NumColleges
+!            if (.not. College(gdx)%hasInfo) cycle
+!            ! fnCollegeLinks requested already printed above?
+!            if (REQUEST==fnCollegeLinks .and. gdx==targetCollege) cycle
+!            write(device,AFORMAT) trim(make_href(fnCollegeLinks, College(gdx)%Code, &
+!                A1=College(gdx)%Code, pre=nbsp))
+!        end do
+        write(device,AFORMAT) '</small>'//endtd//endtr
 
-        ! line 3 of banner, if any
+        ! line 4 of banner, if any
         if (present(errmsg)) then
             if (errmsg/=SPACE) write(device,AFORMAT) begintr//'<td colspan="2">'// &
                 red//'<i>'//trim(errmsg)//'</i>'//black//endtd//endtr
@@ -1397,7 +1642,7 @@ contains
         if (len_trim(header)>0) write(device,AFORMAT) '<h3>'//trim(header)// &
             trim(termDescription)//'</h3>'
 
-        return
+
     end subroutine html_write_header
 
 
@@ -1407,7 +1652,7 @@ contains
 
         if (REQUEST==fnDownloadXML) return
 
-        write(device,AFORMAT) '<!-- '//'html_write_footer()'//' -->'
+        call html_comment('html_write_footer()')
 
         if (REQUEST/=fnStop .and. &
             REQUEST/=fnLogout .and. &
@@ -1441,13 +1686,13 @@ contains
             if (isSuspended) then
                 write(device,AFORMAT)  &
                     '<small><i>'//red//'The program is in suspend-mode. Non-''Admin'' roles are locked out.'// &
-                    black//'</i><small>'
+                    black//'</i></small>'
             end if
         end if
 
-        write(device,AFORMAT) '</small></body></html>'
+        write(device,AFORMAT) '</body></html>'
 
-        return
+
     end subroutine html_write_footer
 
 
@@ -1460,7 +1705,7 @@ contains
         integer :: cdx
         character (len=MAX_LEN_COLLEGE_CODE) :: tCollege
 
-        write(device,AFORMAT) '<!-- '//'html_college_links()'//' -->'
+        call html_comment('html_college_links()')
 
         if (present(given)) then
             targetCOLLEGE = given
@@ -1486,7 +1731,7 @@ contains
             call html_college_info(device, targetCOLLEGE)
         end if
 
-        return
+
     end subroutine html_college_links
 
 
@@ -1495,7 +1740,7 @@ contains
         character(len=MAX_LEN_DEPARTMENT_CODE), intent (in) :: tDepartment
 
 
-        write(device,AFORMAT) '<!-- '//'info_department()'//' -->'
+        call html_comment('info_department()')
 
         if (REQUEST/=fnSubjectList) then
             write(device,AFORMAT) trim(make_href(fnSubjectList, 'Subjects', &
@@ -1522,7 +1767,7 @@ contains
                 A1=tDepartment, pre=nbsp))
         end if
 
-        return
+
     end subroutine info_department
 
 
@@ -1537,7 +1782,7 @@ contains
         character (len=80) :: description
         logical :: addHR
 
-        write(device,AFORMAT) '<!-- '//'html_college_info()'//' -->'
+        call html_comment('html_college_info()')
 
         tCollege = College(coll)%Code
 
@@ -1576,7 +1821,7 @@ contains
         write(device,AFORMAT) '<ul>'
         if (coll==NumColleges .and. .not. isRoleGuest) then
             write(device,AFORMAT) '<li><b>Download .XML files.</b> '//&
-                'Right-click, then "Save Link As..." to '//trim(dirXML)//trim(pathToYear), &
+                'Right-click, then "Save Link As..." to '//trim(dirDATA)//trim(pathToYear), &
                 trim(make_href(fnDownloadXML, 'UNIVERSITY.XML', A1='UNIVERSITY.XML',  pre='<small><br>')), &
                 trim(make_href(fnDownloadXML, 'COLLEGES.XML', A1='COLLEGES.XML',  pre=nbsp)), &
                 trim(make_href(fnDownloadXML, 'DEPARTMENTS.XML', A1='DEPARTMENTS.XML',  pre=nbsp)), &
@@ -1651,7 +1896,7 @@ contains
 
                 write(device,AFORMAT) trim(make_href(fnCurriculumList, CurrProgCode(cdx), &
                     A1=CurrProgCode(cdx), post='('//trim(itoa(n_count))//')'//nbsp))
-                do ldx=cdx+1,NumCurricula
+                do ldx=cdx+1,NumCurricula-1
                     if (CurrProgCode(ldx) == CurrProgCode(cdx)) done(ldx) = .true.
                 end do
             end do
@@ -1672,8 +1917,10 @@ contains
         end do
         addHR = n_count>0
         if (addHR) then
-            write(device,AFORMAT) '<!-- '//'teacher links()'//' -->', &
-                '<li><b>Teachers by department</b> : '
+
+            call html_comment('teacher links()')
+
+            write(device,AFORMAT) '<li><b>Teachers by department</b> : '
             do dept=2,NumDepartments
                 if (Department(dept)%CollegeIdx /= coll) cycle
                 n_count = 0
@@ -1713,8 +1960,10 @@ contains
         end do
         if (n_count>0) then
             addHR = .true.
-            write(device,AFORMAT) '<!-- '//'room links()'//' -->', &
-                '<li><b>Rooms by department</b> : '
+
+            call html_comment('room links()')
+
+            write(device,AFORMAT) '<li><b>Rooms by department</b> : '
             do dept=2,NumDepartments
                 if (Department(dept)%CollegeIdx /= coll) cycle
                 n_count = 0
@@ -1740,8 +1989,10 @@ contains
             exit
         end do
         if (n_count>0) then
-            write(device,AFORMAT) '<!-- '//'student links()'//' -->', &
-                '<li><b>Students by last name</b> : '
+
+            call html_comment('student links()')
+
+            write(device,AFORMAT) '<li><b>Students by last name</b> : '
             do cdx=iachar('A'), iachar('Z')
                 ch = achar(cdx)
                 n_count = 0
@@ -1817,7 +2068,7 @@ contains
             if (coll==NumColleges .and. .not. isRoleGuest) then
                 write(device,AFORMAT) &
                     '<li><b>Download .XML files.</b> Right-click, then "Save Link As..." to '// &
-                    trim(dirXML)//trim(itoa(rdx))//DIRSEP//trim(txtSemester(targetTerm))//DIRSEP, &
+                    trim(dirDATA)//trim(itoa(rdx))//DIRSEP//trim(txtSemester(targetTerm))//DIRSEP, &
                     trim(make_href(fnDownloadXML, 'BLOCKS.XML', A1='BLOCKS.XML',  pre='<small><br>')), &
                     trim(make_href(fnDownloadXML, 'CLASSES.XML', A1='CLASSES.XML',  pre=nbsp, &
                     post='</small>'))
@@ -1845,7 +2096,7 @@ contains
         targetTerm = cdx ! restore
 
         write(device,AFORMAT) '</ul><hr>'
-        return
+
     end subroutine html_college_info
 
 
@@ -1855,7 +2106,7 @@ contains
         integer :: dept, crse, n_count
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
 
-        write(device,AFORMAT) '<!-- '//'links_to_depts()'//' -->'
+        call html_comment('links_to_depts()')
 
         write(device,AFORMAT) '<li>'//heading//' : '
         do dept=2,NumDepartments
@@ -1881,7 +2132,7 @@ contains
         end do
         write(device,AFORMAT) '</li>'
 
-        return
+
     end subroutine links_to_depts
 
 
@@ -1894,7 +2145,7 @@ contains
 
         if (numAreas==0) return
 
-        write(device,AFORMAT) '<!-- '//'links_to_subjects()'//' -->'
+        call html_comment('links_to_subjects()')
 
         write(device,AFORMAT) '<li><b>Subjects</b> in :'
         do dept=2,NumDepartments
@@ -1927,7 +2178,7 @@ contains
                 pre=nbsp, post='('//trim(itoa(n_count))//')'))
         end do
         write(device,AFORMAT) '</li>'
-        return
+
     end subroutine links_to_subjects
 
 
@@ -1941,7 +2192,7 @@ contains
 
         if (numAreas==0) return
 
-        write(device,AFORMAT) '<!-- '//'links_to_sections()'//' -->'
+        call html_comment('links_to_sections()')
 
         tCollege = College(coll)%Code
 
@@ -2014,13 +2265,13 @@ contains
 
         QUERY_put = USERNAME
         write(device,AFORMAT) &
-            trim(make_href(fnTeacherSchedule, 'schedule', &
+            trim(make_href(fnTeacherClasses, 'classes', &
                 A1=QUERY_put, pre=' ; <b>My </b> '//nbsp)), &
             trim(make_href(fnPrintableWorkload, 'form', &
                 A1=QUERY_put, pre=nbsp//'and teaching load'//nbsp))
 
         write(device,AFORMAT) '</li>'
-        return
+
     end subroutine links_to_sections
 
 
@@ -2029,7 +2280,8 @@ contains
         integer :: cdx, ldx, blk, ncurr
         character (len=MAX_LEN_COLLEGE_CODE) :: tCollege
 
-        write(device,AFORMAT) '<!-- '//'links_to_blocks()'//' -->'
+        call html_comment('links_to_blocks()')
+
         ncurr = 0
         tCollege = College(coll)%Code
         write(device,AFORMAT) '<li><b>Blocks</b> : '//nbsp
@@ -2046,7 +2298,7 @@ contains
             ncurr = ncurr + 1
             write(device,AFORMAT) trim(make_href(fnBlockList, CurrProgCode(cdx), &
                 A1=CurrProgCode(cdx), post='('//trim(itoa(ldx))//')'//nbsp))
-            do ldx=cdx+1,NumCurricula
+            do ldx=cdx+1,NumCurricula-1
                 if (CurrProgCode(ldx) == CurrProgCode(cdx)) done(ldx) = .true.
             end do
         end do
@@ -2056,7 +2308,7 @@ contains
 !        end if
         write(device,AFORMAT) '</li>'
 
-        return
+
     end subroutine links_to_blocks
 
 
@@ -2076,140 +2328,131 @@ contains
                 exit
             end do
         end do
-        return
+
     end subroutine blocks_in_section
 
 
-    function make_href(fn, label, pre, post, A1, A2, A3, A4, A5, anchor, newtab)
-    ! build HTML href, like:
-    !   pre<a href="CGI_PATH?F=fn&A1=A1&...A5=A5 #anchor target=newtab">label</a>post
+    subroutine collect_advice(Advice, n_changes, mesg)
 
-        integer, intent (in) :: fn
-        character(len=*), intent (in) :: label
-        character(len=*), intent (in), optional :: A1, A2, A3, A4, A5
-        character(len=*), intent (in), optional :: pre, post, anchor, newtab
+        type (TYPE_PRE_ENLISTMENT), intent(out) :: Advice
+        character(len=*), intent (out) :: mesg
+        integer, intent (out) :: n_changes
 
-        character(len=MAX_LEN_QUERY_STRING) :: make_href
-        character(len=MAX_CGI_WRK_LEN) :: cgi_wrk
-        integer :: kStart
+        character(len=MAX_LEN_SUBJECT_CODE) :: tSubject
+        character(len=3*MAX_LEN_SUBJECT_CODE) :: search_string
 
-        ! random number
-        real :: harvest
+        integer :: crse, idx, jdx, ierr, i, j, l
 
-        ! the function and user name
-        cipher = 'F='//trim(itoa(fn))//'&N='//USERNAME
-        ! the term if specified
-        if (targetTerm>0) then
-            cipher = trim(cipher)//'&A9='//itoa(targetTerm)
+        call initialize_pre_enlistment(Advice)
+        mesg = SPACE
+        n_changes = 0
+
+        call cgi_get_named_integer(QUERY_STRING, 'earned', i, ierr)
+        if (ierr==0) Advice%UnitsEarned = i
+        call cgi_get_named_integer(QUERY_STRING, 'classification', i, ierr)
+        if (ierr==0) Advice%StdClassification = i
+        call cgi_get_named_integer(QUERY_STRING, 'year', i, ierr)
+        if (ierr==0) Advice%StdYear = i
+        call cgi_get_named_integer(QUERY_STRING, 'allowed', i, ierr)
+        if (ierr==0) Advice%AllowedLoad = i
+        call cgi_get_named_integer(QUERY_STRING, 'group', i, ierr)
+        if (ierr==0) Advice%StdPriority = i
+        call cgi_get_named_integer(QUERY_STRING, 'priority', i, ierr)
+        if (ierr==0) Advice%NPriority = i
+        call cgi_get_named_integer(QUERY_STRING, 'alternate', i, ierr)
+        if (ierr==0) Advice%NAlternates = i
+        call cgi_get_named_integer(QUERY_STRING, 'current', i, ierr)
+        if (ierr==0) Advice%NCurrent = i
+
+        Advice%lenSubject = Advice%NPriority+Advice%NAlternates+Advice%NCurrent
+        do l=1,Advice%lenSubject
+            call cgi_get_named_string(QUERY_STRING, 'pri'//itoa(l), search_string, ierr)
+            j = index(search_string,COMMA)
+            tSubject = search_string(j+1:)
+            read(tSubject,'(f6.4)') Advice%Contrib(l)
+            tSubject = search_string(1:j-1)
+            crse = index_to_subject(tSubject)
+            Advice%Subject(l) = crse
+        end do
+
+        ! apply deletes
+        idx = Advice%NPriority
+        jdx = Advice%NAlternates
+        do l=1,Advice%lenSubject
+            call cgi_get_named_string(QUERY_STRING, 'del'//itoa(l), search_string, ierr)
+            if (ierr==-1) cycle ! not found
+            if (l<=Advice%NPriority) then
+                idx = idx-1
+            elseif (l<=Advice%NPriority+Advice%NAlternates) then
+                jdx = jdx-1
+            end if
+            crse = Advice%Subject(l)
+            mesg = trim(mesg)//' : Del '//Subject(crse)%Name
+            Advice%Contrib(l) = 0.0
+            Advice%Subject(l) = 0
+            n_changes = n_changes + 1
+            isDirtyPREDICTIONS = .true.
+            call html_comment('Delete '//itoa(l)//SPACE//Subject(crse)%Name )
+
+            ! check if deleted subject is in WaiverCOI
+            i = 0
+            do j=1,WaiverCOI(targetStudent)%lenSubject
+                if (WaiverCOI(targetStudent)%Subject(j)/=crse) cycle
+                i = j
+                exit
+            end do
+            if (i/=0) then ! remove from WaiverCOI()
+                do j=i,WaiverCOI(targetStudent)%lenSubject-1
+                    WaiverCOI(targetStudent)%Subject(j) = WaiverCOI(targetStudent)%Subject(j+1)
+                end do
+                WaiverCOI(targetStudent)%lenSubject = WaiverCOI(targetStudent)%lenSubject-1
+                isDirtyWaiverCOI = .true.
+                !write(device,*) '  from WaiverCOI() also'
+            end if
+        end do
+        if (n_changes>0) then ! there were deletions
+            j = 0
+            do l=1,Advice%lenSubject
+                if (Advice%Subject(l)>0) then
+                    j = j+1
+                    Advice%Subject(j) = Advice%Subject(l)
+                    Advice%Contrib(j) = Advice%Contrib(l)
+                end if
+            end do
+            Advice%NPriority = idx
+            Advice%NAlternates = jdx
+            Advice%lenSubject = Advice%lenSubject-n_changes !  n_changes = no. of deletions
+            isDirtyPREDICTIONS = .true.
         end if
 
-        ! the arguments to the function
-        if (present(A1)) then
-            call cgi_url_encode(A1,cgi_wrk)
-            cipher = trim(cipher)//'&A1='//cgi_wrk
-        end if
-        if (present(A2)) then
-            call cgi_url_encode(A2,cgi_wrk)
-            cipher = trim(cipher)//'&A2='//cgi_wrk
-        end if
-        if (present(A3)) then
-            call cgi_url_encode(A3,cgi_wrk)
-            cipher = trim(cipher)//'&A3='//cgi_wrk
-        end if
-        if (present(A4)) then
-            call cgi_url_encode(A4,cgi_wrk)
-            cipher = trim(cipher)//'&A4='//cgi_wrk
-        end if
-        if (present(A5)) then
-            call cgi_url_encode(A5,cgi_wrk)
-            cipher = trim(cipher)//'&A5='//cgi_wrk
-        end if
-
-        ! encrypt
-        call random_number(harvest)
-        kStart = MAX_LEN_QUERY_STRING/2 + int(harvest*MAX_LEN_QUERY_STRING/2)
-        call encrypt(queryEncryptionKey(:kStart), cipher)
-
-        ! begin href
-        cipher = '<a href="'//trim(CGI_PATH)//'?q='//trim(cipher)//itoa(kStart)
-
-        ! preamble (text before href)
-        if (present(pre)) cipher = pre//cipher
-
-        ! the anchor
-        if (present(anchor)) cipher = trim(cipher)//'#'//anchor
-
-        ! the target
-        if (present(newtab)) cipher = trim(cipher)//' target='//newtab
-
-        ! end href & the label
-        cipher = trim(cipher)//'">'//trim(label)//'</a>'
-
-        ! the text after the href
-        if (present(post)) cipher = trim(cipher)//post
-
-        make_href = cipher
-
-        return
-    end function make_href
-
-
-
-    subroutine make_form_start(device, fn, A1, A2, A3, A4, A5)
-    ! write to device the start an HTML form, like:
-    !   <form name="input" method="post" action="/heeds">
-    !   <input type="hidden" name="F" value="91">
-    !   <input type="hidden" name="N" value="REGISTRAR">
-    !   <input type="hidden" name="A1" value="CLINLAB">
-
-        integer, intent (in) :: device, fn
-        character(len=*), intent (in), optional :: A1, A2, A3, A4, A5
-
-        character(len=MAX_CGI_WRK_LEN) :: cgi_wrk
-        integer :: kStart
-
-        ! random number
-        real :: harvest
-
-        ! the function and user name
-        cipher = 'F='//trim(itoa(fn))//'&N='//USERNAME
-        ! the term if specified
-        if (targetTerm>0) then
-            cipher = trim(cipher)//'&A9='//itoa(targetTerm)
+        ! check if subject added (COI, Waived prereq)
+        call cgi_get_named_string(QUERY_STRING, 'additional', search_string, ierr)
+        if (search_string/=SPACE) then ! something there
+            tSubject = search_string
+            crse = index_to_subject(tSubject)
+            if (crse>=0) then ! add
+                call html_comment('Add '//Subject(crse)%Name )
+                mesg = trim(mesg)//' : Add '//tSubject
+                do l=Advice%lenSubject,1,-1
+                    Advice%Subject(l+1) = Advice%Subject(l)
+                    Advice%Contrib(l+1) = Advice%Contrib(l)
+                end do
+                Advice%Subject(1) = crse
+                Advice%Contrib(1) = 1.0
+                Advice%NPriority = 1+Advice%NPriority
+                Advice%lenSubject = 1+Advice%lenSubject
+                isDirtyPREDICTIONS = .true.
+                ! add to WaiverCOI
+                l = WaiverCOI(targetStudent)%lenSubject+1
+                WaiverCOI(targetStudent)%lenSubject = l
+                WaiverCOI(targetStudent)%Subject(l) = crse
+                isDirtyWaiverCOI = .true.
+                n_changes = n_changes + 1
+            end if
         end if
 
-        ! the arguments to the function
-        if (present(A1)) then
-            call cgi_url_encode(A1,cgi_wrk)
-            cipher = trim(cipher)//'&A1='//cgi_wrk
-        end if
-        if (present(A2)) then
-            call cgi_url_encode(A2,cgi_wrk)
-            cipher = trim(cipher)//'&A2='//cgi_wrk
-        end if
-        if (present(A3)) then
-            call cgi_url_encode(A3,cgi_wrk)
-            cipher = trim(cipher)//'&A3='//cgi_wrk
-        end if
-        if (present(A4)) then
-            call cgi_url_encode(A4,cgi_wrk)
-            cipher = trim(cipher)//'&A4='//cgi_wrk
-        end if
-        if (present(A5)) then
-            call cgi_url_encode(A5,cgi_wrk)
-            cipher = trim(cipher)//'&A5='//cgi_wrk
-        end if
 
-        ! encrypt
-        call random_number(harvest)
-        kStart = MAX_LEN_QUERY_STRING/2 + int(harvest*MAX_LEN_QUERY_STRING/2)
-        call encrypt(queryEncryptionKey(:kStart), cipher)
+    end subroutine collect_advice
 
-        write(device,AFORMAT) &
-          '<form name="input" method="post" action="'//trim(CGI_PATH)//'">', &
-          '<input type="hidden" name="q" value="'//trim(cipher)//trim(itoa(kStart))//'">'
-
-        return
-    end subroutine make_form_start
 
 end module HTML

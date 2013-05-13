@@ -62,10 +62,12 @@ subroutine student_performance (device, mesg)
 !    end if
 !    !write(*,*) 'Performance of '//trim(text_student_info(targetStudent))
 
-    call html_write_header(device, text_student_curriculum(targetStudent), mesg)
+    call html_write_header(device, trim(Student(targetStudent)%StdNo)//SPACE//trim(Student(targetStudent)%Name)// &
+        '<br>'//text_curriculum_info(targetCurriculum), mesg)
 
     ! read checklist
     call read_student_records (targetStudent)
+    call parse_student_records (targetStudent)
 
     write(device,AFORMAT) '<br><b>UNOFFICIAL Copy of Grades and Weighted Average by Term</b><table border="0" width="100%">'
     write(device,AFORMAT) begintr//'<td colspan="7"><hr>'//endtd//endtr, &
@@ -106,12 +108,13 @@ subroutine student_performance (device, mesg)
             if (TCG(tdx)%Term==3) then
                 write(device,AFORMAT) &
                 begintr//tdnbspendtd//'<td colspan="4" align="left">SUMMER, '// &
-                trim(itoa(TCG(tdx)%Year))//endtd//'<td colspan="6">'//nbsp//endtd//endtr
+                trim(itoa(TCG(tdx)%Year))//DASH//trim(itoa(TCG(tdx)%Year+1))//endtd// &
+                '<td colspan="6">'//nbsp//endtd//endtr
             else
                 write(device,AFORMAT) &
                     begintr//tdnbspendtd, &
                     '<td colspan="4" align="left">'//trim(txtSemester(TCG(tdx)%Term))// &
-                    termQualifier(TCG(tdx)%Term)//COMMA//trim(itoa(TCG(tdx)%Year))//DASH// &
+                    trim(termQualifier(TCG(tdx)%Term))//COMMA//SPACE//trim(itoa(TCG(tdx)%Year))//DASH// &
                     trim(itoa(TCG(tdx)%Year+1))//endtd// &
                     '<td colspan="6">'//nbsp//endtd//endtr
             end if

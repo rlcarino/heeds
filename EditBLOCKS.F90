@@ -353,10 +353,8 @@ contains
                 end select
 
         end select
-#if defined PRODUCTION
-#else
-        write(device,AFORMAT) '<!-- targetBlock='//trim(Block(targetBlock)%BlockID)//'@'//itoa(targetBlock)//' -->'
-#endif
+
+        call html_comment('targetBlock='//trim(Block(targetBlock)%BlockID)//'@'//itoa(targetBlock))
 
         if (updateBLOCKS) then
             call sort_alphabetical_blocks(NumBlocks, Block)
@@ -364,7 +362,7 @@ contains
             targetBlock = index_to_block(tBlock, NumBlocks, Block)
 
             call xml_write_blocks(pathToTerm, NumBlocks, Block,  Section, 0)
-!            call xml_write_blocks(UPDATES//pathToTerm, NumBlocks, Block,  Section, targetDepartment)
+!            call xml_write_blocks(pathToTerm, NumBlocks, Block,  Section, targetDepartment)
 
             if (fn==fnBlockDeleteAll .or. fn==fnBlockDeleteName) then
                 call html_college_links(device, targetCollege, mesg)
@@ -374,7 +372,7 @@ contains
         if (updateCLASSES) then
             call offerings_summarize(NumSections, Section, Offering)
             call xml_write_sections(pathToTerm, NumSections, Section, 0)
-!            call xml_write_sections(UPDATES//pathToTerm, NumSections, Section, targetDepartment)
+!            call xml_write_sections(pathToTerm, NumSections, Section, targetDepartment)
         end if
 
         call html_write_header(device, 'Block schedule '//tBlock, mesg)
@@ -612,7 +610,7 @@ contains
 
         write(device,AFORMAT) '<hr>'
 
-        return
+
     end subroutine block_show_schedule
 
 
@@ -624,10 +622,7 @@ contains
         integer :: ierr, ldx
         character(len=MAX_LEN_COLLEGE_CODE) :: tCollege
 
-#if defined PRODUCTION
-#else
-        write(device,AFORMAT) '<!-- block_select_curriculum_year() -->'
-#endif
+        call html_comment('block_select_curriculum_year()')
 
         call cgi_get_named_string(QUERY_STRING, 'A1', tCollege, ierr)
         targetCollege = index_to_college(tCollege)
@@ -669,7 +664,7 @@ contains
             nbsp//nbsp//nbsp//nbsp//'<input type="submit" name="action" value="Create TBA sections">', &
             '</form><hr>'
 
-        return
+
     end subroutine block_select_curriculum_year
 
 
@@ -687,12 +682,8 @@ contains
         character (len=50) :: tAction
         logical :: inputError, createClasses
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
-        !character (len=MAX_LEN_CLASS_ID) :: tClassId
 
-#if defined PRODUCTION
-#else
-        write(device,AFORMAT) '<!-- block_add() -->'
-#endif
+        call html_comment('block_add()')
 
         inputError = .false.
 
@@ -805,20 +796,20 @@ contains
 
         call sort_alphabetical_blocks(NumBlocks, Block)
         call xml_write_blocks(pathToTerm, NumBlocks, Block,  Section, 0)
-!        call xml_write_blocks(UPDATES//pathToTerm, NumBlocks, Block,  Section, targetDepartment)
+!        call xml_write_blocks(pathToTerm, NumBlocks, Block,  Section, targetDepartment)
 
         if (createClasses) then
 
             call offerings_summarize(NumSections, Section, Offering)
 
             call xml_write_sections(pathToTerm, NumSections, Section, 0)
-!            call xml_write_sections(UPDATES//pathToTerm, NumSections, Section, targetDepartment)
+!            call xml_write_sections(pathToTerm, NumSections, Section, targetDepartment)
 
         end if
 
         call html_college_links(device, targetCollege, 'Added block(s) in '//trim(tCurriculum))
 
-        return
+
     end subroutine block_add
 
 
@@ -829,10 +820,7 @@ contains
         type (TYPE_BLOCK), dimension(0:), intent(in out) :: Block
         integer :: crse, idx
 
-#if defined PRODUCTION
-#else
-        write(unitHTML,AFORMAT) '<!-- block_add_and_create_sections() -->'
-#endif
+        call html_comment('block_add_and_create_sections()')
 
         do idx=1,Block(block_idx)%NumClasses
             crse = Block(block_idx)%Subject(idx)
@@ -843,7 +831,7 @@ contains
 
         end do
 
-        return
+
     end subroutine block_add_and_create_sections
 
 
@@ -854,14 +842,12 @@ contains
         type (TYPE_BLOCK), dimension(0:), intent(in out) :: Block
         integer :: dept, kdx
 
-#if defined PRODUCTION
-#else
-        write(unitHTML,AFORMAT) '<!-- create_section_for_block() -->'
-#endif
-
         dept = Block(block_idx)%DeptIdx
         kdx = ScheduleCount(Term,dept) + 1 ! new section in department
         ScheduleCount(Term,dept) = kdx
+
+        call html_comment('create_section_for_block()', 'block='//Block(block_idx)%BlockID, &
+            'term='//itoa(Term), 'dept='//Department(dept)%Code, 'nsect='//itoa(kdx))
 
         if (Subject(crse)%LectHours>0) then
             NumSections = NumSections + 1
@@ -899,7 +885,7 @@ contains
 
         Section(NumSections)%BlockID = Block(block_idx)%BlockID
 
-        return
+
     end subroutine create_section_for_block
 
 
@@ -912,10 +898,7 @@ contains
         integer :: copy, crse, sect, idx, Year
         character (len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
 
-#if defined PRODUCTION
-#else
-        write(unitHTML,AFORMAT) '<!-- block_get_all_from_CLASSES() -->'
-#endif
+        call html_comment('block_get_all_from_CLASSES()')
 
         NumBlocks = 0
         call initialize_block(Block(0))
@@ -969,7 +952,7 @@ contains
         end do
         ! sort
         call sort_alphabetical_blocks(NumBlocks, Block)
-        return
+
     end subroutine block_get_all_from_CLASSES
 
 
@@ -1035,7 +1018,7 @@ contains
         list(len_list+1) = 0
         list(len_list+2) = 0
         list(len_list+3) = 0
-        return
+
     end subroutine timetable_meetings_of_block
 
 
@@ -1048,15 +1031,12 @@ contains
         character(len=MAX_LEN_COLLEGE_CODE) :: tCollege
         character (len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
 
-#if defined PRODUCTION
-#else
-        write(device,AFORMAT) '<!-- block_list_all() -->'
-#endif
+        call html_comment('block_list_all()')
 
         ! which program ?
         call cgi_get_named_string(QUERY_STRING, 'A1', tCurriculum, ierr)
         targetCurriculum = 0
-        do ldx=1,NumCurricula
+        do ldx=1,NumCurricula-1
             if (CurrProgCode(ldx) /= tCurriculum) cycle
             targetCurriculum = ldx
             exit
@@ -1079,7 +1059,7 @@ contains
         end do
         write(device,AFORMAT) '</table><hr>'
 
-        return
+
     end subroutine block_list_all
 
 

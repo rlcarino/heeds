@@ -95,7 +95,7 @@ contains
         if (present(dirOPT)) then
             fileName = trim(dirOPT)//trim(path)//'CURRICULA.XML'
         else
-            fileName = trim(dirXML)//trim(path)//'CURRICULA.XML'
+            fileName = trim(dirDATA)//trim(path)//'CURRICULA.XML'
         endif
         call xml_open_file(unitXML, XML_ROOT_CURRICULA, fileName, idx)
 
@@ -181,7 +181,7 @@ contains
         end do
         call xml_close_file(unitXML, XML_ROOT_CURRICULA)
 
-        return
+
     end subroutine xml_write_curricula
 
 
@@ -202,7 +202,7 @@ contains
         integer :: nLoad, loadArray(MAX_SUBJECTS_PER_TERM)
 
         ! open file, return on any error
-        fileName = trim(dirXML)//trim(path)//'CURRICULA.XML'
+        fileName = trim(dirDATA)//trim(path)//'CURRICULA.XML'
         call xml_open_file(unitXML, XML_ROOT_CURRICULA, fileName, errNo, forReading)
         if (errNo/=0) return
 
@@ -319,7 +319,7 @@ contains
         call xml_close_file(unitXML)
         call file_log_message (itoa(NumCurricula)//' entries in '//fileName)
 
-        return
+
     end subroutine xml_read_curricula
 
 
@@ -336,7 +336,7 @@ contains
         if (present(dirOPT)) then
             fileName = trim(dirOPT)//trim(path)//'EQUIVALENCIES.XML'
         else
-            fileName = trim(dirXML)//trim(path)//'EQUIVALENCIES.XML'
+            fileName = trim(dirDATA)//trim(path)//'EQUIVALENCIES.XML'
         endif
         call xml_open_file(unitXML, XML_ROOT_EQUIVALENCIES, fileName, idx)
         write(unitXML,AFORMAT) &
@@ -359,7 +359,7 @@ contains
 
         call xml_close_file(unitXML, XML_ROOT_EQUIVALENCIES)
 
-        return
+
     end subroutine xml_write_equivalencies
 
 
@@ -379,7 +379,7 @@ contains
         ptrS = 0 ! substitutions
 
         ! open CURRICULUM file, return on any error
-        fileName = trim(dirXML)//trim(path)//'CURRICULA.XML'
+        fileName = trim(dirDATA)//trim(path)//'CURRICULA.XML'
         call xml_open_file(unitXML, XML_ROOT_CURRICULA, fileName, errNo, forReading)
         if (errNo/=0) return
 
@@ -414,7 +414,7 @@ contains
         call xml_close_file(unitXML)
 
         ! open EQUIVALENCIES file, return on any error
-        fileName = trim(dirXML)//trim(path)//'EQUIVALENCIES.XML'
+        fileName = trim(dirDATA)//trim(path)//'EQUIVALENCIES.XML'
         call xml_open_file(unitXML, XML_ROOT_EQUIVALENCIES, fileName, errNo, forReading)
         if (errNo/=0) return
 
@@ -445,7 +445,7 @@ contains
         SubstIdx(NumSubst+1) = ptrS+1
         call xml_close_file(unitXML)
 
-        return
+
     end subroutine xml_read_equivalencies
 
 
@@ -508,7 +508,7 @@ contains
 
         call make_curriculum_groups()
 
-        return
+
     end subroutine read_curricula
 
 
@@ -518,7 +518,7 @@ contains
         CurrProgNum = 0
         CurrProgCode = SPACE
         k = 0
-        do idx=1,NumCurricula-1
+        do idx=1,NumCurricula
             if (CurrProgNum(idx)==0) then
                 k = k+1
                 CurrProgNum(idx) = k
@@ -530,7 +530,7 @@ contains
                     j = j-1
                 end if
                 CurrProgCode(idx) = Curriculum(idx)%Code(1:j)
-                do i = idx+1,NumCurricula-1
+                do i = idx+1,NumCurricula
                     if (Curriculum(idx)%CollegeIdx==Curriculum(i)%CollegeIdx .and. &
                     Curriculum(idx)%Code(1:j)==Curriculum(i)%Code(1:j) .and. &
                     (Curriculum(i)%Code(j+1:j+1)==SPACE .or. &
@@ -542,7 +542,7 @@ contains
             end if
         end do
         CurrProgNum(0) = k
-        return
+
     end subroutine make_curriculum_groups
 
 
@@ -591,7 +591,7 @@ contains
                 index_to_curriculum = -i
             end if
         end do
-        return
+
     end function index_to_curriculum
 
 
@@ -609,7 +609,7 @@ contains
                 exit
             end if
         end do
-        return
+
     end function index_of_subject_in_curriculum
 
 
@@ -619,7 +619,7 @@ contains
         integer, intent (in) :: college_idx, subject_idx
         integer :: i
         found = .false.
-        do i=1,NumCurricula-1
+        do i=1,NumCurricula
             if (Curriculum(i)%CollegeIdx/=college_idx) cycle
             if (index_of_subject_in_curriculum(Curriculum(i), subject_idx)>0) then
                 found = .true.
@@ -627,7 +627,7 @@ contains
             end if
         end do
         is_used_in_college_subject = found
-        return
+
     end function is_used_in_college_subject
 
 
@@ -645,7 +645,7 @@ contains
             end if
         end do
         is_used_in_curriculum_subject_area = found
-        return
+
     end function is_used_in_curriculum_subject_area
 
 
@@ -656,7 +656,9 @@ contains
         type (TYPE_CURRICULUM), intent (in), optional :: tCurriculum
         character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
         character (len=255) :: str127(MAX_ALL_SUBJECT_PREREQ)
-        integer :: i, j, k
+        integer :: i, j, k, idxCURR
+        logical :: satisfiable
+
         ! corequisite
         displayStr = SPACE
         str127 = SPACE
@@ -721,7 +723,10 @@ contains
             end if
         end if
         str127 = SPACE
+        satisfiable = .true.
         if (present(tCurriculum)) then
+            idxCURR = index_to_curriculum(tCurriculum%Code)
+            satisfiable = is_prerequisite_satisfiable_in_curriculum(crse, idxCURR)
             do j=Subject(crse)%lenPreq,1,-1
                 k = Subject(crse)%Prerequisite(j)
                 tSubject = Subject(k)%Name
@@ -749,9 +754,13 @@ contains
                     if (k>0) then
                         i = index_of_subject_in_curriculum(tCurriculum, k)
                         if (i>0) then
-                            str127(j) = tSubject
+                            if (satisfiable) then
+                                str127(j) = tSubject
+                            else
+                                str127(j) = red//trim(tSubject)//black
+                            end if
                         else
-                            str127(j) = trim(tSubject)//'*'
+                            str127(j) = red//trim(tSubject)//black//'*'
                         end if
                     else
                         str127(j) = tSubject
@@ -782,7 +791,7 @@ contains
             end if
         end if
         text_prerequisite_in_curriculum = displayStr
-        return
+
     end function text_prerequisite_in_curriculum
 
 
@@ -839,7 +848,7 @@ contains
             end if
         end do
         is_prerequisite_satisfiable_in_curriculum = tmpPreq(1)>0
-        return
+
     end function is_prerequisite_satisfiable_in_curriculum
 
 
@@ -857,7 +866,7 @@ contains
         tmp = trim(Curriculum(idxCURR)%Code)//SPACE//DASH//SPACE// &
             trim(Curriculum(idxCURR)%Title)//tmp
         text_curriculum_info = tmp
-        return
+
     end function text_curriculum_info
 
 
@@ -869,7 +878,7 @@ contains
         ! training only?
         if (noWrites) return
 
-        fileName = trim(dirXML)//trim(path)//'INTAKE.XML'
+        fileName = trim(dirDATA)//trim(path)//'INTAKE.XML'
 
         call xml_open_file(unitXML, XML_INTAKE, fileName, idxCURR)
 
@@ -880,7 +889,7 @@ contains
         '        Intake - curriculum,count', &
         '    </comment>'
 
-        do idxCURR=1,NumCurricula-1
+        do idxCURR=1,NumCurricula
             if (NFintake(idxCURR)==0) cycle
             call xml_write_character(unitXML, indent0, 'Intake', &
                 trim(Curriculum(idxCURR)%Code)//COMMA//itoa(NFintake(idxCURR)) )
@@ -888,7 +897,7 @@ contains
 
         call xml_close_file(unitXML, XML_INTAKE)
 
-        return
+
     end subroutine xml_write_intake
 
 
@@ -903,7 +912,7 @@ contains
         character(len=MAX_LEN_XML_TAG) :: tag
 
         ! open file, return on any error
-        fileName = trim(dirXML)//trim(path)//'INTAKE.XML'
+        fileName = trim(dirDATA)//trim(path)//'INTAKE.XML'
         call xml_open_file(unitXML, XML_INTAKE, fileName, errNo, forReading)
         if (errNo/=0) return
 
@@ -937,7 +946,7 @@ contains
 
         call xml_close_file(unitXML)
 
-        return
+
     end subroutine xml_read_intake
 
 
@@ -980,7 +989,7 @@ contains
             Subject(subj)%TermOffered = 7
         end do
 
-        return
+
     end subroutine set_term_offered_accg_to_curricula
 
 

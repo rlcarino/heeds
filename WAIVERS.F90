@@ -55,7 +55,7 @@ contains
     subroutine initialize_waiver(W)
         type (TYPE_WAIVER) :: W
         W = TYPE_WAIVER (0, 0, 0)
-        return
+
     end subroutine initialize_waiver
 
 
@@ -73,7 +73,7 @@ contains
         if (present(dirOPT)) then
             fileName = trim(dirOPT)//trim(path)//'WAIVER-COI.XML'
         else
-            fileName = trim(dirXML)//trim(path)//'WAIVER-COI.XML'
+            fileName = trim(dirDATA)//trim(path)//'WAIVER-COI.XML'
         endif
         call xml_open_file(unitXML, XML_ROOT_WAIVERS, fileName, eof)
         write(unitXML,AFORMAT) &
@@ -103,7 +103,7 @@ contains
         ! close file
         call xml_close_file(unitXML, XML_ROOT_WAIVERS)
 
-        return
+
     end subroutine xml_write_waivers
 
 
@@ -124,7 +124,7 @@ contains
 
         numEntries = 0
         ! open file, return on any error
-        fileName = trim(dirXML)//trim(path)//'WAIVER-COI.XML'
+        fileName = trim(dirDATA)//trim(path)//'WAIVER-COI.XML'
         call xml_open_file(unitXML, XML_ROOT_WAIVERS, fileName, errNo, forReading)
         if (errNo/=0) return
 
@@ -200,7 +200,7 @@ contains
         call xml_close_file(unitXML)
         call file_log_message (itoa(numEntries)//' entries in '//fileName)
 
-        return
+
     end subroutine xml_read_waivers
 
 
@@ -222,7 +222,7 @@ contains
         call xml_read_waivers(path, NumSections, Section, numEntries, ierr)
         noXML = numEntries==0
         if (numEntries==0) then ! no XML entries
-            call custom_read_waivers (trim(dirRAW)//trim(path)//'WAIVER-COI', &
+            call custom_read_waivers (trim(dirDATA)//trim(path)//'WAIVER-COI', &
                 NumSections, Section, Offering, WaiverCOI, numEntries, ierr)
         end if
 
@@ -230,7 +230,7 @@ contains
             call xml_write_waivers(path, Section)
         end if
 
-        return
+
     end subroutine read_waivers
 
 
@@ -357,7 +357,7 @@ contains
             numEntries = numEntries + 1
         end do loop_waiver
         close(unitRAW)
-        return
+
     end subroutine custom_read_waivers
 
 

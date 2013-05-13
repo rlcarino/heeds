@@ -42,8 +42,8 @@ contains
 #include "custom_advising.F90"
 
 
-    subroutine get_scholastic_three_terms (givenYear, givenTerm, UnitsPaid, UnitsDropped, UnitsPassed, Standing)
-        integer :: Standing, UnitsPaid, UnitsDropped, UnitsPassed, givenYear, givenTerm
+    subroutine get_scholastic_three_terms (std, givenYear, givenTerm, UnitsPaid, UnitsDropped, UnitsPassed, Standing)
+        integer :: std, Standing, UnitsPaid, UnitsDropped, UnitsPassed, givenYear, givenTerm
         integer :: gdx, cdx, i, tUnits, performanceUnits, UnitsREGD, tHours
         integer :: HoursPaid, HoursDropped, HoursPassed, HoursREGD
         real :: pctFailed
@@ -56,37 +56,41 @@ contains
         HoursDropped = 0
         HoursPassed = 0
         HoursREGD = 0
-        do i=1,lenTCG
-            if (TCG(i)%ErrorCode/=0 .or. TCG(i)%Code/=2) cycle
-            ! ignore not enrolled subjects
-            if (index(TCG(i)%txtLine, 'APE')>0) cycle ! not enrolled
-            if (index(TCG(i)%txtLine, 'REMOVAL')>0) cycle ! not enrolled
-            if (index(TCG(i)%txtLine, 'COMPLETION')>0) cycle ! not enrolled
-            !
-            if (TCG(i)%Year==givenYear .and. TCG(i)%Term==givenTerm) then
+        do i=1,Student(std)%Record(1,0)
 
-                gdx = TCG(i)%Grade
-                cdx = TCG(i)%Subject
-                if (gdx>0 .and. cdx>0) then
-                    tUnits = Subject(cdx)%Units
-                    tHours = Subject(cdx)%LectHours+Subject(cdx)%LabHours
-                    UnitsPaid = UnitsPaid + tUnits
-                    HoursPaid = HoursPaid + tHours
-                    if (gdx==gdxREGD) then
+            ! Record(i,:) 1=type,2=year,3=term,4=subject,5=grade
+            if (Student(std)%Record(1,i)/=1) cycle ! not FINALGRADE
+
+            if (Student(std)%Record(2,i)/=givenYear .or. &
+                Student(std)%Record(3,i)/=givenTerm) cycle
+
+            cdx = Student(std)%Record(4,i)
+            gdx = Student(std)%Record(5,i)
+            if (gdx>0 .and. cdx>0) then
+                tUnits = Subject(cdx)%Units
+                tHours = Subject(cdx)%LectHours+Subject(cdx)%LabHours
+                UnitsPaid = UnitsPaid + tUnits
+                HoursPaid = HoursPaid + tHours
+                if (gdx==gdxREGD) then
+                    if (advisingPeriod) then ! currently registered
                         UnitsREGD = UnitsREGD + tUnits
                         HoursREGD = HoursREGD + tHours
-                    else if (gdx==gdxDRP .or. gdx==gdxLOA) then
-                        UnitsDropped = UnitsDropped + tUnits
-                        HoursDropped = HoursDropped + tHours
-                    else if (is_grade_passing(gdx) ) then
-                        UnitsPassed = UnitsPassed + tUnits
-                        HoursPassed = HoursPassed + tHours
-                    else if (is_grade_passing(TCG(i)%ReExam,advisingPeriod) ) then
+                    else ! assume passed
                         UnitsPassed = UnitsPassed + tUnits
                         HoursPassed = HoursPassed + tHours
                     end if
+                else if (gdx==gdxDRP .or. gdx==gdxLOA) then
+                    UnitsDropped = UnitsDropped + tUnits
+                    HoursDropped = HoursDropped + tHours
+                else if (is_grade_passing(gdx) ) then
+                    UnitsPassed = UnitsPassed + tUnits
+                    HoursPassed = HoursPassed + tHours
+                else if (is_grade_passing(TCG(i)%ReExam,advisingPeriod) ) then
+                    UnitsPassed = UnitsPassed + tUnits
+                    HoursPassed = HoursPassed + tHours
                 end if
             end if
+
         end do
 
         Standing = 0
@@ -119,8 +123,9 @@ contains
                 Standing = 1 ! no failures
             end if
         end if
-        return
+
     end subroutine get_scholastic_three_terms
+
 
 
     subroutine advise_all_students(UseCLASSES, Offering)
@@ -144,7 +149,8 @@ contains
             call advise_student (std, UseCLASSES, Offering, WaiverCOI(std), Advised(std), MissingPOCW, NRemaining)
         end do
 
-        return
+
     end subroutine advise_all_students
+
 
 end module ADVISING

@@ -64,7 +64,7 @@ contains
     subroutine initialize_block(B)
         type (TYPE_BLOCK) :: B
         B = TYPE_BLOCK ('Block Code', 'Block Name and Description', 0, 0, 0, 0, 0, 0, 0, 0)
-        return
+
     end subroutine initialize_block
 
 
@@ -93,7 +93,7 @@ contains
             end if
         end do
         index_to_block = sdx
-        return
+
     end function index_to_block
 
 
@@ -113,7 +113,7 @@ contains
             end do
         end do
         call initialize_block(Block(kdx))
-        return
+
     end subroutine sort_alphabetical_blocks
 
 
@@ -138,7 +138,7 @@ contains
         end do
         NumBlocks = blk
         !write(*,*) NumBlocks, ' left'
-        return
+
     end subroutine delete_blocks_from_dept
 
 
@@ -162,7 +162,7 @@ contains
         !end do
         !call initialize_section(Section(NumSections))
         !NumSections = NumSections - 1
-        return
+
     end subroutine delete_section_from_blocks
 
 
@@ -184,17 +184,17 @@ contains
             if (present(dirOPT)) then
                 fileName = trim(dirOPT)//trim(path)//'BLOCKS-'//trim(Department(iDept)%Code)//'.XML'
             else
-                fileName = trim(dirXML)//trim(path)//'BLOCKS-'//trim(Department(iDept)%Code)//'.XML'
+                fileName = trim(dirDATA)//trim(path)//'BLOCKS-'//trim(Department(iDept)%Code)//'.XML'
             endif
         else
             if (present(dirOPT)) then
                 fileName = trim(dirOPT)//trim(path)//'BLOCKS.XML'
             else
-                fileName = trim(dirXML)//trim(path)//'BLOCKS.XML'
+                fileName = trim(dirDATA)//trim(path)//'BLOCKS.XML'
             endif
         end if
 
-        write(unitHTML,AFORMAT) '<!-- xml_write_blocks('//trim(fileName)//') -->'
+        call html_comment('xml_write_blocks('//trim(fileName)//')')
 
         ! write file
         call xml_open_file(unitXML, XML_ROOT_BLOCKS, fileName, i)
@@ -246,7 +246,7 @@ contains
 
         ! close file for blocks
         call xml_close_file(unitXML, XML_ROOT_BLOCKS)
-        return
+
     end subroutine xml_write_blocks
 
 
@@ -259,19 +259,19 @@ contains
         type (TYPE_BLOCK), dimension(0:), intent(out) :: Block
         integer, intent (out) :: errNo
 
-        integer :: ddx, ierr, mainEntries, numEntries, numUpdates, partialEntries
+        integer :: ddx, ierr, mainEntries, numEntries, numUpdates!, partialEntries
         logical :: noXML = .false.
 
         errNo = 0 ! no blocks is OK; none may be defined yet
 
-        fileName = trim(dirXML)//trim(path)//'BLOCKS.XML'
+        fileName = trim(dirDATA)//trim(path)//'BLOCKS.XML'
         call xml_read_blocks(fileName, NumBlocks, Block, NumSections, Section, ierr)
         numEntries = NumBlocks
         mainEntries = NumBlocks
         noXML = mainEntries==0
 !        ! check for blocks edited by departments
 !        do ddx=2,NumDepartments-1
-!            fileName = trim(dirXML)//UPDATES//trim(path)//'BLOCKS-'//trim(Department(ddx)%Code)//'.XML'
+!            fileName = trim(dirDATA)//trim(path)//'BLOCKS-'//trim(Department(ddx)%Code)//'.XML'
 !            call xml_read_blocks(fileName, NumBlocks, Block, NumSections, Section, ierr)
 !            partialEntries = NumBlocks-numEntries
 !            numEntries = NumBlocks
@@ -283,7 +283,7 @@ contains
         numUpdates = NumBlocks-mainEntries
 
         if (NumBlocks==0) then ! really no XML BLOCKS files; try the custom format
-            fileName = trim(dirRAW)//trim(path)//'BLOCKS'
+            fileName = trim(dirDATA)//trim(path)//'BLOCKS'
             call custom_read_blocks(fileName, NumBlocks, Block, NumSections, Section, ierr)
             mainEntries = NumBlocks
             numUpdates = 0
@@ -307,7 +307,6 @@ contains
         if ( (noXML .and. NumBlocks>0) .or. numUpdates>0 ) &
             call xml_write_blocks(path, NumBlocks, Block,  Section, 0)
 
-        return
     end subroutine read_blocks
 
 
@@ -408,7 +407,6 @@ contains
         call xml_close_file(unitXML)
         call file_log_message (itoa(NumBlocks)//' blocks after reading '//fName)
 
-        return
     end subroutine xml_read_blocks
 
 
@@ -505,7 +503,6 @@ contains
         close (unitRAW)
         call file_log_message (itoa(NumBlocks)//' blocks after reading '//fName)
 
-        return
     end subroutine custom_read_blocks
 
 

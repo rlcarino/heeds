@@ -34,8 +34,13 @@ module STUDENTS
 
     implicit none
 
-    integer, parameter :: &
-        MAX_ALL_STUDENTS = 15000, & ! max no. of students
+#if defined BATCH
+    integer, parameter :: MAX_ALL_STUDENTS = 30000 ! max no. of students
+#else
+    integer, parameter :: MAX_ALL_STUDENTS = 13000 ! max no. of students
+#endif
+
+    integer, parameter :: & ! year-curriculum-number
         MAX_LEN_STUDENT_CODE = 13 ! length of student numbers: YYYY-PPP-SSSS
 
     type :: TYPE_STUDENT
@@ -88,11 +93,11 @@ contains
         ! check for students added by program advisers
         numUpdates = 0
         done = .false.
-        do iCurr=1,NumCurricula-1
+        do iCurr=1,NumCurricula
             if (done(iCurr)) cycle
             call xml_read_students (path, iCurr, partialEntries, ierr)
             numUpdates = numUpdates + partialEntries
-            do i = iCurr+1,NumCurricula-1
+            do i = iCurr+1,NumCurricula
                 if (CurrProgCode(iCurr)==CurrProgCode(i)) done(i) = .true.
             end do
         end do
@@ -108,7 +113,7 @@ contains
             call xml_write_students(path, 0)
         end if
 
-        return
+
     end subroutine read_students
 
 
@@ -122,7 +127,7 @@ contains
         if (StdNoYearLen<=0) StdNoYearLen = StdNoChars
         year_prefix = StdNoYearLen
 
-        return
+
     end function year_prefix
 
 
@@ -137,7 +142,7 @@ contains
             if (jdx==0) StdNoPrefix = trim(StdNoPrefix)//Student(std)%StdNo(:idx)//':'
         end do
         !write(*,*) trim(StdNoPrefix)
-        return
+
     end subroutine collect_prefix_years
 
 
@@ -145,7 +150,7 @@ contains
     subroutine initialize_student(S)
         type (TYPE_STUDENT) :: S
         S = TYPE_STUDENT ('####-#####', '(not in directory)', SPACE, 1, 0, -1, 0, 0, 0)
-        return
+
     end subroutine initialize_student
 
 
@@ -162,7 +167,7 @@ contains
         end do
         Student(loc) = S
         !write(*,*) 'INSerted '//S%StdNo, ' to ', loc, '/', NumStudents
-        return
+
     end subroutine insert_student
 
 
@@ -179,20 +184,20 @@ contains
             Student(idx) = S
             !write(*,*) 'UPDated  '//S%StdNo, ' at ', idx, '/', NumStudents
         end if
-        return
+
     end subroutine update_student_info
 
 
     subroutine sort_alphabetical_students()
         integer :: i, j, k
 
-        write (*,*) 'Sorting students alphabetically... please wait...'
+        !write (*,*) 'Sorting students alphabetically... please wait...'
         StdRank = 0
         do i=1,NumStudents
             StdRank(i) = i
         end do
         do i=1,NumStudents-1
-            if (mod(i,1000)==0) write(*,*) i, ' students sorted...'
+            if (mod(i,1000)==0) write(unitLOG,*) i, ' students sorted...'
             do j=i+1,NumStudents
                 if (Student(StdRank(i))%Name>Student(StdRank(j))%Name) then
                     k = StdRank(i)
@@ -201,7 +206,7 @@ contains
                 end if
             end do
         end do
-        return
+
     end subroutine sort_alphabetical_students
 
 
@@ -232,7 +237,7 @@ contains
             end if
         end do
         index_to_student = sdx
-        return
+
     end function index_to_student
 
 
@@ -247,7 +252,7 @@ contains
             trim(itoa(Student(std)%CountryIdx))//COMMA// &
             trim(Curriculum(idxCURR)%Code)//COMMA// &
             College(Curriculum(idxCURR)%CollegeIdx)%Code
-        return
+
     end function text_student_info
 
 
@@ -264,7 +269,7 @@ contains
         text_student_curriculum = trim(Student(std)%StdNo)//SPACE//trim(Student(std)%Name)//COMMA//SPACE// &
                 text_curriculum_info(idxCURR)
 
-        return
+
     end function text_student_curriculum
 
 
@@ -284,13 +289,13 @@ contains
             if (present(dirOPT)) then
                 fileName = trim(dirOPT)//trim(path)//'STUDENTS-'//trim(CurrProgCode(iCurr))//'.XML'
             else
-                fileName = trim(dirXML)//trim(path)//'STUDENTS-'//trim(CurrProgCode(iCurr))//'.XML'
+                fileName = trim(dirDATA)//trim(path)//'STUDENTS-'//trim(CurrProgCode(iCurr))//'.XML'
             endif
         else
             if (present(dirOPT)) then
                 fileName = trim(dirOPT)//trim(path)//'STUDENTS.XML'
             else
-                fileName = trim(dirXML)//trim(path)//'STUDENTS.XML'
+                fileName = trim(dirDATA)//trim(path)//'STUDENTS.XML'
             endif
         end if
 
@@ -328,7 +333,7 @@ contains
             call xml_write_character(unitXML, indent0, '/Student')
         end do
         call xml_close_file(unitXML, XML_ROOT_STUDENTS)
-        return
+
     end subroutine xml_write_students
 
 
@@ -346,9 +351,9 @@ contains
 
         ! generate file name
         if (iCurr>0) then
-            fileName = trim(dirXML)//trim(path)//'STUDENTS-'//trim(CurrProgCode(iCurr))//'.XML'
+            fileName = trim(dirDATA)//trim(path)//'STUDENTS-'//trim(CurrProgCode(iCurr))//'.XML'
         else
-            fileName = trim(dirXML)//trim(path)//'STUDENTS.XML'
+            fileName = trim(dirDATA)//trim(path)//'STUDENTS.XML'
         end if
 
         ! open file, return on any error
@@ -406,7 +411,7 @@ contains
         call xml_close_file(unitXML)
         call file_log_message (itoa(numEntries)//' entries in '//fileName)
 
-        return
+
     end subroutine xml_read_students
 
 

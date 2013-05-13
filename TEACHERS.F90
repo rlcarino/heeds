@@ -128,7 +128,7 @@ contains
         ! write the XML TEACHERS file?
         if (noXML .and. NumTeachers>0) call xml_write_teachers(path)
 
-        return
+
     end subroutine read_teachers
 
 
@@ -139,7 +139,7 @@ contains
         wrkTeacher = TYPE_TEACHER(SPACE, SPACE, NumDepartments, 0, 0, 0, SPACE, SPACE, SPACE, SPACE, &
                 SPACE, GUEST, 0)
 
-        return
+
     end subroutine initialize_teacher
 
 
@@ -191,7 +191,7 @@ contains
 !        end do
 !        index_to_teacher = tdx
 
-        return
+
     end function index_to_teacher
 
 
@@ -210,7 +210,7 @@ contains
             end do
         end do
 
-        return
+
     end subroutine sort_teachers
 
 
@@ -236,7 +236,7 @@ contains
 
         end do
 
-        return
+
     end subroutine sort_alphabetical_teachers
 
 
@@ -253,7 +253,7 @@ contains
         if (present(dirOPT)) then
             fileName = trim(dirOPT)//trim(path)//'TEACHERS.XML'
         else
-            fileName = trim(dirXML)//trim(path)//'TEACHERS.XML'
+            fileName = trim(dirDATA)//trim(path)//'TEACHERS.XML'
         endif
 
         call xml_open_file(unitXML, XML_ROOT_TEACHERS, fileName, ldx)
@@ -297,7 +297,7 @@ contains
 
         call xml_close_file(unitXML, XML_ROOT_TEACHERS)
 
-        return
+
     end subroutine xml_write_teachers
 
 
@@ -315,7 +315,7 @@ contains
         character (len=MAX_LEN_ACADEMIC_RANK) :: tRank
 
         ! open file, return on any error
-        fileName = trim(dirXML)//trim(path)//'TEACHERS.XML'
+        fileName = trim(dirDATA)//trim(path)//'TEACHERS.XML'
         call xml_open_file(unitXML, XML_ROOT_TEACHERS, fileName, errNo, forReading)
         if (errNo/=0) return
 
@@ -418,7 +418,7 @@ contains
 
         call sort_teachers()
 
-        return
+
     end subroutine xml_read_teachers
 
 
@@ -436,7 +436,7 @@ contains
 
         ! open file, return on any error
         errNo = 0
-        fileName = trim(dirXML)//trim(path)//'TEACHERS-OTHER.XML'
+        fileName = trim(dirDATA)//trim(path)//'TEACHERS-OTHER.XML'
         call xml_open_file(unitETC, XML_ROOT_TEACHERS, fileName, eof, forReading)
         if (eof/=0) return
 
@@ -513,7 +513,7 @@ contains
 
         call xml_close_file(unitETC)
 
-        return
+
     end subroutine xml_read_teachers_other
 
 
@@ -553,7 +553,7 @@ contains
         !write(*,*) lenS, Password(:lenS), lenP, Password(lenS+1:)!, lenS+lenP, Password
         ! encrypt salted password
         call encrypt(passwordEncryptionKey, Password)
-        return
+
     end subroutine set_password
 
 
@@ -565,7 +565,7 @@ contains
         call decrypt(passwordEncryptionKey, Password)
         Password = Password(lenPasswordEncryptionKey-atoi(Password(3:4))+1:)
 
-        return
+
     end subroutine get_password
 
 
@@ -578,7 +578,7 @@ contains
         call get_password(tdx, tPassword)
         is_password = tPassword(:MAX_LEN_PASSWORD)==Password(:MAX_LEN_PASSWORD)
 
-        return
+
     end function is_password
 
 
@@ -588,7 +588,7 @@ contains
         character (len=MAX_LEN_PASSWD_VAR) :: Password
 
         ! write CSV password file
-        open(unit=unitETC, file=trim(dirXML)//trim(path)//'PASSWORDS.CSV', form='formatted', status='unknown')
+        open(unit=unitETC, file=trim(dirDATA)//trim(path)//'PASSWORDS.CSV', form='formatted', status='unknown')
         write(unitETC,AFORMAT) &
             '#', &
             '#  !!!!!!!!! FOR THE REGISTRAR''S EYES ONLY !!!!!!!!! ', &
@@ -612,13 +612,13 @@ contains
                     '"'//Teacher(i)%Name//'","'// &
                          Department(Teacher(i)%DeptIdx)%Code//'","'// &
                          Teacher(i)%TeacherId//'","'// &
-                         Password//'","'// &
+                         '(Ask the Registrar)","'// & !Password//'","'// &
                          Teacher(i)%Role//'"'
 !            end if
         end do
         close (unitETC)
 
-        return
+
     end subroutine write_password_file
 
 

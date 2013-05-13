@@ -57,6 +57,9 @@ module PRE_ENLISTMENT
 contains
 
 
+#include "custom_read_pre_enlistment.F90"
+
+
     subroutine recalculate_available_seats(Section)
         type (TYPE_SECTION), intent(in out) :: Section(0:)
         integer :: i, j, std
@@ -71,14 +74,14 @@ contains
             end do
         end do
 
-        return
+
     end subroutine recalculate_available_seats
 
 
     subroutine initialize_pre_enlistment(eList)
         type (TYPE_PRE_ENLISTMENT) :: eList
         eList = TYPE_PRE_ENLISTMENT (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.0)
-        return
+
     end subroutine initialize_pre_enlistment
 
 
@@ -90,7 +93,7 @@ contains
             if (CurrProgCode(Student(std)%CurriculumIdx)/=CurrProgCode(currIndex)) cycle
             call initialize_pre_enlistment(eList(std))
         end do
-        return
+
     end subroutine delete_students_of_curriculum_from_enlistment
 
 
@@ -101,7 +104,7 @@ contains
         integer, intent (in), optional :: curriculumFilter
         character(len=*), intent(in), optional :: dirOPT
 
-        integer :: std, sect, i, lenRecord, filter
+        integer :: std, sect, i, lenRecord, filter, gdx
 
         ! training only?
         if (noWrites) return
@@ -116,7 +119,7 @@ contains
         if (present(dirOPT)) then
             fileName = trim(dirOPT)//trim(path)//basename
         else
-            fileName = trim(dirXML)//trim(path)//basename
+            fileName = trim(dirDATA)//trim(path)//basename
         endif
         if (filter>0) then
             fileName = trim(fileName)//DASH//trim(CurrProgCode(filter))//'.XML'
@@ -166,12 +169,19 @@ contains
             ! student info start
             call xml_write_character(unitXML, indent0, 'Student')
             call xml_write_character(unitXML, indent1, 'StdNo', Student(std)%StdNo)
-            call xml_write_integer  (unitXML, indent1, 'UnitsEarned', eList(std)%UnitsEarned)
-            call xml_write_integer  (unitXML, indent1, 'StdYear', eList(std)%StdYear)
-            call xml_write_integer  (unitXML, indent1, 'StdClassification', eList(std)%StdClassification)
-            call xml_write_integer  (unitXML, indent1, 'AllowedLoad', eList(std)%AllowedLoad)
-            call xml_write_integer  (unitXML, indent1, 'StdPriority', eList(std)%StdPriority)
-            call xml_write_integer  (unitXML, indent1, 'NPriority', eList(std)%NPriority)
+            call xml_write_character(unitXML, indent1, 'Name', Student(std)%Name)
+            if (eList(std)%UnitsEarned/=0) &
+                call xml_write_integer  (unitXML, indent1, 'UnitsEarned', eList(std)%UnitsEarned)
+            if (eList(std)%StdYear/=0) &
+                call xml_write_integer  (unitXML, indent1, 'StdYear', eList(std)%StdYear)
+            if (eList(std)%StdClassification/=0) &
+                call xml_write_integer  (unitXML, indent1, 'StdClassification', eList(std)%StdClassification)
+            if (eList(std)%AllowedLoad/=0) &
+                call xml_write_integer  (unitXML, indent1, 'AllowedLoad', eList(std)%AllowedLoad)
+            if (eList(std)%StdPriority/=0) &
+                call xml_write_integer  (unitXML, indent1, 'StdPriority', eList(std)%StdPriority)
+            if (eList(std)%NPriority/=0) &
+                call xml_write_integer  (unitXML, indent1, 'NPriority', eList(std)%NPriority)
             if (eList(std)%NAlternates/=0) &
                 call xml_write_integer  (unitXML, indent1, 'NAlternates', eList(std)%NAlternates)
             if (eList(std)%NCurrent/=0) &
@@ -180,8 +190,15 @@ contains
             do i=1,lenRecord
                 sect = eList(std)%Section(i)
                 if (sect>0) then
-                    call xml_write_character(unitXML, indent1, 'Enlisted', &
-                        trim(Subject(Section(sect)%SubjectIdx)%Name)//SPACE//Section(sect)%Code )
+                    gdx = eList(std)%Grade(i)
+                    if (gdx>0) then
+                        call xml_write_character(unitXML, indent1, 'Graded', &
+                            trim(Subject(Section(sect)%SubjectIdx)%Name)//SPACE//trim(Section(sect)%Code)//COMMA// &
+                                txtGrade(pGrade(gdx)) )
+                    else
+                        call xml_write_character(unitXML, indent1, 'Enlisted', &
+                            trim(Subject(Section(sect)%SubjectIdx)%Name)//SPACE//Section(sect)%Code )
+                    end if
                 elseif (eList(std)%Subject(i)>0) then
                     if (eList(std)%Contrib(i)>0.0) then
                         call xml_write_character(unitXML, indent1, 'Predicted', &
@@ -198,7 +215,7 @@ contains
         ! close file
         call xml_close_file(unitXML, XML_ROOT_ENLISTMENT)
 
-        return
+
     end subroutine xml_write_pre_enlistment
 
 
@@ -216,11 +233,12 @@ contains
         character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
         character (len=MAX_LEN_CLASS_ID) :: tClass
         character (len=MAX_LEN_STUDENT_CODE) :: tStdNo
-        integer :: cdx, idx, sdx, std
+        character (len = MAX_LEN_TEXT_GRADE) :: tGrade
+        integer :: cdx, idx, sdx, std,gdx
 
         numEntries = 0
         ! open file, return on any error
-        fileName = trim(dirXML)//trim(path)//trim(basename)//'.XML'
+        fileName = trim(dirDATA)//trim(path)//trim(basename)//'.XML'
         call xml_open_file(unitXML, XML_ROOT_ENLISTMENT, fileName, errNo, forReading)
         if (errNo/=0) return
 
@@ -319,6 +337,19 @@ contains
                     wrk%Subject(wrk%lenSubject) = cdx
                     wrk%Contrib(wrk%lenSubject) = 0.0
 
+
+                case ('Graded')
+                    idx = index(value, COMMA)
+                    tClass = adjustl(value(:idx-1))
+                    tGrade = adjustl(value(idx+1:))
+                    sdx = index_to_section(tClass, NumSections, Section)
+                    gdx = index_to_grade(tGrade)
+                    call check_array_bound (wrk%lenSubject+1, MAX_SUBJECTS_PER_TERM, 'MAX_SUBJECTS_PER_TERM')
+                    wrk%lenSubject = wrk%lenSubject + 1
+                    wrk%Section(wrk%lenSubject) = sdx
+                    wrk%Subject(wrk%lenSubject) = Section(sdx)%SubjectIdx
+                    wrk%Grade(wrk%lenSubject) = gdx
+
                 case ('/Student')
                     if (std/=0) then
                         eList(std) = wrk
@@ -336,7 +367,7 @@ contains
         call xml_close_file(unitXML)
         call file_log_message (itoa(numEntries)//' entries in '//fileName)
 
-        return
+
     end subroutine xml_read_pre_enlistment
 
 
@@ -365,21 +396,21 @@ contains
                     partialEntries, ierr)
                 numEntries = numEntries + partialEntries
                 if (partialEntries>0) then ! not empty; move to backup
-                    call move_to_backup(trim(dirXML)//trim(path)//trim(basename)//DASH//itoa(grp))
+                    call move_to_backup(trim(dirDATA)//trim(path)//trim(basename)//DASH//trim(itoa(grp))//'.XML')
                 end if
             end do
             noXML = numEntries==0 ! group enlistment files not available?
         end if
         if (.not. noXML) then ! get curriculum group enlistment
             done = .false.
-            do grp=1,NumCurricula-1
+            do grp=1,NumCurricula
                 if (done(grp)) cycle
                 call xml_read_pre_enlistment(path, trim(basename)//DASH//trim(CurrProgCode(grp)), NumSections, Section, eList, &
                     partialEntries, ierr)
                 if (partialEntries>0) then ! not empty; move to backup
-                    call move_to_backup(trim(dirXML)//trim(path)//trim(basename)//DASH//trim(CurrProgCode(grp)))
+                    call move_to_backup(trim(dirDATA)//trim(path)//trim(basename)//DASH//trim(CurrProgCode(grp))//'.XML')
                 end if
-                do ierr=grp,NumCurricula-1
+                do ierr=grp,NumCurricula
                     done(ierr) = CurrProgCode(grp)==CurrProgCode(ierr)
                 end do
             end do
@@ -400,154 +431,8 @@ contains
             call xml_write_pre_enlistment(path, basename, eList, Section)
         end if
 
-        return
+
     end subroutine read_pre_enlistment
-
-
-    subroutine custom_read_pre_enlistment(path, basename, NumSections, Section, cList, numEntries, ier)
-        character(len=*), intent(in) :: path, basename
-        type (TYPE_SECTION), intent(in out) :: Section(0:)
-        type (TYPE_PRE_ENLISTMENT), intent(out) :: cList(0:)
-        integer, intent (in) :: NumSections
-        integer, intent (out) :: numEntries, ier
-
-        integer :: std
-        character (len=MAX_LEN_STUDENT_CODE) :: tStdNo
-        character (len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
-
-        numEntries = 0
-        fileName = trim(dirRAW)//trim(path)//basename
-        open(unit=unitRAW, file=fileName, form='formatted', status='old', iostat=ier)
-        if (ier/=0) return
-
-        call file_log_message ('Retrieving '//fileName)
-        loop_WRITEIN  : &
-        do
-            read (unitRAW, AFORMAT, iostat = eof) line
-            if (eof<0) exit loop_WRITEIN
-            if (line(1:1)=='#' .or. line(1:3)=='   ') cycle loop_WRITEIN
-
-            call index_to_delimiters(COMMA, line, ndels, pos)
-            tStdNo = line(1:pos(2)-1)
-            std = index_to_student(tStdNo)
-            ! get updated curriculum
-            tCurriculum = line(pos(5)+1:pos(6)-1)
-            Student(std)%CurriculumIdx = abs(index_to_curriculum(tCurriculum))
-            ! retrieve rest of record
-            call GetEnlistment(unitRAW, NumSections, Section, line, cList(0))
-            if (std==0) then
-                !call file_log_message('Student not in list: '//line)
-                cycle loop_WRITEIN
-            else if (cList(0)%lenSubject<0) then
-                ier = 1
-                exit loop_WRITEIN
-            end if
-
-            ! student is in list
-            numEntries = numEntries + 1
-            cList(std) = cList(0)
-
-        end do loop_WRITEIN
-        close(unitRAW)
-        call file_log_message (itoa(numEntries)//' entries in '//fileName)
-
-        return
-    end subroutine custom_read_pre_enlistment
-
-
-
-    subroutine GetEnlistment(iUnit, NumSections, Section, header, preRegistered)
-        integer, intent(in) :: iUnit
-        type (TYPE_SECTION), intent(in) :: Section(0:)
-        integer, intent (in) :: NumSections
-        character(len=127), intent(in) :: header
-        type (TYPE_PRE_ENLISTMENT), intent (out) :: preRegistered
-
-        integer :: cdx, gdx, k, ndels, pos(30), sdx
-        character (len=4) :: tGrade
-        character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
-        character (len=MAX_LEN_CLASS_ID) :: tSection
-        character(len=255) :: line
-
-        call initialize_pre_enlistment(preRegistered)
-        !
-        !1977-92165,2010,FIRST,CED 291,VW,2,REGD
-        !1977-92165,2010,FIRST,CED 299,CD,1,REGD
-        !1977-92165,2010,FIRST,DM 220,WY,3,REGD
-        !1         2     3    4      5  6 7
-        ! Line 1: STDNO,NAME,GENDER,COUNTRY,CURRICULUM,SCHOLAR,COLLEGE,EARNED,CLASSIF,YEARLEVEL,ALLOWED,GROUP,NPRIORITY,NALTERNATES,NCURRENT
-        !        1     2    3      4       5          6       7       8      9       10       11      12     13        14          15
-
-
-        call index_to_delimiters(COMMA, header, ndels, pos)
-        if (ndels<=8) then ! old format: signal error
-            preRegistered%lenSubject = -1
-            return
-        !elseif (ndels<=12) then
-        !  preRegistered%AllowedLoad = atoi(header(pos(7)+1:pos(8)-1))
-        !  preRegistered%StdPriority = atoi(header(pos(8)+1:pos(9)-1))
-        !  preRegistered%NPriority = atoi(header(pos(9)+1:pos(10)-1))
-        !  preRegistered%NAlternates = atoi(header(pos(10)+1:pos(11)-1))
-        !  preRegistered%NCurrent = atoi(header(pos(11)+1:pos(12)-1))
-        else
-            preRegistered%UnitsEarned = atoi(header(pos(8)+1:pos(9)-1))
-            preRegistered%StdClassification = atoi(header(pos(9)+1:pos(10)-1))
-            preRegistered%StdYear = atoi(header(pos(10)+1:pos(11)-1))
-            preRegistered%AllowedLoad = atoi(header(pos(11)+1:pos(12)-1))
-            preRegistered%StdPriority = atoi(header(pos(12)+1:pos(13)-1))
-            preRegistered%NPriority = atoi(header(pos(13)+1:pos(14)-1))
-            preRegistered%NAlternates = atoi(header(pos(14)+1:pos(15)-1))
-            preRegistered%NCurrent = atoi(header(pos(15)+1:pos(16)-1))
-        end if
-        preRegistered%lenSubject = preRegistered%NPriority+preRegistered%NAlternates+preRegistered%NCurrent
-        !write(*,*) trim(header), ', expected entries = ', preRegistered%lenSubject
-        do k=1,preRegistered%lenSubject
-            read (iUnit, AFORMAT) line
-
-            !write(*,*) k, trim(line)
-
-            call index_to_delimiters(COMMA, line, ndels, pos)
-            ! Line 2: STDNO,YEAR,TERM,COURSE,SECTION,UNITS,GRADE,COURSERANK,CONTRIB
-            !        1     2    3    4      5       6     7     8          9       10
-            ! subject
-            tSubject = line(pos(4)+1:pos(5)-1)
-            cdx = index_to_subject(tSubject)
-            !write(*,*) k, tSubject, cdx
-            if (cdx<=0) cycle
-            call check_array_bound (k, MAX_SUBJECTS_PER_TERM, 'MAX_SUBJECTS_PER_TERM')
-            preRegistered%Subject(k) = cdx
-            ! section
-            tSection = adjustl(line(pos(5)+1:pos(6)-1))
-            if (tSection==SPACE) then ! not accommodated
-                sdx = 0
-            else
-                tSection = trim(tSubject)//SPACE//tSection
-                sdx = index_to_section(tSection, NumSections, Section)
-                if (sdx==0) then
-                    call file_log_message ('No such class; ignored - '//line)
-                end if
-            end if
-            preRegistered%Section(k) = sdx
-            ! grade
-            tGrade = line(pos(7)+1:pos(8)-1)
-            if (tGrade==SPACE) then ! not forced
-                gdx = 0
-            else
-                gdx = index_to_grade(tGrade)
-                if (gdx<0) then
-                    call file_log_message ('Invalid grade - '//line)
-                    gdx = gdxREGD
-                end if
-            end if
-            preRegistered%Grade(k) = gdx
-            ! contribution to demand
-            if (ndels>8) then
-                tSubject = line(pos(9)+1:pos(10)-1)
-                read(tSubject,'(f6.4)') preRegistered%Contrib(k)
-            end if
-        end do
-        return
-    end subroutine GetEnlistment
 
 
     subroutine read_predictions(path, NumSections, Section, eList, numEntries, errNo)
@@ -578,7 +463,7 @@ contains
             call xml_write_pre_enlistment(path, 'PREDICTIONS', eList, Section)
         end if
 
-        return
+
     end subroutine read_predictions
 
 

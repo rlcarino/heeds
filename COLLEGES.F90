@@ -73,7 +73,6 @@ contains
             wrkCollege = TYPE_COLLEGE(SPACE, SPACE, 'Firstname MI Lastname, Ph.D.', .false.)
         end if
 
-        return
     end subroutine initialize_college
 
 
@@ -93,7 +92,6 @@ contains
             end if
         end do
 
-        return
     end function index_to_college
 
 
@@ -124,7 +122,6 @@ contains
         ! write the COLLEGES file in XML?
         if (noXML ) call xml_write_colleges(path)
 
-        return
     end subroutine read_colleges
 
 
@@ -136,7 +133,7 @@ contains
         type(TYPE_COLLEGE) :: wrkCollege
 
         ! open file, return on any error
-        fileName = trim(dirXML)//trim(path)//'COLLEGES.XML'
+        fileName = trim(dirDATA)//trim(path)//'COLLEGES.XML'
         call xml_open_file(unitXML, XML_ROOT_COLLEGES, fileName, errNo, forReading)
         if (errNo/=0) return
 
@@ -178,7 +175,6 @@ contains
         call xml_close_file(unitXML)
         call file_log_message (itoa(NumColleges)//' entries in '//fileName)
 
-        return
     end subroutine xml_read_colleges
 
 
@@ -194,7 +190,7 @@ contains
         if (present(dirOPT)) then
             fileName = trim(dirOPT)//trim(path)//'COLLEGES.XML'
         else
-            fileName = trim(dirXML)//trim(path)//'COLLEGES.XML'
+            fileName = trim(dirDATA)//trim(path)//'COLLEGES.XML'
         endif
 
         call xml_open_file(unitXML, XML_ROOT_COLLEGES, fileName, ldx)
@@ -218,7 +214,6 @@ contains
 
         call xml_close_file(unitXML, XML_ROOT_COLLEGES)
 
-        return
     end subroutine xml_write_colleges
 
 
