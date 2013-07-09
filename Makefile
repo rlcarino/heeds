@@ -35,136 +35,111 @@
 #
 
 #---------------------------------------------------------------
-# raw data format (RAWDATA) and operating system (OS)
+# module to build (MODULE)
 #---------------------------------------------------------------
-RAWDATA = SIAS
+MODULE=Schedules
+#Resetpasswords
+
+#---------------------------------------------------------------
+# raw data format (RAWDATA)
+#---------------------------------------------------------------
+RAWDATA=CUSTOM
 #UPLB
-#SIAS
-OS = MSWIN
+#CUSTOM
+
+#---------------------------------------------------------------
+# operating system (OS)
+#---------------------------------------------------------------
+OS=MSWIN
 #GLNX
 #MSWIN
 
 #---------------------------------------------------------------
+# destination of binary (BIN)
+#---------------------------------------------------------------
+BIN=/c/HEEDS/bin/MSWIN
+#/c/HEEDS/bin/MSWIN
+#$(HOME)/HEEDS/bin/GLNX
+
+#---------------------------------------------------------------
 # debugging flags 
 #---------------------------------------------------------------
-DEBUG = -DPRODUCTION
-#-DPRODUCTION
-#-DDBsubst 
-#-DDBprereq 
-#-DDBcoreq 
-#-DDBconcpreq
+DEBUG=-DPRODUCTION
 
 #---------------------------------------------------------------
 # Fortran compiler and flags
 #---------------------------------------------------------------
-FFLAGS = -Wunused -ffree-form
+FFLAGS=-Wunused -ffree-form
 #-fbounds-check
-OPTIONS =-D$(OS) -D$(RAWDATA) -I$(RAWDATA) $(DEBUG) 
+OPTIONS =-D$(MODULE) -D$(OS) -D$(RAWDATA) $(DEBUG) -I$(RAWDATA) 
 FC = gfortran $(FFLAGS) $(OPTIONS)
 
 #---------------------------------------------------------------
 # object files
 #---------------------------------------------------------------
 
-COMMON = BASE.o XML.o TIMES.o CGI.o UNIVERSITY.o COLLEGES.o DEPARTMENTS.o \
-	ROOMS.o TEACHERS.o SUBJECTS.o SECTIONS.o \
-	TIMETABLES.o CURRICULA.o STUDENTS.o GRADES.o \
-	CHECKLISTS.o PRE_ENLISTMENT.o WAIVERS.o BLOCKS.o \
-	ADVISING.o 
-#	SCHEDULING.o
+COMMON = UTILITIES.o UNIVERSITY.o IO.o INITIALIZE.o 
 
-INTERACTIVE = HTML.o \
-	EditSUBJECTS.o EditSECTIONS.o EditBLOCKS.o EditCURRICULA.o \
-	EditROOMS.o EditTEACHERS.o EditPREDICTIONS.o EditENLISTMENT.o \
-	REPORTS.o DEMAND.o \
-	WEBSERVER.o MAIN.o
+VIEWERS = HTML.o EditUNIVERSITY.o \
+	DisplayROOMS.o DisplayTEACHERS.o DisplaySUBJECTS.o DisplayCURRICULA.o DisplaySECTIONS.o DisplayBLOCKS.o
+
+SCHEDULERS = EditROOMS.o EditTEACHERS.o EditSUBJECTS.o EditCURRICULA.o EditSECTIONS.o EditBLOCKS.o
 
 
 #---------------------------------------------------------------
 # targets
 #---------------------------------------------------------------
+all:	HEEDS_$(MODULE)
 
-help:
-	echo 'Usage: make HEEDS OS=MSWIN|GLNX RAWDATA=SIAS|UPLB'
+HEEDS_$(MODULE):	$(COMMON) $(VIEWERS) $(SCHEDULERS) MAIN.o
+	$(FC) $(COMMON) $(VIEWERS) $(SCHEDULERS) MAIN.o -o $(BIN)/HEEDS_$(MODULE) -lfcgi -Wl,--rpath -Wl,/usr/local/lib
 
-# default target
-all:	$(RAWDATA)_$(OS)
+UTILITIES.o:	Makefile
 
-# MS Windows
-$(RAWDATA)_MSWIN:
-	make HEEDS OS=MSWIN BIN=/C/HEEDS/bin
+UNIVERSITY.o:	UTILITIES.o
 
-# GNU/Linux
-$(RAWDATA)_GLNX:
-	make HEEDS OS=GLNX BIN=$(HOME)/HEEDS/bin
+IO.o:	UNIVERSITY.o \
+	$(RAWDATA)/custom_read_colleges.F90  \
+	$(RAWDATA)/custom_read_departments.F90 \
+	$(RAWDATA)/custom_read_rooms.F90  \
+	$(RAWDATA)/custom_read_teachers.F90 \
+	$(RAWDATA)/custom_read_subjects.F90 \
+	$(RAWDATA)/custom_read_curricula.F90 \
+	$(RAWDATA)/custom_read_classes.F90 \
 
-#	
-HEEDS:	$(COMMON) $(INTERACTIVE)
-	$(FC) $(COMMON) $(INTERACTIVE) -o $(BIN)/HEEDS_$(OS)_$(RAWDATA) -lfcgi -Wl,--rpath -Wl,/usr/local/lib
+INITIALIZE.o:	IO.o
 
-BASE.o:	Makefile
+HTML.o:	$(COMMON)
 
-CGI.o:	BASE.o
+EditUNIVERSITY.o:	HTML.o
 
-XML.o:	BASE.o
+DisplayROOMS.o:	HTML.o
 
-TIMES.o:	BASE.o
+EditROOMS.o:	DisplayROOMS.o
 
-UNIVERSITY.o:	XML.o
+DisplayTEACHERS.o:	HTML.o
 
-COLLEGES.o:	UNIVERSITY.o  $(RAWDATA)/custom_read_colleges.F90
+EditTEACHERS.o:	DisplayTEACHERS.o
 
-DEPARTMENTS.o:	COLLEGES.o $(RAWDATA)/custom_read_departments.F90
+DisplaySUBJECTS.o:	HTML.o
 
-ROOMS.o:	DEPARTMENTS.o  $(RAWDATA)/custom_read_rooms.F90
+EditSUBJECTS.o:	DisplaySUBJECTS.o
 
-TEACHERS.o:	DEPARTMENTS.o  $(RAWDATA)/custom_read_teachers.F90
+DisplayCURRICULA.o:	HTML.o
 
-SUBJECTS.o:	DEPARTMENTS.o TIMES.o $(RAWDATA)/custom_read_subjects.F90
+EditCURRICULA.o:	DisplayCURRICULA.o
 
-CURRICULA.o:	SUBJECTS.o  $(RAWDATA)/custom_read_curricula.F90
+DisplaySECTIONS.o:	HTML.o
 
-SECTIONS.o:	SUBJECTS.o ROOMS.o TEACHERS.o  $(RAWDATA)/custom_read_classes.F90
+EditSECTIONS.o:	DisplaySECTIONS.o
 
-TIMETABLES.o:	SECTIONS.o
+DisplayBLOCKS.o:	HTML.o
 
-STUDENTS.o:	CURRICULA.o  $(RAWDATA)/custom_read_students.F90
+EditBLOCKS.o:	DisplayBLOCKS.o
 
-PRE_ENLISTMENT.o:	SECTIONS.o STUDENTS.o GRADES.o
+MAIN.o:	$(COMMON)
 
-WAIVERS.o:	STUDENTS.o SECTIONS.o
-
-BLOCKS.o:	SECTIONS.o CURRICULA.o 
-
-CHECKLISTS.o:	PRE_ENLISTMENT.o $(RAWDATA)/custom_checklists.F90
-
-ADVISING.o:	WAIVERS.o CHECKLISTS.o CGI.o $(RAWDATA)/custom_advising.F90
-
-SCHEDULING.o:	ADVISING.o TIMETABLES.o
-
-HTML.o:	ADVISING.o TIMETABLES.o BLOCKS.o
-
-EditSUBJECTS.o:	HTML.o
-
-EditSECTIONS.o:	HTML.o
-
-EditBLOCKS.o:	HTML.o
-
-EditCURRICULA.o:	HTML.o
-
-EditPREDICTIONS.o:	HTML.o
-
-EditENLISTMENT.o:	HTML.o
-
-DEMAND.o:	HTML.o $(RAWDATA)/custom_demand.F90
-
-REPORTS.o:	HTML.o $(RAWDATA)/custom_reports.F90
-
-WEBSERVER.o:	EditSUBJECTS.o EditSECTIONS.o EditBLOCKS.o EditCURRICULA.o \
-	EditPREDICTIONS.o EditENLISTMENT.o \
-	REPORTS.o  DEMAND.o 
-
-MAIN.o:	WEBSERVER.o
+BATCH.o:	$(COMMON)
 
 .F90.o:
 	$(FC) -c $<

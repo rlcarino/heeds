@@ -69,7 +69,7 @@ subroutine SIAS_read_classes(fName, NumSections, Section, errNo)
     open (unit=unitRAW, file=fName, status='old', iostat=errNo)
     if (errNo/=0) return
 
-    call file_log_message('Retrieving classes from '//fName)
+    call log_comment('Retrieving classes from '//fName)
     ! skip first line
     read(unitRAW, AFORMAT) line
     do
@@ -137,7 +137,7 @@ subroutine SIAS_read_classes(fName, NumSections, Section, errNo)
         tSubject = line(pos(14)+1:pos(15)-1)
         subj = index_to_subject(tSubject)
         if (subj<=0) then
-            call file_log_message (line, 'Subject not in catalog; ignored')
+            call log_comment (line, 'Subject not in catalog; ignored')
             cycle
         end if
         NumSections = NumSections + 1
@@ -207,16 +207,16 @@ subroutine SIAS_read_classes(fName, NumSections, Section, errNo)
         Section(NumSections)%eTimeIdx(1:ndays) = etime
         Section(NumSections)%RoomIdx(1:ndays) = rdx
         Section(NumSections)%TeacherIdx(1:ndays) = tdx
-        if (is_lecture_lab_subject(subj) .and. index(tSection,DASH)==0) then ! no blockname for lecture class
-            Section(NumSections)%BlockID = SPACE
-        else
-            Section(NumSections)%BlockID = tBlock
-        end if
+!        if (is_lecture_lab_subject(subj) .and. index(tSection,DASH)==0) then ! no blockname for lecture class
+!            Section(NumSections)%BlockID = SPACE
+!        else
+!            Section(NumSections)%BlockID = tBlock
+!        end if
 
     end do
 
     close(unitRAW)
-    !call file_log_message (itoa(NumSections)//' sections after reading '//fName)
+    !call log_comment (itoa(NumSections)//' sections after reading '//fName)
 
     return
 end subroutine SIAS_read_classes
@@ -233,7 +233,7 @@ subroutine UPLB_read_classes  (fName, NumSections, Section, errNo)
     open (unit=unitRAW, file=fName, status='old', iostat=errNo)
     if (errNo/=0) return
 
-    call file_log_message('Retrieving classes from '//fName)
+    call log_comment('Retrieving classes from '//fName)
     do
         read (unitRAW, AFORMAT, iostat=eof) line
         if (eof<0) exit
@@ -253,7 +253,7 @@ subroutine UPLB_read_classes  (fName, NumSections, Section, errNo)
                 end do
                 if (sect==0) then
                     ier = 140
-                    call file_log_message (line, 'Base section "'//trim(wrk%ClassId)//'" not found; ignored')
+                    call log_comment (line, 'Base section "'//trim(wrk%ClassId)//'" not found; ignored')
                 else
                     i = Section(sect)%NMeets
                     j = wrk%NMeets
@@ -271,7 +271,7 @@ subroutine UPLB_read_classes  (fName, NumSections, Section, errNo)
         end if
     end do
     close (unitRAW)
-    !call file_log_message (itoa(NumSections)//' sections after reading '//fName)
+    !call log_comment (itoa(NumSections)//' sections after reading '//fName)
 
     return
 end subroutine UPLB_read_classes
@@ -301,7 +301,7 @@ subroutine ValidateSection (NumSections, Section, line, wrk, ier)
     !  1      2      3        4       5    6    7      8
     if (ndels<7) then
         ier = 140
-        call file_log_message (line, 'Incorrect number of data items; ignored')
+        call log_comment (line, 'Incorrect number of data items; ignored')
         return
     end if
     !   get subject name
@@ -310,7 +310,7 @@ subroutine ValidateSection (NumSections, Section, line, wrk, ier)
     crse = index_to_subject(tSubject)
     if (crse<=0) then
         ier = 141
-        call file_log_message (line, 'Subject not in catalog; ignored')
+        call log_comment (line, 'Subject not in catalog; ignored')
         return
     end if
     wrk%SubjectIdx = crse
@@ -327,7 +327,7 @@ subroutine ValidateSection (NumSections, Section, line, wrk, ier)
     sect = index_to_section(tSection, NumSections, Section)
     if (sect/=0) then
         ier = 143
-        call file_log_message (line, 'Duplicate section; ignored')
+        call log_comment (line, 'Duplicate section; ignored')
         return
     end if
     wrk%ClassId = tSection
@@ -335,7 +335,7 @@ subroutine ValidateSection (NumSections, Section, line, wrk, ier)
     i = atoi(line(pos(3)+1:pos(4)-1))
     !if (i==0 .and. index(tSection,'+')==0) then !not an additional section
     !  ier = 144
-    !  call file_log_message (line, 'slots is zero; ignored')
+    !  call log_comment (line, 'slots is zero; ignored')
     !  return
     !end if
     wrk%Slots = i
@@ -352,7 +352,7 @@ subroutine ValidateSection (NumSections, Section, line, wrk, ier)
         etime = index_to_time(strETime)
         if (etime<btime) then
             etime = etime+48
-        !       call file_log_message (trim(line)//' - assuming '//strETime//' is evening...')
+        !       call log_comment (trim(line)//' - assuming '//strETime//' is evening...')
         end if
     end if
     !   days
@@ -410,8 +410,7 @@ subroutine ValidateSection (NumSections, Section, line, wrk, ier)
     else
         rmidx = index_to_room (tRoom)
         if (rmidx==0) then
-            write(unitLOG,AFORMAT) trim(line)//' - '//trim(tRoom)//' room is not valid; using TBA'
-          !call file_log_message (trim(line)//' - '//trim(tRoom)//' room is not valid; using TBA')
+            call log_comment (trim(line)//' - '//trim(tRoom)//' room is not valid; using TBA')
         end if
     end if
     ! teacher
@@ -427,18 +426,17 @@ subroutine ValidateSection (NumSections, Section, line, wrk, ier)
         !end do
         tidx = index_to_teacher (tTeacher)
         if (tidx==0) then
-            write(unitLOG,AFORMAT) trim(line)//' - '//trim(tTeacher)//' teacher is not valid; using TBA'
-          !call file_log_message (trim(line)//' - '//trim(tTeacher)//' teacher is not valid; using TBA')
+            call log_comment(trim(line)//' - '//trim(tTeacher)//' teacher is not valid; using TBA')
         end if
     end if
-    ! block
-    if (ndels>7) then
-        if (is_lecture_lab_subject(wrk%SubjectIdx) .and. index(wrk%Code,DASH)==0) then ! no blockname for lecture class
-            wrk%BlockID = SPACE
-        else
-            wrk%BlockID = line(pos(8)+1:pos(9)-1)
-        end if
-    end if
+!    ! block
+!    if (ndels>7) then
+!        if (is_lecture_lab_subject(wrk%SubjectIdx) .and. index(wrk%Code,DASH)==0) then ! no blockname for lecture class
+!            wrk%BlockID = SPACE
+!        else
+!            wrk%BlockID = line(pos(8)+1:pos(9)-1)
+!        end if
+!    end if
     ! transfer to section
     wrk%NMeets = ndays
     wrk%DayIdx(1:ndays) = dayidx(1:ndays)

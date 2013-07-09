@@ -36,11 +36,11 @@ subroutine custom_read_colleges(path, errNo)
     character(len=*), intent(in) :: path
     integer, intent(out) :: errNo
 
-    fileName = trim(dirDATA)//trim(path)//'COLLEGES.CSV'
+    fileName = trim(path)//'COLLEGES.CSV'
     open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
     if (errNo/=0) return
 
-    call file_log_message('Retrieving college codes from '//fileName)
+    call log_comment('Retrieving college codes from '//fileName)
     ! skip first line
     read(unitRAW, AFORMAT) line
 

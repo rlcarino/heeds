@@ -38,11 +38,11 @@ subroutine custom_read_departments (path, errNo)
     character (len=MAX_LEN_COLLEGE_CODE) :: tCollege
     character (len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
 
-    fileName = trim(dirDATA)//trim(path)//'DEPARTMENTS.CSV'
+    fileName = trim(path)//'DEPARTMENTS.CSV'
     open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
     if (errNo/=0) return
 
-    call file_log_message('Retrieving department info from '//fileName)
+    call log_comment('Retrieving department info from '//fileName)
 
     ! skip first line
     read(unitRAW, AFORMAT) line

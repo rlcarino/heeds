@@ -30,227 +30,25 @@
 
 module EditCURRICULA
 
-    use HTML
+    use DisplayCURRICULA
 
     implicit none
 
 contains
 
 
-    subroutine curriculum_list_all(device, fn)
-        integer, intent (in) :: device, fn
-        character(len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
-        character(len=10) :: tStatus, tAction ! (ACTIVE)/(INACTIVE), Activate/Deactivate
-        integer :: ierr, ldx, fnAction, ncurr
-        character(len=80) :: mesg
-
-        ! which program ?
-        call cgi_get_named_string(QUERY_STRING, 'A1', tCurriculum, ierr)
-        targetCurriculum = 0
-        ! how many variants?
-        ncurr = 0
-
-        select case (fn)
-
-            case (fnActivateCurriculum, fnDeactivateCurriculum)
-                targetCurriculum = index_to_curriculum(tCurriculum)
-
-            case default
-                do ldx=1,NumCurricula-1
-                    if (CurrProgCode(ldx) /= tCurriculum) cycle
-                    targetCurriculum = ldx
-                    exit
-                end do
-                do ldx=1,NumCurricula-1
-                    if (CurrProgCode(ldx) /= tCurriculum) cycle
-                    ncurr = ncurr + 1
-                end do
-
-        end select
-        targetCollege = Curriculum(targetCurriculum)%CollegeIdx
-
-        ! if ony one curriculum, display the curriculum
-        if (ncurr==1) then
-            call curriculum_display(device, targetCurriculum)
-            return
-        end if
-
-        ! activate/deactivate
-        select case (fn)
-
-            case (fnActivateCurriculum)
-                Curriculum(targetCurriculum)%Active = .true.
-                mesg = 'Activated '//tCurriculum
-                tCurriculum = CurrProgCode(targetCurriculum)
-
-            case (fnDeactivateCurriculum)
-                Curriculum(targetCurriculum)%Active = .false.
-                mesg = 'Deactivated '//tCurriculum
-                tCurriculum = CurrProgCode(targetCurriculum)
-
-            case default
-                mesg = SPACE
-        end select
-
-        if (mesg/=SPACE) call xml_write_curricula(pathToYear)
-
-        call html_write_header(device, tCurriculum//' options', mesg)
-
-        ! collect curricula
-        write(device,AFORMAT) '<ol>'
-        do ldx=1,NumCurricula-1
-
-            if (CurrProgCode(ldx) /= tCurriculum) cycle
-
-            write(device,AFORMAT) trim(make_href(fnCurriculum, Curriculum(ldx)%Code, &
-                A1=Curriculum(ldx)%Code, &
-                pre='<li>', post=' - '//trim(Curriculum(ldx)%Title)//SPACE// &
-                trim(Curriculum(ldx)%Specialization)//SPACE//trim(Curriculum(ldx)%Remark)))
-
-            if (Curriculum(ldx)%Active) then
-                tStatus = '(Active)'
-                tAction = 'Deactivate'
-                fnAction = fnDeactivateCurriculum
-            else
-                tStatus = '(Inactive)'
-                tAction = 'Activate'
-                fnAction = fnActivateCurriculum
-            end if
-
-            write(device,AFORMAT) nbsp//'<i> '//tStatus//'</i>'//nbsp
-
-            if (isRoleAdmin) then
-                write(device,AFORMAT) trim(make_href(fnAction, tAction, A1=Curriculum(ldx)%Code, &
-                    pre=nbsp//'<small>', post=nbsp, alt=SPACE))
-                write(device,AFORMAT) trim(make_href(fnEditCurriculum, 'Edit', A1=Curriculum(ldx)%Code, &
-                    pre=nbsp, post='</small>', alt=SPACE))
-            end if
-
-            write(device,AFORMAT) '</li>'
-
-        end do
-        write(device,AFORMAT) '</ol><hr>'
-
-
-    end subroutine curriculum_list_all
-
-
-    subroutine curriculum_display(device, given)
-        integer, intent(in), optional :: given
-        integer, intent (in) :: device
-        integer :: idx, tdx, m, n, cumulative, Year, Term, fnAction
-        character(len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum, tAction
-        character(len=10) :: tStatus ! (ACTIVE)/(INACTIVE)
-
-        ! which curriculum
-        if (present(given)) then
-            targetCurriculum = given
-            tdx = 0
-        else
-            call cgi_get_named_string(QUERY_STRING, 'A1', tCurriculum, tdx)
-            targetCurriculum = index_to_curriculum(tCurriculum)
-        end if
-        targetCollege = Curriculum(targetCurriculum)%CollegeIdx
-
-        call html_write_header(device, Curriculum(targetCurriculum)%Code)
-
-        write(device,AFORMAT) '<b>'//trim(Curriculum(targetCurriculum)%Code)//' - '// &
-        trim(Curriculum(targetCurriculum)%Title)//'</b>'
-        if (len_trim(Curriculum(targetCurriculum)%Specialization) > 0) then
-            write(device,AFORMAT) '<b> : '//trim(Curriculum(targetCurriculum)%Specialization)//'</b>'
-        end if
-        if (len_trim(Curriculum(targetCurriculum)%Remark) > 0) then
-            write(device,AFORMAT) '<b> : '//trim(Curriculum(targetCurriculum)%Remark)//'</b>'
-        end if
-        if (Curriculum(targetCurriculum)%Active) then
-            tStatus = '(Active)'
-            tAction = 'Deactivate'
-            fnAction = fnDeactivateCurriculum
-        else
-            tStatus = '(Inactive)'
-            tAction = 'Activate'
-            fnAction = fnActivateCurriculum
-        end if
-        write(device,AFORMAT) nbsp//'<i> '//tStatus//'</i>'//nbsp
-        if (isRoleAdmin) then
-            write(device,AFORMAT) trim(make_href(fnAction, tAction, A1=Curriculum(targetCurriculum)%Code, &
-                pre=nbsp//'<small>', post=nbsp, alt=SPACE))
-            write(device,AFORMAT) trim(make_href(fnEditCurriculum, 'Edit', A1=Curriculum(targetCurriculum)%Code, &
-                pre=nbsp, post='</small>', alt=SPACE))
-        end if
-
-        write(device,AFORMAT) '<br>Note: A '//red//'SUBJECT'//black//' in column <b><i>Prerequisite</i></b> ', &
-            ' indicates an inconsistency. '//red//'Said SUBJECT'//black// &
-            ' is not be present in the curriculum, or is not taken in a prior term, ', &
-            ' or the prerequisite expression should be "SUBJECT1 OR SUBJECT2" where either one is taken in a prior term.', &
-            '<br><table border="1" width="100%">'
-        cumulative = 0
-        do tdx=1,Curriculum(targetCurriculum)%NumTerms
-
-            call rank_to_year_term(tdx, Year, Term)
-            m = 0
-            n = 0
-
-            do idx=1,Curriculum(targetCurriculum)%NSubjects
-                if (Curriculum(targetCurriculum)%SubjectTerm(idx) == tdx) then
-                    m = m+1
-                    n = n+ Subject(Curriculum(targetCurriculum)%SubjectIdx(idx))%Units
-                end if
-            end do
-
-            cumulative = cumulative + n
-
-            if (m > 0) then
-                write(device,AFORMAT) begintr//'<td colspan="6">'//nbsp//endtd//endtr, &
-                    begintr//'<td colspan="6"><b>'//trim(Curriculum(targetCurriculum)%Code)//': '// &
-                    trim(txtYear(Year))//' Year, '// &
-                    trim(txtSemester(Term+3))//' Term ('//trim(itoa(n))//' units; '//trim(itoa(cumulative))//' cumulative)' &
-                    //'</b>'//endtd//endtr
-
-                write(device,AFORMAT) begintr//tdnbspendtd//tdnbspendtd//tdnbspendtd//&
-                    begintd//'<b><i>Lect</i></b>'//endtd//begintd//'<b><i>Lab</i></b>'//endtd//tdnbspendtd//endtr
-                write(device,AFORMAT) begintr//begintd//'<b><i>Subject</i></b>'//endtd//&
-                    begintd//'<b><i>Title</i></b>'//endtd//begintd//'<b><i>Units</i></b>'//endtd//&
-                    begintd//'<b><i>Hrs</i></b>'//endtd//begintd//'<b><i>Hrs</i></b>'//endtd//&
-                    begintd//'<b><i>Prerequisite</i></b>'//endtd//endtr
-                do idx=1,Curriculum(targetCurriculum)%NSubjects
-                    if (Curriculum(targetCurriculum)%SubjectTerm(idx) /= tdx) cycle
-                    n = Curriculum(targetCurriculum)%SubjectIdx(idx)
-                    write(device,AFORMAT) begintr
-                    if (isRoleAdmin) then
-                        write(device,AFORMAT) trim(make_href(fnEditSubject, Subject(n)%Name, &
-                            A1=Subject(n)%Name, A2=College(targetCollege)%Code, pre=begintd, post=endtd))
-                    else
-                        write(device,AFORMAT) begintd//trim(Subject(n)%Name)//endtd
-                    end if
-                    write(device,AFORMAT) &
-                        begintd//trim(Subject(n)%Title)//endtd//&
-                        '<td align="center">'//trim(ftoa(Subject(n)%Units,1))//endtd//&
-                        '<td align="center">'//trim(ftoa(Subject(n)%LectHours,2))//endtd//&
-                        '<td align="center">'//trim(ftoa(Subject(n)%LabHours,2))//endtd//&
-                        '<td width="20%">'//trim(text_prerequisite_in_curriculum(n,Curriculum(targetCurriculum)))//endtd//&
-                        endtr
-                end do
-            end if
-        end do
-
-        write(device,AFORMAT) '</table><hr>'
-
-
-    end subroutine curriculum_display
-
-
     subroutine curriculum_edit(device, given)
         integer, intent(in), optional :: given
         integer, intent (in) :: device
-        integer :: crse, i, j, k, ierr, idx, tdx, m, n, Year, Term, tUnits, ptrS
+        integer :: crse, i, j, k, ierr, idx, tdx, m, Year, Term, ptrS
+        real :: tUnits, credit
         character(len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum, tAction
         character(len=MAX_LEN_COLLEGE_CODE) :: tCollege
         character(len=10) :: tStatus ! (ACTIVE)/(INACTIVE)
 
         character (len=255) :: mesg, remark, tokenizeErr
         type (TYPE_CURRICULUM) :: wrk
-        logical :: changed
+        logical :: changed, possibleImpact
         integer, dimension(MAX_SECTION_MEETINGS) :: subjectList
 
         ! which curriculum
@@ -278,7 +76,7 @@ contains
                 if ( wrk%Code /= Curriculum(targetCurriculum)%Code) then
                     changed = .true.
                     remark = trim(remark)//': Code changed to '//wrk%Code
-                    write(unitLOG,*) trim(remark)
+                    call html_comment('Code changed to '//wrk%Code)
                 end if
 
                 call cgi_get_named_string(QUERY_STRING, 'College', tCollege, ierr)
@@ -289,7 +87,7 @@ contains
                 if ( wrk%CollegeIdx /= Curriculum(targetCurriculum)%CollegeIdx) then
                     changed = .true.
                     remark = trim(remark)//': College changed to '//College(wrk%CollegeIdx)%Code
-                    write(unitLOG,*) trim(remark)
+                    call html_comment('College changed to '//College(wrk%CollegeIdx)%Code)
                 end if
 
                 call cgi_get_named_string(QUERY_STRING, 'Title', wrk%Title, ierr)
@@ -299,7 +97,7 @@ contains
                 if ( wrk%Title /= Curriculum(targetCurriculum)%Title) then
                     changed = .true.
                     remark = trim(remark)//': Title changed to '//wrk%Title
-                    write(unitLOG,*) trim(remark)
+                    call html_comment('Title changed to '//wrk%Title)
                 end if
 
                 call cgi_get_named_string(QUERY_STRING, 'Specialization', wrk%Specialization, ierr)
@@ -309,7 +107,7 @@ contains
                 if ( wrk%Specialization /= Curriculum(targetCurriculum)%Specialization) then
                     changed = .true.
                     remark = trim(remark)//': Specialization changed to '//wrk%Specialization
-                    write(unitLOG,*) trim(remark)
+                    call html_comment('Specialization changed to '//wrk%Specialization)
                 end if
 
                 call cgi_get_named_string(QUERY_STRING, 'Remark', wrk%Remark, ierr)
@@ -319,7 +117,7 @@ contains
                 if ( wrk%Remark /= Curriculum(targetCurriculum)%Remark) then
                     changed = .true.
                     remark = trim(remark)//': Remark changed to '//wrk%Remark
-                    write(unitLOG,*) trim(remark)
+                    call html_comment('Remark changed to '//wrk%Remark)
                 end if
 
                 call cgi_get_named_string(QUERY_STRING, 'Status', tStatus, ierr)
@@ -330,51 +128,83 @@ contains
                 if ( wrk%Active .neqv. Curriculum(targetCurriculum)%Active) then
                     changed = .true.
                     remark = trim(remark)//': Status changed to '//tStatus
-                    write(unitLOG,*) trim(remark)
+                    call html_comment('Status changed to '//tStatus)
                 end if
 
+                ! initialize list of subjects
                 wrk%NumTerms = 0
                 wrk%NSubjects = 0
                 wrk%SubjectIdx = 0
                 wrk%SubjectTerm = 0
-                j = 0 ! number changed/reordered subjects
+                ! collect subjects
                 do tdx=1,Curriculum(targetCurriculum)%NumTerms+6
                     call rank_to_year_term(tdx, Year, Term)
                     call cgi_get_named_string(QUERY_STRING, 'Subjects'//trim(itoa(tdx)), mesg, ierr)
-
-                    if (len_trim(mesg)==0) then ! erase
-                        do i=1,Curriculum(targetCurriculum)%NumTerms
-                            if (wrk%SubjectTerm(i)==tdx) then ! term matches
-                                j = j + 1
-                                wrk%SubjectIdx(i) = 0
-                                wrk%SubjectTerm(i) = 0
-                            end if
-                        end do
-                        cycle
-                    end if
-
+                    if (len_trim(mesg)==0) cycle
                     call tokenize_subjects(mesg, COMMA, MAX_SECTION_MEETINGS, m, subjectList, ierr, tokenizeErr)
                     if (len_trim(tokenizeErr)>0) remark = trim(remark)//' : '//tokenizeErr
                     if (m>0) then
-                        write(unitLOG,*) 'TOKENIZE TERM: m=',m, ('; '//trim(Subject(subjectList(i))%Name),i=1,m)
+                        if (len_trim(tokenizeErr)>0) call html_comment('Token error: '//tokenizeErr)
                         do i=1,m
                             if (subjectList(i)==INDEX_TO_NONE) cycle
                             idx = wrk%NSubjects + i
                             wrk%SubjectIdx(idx) = subjectList(i)
                             wrk%SubjectTerm(idx) = tdx
-                            if (index_of_subject_in_curriculum (Curriculum(targetCurriculum), wrk%SubjectIdx(idx))==0) then
-                                j = j + 1
-                            end if
                         end do
                         wrk%NSubjects = wrk%NSubjects + m
                         wrk%NumTerms = tdx
                     end if
                 end do
-                if (j>0 .or. Curriculum(targetCurriculum)%NumTerms/=wrk%NumTerms) then
-                    changed = .true.
-                    remark = trim(remark)//': curriculum changed.'
-                    write(unitLOG,*) trim(remark)
-                end if
+                ! check deleted subjects from original curriculum
+                do idx=1,Curriculum(targetCurriculum)%NSubjects
+                    crse = Curriculum(targetCurriculum)%SubjectIdx(idx)
+                    tdx = Curriculum(targetCurriculum)%SubjectTerm(idx)
+                    possibleImpact = .false.
+                    i = index_of_subject_in_curriculum (wrk, crse)
+                    if (i==0) then ! crse not in wrk, deleted from targetCurriculum
+                        changed = .true.
+                        possibleImpact = .true.
+                        remark = trim(remark)//': Deleted '//Subject(crse)%Name
+                        call html_comment('>>> Deleted '//Subject(crse)%Name)
+                    else ! crse retained; check if moved to another term
+                        if (tdx/=wrk%SubjectTerm(i)) then ! but moved to a different semester
+                            changed = .true.
+                            possibleImpact = .true.
+                            remark = trim(remark)//': Moved '//Subject(crse)%Name
+                            call html_comment('>>> Moved '//Subject(crse)%Name)
+                        end if
+                    end if
+                    !if (possibleImpact) then ! check if crse is used in a block section
+                    !    call rank_to_year_term(tdx, Year, Term)
+                    !    do i=1,NumBlocks
+                    !        if (Block(i)%CurriculumIdx==targetCurriculum .and. &
+                    !            Block(i)%Year==Year .and. Block(i)%Term==Term) then
+                    !            remark = trim(remark)//', affects '//Block(i)%BlockID
+                    !            call html_comment('>>> Change in '//Subject(crse)%Name//'may affect '//Block(i)%Name)
+                    !        end if
+                    !    end do
+                    !end if
+                end do
+
+                ! check for additional subjects to original curriculum
+                do idx=1,wrk%NSubjects
+                    crse = wrk%SubjectIdx(idx)
+                    tdx = wrk%SubjectTerm(idx)
+                    i = index_of_subject_in_curriculum (Curriculum(targetCurriculum), crse)
+                    if (i==0) then ! crse added to targetCurriculum
+                        changed = .true.
+                        remark = trim(remark)//': Added '//Subject(crse)%Name
+                        call html_comment('>>> Added '//Subject(crse)%Name)
+                        !call rank_to_year_term(tdx, Year, Term)
+                        !do i=1,NumBlocks
+                        !    if (Block(i)%CurriculumIdx==targetCurriculum .and. &
+                        !        Block(i)%Year==Year .and. Block(i)%Term==Term) then
+                        !        remark = trim(remark)//', affects '//Block(i)%BlockID
+                        !        call html_comment('>>> Addition of '//Subject(crse)%Name//' affects '//Block(i)%Name)
+                        !    end if
+                        !end do
+                    end if
+                end do
 
                 ptrS = 0 ! non-zero later means a substitution rule was added
                 call cgi_get_named_string(QUERY_STRING, 'Substitution', mesg, ierr)
@@ -382,9 +212,6 @@ contains
                 if (index(mesg,COMMA)>0 .and. ierr==0) then
 
                     call tokenize_subjects(mesg, COMMA, MAX_SECTION_MEETINGS, m, subjectList, ierr)
-
-                    write(unitLOG,*) 'TOKENIZE SUBS: ierr=',ierr, ('; '//trim(Subject(subjectList(i))%Name),i=1,m)
-
                     if (ierr==0) then
                         ptrS = SubstIdx(NumSubst+1)-1
 
@@ -400,7 +227,7 @@ contains
 
                         changed = .true.
                         remark = trim(remark)//': New substitution rule'
-                        write(unitLOG,*) trim(remark)
+                        call html_comment('New substitution rule '//mesg)
                     end if
                 end if
 
@@ -410,7 +237,7 @@ contains
                         j = index_to_curriculum(wrk%Code)
                         if (j>0) then
                             remark = ' : Add new curriculum failed; "'//trim(wrk%Code)//'" already exists.'
-                            write(unitLOG,*) trim(remark)
+                            call html_comment(remark)
                         else
                             ! redirect global substitution rules before incrementing NumCurricula
                             do i=1,NumSubst
@@ -428,12 +255,10 @@ contains
                             targetCollege = wrk%CollegeIdx
                             tCurriculum = wrk%Code
                             remark = ' : Added new curriculum '//wrk%Code
-                            write(unitLOG,*) trim(remark)
+                            call html_comment(remark)
                             ! redirect new substitution rule
                             if (ptrS>0) then
-                                write(unitLOG,*) 'NumSubst=', NumSubst, ' SubstIdx(.)=', SubstIdx(NumSubst), &
-                                    'Substitution(.)=', Substitution(SubstIdx(NumSubst))
-                                    Substitution(SubstIdx(NumSubst)) = targetCurriculum
+                                Substitution(SubstIdx(NumSubst)) = targetCurriculum
                             end if
                             call make_curriculum_groups()
                         end if
@@ -448,7 +273,7 @@ contains
         end select
 
         if (changed) then
-            call xml_write_curricula(pathToYear)
+            call xml_write_curricula(trim(pathToYear)//'CURRICULA.XML')
         end if
 
         call html_write_header(device, 'Edit curriculum '//tCurriculum, remark(3:))
@@ -495,30 +320,30 @@ contains
             begintr//begintd//'<b>Year, Term (Units/Cumulative)</b>'//endtd// &
             begintd//'<b>Comma-separated subject codes</b>'//endtd//endtr
 
-        tunits = 0
+        tunits = 0.0
 
         do tdx=1,Curriculum(targetCurriculum)%NumTerms+6
 
             call rank_to_year_term(tdx, Year, Term)
 
             m = 0
-            n = 0
+            credit = 0
             mesg = SPACE
 
             do idx=1,Curriculum(targetCurriculum)%NSubjects
                 if (Curriculum(targetCurriculum)%SubjectTerm(idx) == tdx) then
                     crse = Curriculum(targetCurriculum)%SubjectIdx(idx)
                     m = m+1
-                    n = n+ Subject(crse)%Units
+                    credit = credit + Subject(crse)%Units
                     mesg = trim(mesg)//COMMA//SPACE//Subject(crse)%Name
                 end if
             end do
 
-            tUnits = tUnits + n
+            tUnits = tUnits + credit
 
             write(device,AFORMAT) begintr//begintd// &
                 trim(txtYear(Year+9))//' Year, '//trim(txtSemester(Term+6))//' Term ('// &
-                trim(itoa(n))//FSLASH//trim(itoa(tUnits))//')'//endtd, &
+                trim(ftoa(credit,1))//FSLASH//trim(ftoa(tUnits,1))//')'//endtd, &
                 begintd//'<input name="Subjects'//trim(itoa(tdx))//'" size="'//trim(itoa(MAX_LEN_CURRICULUM_NAME))// &
                 '" value="'//trim(mesg(3:))//'">'//endtd//endtr
         end do
@@ -545,9 +370,7 @@ contains
             !'NOTE: Subjects for a term are specified by COMMA-separated subjects codes.', &
             '</pre><hr>'
 
-
     end subroutine curriculum_edit
-
 
 
 end module EditCURRICULA

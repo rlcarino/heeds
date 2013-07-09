@@ -178,7 +178,7 @@ contains
                 changes = .true.
             end if
 
-            if (changes) call xml_write_university(pathToYear)
+            if (changes) call xml_write_university(trim(pathToYear)//'UNIVERSITY.XML')
 
             ! collect changes to COLLEGES.XML
             changes = .false.
@@ -191,7 +191,7 @@ contains
                 end if
             end do
 
-            if (changes) call xml_write_colleges(pathToYear)
+            if (changes) call xml_write_colleges(trim(pathToYear)//'COLLEGES.XML')
 
         end if
 

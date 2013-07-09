@@ -44,11 +44,11 @@ subroutine custom_read_curricula(path, errNo)
     character (len=MAX_LEN_FILE_PATH) :: currFile
     character (len=1) :: ch
 
-    fileName = trim(dirDATA)//trim(path)//'CURRICULA.CSV'
+    fileName = trim(path)//'CURRICULA.CSV'
     open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
     if (errNo/=0) return
 
-    call file_log_message('Retrieving curricular programs from '//fileName)
+    call log_comment('Retrieving curricular programs from '//fileName)
     ! skip first line
     read(unitRAW, AFORMAT) line
     do
@@ -74,16 +74,16 @@ subroutine custom_read_curricula(path, errNo)
         end do
         idxCURR = index_to_curriculum(tCurriculum)
         if (idxCURR>0) then
-            call file_log_message (line, trim(tCurriculum)//' - curriculum already listed')
+            call log_comment (line, trim(tCurriculum)//' - curriculum already listed')
             cycle
         end if
 
-        currFile = trim(dirDATA)//trim(path)//line(pos(2)+1:pos(3)-1)//'.CSV'
+        currFile = trim(path)//line(pos(2)+1:pos(3)-1)//'.CSV'
         inquire(file=currFile, exist=FlagIsUp)
         if (.not. FlagIsUp) then
             !write(*,*) 'File not found: '//trim(currFile)
             if (ndels>=8 .and. pos(9)-pos(8)>1) then
-                currFile =trim(dirDATA)//trim(path)//line(pos(8)+1:pos(9)-1)
+                currFile =trim(path)//line(pos(8)+1:pos(9)-1)
                 inquire(file=currFile, exist=FlagIsUp)
                 !if (.not. FlagIsUp) then
                 !    write(*,*) 'File not found: '//trim(currFile)
@@ -98,7 +98,7 @@ subroutine custom_read_curricula(path, errNo)
             if (tcollege==College(j)%Code) idxCOLL = j
         end do
         if (idxCOLL==0) then
-            call file_log_message (line, trim(tcollege)//' - college not known; using ADMIN')
+            call log_comment (line, trim(tcollege)//' - college not known; using ADMIN')
             idxCOLL = NumColleges
         end if
         College(idxCOLL)%hasInfo = .true.
@@ -112,7 +112,7 @@ subroutine custom_read_curricula(path, errNo)
         Curriculum(NumCurricula)%NSubjects = 0
 
         if (.not. FlagIsUp) then
-            call file_log_message (line, 'Curriculum file not found: '//trim(currFile))
+            call log_comment (line, 'Curriculum file not found: '//trim(currFile))
             token = 'NONE'
             Curriculum(NumCurricula)%NumTerms = 1
             Curriculum(NumCurricula)%NSubjects = 1
@@ -122,7 +122,7 @@ subroutine custom_read_curricula(path, errNo)
         end if
 
         ! read subjects
-        call file_log_message ('Retrieving '//trim(currFile)//' for '//tCurriculum)
+        call log_comment ('Retrieving '//trim(currFile)//' for '//tCurriculum)
         open (unit=2, file=currFile, status='old')
         ! skip first line
         read(2, AFORMAT) line
@@ -164,17 +164,17 @@ subroutine custom_read_curricula(path, errNo)
                     if ( is_offered(i,term) ) then
                         if (.not. is_prerequisite_satisfiable_in_curriculum(i,NumCurricula)) then
                             ! errNo = 126 ! subject prerequisite cannot be satisfied in this curriculum
-                            call file_log_message (trim(Curriculum(NumCurricula)%Code)//', '// &
+                            call log_comment (trim(Curriculum(NumCurricula)%Code)//', '// &
                             trim(strYear)//' year, '//trim(strTerm)//' term, '//trim(token)// &
                             ': preq '//trim(text_prerequisite_in_curriculum(i))//' not specified earlier!')
                         end if
                     else
                         ! subject not offered in semester taken
-                        call file_log_message (token//line, 'Subject not offered during '//strTerm//' Term')
+                        call log_comment (token//line, 'Subject not offered during '//strTerm//' Term')
                     end if
                 else
                     ! subject not in catalog
-                    call file_log_message (line, token//' Subject not in catalog')
+                    call log_comment (line, token//' Subject not in catalog')
                 end if
             end if
 

@@ -33,11 +33,11 @@
         character(len=*), intent(in) :: path
         integer, intent(out) :: errNo
 
-        fileName = trim(dirDATA)//trim(path)//'UNIVERSITY'
+        fileName = trim(path)//'UNIVERSITY'
         open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
         if (errNo/=0) return
 
-        call file_log_message('Retrieving university info from '//fileName)
+        call log_comment('Retrieving university info from '//fileName)
 
         do
             read(unitRAW, AFORMAT, iostat=eof) line

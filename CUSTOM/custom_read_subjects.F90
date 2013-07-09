@@ -73,54 +73,54 @@ subroutine SIAS_read_subjects(path, errNo)
 
     ! predefine special subjects (symbols in prerequisites)
     Subject      = TYPE_SUBJECT (SPACE,     SPACE                             , &
-    1,0.0,0.0,0,0,0,0,0,0,0,0,0,0,0,  0,0,  0,0,  0,0,  0)
+    1,0.0,0.0,0.0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,  0,0,  0,0,  0)
     Subject(-1)  = TYPE_SUBJECT ('(dummy)', '(dummy)'                         , &
-    1,0.0,0.0,0,0,0,0,0,0,0,0,0,0,0,  0,0,  0,0,  0,0,  0)
+    1,0.0,0.0,0.0,0,0,0,0,0,0,0,0,0,0,0,0,  0,0,  0,0,  0,0,  0)
     Subject(-2)  = TYPE_SUBJECT ('AND',     '(appears in prerequisites)'      , &
-    1,0.0,7,0.0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+    1,0.0,0.0,7,0.0,0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
     Subject(-3)  = TYPE_SUBJECT ('APPROVAL','Approval by competent authority' , &
-    1,0.0,7,0.0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+    1,0.0,0.0,7,0.0,0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
     Subject(-4)  = TYPE_SUBJECT ('FIFTH',   '(appears in prerequisites)'      , &
-    1,0.0,7,0.0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+    1,0.0,0.0,7,0.0,0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
     Subject(-5)  = TYPE_SUBJECT ('FINAL',   '(appears in prerequisites)'      , &
-    1,0.0,7,0.0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+    1,0.0,0.0,7,0.0,0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
     Subject(-6)  = TYPE_SUBJECT ('FOURTH',  '(appears in prerequisites)'      , &
-    1,0.0,7,0.0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+    1,0.0,0.0,7,0.0,0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
     Subject(-7)  = TYPE_SUBJECT ('FRESHMAN','(appears in prerequisites)'      , &
-    1,0.0,7,0.0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+    1,0.0,0.0,7,0.0,0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
     Subject(-8)  = TYPE_SUBJECT ('GRADUATE','(appears in prerequisites)'      , &
-    1,0.0,7,0.0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+    1,0.0,0.0,7,0.0,0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
     Subject(-9)  = TYPE_SUBJECT ('JUNIOR',  '(appears in prerequisites)'      , &
-    1,0.0,7,0.0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+    1,0.0,0.0,7,0.0,0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
     Subject(-10) = TYPE_SUBJECT ('LANGUAGE','(Language Elective)'             , &
-    1,3.0,7,0.0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+    1,3.0,0.0,7,0.0,0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
     Subject(-11) = TYPE_SUBJECT ('MAJOR',   '(Must be in Plan Of Study)'      , &
-    1,3.0,7,0.0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+    1,3.0,0.0,7,0.0,0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
     Subject(-12) = TYPE_SUBJECT ('MINOR',   '(Must be in Plan Of Study)'      , &
-    1,3.0,7,0.0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+    1,3.0,0.0,7,0.0,0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
     Subject(-13) = TYPE_SUBJECT ('NONE',    '(appears in prerequisites)'      , &
-    1,0.0,7,0.0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+    1,0.0,0.0,7,0.0,0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
     Subject(-14) = TYPE_SUBJECT ('OR',      '(appears in prerequisites)'      , &
-    1,0.0,7,0.0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+    1,0.0,0.0,7,0.0,0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
     Subject(-15) = TYPE_SUBJECT ('SECOND',  '(appears in prerequisites)'      , &
-    1,0.0,7,0.0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+    1,0.0,0.0,7,0.0,0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
     Subject(-16) = TYPE_SUBJECT ('SENIOR',  '(appears in prerequisites)'      , &
-    1,0.0,7,0.0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+    1,0.0,0.0,7,0.0,0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
     Subject(-17) = TYPE_SUBJECT ('SIXTH',   '(appears in prerequisites)'      , &
-    1,0.0,7,0.0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+    1,0.0,0.0,7,0.0,0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
     Subject(-18) = TYPE_SUBJECT ('SOPHOMORE','(appears in prerequisites)'     , &
-    1,0.0,7,0.0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+    1,0.0,0.0,7,0.0,0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
     Subject(-19) = TYPE_SUBJECT ('THIRD',   '(appears in prerequisites)'      , &
-    1,0.0,7,0.0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
+    1,0.0,0.0,7,0.0,0,0,0,0,0,0,0,0,0,0,1,-13,1,-13,1,-13,1,-13)
 
     NumDummySubjects = -19
     INDEX_TO_NONE = -13 ! index to NONE (the prerequisite of "No prerequisite" subjects)
 
-    fileName = trim(dirDATA)//trim(path)//'SUBJECTS.CSV'
+    fileName = trim(path)//'SUBJECTS.CSV'
     open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
     if (errNo/=0) return
 
-    call file_log_message('Retrieving subjects from '//fileName)
+    call log_comment('Retrieving subjects from '//fileName)
     ! skip first line
     read(unitRAW, AFORMAT) line
     ! read subject codes
@@ -233,11 +233,11 @@ subroutine SIAS_read_assessment(path, errNo)
     character :: tType
     real :: tFee
 
-    fileName = trim(dirDATA)//trim(path)//'ASSESSMENT.CSV'
+    fileName = trim(path)//'ASSESSMENT.CSV'
     open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
     if (errNo/=0) return
 
-    call file_log_message('Retrieving lab fees from '//trim(fileName))
+    call log_comment('Retrieving lab fees from '//trim(fileName))
     ! skip first line
     read(unitRAW, AFORMAT, iostat=eof) line
     do
@@ -281,11 +281,11 @@ subroutine custom_read_subjects_prerequisites(path, errNo)
     character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
     integer :: cdx
 
-    fileName = trim(dirDATA)//trim(path)//'SUBJECTS-PREREQUISITES'
+    fileName = trim(path)//'SUBJECTS-PREREQUISITES'
     open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
     if (errNo/=0) return
 
-    call file_log_message('Retrieving prerequisites from '//trim(fileName))
+    call log_comment('Retrieving prerequisites from '//trim(fileName))
     ! read subject codes
     do
 
@@ -323,11 +323,11 @@ subroutine custom_read_prerequisites(path, errNo)
     character (len=MAX_LEN_SUBJECT_CODE) :: tSubject, preq1, preq2, preq3, coreq1, coreq2
     integer :: cdx, pdx1, pdx2, pdx3, rdx1, rdx2
 
-    fileName = trim(dirDATA)//trim(path)//'PREREQUISITES.CSV'
+    fileName = trim(path)//'PREREQUISITES.CSV'
     open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
     if (errNo/=0) return
 
-    call file_log_message('Retrieving prerequisites from '//trim(fileName))
+    call log_comment('Retrieving prerequisites from '//trim(fileName))
     ! Subject Code,Prereq1,Prereq2,Prereq3,Coreq1,Coreq2
     do
 
@@ -352,7 +352,7 @@ subroutine custom_read_prerequisites(path, errNo)
         tSubject = line(:pos(2)-1)
         cdx = index_to_subject(tSubject)
         if (cdx==0) then
-            call file_log_message(trim(line)//' : Not found - '//tSubject)
+            call log_comment(trim(line)//' : Not found - '//tSubject)
             cycle
         end if
 
@@ -385,7 +385,7 @@ subroutine custom_read_prerequisites(path, errNo)
         if (len_trim(line)>0) then ! tokenize prerequisite
             call tokenize_subjects(line, '+', MAX_ALL_SUBJECT_PREREQ, &
             Subject(cdx)%lenPreq, Subject(cdx)%Prerequisite, eof)
-            !call file_log_message(trim(tSubject)//' has prereq : '//trim(line))
+            !call log_comment(trim(tSubject)//' has prereq : '//trim(line))
         end if
 
         ! coprequisite
@@ -407,7 +407,7 @@ subroutine custom_read_prerequisites(path, errNo)
         if (len_trim(line)>0) then ! tokenize corequisite
             call tokenize_subjects(line, '+', MAX_ALL_SUBJECT_COREQ, &
             Subject(cdx)%lenCoreq, Subject(cdx)%Corequisite, eof)
-            !call file_log_message(trim(tSubject)//' has coreq : '//trim(line))
+            !call log_comment(trim(tSubject)//' has coreq : '//trim(line))
         end if
 
     end do

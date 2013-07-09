@@ -37,10 +37,10 @@ subroutine custom_read_rooms(path, errNo)
     integer :: i, j, k, locx, seats
     character (len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
 
-    fileName = trim(dirDATA)//trim(path)//'ROOMS.CSV'
+    fileName = trim(path)//'ROOMS.CSV'
     open (unit=unitRAW, file=fileName, status='old', iostat=errNo)
     if (errNo/=0) return
-    call file_log_message('Retrieving room codes from '//fileName)
+    call log_comment('Retrieving room codes from '//fileName)
 
     ! skip first line
     read(unitRAW, AFORMAT) line
