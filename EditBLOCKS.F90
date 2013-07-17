@@ -210,12 +210,12 @@ contains
 
             case (fnBlockDeleteNotClasses)
                 ! delete block
-                mesg =' : Deleted block '//trim(Block(targetBlock)%Code)//', kept sections (if any)'
+                mesg =' : Deleted block '//trim(Block(targetBlock)%BlockID)//', kept sections (if any)'
                 call initialize_block(Block(targetBlock))
                 updateBLOCKS = .true.
 
             case (fnBlockDeleteIncludingClasses)
-                mesg = ' : Deleted block '//trim(Block(targetBlock)%Code)//' and sections (if any)'
+                mesg = ' : Deleted block '//trim(Block(targetBlock)%BlockID)//' and sections (if any)'
                 ! delete sections
                 do fdx=1,Block(targetBlock)%NumClasses
                     sect = Block(targetBlock)%Section(fdx)
