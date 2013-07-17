@@ -79,13 +79,13 @@ contains
 
             case (fnBlockNewAdd)
                 updateBLOCKS = .true.
-                mesg = 'Added new block '//tBlock
+                mesg = ' : Added new block '//tBlock
 
             case (fnBlockEditSubject)
 
                 call cgi_get_named_string(QUERY_STRING, 'action', tAction, ierr)
 
-                tLen1 = 0 ! no. of cjanges
+                tLen1 = 0 ! no. of changes
                 if (index(tAction, 'Replace')==1) then
 
                     ! look for REPL:input_name2=input_value
@@ -210,11 +210,12 @@ contains
 
             case (fnBlockDeleteNotClasses)
                 ! delete block
+                mesg =' : Deleted block '//trim(Block(targetBlock)%Code)//', kept sections (if any)'
                 call initialize_block(Block(targetBlock))
                 updateBLOCKS = .true.
-                mesg ='Deleted block '//trim(tBlock)//', kept sections (if any)'
 
             case (fnBlockDeleteIncludingClasses)
+                mesg = ' : Deleted block '//trim(Block(targetBlock)%Code)//' and sections (if any)'
                 ! delete sections
                 do fdx=1,Block(targetBlock)%NumClasses
                     sect = Block(targetBlock)%Section(fdx)
@@ -240,20 +241,19 @@ contains
                 ! delete block
                 call initialize_block(Block(targetBlock))
                 updateBLOCKS = .true.
-                mesg = 'Deleted block '//trim(tBlock)//' and sections (if any)'
 
             case (fnBlockEditName)
                 call cgi_get_named_string(QUERY_STRING, 'BlockID', newBlock, ierr)
                 if (newBlock==SPACE .or. ierr/=0) then
-                    mesg = 'New block name not specified.'
+                    mesg = ' : New block name not specified.'
                 else if (tBlock==newBlock) then
-                    mesg = 'Block name not changed.'
+                    mesg = ' : Block name not changed.'
                 else
                     blk = index_to_block(newBlock, NumBlocks, Block)
                     if (blk>0) then
-                        mesg = 'Block name '//trim(newBlock)//' already in use.'
+                        mesg = ' : Block name '//trim(newBlock)//' already in use.'
                     else
-                        mesg = 'Block '//trim(tBlock)//' renamed to '//newBlock
+                        mesg = ' : Block '//trim(tBlock)//' renamed to '//newBlock
                         updateBLOCKS = .true.
                         Block(targetBlock)%BlockID = newBlock
                         tBlock = newBlock
@@ -263,13 +263,13 @@ contains
             case (fnBlockCopy)
                 call cgi_get_named_string(QUERY_STRING, 'BlockID', newBlock, ierr)
                 if (newBlock==SPACE .or. ierr/=0) then
-                    mesg = 'Name for copy of block not specified.'
+                    mesg = ' : Name for copy of block not specified.'
                 else if (tBlock==newBlock) then
-                    mesg = 'Name for copy of block should be different from '//trim(tBlock)//'.'
+                    mesg = ' : Name for copy of block should be different from '//trim(tBlock)//'.'
                 else
                     blk = index_to_block(newBlock, NumBlocks, Block)
                     if (blk>0) then
-                        mesg = 'Block name '//trim(newBlock)//' already in use.'
+                        mesg = ' : Block name '//trim(newBlock)//' already in use.'
                     else ! copy Block(targetBlock) to end
                         NumBlocks = NumBlocks+1
                         Block(NumBlocks) = Block(targetBlock)
@@ -287,7 +287,7 @@ contains
 
                         updateBLOCKS = .true.
                         updateCLASSES = .true.
-                        mesg = 'Block '//trim(tBlock)//' copied to '//trim(newBlock)// &
+                        mesg = ' : Block '//trim(tBlock)//' copied to '//trim(newBlock)// &
                             ', new sections added'
 
                         tBlock = newBlock
@@ -309,7 +309,7 @@ contains
                             do fdx=1,Block(targetBlock)%NumClasses
                                 if (Block(targetBlock)%Subject(fdx)==crse) then
                                     Block(targetBlock)%Section(fdx) = sect
-                                    mesg = 'Added '//tClassId
+                                    mesg = ' : Added '//tClassId
                                     updateBLOCKS = .true.
                                     updateCLASSES = .true.
                                     call html_comment('Added '//trim(tClassId)//' to '//Block(targetBlock)%BlockID)
@@ -326,7 +326,7 @@ contains
                                 if (sect==Block(targetBlock)%Section(fdx)) then
                                     Block(targetBlock)%Section(fdx) = 0
                                     !Section(sect)%BlockID = SPACE
-                                    mesg = 'Deleted '//tClassId
+                                    mesg = ' : Deleted '//tClassId
                                     updateBLOCKS = .true.
                                     updateCLASSES = .true.
                                     call html_comment('Removed '//trim(tClassId)//' from '//Block(targetBlock)%BlockID)
@@ -349,10 +349,10 @@ contains
         end if
 
         if (fn==fnBlockDeleteIncludingClasses .or. fn==fnBlockDeleteNotClasses) then
-            call html_college_links(device, targetCollege, mesg)
+            call html_college_links(device, targetCollege, mesg(3:))
         else
             blk = targetBlock
-            call block_schedule(device, NumSections, Section, Offering, NumBlocks, Block, blk, mesg)
+            call block_schedule(device, NumSections, Section, Offering, NumBlocks, Block, blk, mesg(3:))
         end if
 
     end subroutine edit_block
@@ -576,6 +576,7 @@ contains
         type (TYPE_SECTION), intent(in out) :: Section(0:)
         type (TYPE_BLOCK), intent(in out) :: Block(0:)
         integer :: dept, kdx
+        character(len=MAX_LEN_SECTION_CODE) :: tSection
 
         dept = Block(block_idx)%DeptIdx
         kdx = ScheduleCount(Term,dept) + 1 ! new section in department
@@ -586,36 +587,28 @@ contains
 
         if (Subject(crse)%LectHours>0) then
             NumSections = NumSections + 1
-            Section(NumSections)%SubjectIdx =  crse
-            Section(NumSections)%DeptIdx =  dept
             if (kdx<10) then
-                Section(NumSections)%Code = Department(dept)%SectionPrefix//'00'//itoa(kdx)
+                tSection = Department(dept)%SectionPrefix//'00'//itoa(kdx)
             else if (kdx<100) then
-                Section(NumSections)%Code = Department(dept)%SectionPrefix//'0'//itoa(kdx)
+                tSection = Department(dept)%SectionPrefix//'0'//itoa(kdx)
             else ! (kdx>100)
-                Section(NumSections)%Code = Department(dept)%SectionPrefix//itoa(kdx)
+                tSection = Department(dept)%SectionPrefix//itoa(kdx)
             end if
-            Section(NumSections)%ClassId = trim(Subject(crse)%Name)//SPACE//Section(NumSections)%Code
-            Section(NumSections)%Slots = Subject(crse)%MaxLectSize
-            Section(NumSections)%NMeets = 1
-            Section(NumSections)%DayIdx(1) = 0
+            Section(NumSections) = TYPE_SECTION (trim(Subject(crse)%Name)//SPACE//tSection, tSection, &
+                dept, crse, Subject(crse)%MaxLectSize, Subject(crse)%MaxLectSize, 1, 0, 0, 0, 0, 0)
         end if
 
         if (Subject(crse)%LabHours>0) then
             NumSections = NumSections + 1
-            Section(NumSections)%SubjectIdx =  crse
-            Section(NumSections)%DeptIdx =  dept
             if (kdx<10) then
-                Section(NumSections)%Code = Department(dept)%SectionPrefix//'00'//trim(itoa(kdx))//'-1L'
+                tSection = Department(dept)%SectionPrefix//'00'//trim(itoa(kdx))//'-1L'
             else if (kdx<100) then
-                Section(NumSections)%Code = Department(dept)%SectionPrefix//'0'//trim(itoa(kdx))//'-1L'
+                tSection = Department(dept)%SectionPrefix//'0'//trim(itoa(kdx))//'-1L'
             else ! (kdx>100)
-                Section(NumSections)%Code = Department(dept)%SectionPrefix//trim(itoa(kdx))//'-1L'
+                tSection = Department(dept)%SectionPrefix//trim(itoa(kdx))//'-1L'
             end if
-            Section(NumSections)%ClassId = trim(Subject(crse)%Name)//SPACE//Section(NumSections)%Code
-            Section(NumSections)%Slots = Subject(crse)%MaxLabSize
-            Section(NumSections)%NMeets = 1
-            Section(NumSections)%DayIdx(1) = 0
+            Section(NumSections) = TYPE_SECTION (trim(Subject(crse)%Name)//SPACE//tSection, tSection, &
+                dept, crse, Subject(crse)%MaxLabSize, Subject(crse)%MaxLabSize, 1, 0, 0, 0, 0, 0)
         end if
 
     end subroutine create_section_for_block
