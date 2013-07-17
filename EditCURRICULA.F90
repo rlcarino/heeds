@@ -265,6 +265,7 @@ contains
                     else
                         ! update existing
                         Curriculum(targetCurriculum) = wrk
+                        targetCollege = wrk%CollegeIdx
                     end if
                 end if
 

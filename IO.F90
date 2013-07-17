@@ -869,7 +869,7 @@ contains
     subroutine get_subject_areas()
 
         character (len=MAX_LEN_SUBJECT_CODE) :: token
-        integer :: i, j
+        integer :: i, j, k
 
         NumSubjectAreas = 0
         SubjectArea = TYPE_SUBJECT_AREA (SPACE, 0, 0)
@@ -877,12 +877,19 @@ contains
             token = Subject(i)%Name
             j = index(token, SPACE)
             token(j:) = SPACE
-            if (SubjectArea(NumSubjectAreas)%Code/=token) then
+            ! find token if it already exists
+            k = 0
+            do j=NumSubjectAreas,1,-1
+                if (SubjectArea(j)%Code/=token) cycle
+                k = j
+                exit
+            end do
+            if (k==0) then ! not found
                 call check_array_bound (NumSubjectAreas+1, MAX_ALL_SUBJECTS/3, 'NumSubjectAreas')
                 NumSubjectAreas = NumSubjectAreas+1
                 SubjectArea(NumSubjectAreas) = TYPE_SUBJECT_AREA(token, Department(Subject(i)%DeptIdx)%CollegeIdx, 1)
             else
-                SubjectArea(NumSubjectAreas)%Count = SubjectArea(NumSubjectAreas)%Count + 1
+                SubjectArea(k)%Count = SubjectArea(k)%Count + 1
             end if
         end do
     end subroutine get_subject_areas
@@ -1119,6 +1126,7 @@ contains
 
                 case ('/Subject') ! add temporary subject data to Subject()
                     i = index_to_subject(wrkSubject%Name)
+                    !wrkSubject%TermOffered = 7 ! HARDCODE
                     Subject(i) = wrkSubject
 
                 case default
@@ -1492,7 +1500,7 @@ contains
                         nLoad = tmpCurriculum%NSubjects
                     else
                         nLoad = 0
-                        write(*,*) 'Not active: '//tmpCurriculum%Code
+                        !write(*,*) 'Not active: '//tmpCurriculum%Code
                     end if
                     do k = 1, nLoad
                         i = tmpCurriculum%SubjectIdx(k)
@@ -1502,8 +1510,8 @@ contains
                             strYear = txtYear(year)
                             strTerm = txtSemester(term)
                             call log_comment (trim(tmpCurriculum%Code)//', '// &
-                            trim(strYear)//' year, '//trim(strTerm)//' term, '//trim(token)// &
-                            ': preq '//trim(text_prerequisite_in_curriculum(i))//' not specified earlier!')
+                                trim(strYear)//' year, '//trim(strTerm)//' term, '//trim(token)// &
+                                ': preq '//trim(text_prerequisite_in_curriculum(i))//' not specified earlier!')
                         end if
                     end do
                 case default
@@ -1513,6 +1521,18 @@ contains
         end do
 
         close(unitXML)
+
+        ! sort
+        do i=1,NumCurricula-1
+            do j=i+1,NumCurricula
+                if (Curriculum(i)%Code>Curriculum(j)%Code) then
+                    tmpCurriculum = Curriculum(i)
+                    Curriculum(i) = Curriculum(j)
+                    Curriculum(j) = tmpCurriculum
+                end if
+            end do
+        end do
+
         call log_comment (itoa(NumCurricula)//' curricula in '//pathToFile)
 
     end subroutine xml_read_curricula
@@ -2014,6 +2034,9 @@ contains
         else
             fileName = trim(path)//'CLASSES.XML'
         end if
+
+        call html_comment('xml_write_sections('//trim(fileName)//')')
+
         open(unit=unitXML, file=fileName, status='unknown')
         write(unitXML,AFORMAT) XML_DOC
 

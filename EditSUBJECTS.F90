@@ -252,10 +252,10 @@ contains
                             Subject(NumSubjects+NumAdditionalSubjects) = wrk
                             crse = NumSubjects+NumAdditionalSubjects
                             tSubject = wrk%Name
-                            remark = 'Added new subject '//wrk%Name
+                            remark = ': Added new subject '//wrk%Name
                             call get_subject_areas()
                         else
-                            remark = 'Add new subject failed; "'//trim(wrk%Name)//'" already exists.'
+                            remark = ': Add new subject failed; "'//trim(wrk%Name)//'" already exists.'
                         end if
                     else
                         ! update existing
