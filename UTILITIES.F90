@@ -36,12 +36,13 @@ module UTILITIES
 ! the software
 !===========================================================
 
-    character(len= 7), parameter :: VERSION   = ' v.4.20'
+    character(len= 7), parameter :: VERSION   = ' v.4.23'
     character(len= 5), parameter :: PROGNAME  = 'HEEDS'
     character(len=45), parameter :: COPYRIGHT = 'Copyright (C) 2012, 2013 Ricolindo L. Carino'
     character(len=38), parameter :: EMAIL     = 'Ricolindo.Carino@AcademicForecasts.com'
     character(len=72), parameter :: CONTACT   = 'E-mail inquiries about '//PROGNAME//' to '//EMAIL//'.'
     character(len=32), parameter :: WEB       = 'http://code.google.com/p/heeds/'
+    character(len=13), parameter :: IP_ADDR   = '54.225.97.166' ! the IP address xxx.xxx.xxx.xxx
 
 !===========================================================
 ! the functionality
@@ -117,8 +118,8 @@ module UTILITIES
         dirBACKUP, & ! directory for backup files
         dirDATA, & ! directory for XML data files
         dirLOG, &  ! directory for log files
-!        dirSUBSTITUTIONS, & ! directory for subject substitutions
-!        dirTRANSCRIPTS, & ! directory for individual enrollment records
+        dirSUBSTITUTIONS, & ! directory for subject substitutions
+        dirTRANSCRIPTS, & ! directory for individual enrollment records
         pathToYear, pathToNextYear, pathToTerm, &  ! path data files for the year, next year
         fileEXE, & ! name of executable
         fileLOG, & ! name of log file
@@ -311,6 +312,8 @@ contains
         if (current > limit) then
             call log_comment('Aborting due to insufficient array size; increase '//msg, &
                 'Limit is '//itoa(limit)//'; currently used is '//itoa(current) )
+            write(*,*) 'Aborting due to insufficient array size; increase '//msg, &
+                'Limit is '//itoa(limit)//'; currently used is '//itoa(current)
             stop
         end if
 
@@ -385,24 +388,19 @@ contains
         character(len=*), intent(in) :: str1
         character(len=*), intent(in), optional :: str2, str3, str4, str5
 
-#if defined PRODUCTION
-#else
+        write(unitHTML,AFORMAT) 'DBG::'//trim(str1)
         if (present(str2)) then
-            write(unitHTML,AFORMAT) '<!--', trim(str1), trim(str2)
+            write(unitHTML,AFORMAT) 'DBG::'//trim(str2)
             if (present(str3)) then
-                write(unitHTML,AFORMAT) trim(str3)
+                write(unitHTML,AFORMAT) 'DBG::'//trim(str3)
                 if (present(str4)) then
-                    write(unitHTML,AFORMAT) trim(str4)
+                    write(unitHTML,AFORMAT) 'DBG::'//trim(str4)
                     if (present(str5)) then
-                        write(unitHTML,AFORMAT) trim(str5)
+                        write(unitHTML,AFORMAT) 'DBG::'//trim(str5)
                     end if
                 end if
             end if
-            write(unitHTML,AFORMAT) '--> '
-        else
-            write(unitHTML,AFORMAT) '<!-- '//trim(str1)//' -->'
         end if
-#endif
 
     end subroutine html_comment
 

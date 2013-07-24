@@ -322,12 +322,12 @@ contains
 
         end do ! sdx=1,NumSections
         if (nsections==0) then
-            if (fn==fnTeacherClasses) then
-                write(device,AFORMAT) trim(make_href(fnTeacherEditSchedule, 'Add', &
-                    A1=tTeacher, pre='<br>( ', post=' )<hr>'))
-            else
+!            if (fn==fnTeacherClasses) then
+!                write(device,AFORMAT) trim(make_href(fnTeacherEditSchedule, 'Add', &
+!                    A1=tTeacher, pre='<br>( ', post=' )<hr>'))
+!            else
                 write(device,AFORMAT) '<br>( None )<hr>'
-            end if
+!            end if
             return
         end if
 

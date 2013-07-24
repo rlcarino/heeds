@@ -50,6 +50,8 @@ module HTML
         fnEditSignatories         = 11, & ! edit signatories
         fnRecentStudentActivity   = 12, & ! recent student activity
         fnRecentTeacherActivity   = 13, & ! recent teacher activity
+        fnOnlineStudents          = 14, & ! online students
+        fnOnlineTeachers          = 15, & ! online teachers
         !
         fnCollegeLinks            = 20, & ! index to college info
         fnSubjectList             = 21, & ! view list of subjects administered by a department
@@ -179,6 +181,12 @@ contains
 
             case (fnRecentTeacherActivity)
                     fnDescription = 'recent teacher activity'
+
+            case (fnOnlineStudents)
+                    fnDescription = 'list online students'
+
+            case (fnOnlineTeachers)
+                    fnDescription = 'list online teachers'
 
             case (fnCollegeLinks            )
                     fnDescription = 'index to college info'
@@ -425,6 +433,12 @@ contains
             case (fnRecentTeacherActivity)
                     fnAvailable = .true.
 
+            case (fnOnlineStudents)
+                    fnAvailable = .true.
+
+            case (fnOnlineTeachers)
+                    fnAvailable = .true.
+
             case (fnCollegeLinks            )
                     fnAvailable = .true.
 
@@ -655,11 +669,8 @@ contains
 
         character(len=MAX_LEN_QUERY_STRING) :: make_href
         character(len=MAX_CGI_WRK_LEN) :: cgi_wrk
-
-#if defined PRODUCTION
         integer :: kStart, checkSum
         real :: harvest ! random number
-#endif
 
         if (.not. fnAvailable(fn)) then
             if (present(alt)) then
@@ -699,7 +710,6 @@ contains
             cipher = trim(cipher)//'&A5='//cgi_wrk
         end if
 
-#if defined PRODUCTION
         ! calculate checksum
         checkSum = calculate_check_sum(cipher)
         ! encrypt
@@ -708,9 +718,6 @@ contains
         call encrypt(queryEncryptionKey(:kStart), cipher)
         cipher = trim(cipher)//itoa(kStart)
         cipher = '<a href="'//trim(CGI_PATH)//'?s='//trim(itoa(checkSum))//'&q='//trim(cipher)
-#else
-        cipher = '<a href="'//trim(CGI_PATH)//'?'//trim(cipher)//'&'
-#endif
 
         ! preamble (text before href)
         if (present(pre)) cipher = pre//cipher
@@ -745,11 +752,8 @@ contains
         character(len=*), intent (in), optional :: A1, A2, A3, A4, A5
 
         character(len=MAX_CGI_WRK_LEN) :: cgi_wrk
-
-#if defined PRODUCTION
         integer :: kStart, checkSum
         real :: harvest ! random number
-#endif
 
         ! the function and user name
         cipher = 'F='//trim(itoa(fn))//'&N='//USERNAME
@@ -780,7 +784,6 @@ contains
             cipher = trim(cipher)//'&A5='//cgi_wrk
         end if
 
-#if defined PRODUCTION
         ! calculate checksum
         checkSum = calculate_check_sum(cipher)
         ! encrypt
@@ -792,11 +795,6 @@ contains
           '<form name="input" method="post" action="'//trim(CGI_PATH)//'">', &
           '<input type="hidden" name="s" value="'//trim(itoa(checkSum))//'">', &
           '<input type="hidden" name="q" value="'//trim(cipher)//'">'
-#else
-        write(device,AFORMAT) &
-          '<form name="input" method="post" action="'//trim(CGI_PATH)//'">', &
-          '<input type="hidden" name="q" value="'//trim(cipher)//'">'
-#endif
 
     end subroutine make_form_start
 
@@ -826,11 +824,7 @@ contains
         character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
         character (len=MAX_LEN_PASSWD_VAR) :: tPassword
 
-#if defined PRODUCTION
         tTeacher = GUEST
-#else
-        tTeacher = PROGNAME
-#endif
         j = index_to_teacher(tTeacher)
         call get_teacher_password(j, tPassword)
 
@@ -842,7 +836,7 @@ contains
                 ' for '//text_school_year(currentYear)//'</h2>', &
                 red//trim(mesg)//black
             if (REQUEST==fnStop)  &
-                write(device,AFORMAT)'<br><br><a href="/">Index</a>'
+                write(device,AFORMAT)'<br><br>Go to <a href="/">'//PROGNAME//' Index</a>'
         else ! Login page
             write(device,AFORMAT) &
                 '<h2>Welcome to '//trim(UniversityCode)//SPACE//trim(ACTION)// &
@@ -857,7 +851,8 @@ contains
                 '<b>Password:</b><br>', &
                 '<input size="20" type="password" name="P" value="'//trim(tPassword)//'">', &
                 '<br><br>', &
-                '<input type="submit" value="Login"></form>'
+                '<input type="submit" value="Login">', &
+                nbsp//'<i><small>(or, go back to <a href="/">'//PROGNAME//' Index</a>)</small></i></form>'
             if (len_trim(loginCheckMessage)>0) write(device,AFORMAT) &
                 '<br>'//red//trim(loginCheckMessage)//black//'<br>'
             write(device,AFORMAT) endtd//begintd, &
@@ -888,7 +883,6 @@ contains
             call html_copyright(device)
 
         end if
-
 
     end subroutine html_landing_page
 
@@ -941,8 +935,8 @@ contains
         write(device,AFORMAT) '<br><b>Weekly Timetable</b>'// &
             '<table border="1" width="100%"><small>'
         write(device,AFORMAT) begintr//beginth//'Time'//endth, &
-            thaligncenter//'Mon'//endth//thaligncenter//'Tue'//endth//thaligncenter//'Wed'//endth//&
-            thaligncenter//'Thu'//endth//thaligncenter//'Fri'//endth//thaligncenter//'Sat'//endth//&
+            thaligncenter//'Monday'//endth//thaligncenter//'Tuesday'//endth//thaligncenter//'Wednesday'//endth//&
+            thaligncenter//'Thursday'//endth//thaligncenter//'Friday'//endth//thaligncenter//'Saturday'//endth//&
             endtr
         do ncol=minTime,maxTime,period ! 1,56,period
             line = SPACE
@@ -1307,13 +1301,6 @@ contains
         ! Logout for all users
         write(device,AFORMAT) trim(make_href(fnLogout, 'Logout', pre=nbsp))
 
-#if defined PRODUCTION
-        ! no Stop link
-#else
-        if (isRoleAdmin) write(device,AFORMAT) &
-            trim(make_href(fnStop, 'Stop '//PROGNAME, pre=nbsp))
-#endif
-
         ! end of line 1
         write(device,AFORMAT) '</small>'//endtd//endtr
 
@@ -1562,6 +1549,9 @@ contains
 
         if (isRoleAdmin .and. coll==CollegeIdxUSER) then
 
+            write(device,AFORMAT) trim(make_href(fnStop, 'Stop', &
+                pre='<li><b>', post='</b> '//PROGNAME//red//' - Are you sure you want to do this?'//black//'</li>'))
+
             if (noWrites) then ! training mode
                 write(device,AFORMAT) trim(make_href(fnToggleTrainingMode, 'Turn it OFF', &
                     pre='<li><b>Training-mode is '//red//'ON'//black//'</b>. ', post='</li>'))
@@ -1577,6 +1567,11 @@ contains
                 write(device,AFORMAT) trim(make_href(fnSuspendProgram, 'Turn it ON', &
                     pre='<li><b>Suspend-mode is '//green//'OFF'//black//'</b>. ', post='</li>'))
             end if
+
+            write(device,AFORMAT) '<li><b>Online</b> ', &
+                trim(make_href(fnOnlineTeachers, 'teachers', pre=nbsp)), &
+                '</li>'
+
             write(device,AFORMAT) trim(make_href(fnEditSignatories, 'signatories', &
                 pre='<li><b>Edit '//nbsp, post=nbsp//'in teaching load form</b></li>'))
 
@@ -1766,38 +1761,39 @@ contains
     subroutine links_to_subjects(device, coll, numAreas, AreaList)
         integer, intent (in) :: device, coll, numAreas
         integer, intent (in) :: AreaList(1:numAreas)
-        integer :: dept, crse, n_count
+        integer :: dept, n_count!, crse
         character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
-        character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
+        !character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
 
         if (numAreas==0) return
 
         call html_comment('links_to_subjects()')
 
+#if defined UPLB
         write(device,AFORMAT) '<li><b>Subjects</b> in :'
         do dept=2,NumDepartments
             if (Department(dept)%CollegeIdx /= coll) cycle
             n_count = 0
-#if defined UPLB
             do crse=1,NumSubjects+NumAdditionalSubjects
                 if (Subject(crse)%DeptIdx /= dept) cycle
                 n_count = n_count+1
                 !exit
             end do
-#else
-            ! Subjects administered by program
-            do crse=1,NumSubjects+NumAdditionalSubjects
-                if (.not. is_used_in_college_subject(coll, crse)) cycle
-                n_count = n_count+1
-                !exit
-            end do
-#endif
+!#else
+!            ! Subjects administered by program
+!            do crse=1,NumSubjects+NumAdditionalSubjects
+!                if (.not. is_used_in_college_subject(coll, crse)) cycle
+!                n_count = n_count+1
+!                !exit
+!            end do
+!#endif
             if (n_count==0) cycle
             tDepartment = Department(dept)%Code
             write(device,AFORMAT) trim(make_href(fnSubjectList, tDepartment, A1=tDepartment, &
                 pre=nbsp, post='('//trim(itoa(n_count))//')'))
         end do
-        write(device,AFORMAT) '</li><li><b>Subjects by area</b> :'
+#endif
+        write(device,AFORMAT) '</li><li><b>Subjects</b> :'
         do dept=1,numAreas
             tSubject = SubjectArea(AreaList(dept))%Code
             n_count = SubjectArea(AreaList(dept))%Count
@@ -1812,7 +1808,7 @@ contains
     subroutine links_to_sections(device, coll, numAreas, AreaList, term)
         integer, intent (in) :: device, coll, numAreas, term
         integer, intent (in) :: AreaList(1:numAreas)
-        integer :: ddx, dept, crse, sect, n_count, m_count, mdx, k1, k2
+        integer :: ddx, dept, sect, n_count, m_count, mdx, k1, k2!, crse
         character (len=MAX_LEN_COLLEGE_CODE) :: tCollege
         character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
@@ -1829,38 +1825,41 @@ contains
         ddx = index_to_dept(tDepartment)
 #endif
 
-        write(device,AFORMAT) '<li><b>Classes</b> in : '
-        do dept=2,NumDepartments
-            if (Department(dept)%CollegeIdx /= coll) cycle
-            n_count = 0
-#if defined UPLB
-            do crse=1,NumSubjects+NumAdditionalSubjects
-                if (Subject(crse)%DeptIdx /= dept) cycle
-                n_count = n_count+1
-                exit
-            end do
-#else
-            ! Subjects administered by program
-            do crse=1,NumSubjects+NumAdditionalSubjects
-                if (.not. is_used_in_college_subject(coll, crse)) cycle
-                n_count = n_count+1
-                exit
-            end do
-#endif
-            if (n_count==0) cycle ! no subjects in this department
+!        write(device,AFORMAT) '<li><b>Classes</b> in : '
+!        do dept=2,NumDepartments
+!            if (Department(dept)%CollegeIdx /= coll) cycle
+!            n_count = 0
+!#if defined UPLB
+!            do crse=1,NumSubjects+NumAdditionalSubjects
+!                if (Subject(crse)%DeptIdx /= dept) cycle
+!                n_count = n_count+1
+!                exit
+!            end do
+!#else
+!            ! Subjects administered by program
+!            do crse=1,NumSubjects+NumAdditionalSubjects
+!                if (.not. is_used_in_college_subject(coll, crse)) cycle
+!                n_count = n_count+1
+!                exit
+!            end do
+!#endif
+!            if (n_count==0) cycle ! no subjects in this department
+!
+!            ! how many sections currently open
+!            n_count = 0
+!            do sect=1,NumSections(term)
+!                if (dept/=Section(term,sect)%DeptIdx) cycle ! not in department
+!                if (Section(term,sect)%SubjectIdx==0) cycle ! deleted
+!                n_count = n_count+1
+!            end do
+!            tDepartment = Department(dept)%Code
+!            write(device,AFORMAT) trim(make_href(fnScheduleOfClasses, tDepartment, &
+!                A1=tDepartment, post='('//trim(itoa(n_count))//')'//nbsp))
+!        end do
+!
+!        write(device,AFORMAT) '</li> '
 
-            ! how many sections currently open
-            n_count = 0
-            do sect=1,NumSections(term)
-                if (dept/=Section(term,sect)%DeptIdx) cycle ! not in department
-                if (Section(term,sect)%SubjectIdx==0) cycle ! deleted
-                n_count = n_count+1
-            end do
-            tDepartment = Department(dept)%Code
-            write(device,AFORMAT) trim(make_href(fnScheduleOfClasses, tDepartment, &
-                A1=tDepartment, post='('//trim(itoa(n_count))//')'//nbsp))
-        end do
-        write(device,AFORMAT) '</li><li><b>Classes by subject area</b> : '
+        write(device,AFORMAT) '<li><b>Classes</b> : '
         do dept=1,numAreas
             ! the code
             tSubject = SubjectArea(AreaList(dept))%Code
@@ -1945,6 +1944,10 @@ contains
                 if (CurrProgCode(ldx) == CurrProgCode(cdx)) done(ldx) = .true.
             end do
         end do
+!        if (ncurr>0 .and. isRoleChair .or. isRoleAdmin) then
+!            write(device,AFORMAT) trim(make_href(fnBlockNewSelect, 'Add', &
+!                A1=tCollege, pre='<b> (', post=' block)</b>'))
+!        end if
         write(device,AFORMAT) '</li>'
 
 
@@ -2029,7 +2032,17 @@ contains
                     sYear = sYear + 1
                 end if
             end do
-            if (nDays==0) write(device,AFORMAT) '<br>(None)<hr>'
+            if (nDays==0) then
+                logFile = trim(dirLOG)// &
+                    trim(College(ldx)%Code)//DIRSEP// &
+                    trim(tTeacher)//'.log'
+                inquire(file=logFile, exist=logExists)
+                if (logExists) then
+                    call copy_to_unit(logFile, device)
+                else
+                    write(device,AFORMAT) '<br>(None)<hr>'
+                end if
+            end if
         end if
 
 

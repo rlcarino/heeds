@@ -191,6 +191,7 @@ contains
         do while (.true.)
             read(unitNo, AFORMAT, iostat=iStat) QUERY_STRING
             if (iStat < 0) exit ! no more lines
+            if (QUERY_STRING(1:5)=='DBG::') cycle
             iStat = FCGI_puts (trim(QUERY_STRING)//NUL) ! FCGI_puts expects NULL terminated strings
         end do
 
@@ -203,21 +204,16 @@ contains
         character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
         character(len=MAX_LEN_FILE_PATH) :: fileUSERlog
         real :: harvest    ! random number
-
-#if defined PRODUCTION
         integer :: checkSum, checkSumQuery
 
         ! open a 'scratch' HTML response file
-        open(unit=unitHTML, form='formatted', status='scratch')
-#else
         open(unit=unitHTML, file=trim(dirLOG)//'scratch.html', form='formatted', status='unknown')
-#endif
 
         call log_comment(trim(fileEXE)//' server started ...')
 
         ! initialize log for requests
         fileREQ = trim(dirLOG)//'requests-'//currentDate//'.log'
-        call log_request(unitREQ, fileREQ, &
+        call log_request(unitREQ, trim(fileREQ), &
             '#-------', '#Begins '//currentDate//DASH//currentTime, '#-------', &
             '#Executable is : '//trim(fileEXE)//SPACE//DASH//SPACE//'( '//PROGNAME//VERSION//')', &
             '#Arguments are : '//trim(UniversityCode)//SPACE//itoa(currentYear) )
@@ -230,12 +226,11 @@ contains
         end do
 
         ! make "Stop!" page
-        call hostnm(QUERY_put, iTmp)
-        if (iTmp/=0) QUERY_put = 'localhost'
-!#if defined GLNX
-!#else
-!        QUERY_put = trim(QUERY_put)//':82'
-!#endif
+#if defined GLNX
+        QUERY_put = IP_ADDR
+#else
+        QUERY_put = 'localhost'
+#endif
         CGI_PATH = 'http://'//trim(QUERY_put)//FSLASH//ACTION
         USERNAME = PROGNAME
         call html_login('Stop-'//trim(UniversityCode)//DASH//trim(ACTION)//'.html', &
@@ -259,11 +254,10 @@ contains
             ! Retrieve DOCUMENT_URI and QUERY_STRING/CONTENT
             call FCGI_getquery(unitHTML)
 
-#if defined PRODUCTION
-            ! encrypted query ?
-            call cgi_get_named_integer(QUERY_STRING, 's', checkSumQuery, iTmp)
+            ! decrypt query
+            call cgi_get_named_integer(QUERY_STRING, 's', checkSumQuery, kStart)
             call cgi_get_named_string(QUERY_STRING, 'q', cipher, iTmp)
-            if (iTmp==0) then
+            if (kStart==0 .and. iTmp==0) then
                 iTmp = len_trim(cipher)
                 kStart = atoi( cipher(iTmp-3:iTmp) )
                 if (kStart>MAX_LEN_QUERY_STRING/2 .and. kStart<MAX_LEN_QUERY_STRING) then
@@ -278,16 +272,18 @@ contains
                 else
                     QUERY_STRING = '(invalid)'
                 end if
+            else ! must be login
+                call cgi_get_named_integer(QUERY_STRING, 'F', kStart, iTmp)
+                if (kStart/=fnLogin) then
+                    QUERY_STRING = '(invalid)'
+                else
+                    QUERY_STRING = trim(QUERY_STRING)//'&F='//itoa(fnLogin)
+                end if
             end if
-#else
-            call cgi_get_named_string(QUERY_STRING, 'q', cipher, iTmp)
-            if (iTmp==0) then
-                QUERY_STRING = trim(cipher)//'&'//QUERY_STRING
-                call html_comment('revised CONTENT='//trim(QUERY_STRING))
-            end if
-#endif
+
             ! make copy of QUERY_STRING
             cipher = QUERY_STRING
+            call html_comment('revised CONTENT='//trim(QUERY_STRING))
 
             ! initialize index to target object of REQUEST
             targetSubject = 0
@@ -299,7 +295,6 @@ contains
             targetTeacher = 0
             targetBlock = 0
             targetTerm = 0
-!            targetStudent = 0
 
             ! Establish USERNAME/ROLE and REQUEST
             loginCheckMessage = SPACE
@@ -320,9 +315,16 @@ contains
                     trim(College(iTmp)%Code)//DIRSEP// &
                     trim(tTeacher)//DASH//currentDate//'.log'
             else
-                fileUSERlog = trim(dirLOG)// &
-                    trim(College(iTmp)%Code)//DIRSEP// &
-                    trim(tTeacher)//'.log'
+                iTmp = Department(Teacher(requestingTeacher)%DeptIdx)%CollegeIdx
+!                if (isRoleAdmin .or. isRoleChair .or. isRoleSRE) then
+!                    fileUSERlog = trim(dirLOG)// &
+!                        trim(College(iTmp)%Code)//DIRSEP// &
+!                        trim(tTeacher)//DASH//currentDate//'.log'
+!                else
+                    fileUSERlog = trim(dirLOG)// &
+                        trim(College(iTmp)%Code)//DIRSEP// &
+                        trim(tTeacher)//'.log'
+!                end if
             end if
 
             if (REQUEST>=fnLogout) then ! no passwords
@@ -345,7 +347,7 @@ contains
                     trim(fnDescription(REQUEST) ) )
 
                 call log_request(unitREQ, trim(fileREQ), &
-                    '#'// &
+                    '# '// &
                     trim(USERNAME)//' : '//REMOTE_ADDR//' : '//currentDate//DASH//currentTime//' : '// &
                     trim(fnDescription(REQUEST) ) )
             end if
@@ -371,7 +373,7 @@ contains
 
         ! terminate
         close(unitHTML)
-        call terminate(trim(fileEXE)//' completed '//ACTION)
+        call terminate(trim(fileEXE)//' stopped')
 
     end subroutine server_start
 
@@ -477,7 +479,7 @@ contains
                 call room_list_all (device)
 
             ! teacher info
-            case (fnTeachersByDept, fnTeachersByName)
+            case (fnTeachersByDept, fnTeachersByName, fnOnlineTeachers)
                 call teacher_list_all (device, REQUEST)
 
             ! schedule of classes
@@ -682,11 +684,11 @@ contains
         call cgi_get_named_string(QUERY_STRING, 'P', tPassword, ierr)
         if (ierr==-1) then ! no password
             REQUEST = fnLogout
-            loginCheckMessage = 'Password not valid.'
+            loginCheckMessage = 'Username and/or Password not valid.'
         else ! password provided
             if (requestingTeacher>0) then
                 if (is_teacher_password(requestingTeacher,tPassword) ) then ! password matched
-                    loginCheckMessage = 'Successful login for teacher '//USERNAME
+                    loginCheckMessage = 'Successful login for '//USERNAME
                 else ! return login page
                     REQUEST = fnLogout
                     loginCheckMessage = 'Username and/or Password not valid.'

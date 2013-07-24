@@ -174,11 +174,7 @@ contains
             'Executable is : '//trim(fileEXE)//SPACE//DASH//SPACE//'( '//PROGNAME//VERSION//' )' )
 
         ! backup directory
-#if defined PRODUCTION
         dirBACKUP = trim(dirUNIV)//'backup-'//trim(startDateTime)//DASH//trim(fileEXE)//DIRSEP
-#else
-        dirBACKUP = trim(dirUNIV)//'debug-'//trim(fileEXE)//DIRSEP
-#endif
         call make_directory( dirBACKUP, .true. )
         call make_directory( trim(dirBACKUP)//pathToYear, .true.  )
         call make_directory( trim(dirBACKUP)//dataSource, .true.  )

@@ -55,6 +55,15 @@ contains
         nfacs = 0
         select case (fn)
 
+            case (fnOnlineTeachers)
+                do tdx=1,NumTeachers+NumAdditionalTeachers
+                    fac = TeacherRank(tdx)
+                    if (Teacher(fac)%Status==0) cycle
+                    nfacs = nfacs+1
+                    tArray(nfacs) = fac
+                end do
+                mesg = 'Online teachers'
+
             case (fnTeachersByDept)
                 ! which department ?
                 call cgi_get_named_string(QUERY_STRING, 'A1', tDepartment, ierr)
@@ -178,6 +187,8 @@ contains
 
                 if (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==Teacher(fac)%DeptIdx) ) then
                     write(device,AFORMAT) trim(make_href(fnEditTeacher, 'Edit', &
+                        A1=QUERY_put, pre=nbsp//'<small>( ', post=' )</small>', alt=SPACE))
+                    write(device,AFORMAT) trim(make_href(fnRecentTeacherActivity, 'Activity', &
                         A1=QUERY_put, pre=nbsp//'<small>( ', post=' )</small>', alt=SPACE))
                 end if
 
@@ -387,6 +398,9 @@ contains
         if (tLen1>0) call timetable_display(device, Section, TimeTable)
 
         write(device,AFORMAT) '<hr>'
+
+        if (isRoleSRE .or. isRoleStudent) return
+
         ! make list of TBA sections LoadSource that fit the schedule of teacher
         if (present(LoadSource)) then
             LoadFromDept = LoadSource

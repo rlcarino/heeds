@@ -305,7 +305,7 @@ module UNIVERSITY
 !===========================================================
 
     integer, parameter :: &
-        MAX_ALL_CURRICULA = 250, & ! max no. of active curricula
+        MAX_ALL_CURRICULA = 275, & ! max no. of active curricula
         MAX_LEN_CURRICULUM_CODE = 20, & ! max length of curriculum codes
         MAX_LEN_CURRICULUM_NAME = 127, & ! max length of curriculum names
         MAX_SUBJECTS_IN_CURRICULUM = 200 ! max no. of subjects in a curriculum
@@ -1758,23 +1758,13 @@ contains
         character (len=MAX_LEN_BLOCK_CODE), intent (in) :: tBlock
         integer, intent(in) :: NumBlocks
         type (TYPE_BLOCK), dimension(0:), intent(in) :: Block
-        integer :: i, j, sdx
+        integer :: i, sdx
 
-        i = 1
-        j = NumBlocks
-        do
-            if (i>j) then
-                sdx = 0
+        sdx = 0
+        do i=1,NumBlocks
+            if (tBlock==Block(i)%BlockID) then
+                sdx = i
                 exit
-            else
-                sdx = (i + j)/2
-                if (tBlock==Block(sdx)%BlockID) then
-                    exit
-                else if (tBlock<Block(sdx)%BlockID) then
-                    j = sdx-1
-                else
-                    i = sdx+1
-                end if
             end if
         end do
         index_to_block = sdx

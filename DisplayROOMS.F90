@@ -322,6 +322,8 @@ contains
         if (tLen1>0) call timetable_display(device, Section, TimeTable)
         write(device,AFORMAT) '<hr>'
 
+        if (isRoleSRE .or. isRoleStudent) return
+
         ! make list of TBA sections LoadSource that fit the schedule of room
         if (present(LoadSource)) then
             LoadFromDept = LoadSource

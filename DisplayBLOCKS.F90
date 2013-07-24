@@ -131,7 +131,7 @@ contains
         tCollege = College(targetCollege)%Code
         call html_write_header(device, trim(tCurriculum)//' blocks')
         if (isRoleChair) tCollege = College(CollegeIdxUser)%Code
-        if (isRoleChair .or. isRoleAdmin) then
+        if ( (isRoleChair .and. targetCollege==CollegeIdxUser ) .or. isRoleAdmin) then
             write(device,AFORMAT) trim(make_href(fnBlockNewSelect, 'Add', &
                 A1=tCollege, pre='<b>(', post=' block)</b>'))
         end if
@@ -171,7 +171,9 @@ contains
                 write(device,AFORMAT) tdnbspendtd//endtr
             end if
         end do
-        write(device,AFORMAT) '</table><hr>'
+        write(device,AFORMAT) '</table>'
+        if (nblks==0) write(device,AFORMAT) '( None )'
+        write(device,AFORMAT) '<hr>'
 
     end subroutine block_list_all
 

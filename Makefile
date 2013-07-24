@@ -71,7 +71,7 @@ DEBUG=-DPRODUCTION
 #---------------------------------------------------------------
 FFLAGS=-Wunused -ffree-form
 #-fbounds-check
-OPTIONS =-D$(MODULE) -D$(OS) -D$(RAWDATA) $(DEBUG) -I$(RAWDATA) 
+OPTIONS =-D$(MODULE) -D$(OS) -D$(RAWDATA) -I$(RAWDATA) $(DEBUG) 
 FC = gfortran $(FFLAGS) $(OPTIONS)
 
 #---------------------------------------------------------------
