@@ -48,6 +48,8 @@ contains
         !character (len=MAX_LEN_PASSWD_VAR) :: Password
         !integer :: lenP
 
+        call html_comment('teacher_edit()')
+
         isDirtyTEACHERS = .false.
         remark = SPACE
 
@@ -55,11 +57,20 @@ contains
         call cgi_get_named_string(QUERY_STRING, 'A1', tTeacher, tdx)
         if (tdx/=0 .or. tTeacher==SPACE) tTeacher = 'Guest'
         tdx = index_to_teacher(tTeacher)
-        wrk = Teacher(tdx)
 
         targetTeacher = tdx
         targetDepartment = Teacher(targetTeacher)%DeptIdx
         targetCollege = Department(targetDepartment)%CollegeIdx
+
+        if (REQUEST==fnGenerateTeacherPassword) then
+            call set_password(Teacher(tdx)%Password)
+            call xml_write_teachers(trim(pathToYear)//'TEACHERS.XML')
+            call teacher_info(device, Teacher(tdx), 'Edit info for teacher '//tTeacher, &
+                SPACE, 'Update', tdx)
+            return
+        end if
+
+        wrk = Teacher(tdx)
 
         ! check for requested action
         call cgi_get_named_string(QUERY_STRING, 'action', tAction, ierr)

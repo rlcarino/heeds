@@ -42,16 +42,15 @@ module HTML
         fnChangeTeacherPassword   =  3, & ! change password for teacher
         fnGenerateStudentPassword =  4, & ! generate new password for student
         fnChangeStudentPassword   =  5, & ! change password for student
-        fnShowStudentPassword     =  6, & ! show password for student
-        fnLogout                  =  7, & ! logout user
-        fnSuspendProgram          =  8, & ! suspend the program
-        fnToggleTrainingMode      =  9, & ! toggle training mode
-        fnStop                    = 10, & ! terminate program
-        fnEditSignatories         = 11, & ! edit signatories
-        fnRecentStudentActivity   = 12, & ! recent student activity
-        fnRecentTeacherActivity   = 13, & ! recent teacher activity
-        fnOnlineStudents          = 14, & ! online students
-        fnOnlineTeachers          = 15, & ! online teachers
+        fnLogout                  =  6, & ! logout user
+        fnSuspendProgram          =  7, & ! suspend the program
+        fnToggleTrainingMode      =  8, & ! toggle training mode
+        fnStop                    =  9, & ! terminate program
+        fnEditSignatories         = 10, & ! edit signatories
+        fnRecentStudentActivity   = 11, & ! recent student activity
+        fnRecentTeacherActivity   = 12, & ! recent teacher activity
+        fnOnlineStudents          = 13, & ! online students
+        fnOnlineTeachers          = 14, & ! online teachers
         !
         fnCollegeLinks            = 20, & ! index to college info
         fnSubjectList             = 21, & ! view list of subjects administered by a department
@@ -70,7 +69,7 @@ module HTML
         fnStudentsByYear          = 33, & ! view list of students in college by year
         fnStudentsDistribution    = 34, & ! view distribution of students, by curriculum and by college
         fnStudentAdd              = 35, & ! add a student
-        fnStudentAddPrompt        = 36, & ! entry form for 'add a student'
+        fnStudentEdit             = 36, & ! display student info for editing
         fnStudentPerformance      = 37, & ! view student performance
         fnEditCheckList           = 38, & ! display checklist for editing
         !
@@ -167,9 +166,6 @@ contains
             case (fnChangeStudentPassword          )
                     fnDescription = 'change password for student'
 
-            case (fnShowStudentPassword          )
-                    fnDescription = 'show password for student'
-
             case (fnToggleTrainingMode      )
                     fnDescription = 'toggle training mode'
 
@@ -236,8 +232,8 @@ contains
             case (fnStudentAdd              )
                     fnDescription = 'add a student'
 
-            case (fnStudentAddPrompt        )
-                    fnDescription = 'entry form for "add a student"'
+            case (fnStudentEdit             )
+                    fnDescription = 'display student info for editing'
 
             case (fnStudentPerformance      )
                     fnDescription = 'view student performance'
@@ -418,9 +414,6 @@ contains
             case (fnChangeStudentPassword          )
                     fnAvailable = .true.
 
-            case (fnShowStudentPassword          )
-                    fnAvailable = .true.
-
             case (fnToggleTrainingMode      )
                     fnAvailable = .true.
 
@@ -487,7 +480,7 @@ contains
             case (fnStudentAdd              )
                     fnAvailable = .true.
 
-            case (fnStudentAddPrompt        )
+            case (fnStudentEdit             )
                     fnAvailable = .true.
 
             case (fnStudentPerformance      )
@@ -742,11 +735,6 @@ contains
 
 
     subroutine make_form_start(device, fn, A1, A2, A3, A4, A5)
-    ! write to device the start an HTML form, like:
-    !   <form name="input" method="post" action="/heeds">
-    !   <input type="hidden" name="F" value="91">
-    !   <input type="hidden" name="N" value="REGISTRAR">
-    !   <input type="hidden" name="A1" value="CLINLAB">
 
         integer, intent (in) :: device, fn
         character(len=*), intent (in), optional :: A1, A2, A3, A4, A5
@@ -824,9 +812,9 @@ contains
         character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
         character (len=MAX_LEN_PASSWD_VAR) :: tPassword
 
+        call html_comment('html_landing_page()')
         tTeacher = GUEST
-        j = index_to_teacher(tTeacher)
-        call get_teacher_password(j, tPassword)
+        tPassword = GUEST
 
         write(device,AFORMAT) &
             '<html><head><title>'//trim(UniversityCode)//SPACE//PROGNAME//'</title></head><body>'
@@ -840,17 +828,15 @@ contains
         else ! Login page
             write(device,AFORMAT) &
                 '<h2>Welcome to '//trim(UniversityCode)//SPACE//trim(ACTION)// &
-                ' for '//text_school_year(currentYear)//'</h2><hr>'
-            write(device,AFORMAT) '<table border="0" width="100%">'//begintr, &
-                '<td valign="top" width="25%">', &
-                '<form method="post" action="'//trim(CGI_PATH)//'">', &
-                '<input type="hidden" name="F" value="'//trim(itoa(fnLogin))//'">', &
+                ' for '//text_school_year(currentYear)//'</h2><hr>', &
+                '<table border="0" width="100%">'//begintr, &
+                '<td valign="top" width="25%">'
+            call make_form_start(device, fnLogin)
+            write(device,AFORMAT) &
                 '<b>Username</b> (case sensitive):<br>', &
-                '<input size="20" type="text" name="N" value="'//trim(tTeacher)//'">', &
-                '<br><br>', &
+                '<input size="20" type="text" name="U" value="'//trim(tTeacher)//'"><br><br>', &
                 '<b>Password:</b><br>', &
-                '<input size="20" type="password" name="P" value="'//trim(tPassword)//'">', &
-                '<br><br>', &
+                '<input size="20" type="password" name="P" value="'//trim(tPassword)//'"><br><br>', &
                 '<input type="submit" value="Login">', &
                 nbsp//'<i><small>(or, go back to <a href="/">'//PROGNAME//' Index</a>)</small></i></form>'
             if (len_trim(loginCheckMessage)>0) write(device,AFORMAT) &
@@ -890,6 +876,8 @@ contains
     subroutine html_login(fname, mesg)
         character(len=*), intent(in) :: fname, mesg
         integer :: device=7
+
+        call html_comment('html_login()')
 
         open(unit=device, file=fname, form='formatted', status='unknown')
         call html_landing_page(device, mesg)
@@ -1322,7 +1310,7 @@ contains
             write(device,AFORMAT) '[ <b>'//trim(Teacher(targetTeacher)%Name)//'</b> '
 
             if (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==Teacher(targetTeacher)%DeptIdx) ) then
-                if (REQUEST/=fnEditTeacher) then
+                if (REQUEST/=fnEditTeacher .and. REQUEST/=fnGenerateTeacherPassword) then
                     write(device,AFORMAT) trim(make_href(fnEditTeacher, 'Edit info', &
                         A1=Teacher(targetTeacher)%TeacherID, pre=nbsp, alt=SPACE))
                 end if
@@ -1761,10 +1749,12 @@ contains
     subroutine links_to_subjects(device, coll, numAreas, AreaList)
         integer, intent (in) :: device, coll, numAreas
         integer, intent (in) :: AreaList(1:numAreas)
-        integer :: dept, n_count!, crse
+        integer :: dept, n_count
         character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
-        !character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
-
+#if defined UPLB
+        character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
+        integer :: crse
+#endif
         if (numAreas==0) return
 
         call html_comment('links_to_subjects()')
@@ -1793,7 +1783,7 @@ contains
                 pre=nbsp, post='('//trim(itoa(n_count))//')'))
         end do
 #endif
-        write(device,AFORMAT) '</li><li><b>Subjects</b> :'
+        write(device,AFORMAT) '</li><li><b>Subjects</b> by area :'
         do dept=1,numAreas
             tSubject = SubjectArea(AreaList(dept))%Code
             n_count = SubjectArea(AreaList(dept))%Count
@@ -1808,7 +1798,7 @@ contains
     subroutine links_to_sections(device, coll, numAreas, AreaList, term)
         integer, intent (in) :: device, coll, numAreas, term
         integer, intent (in) :: AreaList(1:numAreas)
-        integer :: ddx, dept, sect, n_count, m_count, mdx, k1, k2!, crse
+        integer :: ddx, dept, sect, n_count, m_count, mdx, k1, k2
         character (len=MAX_LEN_COLLEGE_CODE) :: tCollege
         character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
@@ -1825,41 +1815,34 @@ contains
         ddx = index_to_dept(tDepartment)
 #endif
 
-!        write(device,AFORMAT) '<li><b>Classes</b> in : '
-!        do dept=2,NumDepartments
-!            if (Department(dept)%CollegeIdx /= coll) cycle
-!            n_count = 0
-!#if defined UPLB
-!            do crse=1,NumSubjects+NumAdditionalSubjects
-!                if (Subject(crse)%DeptIdx /= dept) cycle
-!                n_count = n_count+1
-!                exit
-!            end do
-!#else
-!            ! Subjects administered by program
-!            do crse=1,NumSubjects+NumAdditionalSubjects
-!                if (.not. is_used_in_college_subject(coll, crse)) cycle
-!                n_count = n_count+1
-!                exit
-!            end do
-!#endif
-!            if (n_count==0) cycle ! no subjects in this department
-!
-!            ! how many sections currently open
-!            n_count = 0
-!            do sect=1,NumSections(term)
-!                if (dept/=Section(term,sect)%DeptIdx) cycle ! not in department
-!                if (Section(term,sect)%SubjectIdx==0) cycle ! deleted
-!                n_count = n_count+1
-!            end do
-!            tDepartment = Department(dept)%Code
-!            write(device,AFORMAT) trim(make_href(fnScheduleOfClasses, tDepartment, &
-!                A1=tDepartment, post='('//trim(itoa(n_count))//')'//nbsp))
-!        end do
-!
-!        write(device,AFORMAT) '</li> '
+#if defined UPLB
+        write(device,AFORMAT) '<li><b>Classes</b> in : '
+        do dept=2,NumDepartments
+            if (Department(dept)%CollegeIdx /= coll) cycle
+            n_count = 0
+            do k1=1,NumSubjects+NumAdditionalSubjects
+                if (Subject(k1)%DeptIdx /= dept) cycle
+                n_count = n_count+1
+                exit
+            end do
+            if (n_count==0) cycle ! no subjects in this department
 
-        write(device,AFORMAT) '<li><b>Classes</b> : '
+            ! how many sections currently open
+            n_count = 0
+            do sect=1,NumSections(term)
+                if (dept/=Section(term,sect)%DeptIdx) cycle ! not in department
+                if (Section(term,sect)%SubjectIdx==0) cycle ! deleted
+                n_count = n_count+1
+            end do
+            tDepartment = Department(dept)%Code
+            write(device,AFORMAT) trim(make_href(fnScheduleOfClasses, tDepartment, &
+                A1=tDepartment, post='('//trim(itoa(n_count))//')'//nbsp))
+        end do
+
+        write(device,AFORMAT) '</li> '
+#endif
+
+        write(device,AFORMAT) '<li><b>Classes by subject area</b> : '
         do dept=1,numAreas
             ! the code
             tSubject = SubjectArea(AreaList(dept))%Code
@@ -1920,12 +1903,10 @@ contains
     subroutine links_to_blocks(device, coll, term)
         integer, intent (in) :: device, coll, term
         integer :: cdx, ldx, blk, ncurr
-        character (len=MAX_LEN_COLLEGE_CODE) :: tCollege
 
         call html_comment('links_to_blocks()')
 
         ncurr = 0
-        tCollege = College(coll)%Code
         write(device,AFORMAT) '<li><b>Blocks</b> : '//nbsp
         done = .false.
         do cdx=1,NumCurricula-1
@@ -1944,12 +1925,7 @@ contains
                 if (CurrProgCode(ldx) == CurrProgCode(cdx)) done(ldx) = .true.
             end do
         end do
-!        if (ncurr>0 .and. isRoleChair .or. isRoleAdmin) then
-!            write(device,AFORMAT) trim(make_href(fnBlockNewSelect, 'Add', &
-!                A1=tCollege, pre='<b> (', post=' block)</b>'))
-!        end if
         write(device,AFORMAT) '</li>'
-
 
     end subroutine links_to_blocks
 
@@ -1958,6 +1934,8 @@ contains
         integer, intent(in) :: device, sect, fn, NumBlocks
         type (TYPE_BLOCK), intent(in) :: Block(0:)
         integer :: idx, jdx
+
+        call html_comment('blocks_in_section()')
 
         do idx=1,NumBlocks
             do jdx=1,Block(idx)%NumClasses
@@ -1978,20 +1956,24 @@ contains
     subroutine recent_teacher_activity(device)
         integer, intent(in) :: device
         character(len=MAX_LEN_TEACHER_CODE) :: tTeacher, tRole
-        integer :: ldx, iTmp, nDays, sYear, sMonth, sDay, eYear, eMonth, eDay
+        integer :: ldx, iTmp !, nDays, sYear, sMonth, sDay, eYear, eMonth, eDay
         character (len=MAX_LEN_FILE_PATH) :: logFile
         logical :: logExists
 
         ! which teacher ?
         call cgi_get_named_string(QUERY_STRING, 'A1', tTeacher, iTmp)
         targetTeacher = index_to_teacher(tTeacher)
+        call blank_to_underscore(tTeacher, tRole)
+        tTeacher = tRole
         iTmp = Teacher(targetTeacher)%DeptIdx
         ldx = Department(iTmp)%CollegeIdx
         tRole = Teacher(targetTeacher)%Role
 
+        call html_comment('recent_teacher_activity()')
+
         call html_write_header(device, 'Recent activity of '//trim(Teacher(targetTeacher)%Name), SPACE)
 
-        if (trim(tRole)==GUEST) then
+!        if (trim(tRole)==GUEST) then
             logFile = trim(dirLOG)// &
                 trim(College(ldx)%Code)//DIRSEP// &
                 trim(tTeacher)//'.log'
@@ -2001,50 +1983,49 @@ contains
             else
                 write(device,AFORMAT) '<br>(None)<hr>'
             end if
-        else
-            nDays = 0 ! no. of days active
-            sYear = atoi(startDateTime(1:4))
-            sMonth = atoi(startDateTime(5:6))
-            sDay = atoi(startDateTime(7:8))
-            eYear = atoi(currentDate(1:4))
-            eMonth = atoi(currentDate(5:6))
-            eDay = atoi(currentDate(7:8))
-
-            do
-                logFile = trim(dirLOG)// &
-                    trim(College(ldx)%Code)//DIRSEP// &
-                    trim(tTeacher)//DASH//currentDate//'.log'
-                inquire(file=logFile, exist=logExists)
-                if (logExists) then
-                    nDays = nDays + 1
-                    write(device,AFORMAT) '<br><b>'// &
-                        trim(itoa(sYear))//DASH//trim(itoa2bz(sMonth))//DASH//trim(itoa2bz(sDay))//'</b>'
-                    call copy_to_unit(logFile, device)
-                end if
-                if (sYear==eYear .and. sMonth==eMonth .and. sDay==eDay) exit
-                sDay = sDay + 1
-                if (sDay>31) then
-                    sDay = 1
-                    sMonth = sMonth + 1
-                end if
-                if (sMonth>12) then
-                    sMonth = 1
-                    sYear = sYear + 1
-                end if
-            end do
-            if (nDays==0) then
-                logFile = trim(dirLOG)// &
-                    trim(College(ldx)%Code)//DIRSEP// &
-                    trim(tTeacher)//'.log'
-                inquire(file=logFile, exist=logExists)
-                if (logExists) then
-                    call copy_to_unit(logFile, device)
-                else
-                    write(device,AFORMAT) '<br>(None)<hr>'
-                end if
-            end if
-        end if
-
+!        else
+!            nDays = 0 ! no. of days active
+!            sYear = atoi(startDateTime(1:4))
+!            sMonth = atoi(startDateTime(5:6))
+!            sDay = atoi(startDateTime(7:8))
+!            eYear = atoi(currentDate(1:4))
+!            eMonth = atoi(currentDate(5:6))
+!            eDay = atoi(currentDate(7:8))
+!
+!            do
+!                logFile = trim(dirLOG)// &
+!                    trim(College(ldx)%Code)//DIRSEP// &
+!                    trim(tTeacher)//DASH//currentDate//'.log'
+!                inquire(file=logFile, exist=logExists)
+!                if (logExists) then
+!                    nDays = nDays + 1
+!                    write(device,AFORMAT) '<br><b>'// &
+!                        trim(itoa(sYear))//DASH//trim(itoa2bz(sMonth))//DASH//trim(itoa2bz(sDay))//'</b>'
+!                    call copy_to_unit(logFile, device)
+!                end if
+!                if (sYear==eYear .and. sMonth==eMonth .and. sDay==eDay) exit
+!                sDay = sDay + 1
+!                if (sDay>31) then
+!                    sDay = 1
+!                    sMonth = sMonth + 1
+!                end if
+!                if (sMonth>12) then
+!                    sMonth = 1
+!                    sYear = sYear + 1
+!                end if
+!            end do
+!            if (nDays==0) then
+!                logFile = trim(dirLOG)// &
+!                    trim(College(ldx)%Code)//DIRSEP// &
+!                    trim(tTeacher)//'.log'
+!                inquire(file=logFile, exist=logExists)
+!                if (logExists) then
+!                    call copy_to_unit(logFile, device)
+!                else
+!                    write(device,AFORMAT) '<br>(None)<hr>'
+!                end if
+!            end if
+!        end if
 
     end subroutine recent_teacher_activity
 
@@ -2053,6 +2034,8 @@ contains
         integer, intent(in) :: device
         character (len=MAX_LEN_FILE_PATH), intent(in) :: logFile
         integer :: iTmp
+
+        call html_comment('copy_to_unit('//trim(logFile)//')')
 
         write(device,AFORMAT) '<pre>'
         open(unit=unitETC, file=logFile, status='old')

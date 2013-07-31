@@ -41,6 +41,8 @@ contains
         integer, intent(in) :: device
         integer :: iColl
 
+        call html_comment('display_signatories()')
+
         targetDepartment = DeptIdxUser
         targetCollege = CollegeIdxUser
 
@@ -98,6 +100,8 @@ contains
         character (len=255) :: tInput
         logical :: changes
         integer :: iColl, ierr
+
+        call html_comment('edit_signatories()')
 
         ! check for requested action
         call cgi_get_named_string(QUERY_STRING, 'action', tAction, ierr)

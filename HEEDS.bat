@@ -18,6 +18,7 @@ rem
 rem      Schedules      (S)    X          X          X          X
 rem      Resetpasswords (B)    X          X          X          X
 rem      Students       (B)    X          X          X          X
+rem      Import         (B)    X          X          X          X
 rem
 rem   Legend: S=server-mode, B=batch-mode, X=execute during this Period
 rem
@@ -33,72 +34,74 @@ rem
 set ERRMSG=ERROR: There must be at least 4 arguments
 if "z%4"=="z" goto usage
 
-set HEEDS_Executable=.\HEEDS_%4
+
+rem =======================================
+:checkUNIV
+set ERRMSG=ERROR: UNIV '%1' not recognized.
+rem =======================================
+
+if "z%1"=="zUPLB" (
+    set HEEDS_Executable=.\HEEDS_UPLB_%4
+    set University_Port=600
+    goto checkACTION
+)
+
+if "z%1"=="zISU" (
+    set HEEDS_Executable=.\HEEDS_SIAS_%4
+    set University_Port=590
+    goto checkACTION
+)
+
+if "z%1"=="zCSU" (
+    set HEEDS_Executable=.\HEEDS_SIAS_%4
+    set University_Port=580
+    goto checkACTION
+)
+
+if "z%1"=="zKASC" (
+    set HEEDS_Executable=.\HEEDS_SIAS_%4
+    set University_Port=570
+    goto checkACTION
+)
+
+if "z%1"=="zCSU-Demo" (
+    set HEEDS_Executable=.\HEEDS_SIAS_%4
+    set University_Port=560
+    goto checkACTION
+)
+
+if "z%1"=="zDEMO" (
+    set HEEDS_Executable=.\HEEDS_UPLB_%4
+    set University_Port=550
+    goto checkACTION
+)
+
+goto usage
+
 
 rem =======================================
 :checkACTION
-set ERRMSG=ERROR: ACTION '%4' not recognized.
 rem =======================================
 
-if "z%4"=="zChecklists" goto runBATCH
-
-if "z%4"=="zStudents" goto runBATCH
-
-if "z%4"=="zPredict" goto runBATCH
-
-if "z%4"=="zDeterministic" goto runBATCH
-
-if "z%4"=="zProbabilistic" goto runBATCH
-
-if "z%4"=="zPreenlist" goto runBATCH
-
 if "z%4"=="zClasslists" (
-    set Port_Number=60000
+    set Port_Number=%University_Port%10
     goto runSERVER
 )
 
 if "z%4"=="zAdvising" (
-    set Port_Number=60010
+    set Port_Number=%University_Port%20
     goto runSERVER
 )
 
 if "z%4"=="zGradesheets" (
-    set Port_Number=60020
+    set Port_Number=%University_Port%30
     goto runSERVER
 )
 
 if "z%4"=="zSchedules" (
-    set Port_Number=60030
+    set Port_Number=%University_Port%40
     goto runSERVER
 )
-
-if "z%4"=="zResetpasswords" (
-    set Port_Number=60000
-    goto runSERVER
-)
-
-rem =======================================
-:usage
-rem =======================================
-echo %ERRMSG%
-echo.
-echo USAGE: %0 UNIV ACTION YEAR TERM (Note: Arguments are case-sensitive!)
-echo   UNIV is one of: UPLB, CSU, ISU
-echo   YEAR is the year when the current School Year started (ex. 2012 for SY 2012-13)
-echo   TERM is one of: 1, 2, S (1=First Semester, 2=Second Semester, S=Summer Term)
-echo   ACTION is one of:
-echo     Classlists - Add/delete classes of students for current term
-echo     Schedules - Edit Schedule of Classes for current term
-echo     Probabilistic - Probabilistic demand for subjects (needs analysis) next term
-echo     Advising - Advise students for next term
-echo     Gradesheets - Enter grades for current term
-echo     Checklists - Generate checklists
-echo     Deterministic - Deterministic demand for subjects (needs analysis) next term
-echo     Preenlist - Preenlist students into classes 
-echo     Resetpasswords - Reset all user passwords 
-echo     Students - Create list of students from available FINALGRADE.CSV for YEAR
-echo.
-goto quit
 
 
 rem =======================================
@@ -126,11 +129,36 @@ if exist %HEEDS_Executable%.exe (
     goto quit
 )
 
+
 rem =======================================
 :noEXE
 rem =======================================
 echo ERROR: %HEEDS_Executable% not found!
 goto quit
+
+
+rem =======================================
+:usage
+rem =======================================
+echo %ERRMSG%
+echo.
+echo USAGE: %0 UNIV ACTION YEAR TERM (Note: Arguments are case-sensitive!)
+echo   UNIV is one of: UPLB, ISU, CSU, KASC, CSU-Demo
+echo   YEAR is the year when the current School Year started (ex. 2012 for SY 2012-13)
+echo   TERM is one of: 1, 2, S (1=First Semester, 2=Second Semester, S=Summer Term)
+echo   ACTION is one of:
+echo     Classlists - Add/delete classes of students for current term
+echo     Schedules - Edit Schedule of Classes for current term
+echo     Advising - Advise students for next term
+echo     Gradesheets - Enter grades for current term
+echo     Checklists - Generate checklists
+echo     Deterministic - Deterministic demand for subjects (needs analysis) next term
+echo     Probabilistic - Probabilistic demand for subjects (needs analysis) next term
+echo     Preenlist - Preenlist students into classes 
+echo     Resetpasswords - Reset all user passwords; will display password for Registrar
+echo     Students - Create list of students from available FINALGRADE.CSV for YEAR
+echo     Import - Import raw data into HEEDS format
+echo.
 
 
 rem =======================================

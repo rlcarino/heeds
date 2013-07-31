@@ -10,11 +10,12 @@ if [ -z "$4" ]; then
 fi
 
 # University/Format must be the same as in RAWDATA
-declare -a  University_Code=( UPLB       CSU        ISU        CSU-Demo )
-declare -a      Format_Code=( UPLB       SIAS       SIAS       SIAS )
+declare -a  University_Code=( UPLB ISU  CSU  KASC CSU-Demo DEMO )
+declare -a  University_Port=( 600  590  580  570  560      550  )
+declare -a      Format_Code=( UPLB SIAS SIAS SIAS SIAS     UPLB )
 # Action/Port_Number combination must be the same as in nginx.conf
-declare -a      Action_Code=( Classlists Advising     )
-declare -a      Port_Number=( 60000      60010        )
+declare -a      Action_Code=( Classlists Advising Gradesheets Schedules )
+declare -a      Port_Number=( 10         20       30          40 )
 
 # Search for matching univesity
 for univ in ${!University_Code[*]}
@@ -26,10 +27,10 @@ do
         do
             if [ $4 = ${Action_Code[$action]} ]; then
                 #printf "  %4d: %s\n" $action ${Action_Code[$action]}
-                if [ -x $EXE\_${Action_Code[$action]} ]; then
-                    spawn-fcgi -a $IP -p ${Port_Number[$action]} -- $EXE\_${Action_Code[$action]} $*
+                if [ -x $EXE\_${Format_Code[$univ]}\_${Action_Code[$action]} ]; then
+                    spawn-fcgi -a $IP -p ${University_Port[$univ]}${Port_Number[$action]} -- $EXE\_${Format_Code[$univ]}\_${Action_Code[$action]} $*
                 else
-                    echo Not found: $EXE\_${Action_Code[$action]}
+                    echo Not found: $EXE\_${Format_Code[$univ]}\_${Action_Code[$action]}
                 fi
                 exit
             fi

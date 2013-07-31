@@ -36,7 +36,7 @@ module UTILITIES
 ! the software
 !===========================================================
 
-    character(len= 7), parameter :: VERSION   = ' v.4.23'
+    character(len= 7), parameter :: VERSION   = ' v.4.27'
     character(len= 5), parameter :: PROGNAME  = 'HEEDS'
     character(len=45), parameter :: COPYRIGHT = 'Copyright (C) 2012, 2013 Ricolindo L. Carino'
     character(len=38), parameter :: EMAIL     = 'Ricolindo.Carino@AcademicForecasts.com'
@@ -310,11 +310,8 @@ contains
         integer, intent (in) :: current, limit
 
         if (current > limit) then
-            call log_comment('Aborting due to insufficient array size; increase '//msg, &
-                'Limit is '//itoa(limit)//'; currently used is '//itoa(current) )
-            write(*,*) 'Aborting due to insufficient array size; increase '//msg, &
-                'Limit is '//itoa(limit)//'; currently used is '//itoa(current)
-            stop
+            call terminate('Aborting due to insufficient array size; increase '//trim(msg)// &
+                '. Limit is '//itoa(limit)//'; currently used is '//itoa(current) )
         end if
 
     end subroutine check_array_bound
@@ -411,6 +408,8 @@ contains
         character(len=*), intent (in) :: msg
 
         call log_comment(msg, 'Ends '//currentDate//DASH//currentTime )
+        write(*,*) msg
+        write(*,*) 'See '// trim(dirLOG)//trim(fileEXE)//DASH//currentDate//'.log for other messages.'
 
         stop
     end subroutine terminate
@@ -464,8 +463,7 @@ contains
         character(len=*), intent (in out) :: text ! in=cipher, out=plaintext
         integer :: i, j, k, lenKey, lenText, intText
 
-        call html_comment('decrypt('//trim(text)//')')
-
+        !call html_comment('decrypt('//trim(text)//')')
         lenKey = len_trim(key)
         lenText = len_trim(text)/2
         i = lenKey
@@ -1100,7 +1098,7 @@ contains
         string(i_start:) = cgi_wrk(j_end+1:) ! update string
         rvalue = cgi_wrk(:j_end-1)
 
-        call html_comment('cgi_get_name_value() : '//lname//'='//trim(rvalue)//', ierr='//itoa(ierr))
+        !call html_comment('cgi_get_name_value() : '//lname//'='//trim(rvalue)//', ierr='//itoa(ierr))
 
     end subroutine cgi_get_name_value
 
@@ -1123,6 +1121,7 @@ contains
             call cgi_url_decode(tmpIN, tmpOUT) ! decode
             rvalue = trim(tmpOUT)
         end if
+        call html_comment('cgi_get_named_string() : '//lname//'='//trim(rvalue)//', ierr='//itoa(ierr))
 
     end subroutine cgi_get_named_string
 

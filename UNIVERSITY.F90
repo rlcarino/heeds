@@ -87,7 +87,11 @@ module UNIVERSITY
 !===========================================================
 
     integer, parameter :: &
+#if defined UPLB
+        MAX_ALL_DEPARTMENTS = 100, & ! max no. of departments
+#else
         MAX_ALL_DEPARTMENTS = 50, & ! max no. of departments
+#endif
         MAX_LEN_DEPARTMENT_CODE = 10, & ! length of dept codes
         MAX_DEPARTMENT_NAME_LEN = 60 ! length of dept names
 
@@ -112,7 +116,11 @@ module UNIVERSITY
 !===========================================================
 
     integer, parameter :: &
+#if defined UPLB
+        MAX_ALL_ROOMS = 600, & ! room names
+#else
         MAX_ALL_ROOMS = 300, & ! room names
+#endif
         MAX_LEN_ROOM_CODE=16    ! length of room code
 
     type :: TYPE_ROOM
@@ -128,7 +136,11 @@ module UNIVERSITY
 !===========================================================
 
     integer, parameter :: &
+#if defined UPLB
+        MAX_ALL_TEACHERS = 1500, & ! maximum number of teachers
+#else
         MAX_ALL_TEACHERS = 900, & ! maximum number of teachers
+#endif
         MAX_LEN_TEACHER_CODE=20, & ! length of login name
         MAX_LEN_TEACHER_DEGREE=80, & ! length of string for Teacher degrees
         MAX_LEN_ACADEMIC_RANK=19, & ! length of string for academic rank
@@ -237,7 +249,11 @@ module UNIVERSITY
 !===========================================================
 
     integer, parameter :: &
-        MAX_ALL_SUBJECTS = 3000, &           ! max no. of subjects
+#if defined UPLB
+        MAX_ALL_SUBJECTS = 4000, &  ! max no. of subjects
+#else
+        MAX_ALL_SUBJECTS = 3000, &  ! max no. of subjects
+#endif
         MAX_LEN_SUBJECT_CODE = 20, &         ! length of subject names
         MAX_LEN_SUBJECT_TITLE=100, &         ! length of subject titles
         MAX_ALL_SUBJECT_PREREQ = 50, &       ! max number of tokens in prereq of a subject
@@ -824,7 +840,7 @@ contains
             0.0, & ! real :: Units
             0.0, & ! real :: Failrate(1:3)
             0, & ! integer :: GrandTotal(2,1:3)
-            0, & ! integer :: TermOffered
+            7, & ! integer :: TermOffered
             0.0, 0.0, & ! real :: Tuition, LabFee
             0.0, 0.0, & ! real :: LectHours, LectLoad
             0, 0, & ! integer :: MinLectSize, MaxLectSize

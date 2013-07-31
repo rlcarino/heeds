@@ -50,6 +50,8 @@ contains
         integer :: crse, kdx, dept, Term
         character (len=127) :: mesg
 
+        call html_comment('section_offer_subject()')
+
         ! what subject to offer ?
         call cgi_get_named_string(QUERY_STRING, 'A1', tSubject, crse)
         if (crse/=0 .or. tSubject==SPACE) then
@@ -120,6 +122,8 @@ contains
         character (len=127) :: mesg
         integer :: crse, sect, dept
 
+        call html_comment('section_add_laboratory()')
+
         call cgi_get_named_string(QUERY_STRING, 'A1', tClassId, sect)
         if (sect/=0 .or. tClassId==SPACE) then
             mesg = 'Lecture section not specified?'
@@ -162,6 +166,8 @@ contains
         character(len=MAX_LEN_CLASS_ID) :: tClassId
         integer :: sect, crse, pos, i, dept, Term
         character (len=127) :: mesg
+
+        call html_comment('section_delete()')
 
         Term = targetTerm
 
@@ -253,6 +259,8 @@ contains
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
         character (len=127) :: mesg
 
+        call html_comment('section_validate_inputs()')
+
         Term = targetTerm
         call cgi_get_named_string(QUERY_STRING, 'A1', tClassId, sect)
         sect = index_to_section(tClassId, NumSections, Section)
@@ -329,6 +337,8 @@ contains
         integer :: DayIdx, bTimeIdx, eTimeIdx, RoomIdx, TeacherIdx
         !integer :: n_meetings, meetings(MAX_SECTION_MEETINGS)
         character(len=32) :: tHours
+
+        call html_comment('section_write_edit_form()')
 
         tLen = len_trim(Section(sect)%Code)+1
         if (is_lecture_class(sect,Section)) then
@@ -464,6 +474,8 @@ contains
         character (len=3*MAX_LEN_ROOM_CODE) :: tRoom
         character(len=3*MAX_LEN_TEACHER_CODE) :: tLogin
         character(len=3*MAX_LEN_SECTION_CODE) :: tCode
+
+        call html_comment('section_build_from_query()')
 
         call initialize_section(tSection)
         crse = Section(section_index)%SubjectIdx

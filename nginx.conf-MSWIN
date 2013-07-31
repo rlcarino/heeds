@@ -1,0 +1,225 @@
+
+#user  nobody;
+worker_processes  1;
+
+#error_log  logs/error.log;
+#error_log  logs/error.log  notice;
+#error_log  logs/error.log  info;
+
+#pid        logs/nginx.pid;
+
+
+events {
+    worker_connections  1024;
+}
+
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    #log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+    #                  '$status $body_bytes_sent "$http_referer" '
+    #                  '"$http_user_agent" "$http_x_forwarded_for"';
+
+    #access_log  logs/access.log  main;
+
+    sendfile        on;
+    #tcp_nopush     on;
+
+    #keepalive_timeout  0;
+    keepalive_timeout  65;
+
+    #gzip  on;
+
+    server {
+        listen       80;
+        server_name  localhost;
+
+        #charset koi8-r;
+
+        #access_log  logs/host.access.log  main;
+        #
+        location  /CSU-Classlists {
+            fastcgi_pass   127.0.0.1:58010;
+            include        fastcgi_params;
+        }
+        location  /CSU-Advising {
+            fastcgi_pass   127.0.0.1:58020;
+            include        fastcgi_params;
+        }
+        location  /CSU-Gradesheets {
+            fastcgi_pass   127.0.0.1:58030;
+            include        fastcgi_params;
+        }
+        location  /CSU-Schedules {
+            fastcgi_pass   127.0.0.1:58040;
+            include        fastcgi_params;
+        }
+
+        location  /KASC-Classlists {
+            fastcgi_pass   127.0.0.1:57010;
+            include        fastcgi_params;
+        }
+        location  /KASC-Advising {
+            fastcgi_pass   127.0.0.1:57020;
+            include        fastcgi_params;
+        }
+        location  /KASC-Gradesheets {
+            fastcgi_pass   127.0.0.1:57030;
+            include        fastcgi_params;
+        }
+        location  /KASC-Schedules {
+            fastcgi_pass   127.0.0.1:57040;
+            include        fastcgi_params;
+        }
+
+        location  /CSU-Demo-Classlists {
+            fastcgi_pass   127.0.0.1:56010;
+            include        fastcgi_params;
+        }
+        location  /CSU-Demo-Advising {
+            fastcgi_pass   127.0.0.1:56020;
+            include        fastcgi_params;
+        }
+        location  /CSU-Demo-Gradesheets {
+            fastcgi_pass   127.0.0.1:56030;
+            include        fastcgi_params;
+        }
+        location  /CSU-Demo-Schedules {
+            fastcgi_pass   127.0.0.1:56040;
+            include        fastcgi_params;
+        }
+
+
+        location  /DEMO-Classlists {
+            fastcgi_pass   127.0.0.1:55010;
+            include        fastcgi_params;
+        }
+        location  /DEMO-Advising {
+            fastcgi_pass   127.0.0.1:55020;
+            include        fastcgi_params;
+        }
+        location  /DEMO-Gradesheets {
+            fastcgi_pass   127.0.0.1:55030;
+            include        fastcgi_params;
+        }
+        location  /DEMO-Schedules {
+            fastcgi_pass   127.0.0.1:55040;
+            include        fastcgi_params;
+        }
+
+
+        location  /UPLB-Classlists {
+            fastcgi_pass   127.0.0.1:60010;
+            include        fastcgi_params;
+        }
+        location  /UPLB-Advising {
+            fastcgi_pass   127.0.0.1:60020;
+            include        fastcgi_params;
+        }
+        location  /UPLB-Gradesheets {
+            fastcgi_pass   127.0.0.1:60030;
+            include        fastcgi_params;
+        }
+        location  /UPLB-Schedules {
+            fastcgi_pass   127.0.0.1:60040;
+            include        fastcgi_params;
+        }
+
+        location  /ISU-Classlists {
+            fastcgi_pass   127.0.0.1:59010;
+            include        fastcgi_params;
+        }
+        location  /ISU-Advising {
+            fastcgi_pass   127.0.0.1:59020;
+            include        fastcgi_params;
+        }
+        location  /ISU-Gradesheets {
+            fastcgi_pass   127.0.0.1:59030;
+            include        fastcgi_params;
+        }
+        location  /ISU-Schedules {
+            fastcgi_pass   127.0.0.1:59040;
+            include        fastcgi_params;
+        }
+
+        location / {
+            #root   html;
+            #index  index.html index.htm;
+            root   C:/HEEDS/web;
+            try_files $uri $uri/ /index.html;
+        }
+
+        #error_page  404              /404.html;
+
+        # redirect server error pages to the static page /50x.html
+        #
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            #root   html;
+            root   C:/HEEDS/web;
+        }
+
+        # proxy the PHP scripts to Apache listening on 127.0.0.1:80
+        #
+        #location ~ \.php$ {
+        #    proxy_pass   http://127.0.0.1;
+        #}
+
+        # pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000
+        #
+        #location ~ \.php$ {
+        #    root           html;
+        #    fastcgi_pass   127.0.0.1:9000;
+        #    fastcgi_index  index.php;
+        #    fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
+        #    include        fastcgi_params;
+        #}
+
+        # deny access to .htaccess files, if Apache's document root
+        # concurs with nginx's one
+        #
+        #location ~ /\.ht {
+        #    deny  all;
+        #}
+    }
+
+
+    # another virtual host using mix of IP-, name-, and port-based configuration
+    #
+    #server {
+    #    listen       8000;
+    #    listen       somename:8080;
+    #    server_name  somename  alias  another.alias;
+
+    #    location / {
+    #        root   html;
+    #        index  index.html index.htm;
+    #    }
+    #}
+
+
+    # HTTPS server
+    #
+    #server {
+    #    listen       443;
+    #    server_name  localhost;
+
+    #    ssl                  on;
+    #    ssl_certificate      cert.pem;
+    #    ssl_certificate_key  cert.key;
+
+    #    ssl_session_timeout  5m;
+
+    #    ssl_protocols  SSLv2 SSLv3 TLSv1;
+    #    ssl_ciphers  HIGH:!aNULL:!MD5;
+    #    ssl_prefer_server_ciphers   on;
+
+    #    location / {
+    #        root   html;
+    #        index  index.html index.htm;
+    #    }
+    #}
+
+}

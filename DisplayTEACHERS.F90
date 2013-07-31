@@ -50,6 +50,8 @@ contains
         character (len=80) :: tDesc
         integer :: tYear, tTerm
 
+        call html_comment('teacher_list_all()')
+
         ! collect teachers
         tArray = 0
         nfacs = 0
@@ -58,7 +60,7 @@ contains
             case (fnOnlineTeachers)
                 do tdx=1,NumTeachers+NumAdditionalTeachers
                     fac = TeacherRank(tdx)
-                    if (Teacher(fac)%Status==0) cycle
+                    if (Teacher(fac)%Status==0 .or. trim(Teacher(fac)%Role)==REGISTRAR) cycle
                     nfacs = nfacs+1
                     tArray(nfacs) = fac
                 end do
@@ -106,7 +108,7 @@ contains
         if (nfacs == 0) then
             write(device,AFORMAT) '<table border="0">', &
                 begintr//begintd//'(None?)'//endtd//tdalignright
-            if (isRoleAdmin) then
+            if (isRoleAdmin .and. fn/=fnOnlineTeachers) then
                 write(device,AFORMAT) trim(make_href(fnEditTeacher, 'Add teacher', &
                     A1='Guest', pre='<small>('//nbsp, post=' )</small>', alt=SPACE))
             end if
@@ -126,7 +128,7 @@ contains
             write(device,AFORMAT) '<table border="0">', begintr//begintd// &
                 '<i>(Numbers per term are: # classes / Lect hrs / Lab hrs)</i>', &
                 endtd//tdalignright
-            if (isRoleAdmin) then
+            if (isRoleAdmin .and. fn/=fnOnlineTeachers) then
                 write(device,AFORMAT) trim(make_href(fnEditTeacher, 'Add teacher', &
                     A1='Guest', pre='<small>('//nbsp, post=' )</small>', alt=SPACE))
             end if
@@ -229,6 +231,8 @@ contains
         integer, dimension(60,6) :: TimeTable
         !character(len=1) :: ch
         real :: totalLect, lectHours, totalLab, labHours, totalUnits, meetingUnits
+
+        call html_comment('teacher_conflicts()')
 
         ! collect teachers
         tArray = 0
@@ -356,6 +360,8 @@ contains
         logical :: conflicted, assigned, allowed_to_edit
         character(len=127) :: mesg
 
+        call html_comment('teacher_schedule()')
+
         ! which teacher?
         call cgi_get_named_string(QUERY_STRING, 'A1', tTeacher, ierr)
         targetTeacher = index_to_teacher(tTeacher)
@@ -468,6 +474,8 @@ contains
         character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
         character (len=MAX_LEN_PASSWD_VAR) :: Password
         integer :: i, j
+
+        call html_comment('teacher_info()')
 
         tTeacher = wrk%TeacherID
         targetDepartment = wrk%DeptIdx
@@ -593,6 +601,8 @@ contains
         integer, dimension(60,6) :: TimeTable
         logical :: conflicted
 
+        call html_comment('teacher_schedule_printable()')
+
         ! which teacher?
         call cgi_get_named_string(QUERY_STRING, 'A1', tTeacher, ierr)
         targetTeacher = index_to_teacher(tTeacher)
@@ -683,6 +693,8 @@ contains
         real :: totalUnits, meetingUnits
         real :: lectHours, labHours, totalLect, totalLab
         logical :: sectionDone
+
+        call html_comment('teacher_workload()')
 
         if (lenSL < 3) then
             write(device,AFORMAT) '<br>No teaching load?<br>'
@@ -812,6 +824,8 @@ contains
         integer :: crse
         real :: meetingHours
 
+        call html_comment('class_hours_and_load()')
+
         crse = Section(sdx)%SubjectIdx
         if (mdx/=-1) then
             meetingHours = (Section(sdx)%eTimeIdx(mdx) - Section(sdx)%bTimeIdx(mdx))/4.0
@@ -870,6 +884,8 @@ contains
         integer :: ierr
         logical :: flagIsUp
 
+        call html_comment('change_current_teacher_password()')
+
         flagIsUp = .false.
         if (REQUEST==fnChangeTeacherPassword) then
             call cgi_get_named_string(QUERY_STRING, 'C', t0Password, ierr)
@@ -904,24 +920,16 @@ contains
                         return
                     end if
                 else
-                    loginCheckMessage = 'New password and repeat do not match'
+                    loginCheckMessage = 'New password and repeat do not match.'
                 end if
             else
-                loginCheckMessage = ''
+                loginCheckMessage = 'New password and/or repeat not specified.'
             end if
         end if
 
         call html_write_header(device, 'Change password for '//trim(USERNAME), loginCheckMessage )
 
-!        write(device,AFORMAT) &
-!            '<html><head><title>'//PROGNAME//VERSION//'</title></head><body>', &
-!            '<h2>Change password for '//trim(USERNAME)//'</h2>'
-!        if (len_trim(loginCheckMessage)>0) write(device,AFORMAT) &
-!            red//trim(loginCheckMessage)//black
-        write(device,AFORMAT) &
-            '<form name="input" method="post" action="'//trim(CGI_PATH)//'">', &
-            '<input type="hidden" name="F" value="'//trim(itoa(REQUEST))//'">', &
-            '<input type="hidden" name="N" value="'//trim(USERNAME)//'">'
+        call make_form_start(device, REQUEST)
 
         if (REQUEST==fnChangeTeacherPassword) write(device,AFORMAT) &
             '<b>Old password:</b><br>', &
@@ -937,22 +945,6 @@ contains
             '<input type="submit" value="Update"></form><hr>'
 
     end subroutine change_current_teacher_password
-
-
-    subroutine generate_teacher_password(device)
-        integer, intent(in) :: device
-        character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
-        integer :: tdx
-
-        ! which teacher ?
-        call cgi_get_named_string(QUERY_STRING, 'A1', tTeacher, tdx)
-        tdx = index_to_teacher(tTeacher)
-        call set_password(Teacher(tdx)%Password)
-        call xml_write_teachers(trim(pathToYear)//'TEACHERS.XML')
-        call teacher_info(device, Teacher(tdx), 'Edit info for teacher '//tTeacher, &
-            SPACE, 'Update', tdx)
-
-    end subroutine generate_teacher_password
 
 
 end module DisplayTEACHERS

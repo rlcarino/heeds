@@ -38,14 +38,13 @@
 # module to build (MODULE)
 #---------------------------------------------------------------
 MODULE=Schedules
-#Resetpasswords
 
 #---------------------------------------------------------------
-# raw data format (RAWDATA)
+# organization of academic departments (ORGANIZATION)
 #---------------------------------------------------------------
-RAWDATA=CUSTOM
-#UPLB
-#CUSTOM
+ORGANIZATION=SIAS
+#UPLB - departments are specialized
+#SIAS - no departments; each college is a mini-university 
 
 #---------------------------------------------------------------
 # operating system (OS)
@@ -62,16 +61,11 @@ BIN=/c/HEEDS/bin/MSWIN
 #$(HOME)/HEEDS/bin/GLNX
 
 #---------------------------------------------------------------
-# debugging flags 
-#---------------------------------------------------------------
-DEBUG=-DPRODUCTION
-
-#---------------------------------------------------------------
 # Fortran compiler and flags
 #---------------------------------------------------------------
 FFLAGS=-Wunused -ffree-form
 #-fbounds-check
-OPTIONS =-D$(MODULE) -D$(OS) -D$(RAWDATA) -I$(RAWDATA) $(DEBUG) 
+OPTIONS =-D$(MODULE) -D$(OS) -D$(ORGANIZATION) 
 FC = gfortran $(FFLAGS) $(OPTIONS)
 
 #---------------------------------------------------------------
@@ -92,20 +86,13 @@ SCHEDULERS = EditROOMS.o EditTEACHERS.o EditSUBJECTS.o EditCURRICULA.o EditSECTI
 all:	HEEDS_$(MODULE)
 
 HEEDS_$(MODULE):	$(COMMON) $(VIEWERS) $(SCHEDULERS) MAIN.o
-	$(FC) $(COMMON) $(VIEWERS) $(SCHEDULERS) MAIN.o -o $(BIN)/HEEDS_$(MODULE) -lfcgi -Wl,--rpath -Wl,/usr/local/lib
+	$(FC) $(COMMON) $(VIEWERS) $(SCHEDULERS) MAIN.o -o $(BIN)/HEEDS_$(ORGANIZATION)_$(MODULE) -lfcgi -Wl,--rpath -Wl,/usr/local/lib
 
 UTILITIES.o:	Makefile
 
 UNIVERSITY.o:	UTILITIES.o
 
-IO.o:	UNIVERSITY.o \
-	$(RAWDATA)/custom_read_colleges.F90  \
-	$(RAWDATA)/custom_read_departments.F90 \
-	$(RAWDATA)/custom_read_rooms.F90  \
-	$(RAWDATA)/custom_read_teachers.F90 \
-	$(RAWDATA)/custom_read_subjects.F90 \
-	$(RAWDATA)/custom_read_curricula.F90 \
-	$(RAWDATA)/custom_read_classes.F90 \
+IO.o:	UNIVERSITY.o 
 
 INITIALIZE.o:	IO.o
 

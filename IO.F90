@@ -62,6 +62,7 @@ contains
         if (errNo/=0) then
             call xml_read_university(trim(path)//'UNIVERSITY.XML', errNo) ! try the XML file
         end if
+        errNo = 0 ! use defaults
 
     end subroutine read_university
 

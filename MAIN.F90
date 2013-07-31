@@ -77,10 +77,9 @@ program MAIN
 
     integer :: errNo, numArgs
     character (len=MAX_LEN_FILE_PATH) :: dataSource
-
-
     integer :: jTmp, iTmp, kTmp
 
+    ! initialize
     call initializations()
 
     termBegin = currentTerm
@@ -88,7 +87,18 @@ program MAIN
     if (numArgs>4) then
         call getarg(4, dataSource)
         call lower_case(dataSource)
-        noWrites = trim(dataSource)=='training'
+        if (trim(dataSource)=='resetpasswords') then ! reset passwords
+            call regenerate_all_passwords()
+            call sort_alphabetical_teachers()
+            ! Teacher() was modified; rewrite CATALOG.XML
+            call xml_cleanup()
+            call terminate(trim(fileEXE)//' stopped')
+        elseif (trim(dataSource)=='training') then ! set username as the password
+            nowrites = .true.
+            do kTmp=1,NumTeachers
+                call set_password(Teacher(kTmp)%Password, Teacher(kTmp)%TeacherID)
+            end do
+        end if
     end if
 
     ! read schedules
@@ -231,13 +241,13 @@ contains
 #else
         QUERY_put = 'localhost'
 #endif
-        CGI_PATH = 'http://'//trim(QUERY_put)//FSLASH//ACTION
+        CGI_PATH = 'http://'//trim(QUERY_put)//FSLASH//trim(UniversityCode)//DASH//ACTION
         USERNAME = PROGNAME
         call html_login('Stop-'//trim(UniversityCode)//DASH//trim(ACTION)//'.html', &
             trim(make_href(fnStop, 'Stop', post=nbsp//ACTION) ) )
 
         ! reset CGI_PATH
-        CGI_PATH = FSLASH//ACTION
+        CGI_PATH = FSLASH//trim(UniversityCode)//DASH//ACTION
 
         ! loop until killed/fnSTOP
         do while (FCGI_Accept() >= 0)
@@ -272,13 +282,8 @@ contains
                 else
                     QUERY_STRING = '(invalid)'
                 end if
-            else ! must be login
-                call cgi_get_named_integer(QUERY_STRING, 'F', kStart, iTmp)
-                if (kStart/=fnLogin) then
-                    QUERY_STRING = '(invalid)'
-                else
-                    QUERY_STRING = trim(QUERY_STRING)//'&F='//itoa(fnLogin)
-                end if
+            else ! not encrypted
+                QUERY_STRING = '(invalid)'
             end if
 
             ! make copy of QUERY_STRING
@@ -311,20 +316,12 @@ contains
             call blank_to_underscore(USERNAME, tTeacher)
             iTmp = Department(Teacher(requestingTeacher)%DeptIdx)%CollegeIdx
             if (isRoleAdmin .or. isRoleChair .or. isRoleSRE) then
-                fileUSERlog = trim(dirLOG)// &
-                    trim(College(iTmp)%Code)//DIRSEP// &
+                fileUSERlog = trim(dirLOG)//trim(College(iTmp)%Code)//DIRSEP// &
                     trim(tTeacher)//DASH//currentDate//'.log'
             else
                 iTmp = Department(Teacher(requestingTeacher)%DeptIdx)%CollegeIdx
-!                if (isRoleAdmin .or. isRoleChair .or. isRoleSRE) then
-!                    fileUSERlog = trim(dirLOG)// &
-!                        trim(College(iTmp)%Code)//DIRSEP// &
-!                        trim(tTeacher)//DASH//currentDate//'.log'
-!                else
-                    fileUSERlog = trim(dirLOG)// &
-                        trim(College(iTmp)%Code)//DIRSEP// &
-                        trim(tTeacher)//'.log'
-!                end if
+                fileUSERlog = trim(dirLOG)//trim(College(iTmp)%Code)//DIRSEP// &
+                    trim(tTeacher)//'.log'
             end if
 
             if (REQUEST>=fnLogout) then ! no passwords
@@ -425,9 +422,6 @@ contains
                 Teacher(requestingTeacher)%Status = 1
                 call change_current_teacher_password(device)
 
-            case (fnGenerateTeacherPassword)
-                call generate_teacher_password(device)
-
             case (fnLogout)
                 if (requestingTeacher>0) then
                     Teacher(requestingTeacher)%Status = 0
@@ -525,7 +519,7 @@ contains
             case (fnEditRoom)
                 call room_edit (device)
 
-            case (fnEditTeacher)
+            case (fnEditTeacher, fnGenerateTeacherPassword)
                 call teacher_edit (device)
 
             case (fnTeacherEditSchedule)
@@ -588,6 +582,8 @@ contains
         character (len=MAX_LEN_PASSWD_VAR) :: tPassword
         integer :: ierr
 
+        call html_comment('get_user_request()')
+
         isRoleAdmin = .false.
         isRoleSRE = .false.
         isRoleChair = .false.
@@ -600,8 +596,22 @@ contains
         CurriculumIdxUser = 0
         requestingTeacher = 0
 
+        ! Establish REQUESTed function if any, else return the landing page
+        call cgi_get_named_integer(QUERY_STRING, 'F', REQUEST, ierr)
+        if (ierr==-1) then
+            REQUEST = fnLogout
+            !call html_comment('REQUESTed fn = '//itoa(REQUEST)//', ierr = '//itoa(ierr))
+            return
+        end if
+        ! stop by Registrar Role?
+        if (REQUEST==fnStop) return
+
         ! Get USERNAME
-        call cgi_get_named_string(QUERY_STRING, 'N', USERNAME, ierr)
+        if (REQUEST/=fnLogin) then
+            call cgi_get_named_string(QUERY_STRING, 'N', USERNAME, ierr)
+        else
+            call cgi_get_named_string(QUERY_STRING, 'U', USERNAME, ierr)
+        end if
         if (ierr==0) then
             requestingTeacher = index_to_teacher(USERNAME)
         end if
@@ -649,15 +659,6 @@ contains
             isRoleTeacher = trim(USERNAME)/=trim(ROLE) ! named teacher
 
         end if
-
-        ! Establish REQUESTed function if any, else return the landing page
-        call cgi_get_named_integer(QUERY_STRING, 'F', REQUEST, ierr)
-        if (ierr==-1) then
-            REQUEST = fnLogout
-            return
-        end if
-        ! stop
-        if (REQUEST==fnStop) return
 
         ! Establish TERM if required
         if (REQUEST>=fnScheduleOfClasses) then
@@ -709,6 +710,8 @@ contains
         !character (len=MAX_LEN_XML_LINE) :: line
         integer :: ierr, i!, j
         character (len=MAX_LEN_PASSWD_VAR) :: Password
+
+        call html_comment('download_xml()')
 
         call cgi_get_named_string(QUERY_STRING, 'A1', XMLfile, ierr)
 
@@ -769,6 +772,107 @@ contains
         end select
 
     end subroutine download_xml
+
+
+    subroutine regenerate_all_passwords()
+        integer :: i, k, tdx
+        character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
+        character (len=MAX_LEN_PASSWD_VAR) :: Password
+
+        ! the teachers
+        write(*,*) 'Generating passwords for teachers...'
+        do i=1,NumTeachers
+            call set_password(Teacher(i)%Password)
+            if (trim(Teacher(i)%TeacherID)/=trim(Department(Teacher(i)%DeptIdx)%Code)) then
+                Teacher(i)%Role = GUEST
+            else
+                Teacher(i)%Role = Department(Teacher(i)%DeptIdx)%Code
+            end if
+        end do
+        ! default scheduler roles
+        write(*,*) 'Generating passwords for departments...'
+        do k=2,NumDepartments
+            tTeacher = Department(k)%Code
+            tdx = index_to_teacher(tTeacher)
+            if (tdx>0) then ! found
+                i = tdx
+            else
+                i = NumTeachers+1
+                NumTeachers = i
+            end if
+            Teacher(i)%TeacherID = tTeacher
+            Teacher(i)%DeptIdx = NumDepartments
+            Teacher(i)%Role = tTeacher
+            Teacher(i)%Name = trim(tTeacher)//' Scheduler'
+            Teacher(i)%MaxLoad = 0
+            Teacher(i)%Specialization = 'Scheduling'
+            call set_password(Teacher(i)%Password)
+        end do
+        ! default adviser roles
+        write(*,*) 'Generating passwords curriculum advisers...'
+        done = .false.
+        do k=1,NumCurricula-1
+            if (done(k)) cycle
+            tTeacher = CurrProgCode(k)
+            tdx = index_to_teacher(tTeacher)
+            if (tdx>0) then ! found
+                i = tdx
+            else
+                i = NumTeachers+1
+                NumTeachers = i
+            end if
+            Teacher(i)%TeacherID = tTeacher
+            Teacher(i)%DeptIdx = NumDepartments
+            Teacher(i)%Role = tTeacher
+            Teacher(i)%Name = trim(tTeacher)//' Adviser'
+            Teacher(i)%MaxLoad = 0
+            Teacher(i)%Specialization = 'Advising'
+            call set_password(Teacher(i)%Password)
+
+            do i = k+1,NumCurricula-1
+                if (CurrProgCode(k)==CurrProgCode(i)) done(i) = .true.
+            end do
+        end do
+        ! the Guest account
+        write(*,*) 'Generating passwords for special accounts...'
+        tTeacher = GUEST
+        tdx = index_to_teacher(tTeacher)
+        if (tdx>0) then ! found
+            i = tdx
+        else
+            i = NumTeachers+1
+            NumTeachers = i
+        end if
+        Teacher(i)%TeacherID = GUEST
+        Teacher(i)%Name = 'Guest Account'
+        Teacher(i)%DeptIdx = NumDepartments
+        Teacher(i)%Role = GUEST
+        call set_password(Teacher(i)%Password, GUEST)
+
+        ! the HEEDS Administrator
+        tTeacher = PROGNAME
+        tdx = index_to_teacher(tTeacher)
+        if (tdx>0) then ! found
+            i = tdx
+        else
+            i = NumTeachers+1
+            NumTeachers = i
+        end if
+        Teacher(i)%TeacherID = tTeacher
+        Teacher(i)%DeptIdx = NumDepartments
+        Teacher(i)%Name = PROGNAME//' Administrator'
+        Teacher(i)%Role = REGISTRAR
+        call set_password(Teacher(i)%Password)
+
+        ! show ADMIN passwords
+        call get_teacher_password(i, Password)
+        write(*,*) 'Password for '//trim(tTeacher)//' : '//Password
+        tTeacher = REGISTRAR
+        i = index_to_teacher(tTeacher)
+        call get_teacher_password(i, Password)
+        write(*,*) 'Password for '//trim(tTeacher)//' : '//Password
+
+    end subroutine regenerate_all_passwords
 
 
 end program MAIN
