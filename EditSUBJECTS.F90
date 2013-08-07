@@ -46,6 +46,8 @@ contains
         type (TYPE_SUBJECT) :: wrk
         logical :: isDirtySUBJECTS
 
+        call html_comment('subject_edit()')
+
         ! which subject ?
         call cgi_get_named_string(QUERY_STRING, 'A1', tSubject, crse)
         crse = index_to_subject(tSubject)

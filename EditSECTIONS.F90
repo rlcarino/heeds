@@ -103,7 +103,7 @@ contains
             targetDepartment, crse, Subject(crse)%MaxLabSize, Subject(crse)%MaxLabSize, 1, 0, 0, 0, 0, 0)
         end if
 
-        call xml_write_sections(pathToTerm, NumSections, Section, 0)
+        call xml_write_classes(pathToTerm, NumSections, Section, 0)
         call offerings_summarize(NumSections, Section, Offering)
         call section_list_all (device, NumSections, Section, Offering, NumBlocks, Block,  &
             fnScheduleOfClasses, dept, 'Opened a section in '//tSubject)
@@ -149,7 +149,7 @@ contains
             targetDepartment, crse, Subject(crse)%MaxLabSize, Subject(crse)%MaxLabSize, 1, 0, 0, 0, 0, 0)
         !write(*,*) 'Adding '//trim(Subject(crse)%Name)//' '//tSection
 
-        call xml_write_sections(pathToTerm, NumSections, Section, 0)
+        call xml_write_classes(pathToTerm, NumSections, Section, 0)
         call offerings_summarize(NumSections, Section, Offering)
         call section_list_all (device, NumSections, Section, Offering, NumBlocks, Block,  &
             fnScheduleOfClasses, dept, 'Opened new section '//trim(Subject(crse)%Name)//' '//tSection)
@@ -212,7 +212,7 @@ contains
             end if
         end if
         call xml_write_blocks(pathToTerm, NumBlocks, Block,  Section, 0)
-        call xml_write_sections(pathToTerm, NumSections, Section, 0)
+        call xml_write_classes(pathToTerm, NumSections, Section, 0)
         call offerings_summarize(NumSections, Section, Offering)
         call count_sections_by_dept(Term, NumSections, Section)
         call section_list_all (device, NumSections, Section, Offering, NumBlocks, Block,  &
@@ -289,7 +289,7 @@ contains
                 case ('Confirm') ! Accept previously validated edits
                     mesg = 'Finished editing '//trim(wrk%ClassId)
                     Section(sect) = wrk
-                    call xml_write_sections(pathToTerm, NumSections, Section, 0)
+                    call xml_write_classes(pathToTerm, NumSections, Section, 0)
                     call offerings_summarize(NumSections, Section, Offering)
                     call count_sections_by_dept(Term, NumSections, Section)
                     call section_list_all (device, NumSections, Section, Offering, NumBlocks, Block,  &

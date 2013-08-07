@@ -57,6 +57,22 @@ contains
         nfacs = 0
         select case (fn)
 
+            case (fnFindTeacher)
+                call cgi_get_named_string(QUERY_STRING, 'A1', stats, ierr)
+                sdx = len_trim(stats)
+                if (sdx>0) then
+                    call upper_case(stats)
+                    do tdx=1,NumTeachers+NumAdditionalTeachers
+                        fac = TeacherRank(tdx)
+                        if (index(Teacher(fac)%Name,stats(:sdx))==0) cycle
+                        nfacs = nfacs+1
+                        tArray(nfacs) = fac
+                    end do
+                    mesg = 'Teachers with "'//stats(:sdx)//'" in name.'
+                else
+                    mesg = 'Search teacher failed: search string not specified.'
+                end if
+
             case (fnOnlineTeachers)
                 do tdx=1,NumTeachers+NumAdditionalTeachers
                     fac = TeacherRank(tdx)
@@ -364,7 +380,12 @@ contains
 
         ! which teacher?
         call cgi_get_named_string(QUERY_STRING, 'A1', tTeacher, ierr)
-        targetTeacher = index_to_teacher(tTeacher)
+        mdx = index_to_teacher(tTeacher)
+        if (mdx==0) then
+            call html_college_links(device, CollegeIdxUser, mesg='Teacher "'//trim(tTeacher)//'" not found.')
+            return
+        end if
+        targetTeacher = mdx
         targetDepartment = Teacher(targetTeacher)%DeptIdx
         targetCollege = Department(targetDepartment)%CollegeIdx
         allowed_to_edit = isRoleAdmin .or. (isRoleChair .and. targetDepartment==DeptIdxUser)
@@ -389,7 +410,7 @@ contains
                     end do
                     mesg = 'Deleted '//tClassId
                 end if
-                call xml_write_sections(pathToTerm, NumSections, Section, 0)
+                call xml_write_classes(pathToTerm, NumSections, Section, 0)
             end if
         end if
 
@@ -585,7 +606,21 @@ contains
                 endtd//endtr
         end if
         write(device,AFORMAT) &
-            '</table><br>'//nbsp//'<input name="action" type="submit" value="'//trim(tAction)//'"></form><hr>'
+            '</table><br>'//nbsp//'<input name="action" type="submit" value="'//trim(tAction)//'"> ', &
+            ' <i>(or, select another action below)</i></form><hr>'
+
+        call make_form_start(device, fnDeleteTeacher, tTeacher)
+        write(device,AFORMAT) '<table border="0" cellpadding="0" cellspacing="0">', &
+            begintr//begintd//'<b>Delete teacher</b> '//tTeacher// &
+            '<input type="submit" name="action" value="Delete"></form>'// &
+            endtd//endtr//'</table><hr>'
+
+        call make_form_start(device, fnFindTeacher)
+        write(device,AFORMAT) '<table border="0" cellpadding="0" cellspacing="0">', &
+            begintr//begintd// &
+            '<b>Search for teacher</b> with <input name="A1" value=""> in name. ', &
+            '<input type="submit" name="action" value="Search"></form>'// &
+            endtd//endtr//'</table><hr>'
 
     end subroutine teacher_info
 
@@ -606,6 +641,10 @@ contains
         ! which teacher?
         call cgi_get_named_string(QUERY_STRING, 'A1', tTeacher, ierr)
         targetTeacher = index_to_teacher(tTeacher)
+        if (targetTeacher==0) then
+            call html_college_links(device, CollegeIdxUser, mesg='Teacher "'//trim(tTeacher)//'" not found.')
+            return
+        end if
 
         ! collect meetings of teacher targetTeacher
         call timetable_meetings_of_teacher(NumSections, Section, targetTeacher, 0, tLen1, tArray, TimeTable, conflicted)

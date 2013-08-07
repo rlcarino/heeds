@@ -51,6 +51,9 @@ module HTML
         fnRecentTeacherActivity   = 12, & ! recent teacher activity
         fnOnlineStudents          = 13, & ! online students
         fnOnlineTeachers          = 14, & ! online teachers
+        fnFindStudent             = 15, & ! find a student
+        fnFindTeacher             = 16, & ! find a teacher
+        fnDeleteTeacher           = 17, & ! delete teacher
         !
         fnCollegeLinks            = 20, & ! index to college info
         fnSubjectList             = 21, & ! view list of subjects administered by a department
@@ -94,8 +97,8 @@ module HTML
         !
         fnBlockSchedule           = 60, & ! display schedule of block section
         fnBlockEditName           = 61, & ! edit name of block section
-        fnBlockDeleteNotClasses         = 62, & ! delete block, but keep its sections
-        fnBlockDeleteIncludingClasses          = 63, & ! delete block and its sections
+        fnBlockDeleteNotClasses   = 62, & ! delete block, but keep its sections
+        fnBlockDeleteIncludingClasses = 63, & ! delete block and its sections
         fnBlockNewSelect          = 64, & ! select parameters for a new block
         fnBlockNewAdd             = 65, & ! add a new block
         fnBlockCopy               = 66, & ! copy block
@@ -110,19 +113,18 @@ module HTML
         fnDemandForSubjects       = 83, & ! view demand for subjects
         fnPotentialStudents       = 84, & ! list of potential students of a subject
         !
-        fnChangeMatriculation     = 85, & ! change matriculation
-        fnFindBlock               = 86, & ! find a block for student
-        fnSelectSubjects          = 87, & ! manually select subjects for student
+        fnChangeMatriculation     = 90, & ! change matriculation
+        fnFindBlock               = 91, & ! find a block for student
         !
-        fnEnlistmentSummary       = 90, & ! summary of enlistment by subject
-        fnNotAccommodated         = 91, & ! students not accommodated in a priority subject
-        fnBottleneck              = 92, & ! "bottleneck" subjects
-        fnExtraSlots              = 93, & ! subjects with excess slots
-        fnUnderloadSummary        = 94, & ! summary of underloading
-        fnUnderloadedStudents     = 95, & ! underloaded students
-        fnClassList               = 96, & ! view list of students in a class
-        fnGradeSheet              = 97, & ! enter grades
-        fnDownloadXML             = 98 ! download XML data file
+        fnEnlistmentSummary       =100, & ! summary of enlistment by subject
+        fnNotAccommodated         =101, & ! students not accommodated in a priority subject
+        fnBottleneck              =102, & ! "bottleneck" subjects
+        fnExtraSlots              =103, & ! subjects with excess slots
+        fnUnderloadSummary        =104, & ! summary of underloading
+        fnUnderloadedStudents     =105, & ! underloaded students
+        fnClassList               =106, & ! view list of students in a class
+        fnGradeSheet              =107, & ! enter grades
+        fnDownloadXML             =108 ! download XML data file
 
     ! the requested server function, index to requesting, user
     integer :: REQUEST, requestingTeacher!, requestingStudent
@@ -132,7 +134,6 @@ module HTML
         targetCurriculum, targetBlock, targetSection!, targetStudent
 
     ! work arrays
-!    integer :: tArray(max(MAX_ALL_STUDENTS,2*MAX_ALL_SUBJECTS))
     integer :: tArray(2*MAX_ALL_SUBJECTS)
     character (len=80) :: QUERY_put, termDescription
 
@@ -183,6 +184,15 @@ contains
 
             case (fnOnlineTeachers)
                     fnDescription = 'list online teachers'
+
+            case (fnFindStudent)
+                    fnDescription = 'find a student'
+
+            case (fnFindTeacher)
+                    fnDescription = 'find a teacher'
+
+            case (fnDeleteTeacher)
+                    fnDescription = 'delete teacher'
 
             case (fnCollegeLinks            )
                     fnDescription = 'index to college info'
@@ -235,9 +245,6 @@ contains
             case (fnStudentEdit             )
                     fnDescription = 'display student info for editing'
 
-            case (fnStudentPerformance      )
-                    fnDescription = 'view student performance'
-
             case (fnEditCheckList           )
                     fnDescription = 'display checklist for editing'
 
@@ -246,9 +253,6 @@ contains
 
             case (fnFindBlock               )
                     fnDescription = 'find a block for student'
-
-            case (fnSelectSubjects)
-                    fnDescription = 'manually select subjects for student'
 
             case (fnScheduleOfClasses       )
                     fnDescription = 'display schedule of classes for editing'
@@ -432,6 +436,15 @@ contains
             case (fnOnlineTeachers)
                     fnAvailable = .true.
 
+            case (fnFindStudent)
+                    fnAvailable = .true.
+
+            case (fnFindTeacher)
+                    fnAvailable = .true.
+
+            case (fnDeleteTeacher)
+                    fnAvailable = .true.
+
             case (fnCollegeLinks            )
                     fnAvailable = .true.
 
@@ -493,9 +506,6 @@ contains
                     fnAvailable = isActionClasslists
 
             case (fnFindBlock               )
-                    fnAvailable = isActionClasslists
-
-            case (fnSelectSubjects)
                     fnAvailable = isActionClasslists
 
             case (fnScheduleOfClasses       )
@@ -808,7 +818,6 @@ contains
     subroutine html_landing_page(device, mesg)
         integer, intent(in) :: device
         character(len=*), intent(in) :: mesg
-        integer :: j, k
         character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
         character (len=MAX_LEN_PASSWD_VAR) :: tPassword
 
@@ -827,13 +836,13 @@ contains
                 write(device,AFORMAT)'<br><br>Go to <a href="/">'//PROGNAME//' Index</a>'
         else ! Login page
             write(device,AFORMAT) &
-                '<h2>Welcome to '//trim(UniversityCode)//SPACE//trim(ACTION)// &
-                ' for '//text_school_year(currentYear)//'</h2><hr>', &
+                '<h2>Welcome to '//trim(UniversityCode)//SPACE//PROGNAME//SPACE//trim(ACTION)// &
+                ' for '//text_school_year(currentYear)//' !</h2><hr>', &
                 '<table border="0" width="100%">'//begintr, &
                 '<td valign="top" width="25%">'
             call make_form_start(device, fnLogin)
             write(device,AFORMAT) &
-                '<b>Username</b> (case sensitive):<br>', &
+                '<b>Username</b>:<br>', &
                 '<input size="20" type="text" name="U" value="'//trim(tTeacher)//'"><br><br>', &
                 '<b>Password:</b><br>', &
                 '<input size="20" type="password" name="P" value="'//trim(tPassword)//'"><br><br>', &
@@ -843,29 +852,20 @@ contains
                 '<br>'//red//trim(loginCheckMessage)//black//'<br>'
             write(device,AFORMAT) endtd//begintd, &
                 '<b>Role - <i>privilege</i> ( Username )</b><ul>', &
-                '<li>Anybody - <i>view all data except student records</i> ( Guest )</li>', &
-                '<li>Student - <i>view all data and own records</i> ( StdNo )</li>'
+                '<li>Guest - <i>view public data</i> ( Guest )</li>', &
+                '<li>Student - <i>view public data and own record</i> ( StdNo )</li>'
             write(device,AFORMAT) &
-                '<li>Curriculum advisers - <i>view all data, modify records of students in curriculum</i> ( TeacherID '
-            done = .false.
-            do k=1,NumCurricula-1
-                if (done(k)) cycle
-                write(device,AFORMAT) trim(CurrProgCode(k))//nbsp
-                do j = k+1,NumCurricula-1
-                    if (CurrProgCode(k)==CurrProgCode(j)) done(j) = .true.
-                end do
-            end do
+                '<li>Curriculum adviser - <i>edit records of students in curriculum</i>'// &
+                ' ( TeacherID or CurriculumCode )</li>'
             write(device,AFORMAT) &
-                ' ) </li><li>Teaching load schedulers - <i>view all data; modify teacher info, room info, class schedules</i>'//&
-                ' ( TeacherID '
-            do k=2,NumDepartments-1
-                write(device,AFORMAT) trim(Department(k)%Code)//nbsp
-            end do
-            write(device,AFORMAT) &
-                ' ) </li><li>Registrar - <i>view all, modify all</i> ( '//trim(REGISTRAR)//' )</li>'
-            write(device,AFORMAT) '</ul>'//endtd//endtr//'</table>', &
-                red//'<b>Warning:</b> Do not use the browser "Back" button unless '// &
-                ' the webpage on display does not have hyperlinks or input controls.'//black//'<hr>'
+                '<li>Teaching load scheduler - <i>edit teacher info, room info and class schedules of own department</i>'//&
+                ' ( TeacherID or DepartmentCode )</li>'
+            write(device,AFORMAT) '</ul>', &
+                '<b>Forgot your Username and/or Password?</b> <i>Visit the Registrar; bring University-issued ID.</i>', &
+                endtd//endtr//'</table>', &
+                red//'<br><b>Warning #1:</b> <i>Do not use the browser ''Back'' button unless '// &
+                ' the page on display has no hyperlink nor ''submit'' button.</i>'//black, &
+                red//'<br><b>Warning #2:</b> <i>Advisers and Schedulers - do not forget to logout.</i>'//black//'<hr>'
             call html_copyright(device)
 
         end if
@@ -1217,8 +1217,7 @@ contains
         character(len=*), intent (in) :: header
         character(len=*), intent (in), optional :: errmsg
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
-!        character(len=MAX_LEN_STUDENT_CODE) :: tStdNo
-        integer :: gdx!, fdx, nEnlisted, nAdvised
+        integer :: gdx
         character (len=80) :: description
 
         call html_comment('html_write_header('//trim(header)//')')
@@ -1247,8 +1246,14 @@ contains
             if (USERNAME/=ROLE) then
                 write(device,AFORMAT) trim(USERNAME)//'/'//trim(ROLE)//'.'
             else
-                write(device,AFORMAT) trim(USERNAME)//'.'
-            endif
+                if (isRoleSRE) then
+                    write(device,AFORMAT) trim(USERNAME)//'/Adviser.'
+                elseif (isRoleChair) then
+                    write(device,AFORMAT) trim(USERNAME)//'/Scheduler.'
+                else
+                    write(device,AFORMAT) trim(USERNAME)//'.'
+                end if
+            end if
 
         ! primary links for Department Chair
         if (isRoleChair) then
@@ -1382,7 +1387,7 @@ contains
                 nbsp//'Please report errors to the Registrar.'
             ! Change password, logout
             write(device,AFORMAT) '</i></small>'//endtd//tdalignright//'<small>'
-            if (.not. isSuspended) then
+            if (.not. isSuspendMode) then
                 write(device,AFORMAT) 'User is '//trim(USERNAME)//'@'//REMOTE_ADDR//nbsp
                 if (USERNAME/=GUEST) then
                     if (isRoleStudent) then
@@ -1400,12 +1405,14 @@ contains
 
             if (noWrites) then ! training mode
                 write(device,AFORMAT) &
-                    '<small><i>'//red//'The program is in read-only mode. Changes to data will be lost on exit.'// &
+                    '<small><i>'//red//PROGNAME//FSLASH//ACTION//' is in read-only mode. '// &
+                    'Changes to data will be lost on exit.'// &
                     black//'</i></small>'
             end if
-            if (isSuspended) then
+            if (isSuspendMode) then
                 write(device,AFORMAT)  &
-                    '<small><i>'//red//'The program is in suspend-mode. Non-''Admin'' roles are locked out.'// &
+                    '<small><i>'//red//PROGNAME//FSLASH//ACTION//' is in suspend-mode. '// &
+                    'Only the Registrar, Student and Guest roles are allowed at this time.'// &
                     black//'</i></small>'
             end if
         end if
@@ -1451,7 +1458,6 @@ contains
             call html_college_info(device, targetCOLLEGE)
         end if
 
-
     end subroutine html_college_links
 
 
@@ -1489,10 +1495,9 @@ contains
     subroutine html_college_info(device, coll)
         integer, intent(in) :: device
         integer, intent(in) :: coll
-        integer :: tdx, rdx, ldx, cdx, dept, n_curr, n_count, tLen!, std
+        integer :: tdx, rdx, ldx, cdx, dept, n_curr, n_count, tLen
         character (len=MAX_LEN_COLLEGE_CODE) :: tCollege
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
-!        character (len=4) :: tYear
         character (len=1) :: ch
         character (len=80) :: description
         logical :: addHR
@@ -1542,21 +1547,25 @@ contains
 
             if (noWrites) then ! training mode
                 write(device,AFORMAT) trim(make_href(fnToggleTrainingMode, 'Turn it OFF', &
-                    pre='<li><b>Training-mode is '//red//'ON'//black//'</b>. ', post='</li>'))
+                    pre='<li><b>Training-mode is '//red//'ON'//black//'</b>. ', &
+                    post=' to enable writing of edited data to file.</li>'))
             else
                 write(device,AFORMAT) trim(make_href(fnToggleTrainingMode, 'Turn it ON', &
-                    pre='<li><b>Training-mode is '//green//'OFF'//black//'</b>. ', post='</li>'))
+                    pre='<li><b>Training-mode is '//green//'OFF'//black//'</b>. ', &
+                    post=' to disable writing of edited data to file.</li>'))
             end if
 
-            if (isSuspended) then ! suspended mode
+            if (isSuspendMode) then ! suspended mode
                 write(device,AFORMAT) trim(make_href(fnSuspendProgram, 'Turn it OFF', &
-                    pre='<li><b>Suspend-mode is '//red//'ON'//black//'</b>. ', post='</li>'))
+                    pre='<li><b>Suspend-mode is '//red//'ON'//black//'</b>. ', &
+                    post=' to allow the Adviser and Scheduler roles.</li>'))
             else
                 write(device,AFORMAT) trim(make_href(fnSuspendProgram, 'Turn it ON', &
-                    pre='<li><b>Suspend-mode is '//green//'OFF'//black//'</b>. ', post='</li>'))
+                    pre='<li><b>Suspend-mode is '//green//'OFF'//black//'</b>. ', &
+                    post=' to allow only the Registrar, Student and Guest roles.</li>'))
             end if
 
-            write(device,AFORMAT) '<li><b>Online</b> ', &
+            write(device,AFORMAT) '<li><b>Logged in </b> ', &
                 trim(make_href(fnOnlineTeachers, 'teachers', pre=nbsp)), &
                 '</li>'
 
@@ -1611,6 +1620,12 @@ contains
         if (addHR) then
 
             call html_comment('teacher links()')
+
+            call make_form_start(device, fnFindTeacher)
+            write(device,AFORMAT) '<li><table border="0" cellpadding="0" cellspacing="0">', &
+                begintr//begintd//'<b>Search for teacher</b> with <input name="A1" value=""> in name. ', &
+                '<input type="submit" name="action" value="Search"></form>'// &
+                endtd//endtr//'</table></li>'
 
             write(device,AFORMAT) '<li><b>Teachers by department</b> : '
             do dept=2,NumDepartments
@@ -1693,10 +1708,10 @@ contains
             end if
 
             ! blocks
-#if defined UPLB
-#else
+!#if defined UPLB
+!#else
             if (n_curr>0) call links_to_blocks(device, coll, targetTerm)
-#endif
+!#endif
 
             ! classes
             call links_to_sections(device, coll, tLen, tArray(1), targetTerm)

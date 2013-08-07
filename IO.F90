@@ -39,6 +39,7 @@ module IO
     character (len=MAX_LEN_XML_LINE), private :: line, value
     character (len=MAX_LEN_XML_TAG), private :: tag
     integer, private :: eof, ndels, pos(30)
+    logical, private :: pathExists
 
 
 contains
@@ -138,7 +139,10 @@ contains
         ! training only?
         if (noWrites) return
 
-        open(unit=unitXML, file=pathToFile, status='unknown')
+        inquire(file=pathToFile, exist=pathExists)
+        if (pathExists) call move_to_backup(pathToFile)
+
+        open(unit=unitXML, file=pathToFile)
         write(unitXML,AFORMAT) XML_DOC
 
         call xml_university(unitXML)
@@ -198,7 +202,7 @@ contains
         ! add 'administrative' college for data that does not fit in the 'academic' colleges
         NumColleges = NumColleges + 1
         call initialize_college (College(NumColleges), &
-            ADMINISTRATION, UniversityCode//' Administration', UniversityPresident)
+            ADMINISTRATION, UniversityCode//' Administration', REGISTRAR)
 
     end subroutine read_colleges
 
@@ -267,7 +271,10 @@ contains
         ! training only?
         if (noWrites) return
 
-        open(unit=unitXML, file=pathToFile, status='unknown')
+        inquire(file=pathToFile, exist=pathExists)
+        if (pathExists) call move_to_backup(pathToFile)
+
+        open(unit=unitXML, file=pathToFile)
         write(unitXML,AFORMAT) XML_DOC
 
         call xml_colleges(unitXML)
@@ -338,7 +345,7 @@ contains
         ! add REGISTAR as 'administrative' department for data that does not fit in the 'academic' departments
         NumDepartments = NumDepartments + 1
         call initialize_department (Department(NumDepartments), &
-            REGISTRAR, trim(UniversityCode)//' Registrar', '#', NumColleges)
+            ADMINISTRATION, UniversityCode//' Registrar', 'Z', NumColleges)
 
     end subroutine read_departments
 
@@ -417,7 +424,10 @@ contains
         ! training only?
         if (noWrites) return
 
-        open(unit=unitXML, file=pathToFile, status='unknown')
+        inquire(file=pathToFile, exist=pathExists)
+        if (pathExists) call move_to_backup(pathToFile)
+
+        open(unit=unitXML, file=pathToFile)
         write(unitXML,AFORMAT) XML_DOC
 
         call xml_departments(unitXML)
@@ -571,7 +581,10 @@ contains
         ! training only?
         if (noWrites) return
 
-        open(unit=unitXML, file=pathToFile, status='unknown')
+        inquire(file=pathToFile, exist=pathExists)
+        if (pathExists) call move_to_backup(pathToFile)
+
+        open(unit=unitXML, file=pathToFile)
         write(unitXML,AFORMAT) XML_DOC
 
         call xml_rooms(unitXML)
@@ -625,13 +638,20 @@ contains
         integer, intent (out) :: errNo
         integer :: k
 
-        NumTeachers = 0
-        NumAdditionalTeachers = 0
-
         call initialize_teacher(Teacher(0))
         Teacher = Teacher(0)
         Teacher(0)%TeacherId = 'TBA'
         Teacher(0)%Name = '(Teacher to be assigned)'
+
+        NumTeachers = 1
+        NumAdditionalTeachers = 0
+
+        ! the Guest account
+        Teacher(NumTeachers)%TeacherID = GUEST
+        Teacher(NumTeachers)%Name = 'Guest Account'
+        Teacher(NumTeachers)%DeptIdx = NumDepartments
+        Teacher(NumTeachers)%Role = GUEST
+        call set_password(Teacher(NumTeachers)%Password, GUEST)
 
         errNo = -1 ! assume not there
         if (hasCATALOG) then
@@ -640,7 +660,7 @@ contains
         if (errNo/=0) then
             call xml_read_teachers(trim(path)//'TEACHERS.XML', errNo) ! try the XML file
         end if
-        if (NumTeachers==0) then ! create scheduler roles
+        if (NumTeachers==1) then ! create scheduler roles
             do k=2,NumDepartments
                 NumTeachers = NumTeachers+1
                 Teacher(NumTeachers)%TeacherID = Department(k)%Code
@@ -652,6 +672,8 @@ contains
                 call set_password(Teacher(NumTeachers)%Password)
             end do
         end if
+
+        call sort_teachers()
 
         call sort_alphabetical_teachers()
 
@@ -760,6 +782,7 @@ contains
 
                 case ('/Teacher') ! add/merge temporary teacher data to Teacher()
                     if (len_trim(wrkTeacher%TeacherId)==0) cycle
+                    if (trim(wrkTeacher%TeacherId)==trim(GUEST) ) cycle
                     if (len_trim(wrkTeacher%Name)==0) cycle
                     if (len_trim(wrkTeacher%Password)==0) call set_password(wrkTeacher%Password)
                     ! teacher encountered previously?
@@ -788,8 +811,6 @@ contains
         close(unitXML)
         call log_comment (itoa(NumTeachers)//' teachers in '//pathTofile)
 
-        call sort_teachers()
-
     end subroutine xml_read_teachers
 
 
@@ -801,7 +822,10 @@ contains
         ! training only?
         if (noWrites) return
 
-        open(unit=unitXML, file=pathToFile, status='unknown')
+        inquire(file=pathToFile, exist=pathExists)
+        if (pathExists) call move_to_backup(pathToFile)
+
+        open(unit=unitXML, file=pathToFile)
         write(unitXML,AFORMAT) XML_DOC
 
         call xml_teachers(unitXML)
@@ -828,8 +852,8 @@ contains
         '    </comment>'
 
         do ldx = 1,NumTeachers+NumAdditionalTeachers
-            if (trim(Teacher(ldx)%TeacherId)==SPACE) cycle
-           if (len_trim(Teacher(ldx)%Password)==0) call set_password(Teacher(ldx)%Password)
+            if (trim(Teacher(ldx)%TeacherId)==SPACE .or. trim(Teacher(ldx)%TeacherId)==trim(GUEST) ) cycle
+            if (len_trim(Teacher(ldx)%Password)==0) call set_password(Teacher(ldx)%Password)
 
             call xml_write_character(unitXML, indent0, 'Teacher')
             call xml_write_character(unitXML, indent1, 'TeacherId', Teacher(ldx)%TeacherId)
@@ -1150,7 +1174,10 @@ contains
         ! training only?
         if (noWrites) return
 
-        open(unit=unitXML, file=pathToFile, status='unknown')
+        inquire(file=pathToFile, exist=pathExists)
+        if (pathExists) call move_to_backup(pathToFile)
+
+        open(unit=unitXML, file=pathToFile)
         write(unitXML,AFORMAT) XML_DOC
 
         call xml_subjects(unitXML)
@@ -1547,7 +1574,10 @@ contains
         ! training only?
         if (noWrites) return
 
-        open(unit=unitXML, file=pathToFile, status='unknown')
+        inquire(file=pathToFile, exist=pathExists)
+        if (pathExists) call move_to_backup(pathToFile)
+
+        open(unit=unitXML, file=pathToFile)
         write(unitXML,AFORMAT) XML_DOC
 
         call xml_curricula(unitXML)
@@ -1752,7 +1782,10 @@ contains
         ! training only?
         if (noWrites) return
 
-        open(unit=unitXML, file=pathToFile, status='unknown')
+        inquire(file=pathToFile, exist=pathExists)
+        if (pathExists) call move_to_backup(pathToFile)
+
+        open(unit=unitXML, file=pathToFile)
         write(unitXML,AFORMAT) XML_DOC
 
         call xml_equivalencies(unitXML)
@@ -2019,7 +2052,7 @@ contains
 
 
 
-    subroutine xml_write_sections(path, NumSections, Section, iDept)
+    subroutine xml_write_classes(path, NumSections, Section, iDept)
 
         character(len=*), intent(in) :: path
         type (TYPE_SECTION), intent(in) :: Section(0:)
@@ -2036,20 +2069,23 @@ contains
             fileName = trim(path)//'CLASSES.XML'
         end if
 
-        call html_comment('xml_write_sections('//trim(fileName)//')')
+        call html_comment('xml_write_classes('//trim(fileName)//')')
 
-        open(unit=unitXML, file=fileName, status='unknown')
+        inquire(file=fileName, exist=pathExists)
+        if (pathExists) call move_to_backup(fileName)
+
+        open(unit=unitXML, file=fileName)
         write(unitXML,AFORMAT) XML_DOC
 
-        call xml_sections(unitXML, NumSections, Section, iDept)
+        call xml_classes(unitXML, NumSections, Section, iDept)
 
         close(unitXML)
 
-    end subroutine xml_write_sections
+    end subroutine xml_write_classes
 
 
 
-    subroutine xml_sections(unitXML, NumSections, Section, iDept)
+    subroutine xml_classes(unitXML, NumSections, Section, iDept)
 
         type (TYPE_SECTION), intent(in) :: Section(0:)
         integer, intent (in) :: unitXML, NumSections, iDept
@@ -2121,7 +2157,7 @@ contains
 
         write(unitXML,AFORMAT) '</'//XML_ROOT_SECTIONS//'>'
 
-    end subroutine xml_sections
+    end subroutine xml_classes
 
 
 !===========================================================
@@ -2327,7 +2363,10 @@ contains
 
         call html_comment('xml_write_blocks('//trim(fileName)//')')
 
-        open(unit=unitXML, file=fileName, status='unknown')
+        inquire(file=fileName, exist=pathExists)
+        if (pathExists) call move_to_backup(fileName)
+
+        open(unit=unitXML, file=fileName)
         write(unitXML,AFORMAT) XML_DOC
 
         call xml_blocks(unitXML, NumBlocks, Block, Section, iDept)
@@ -2402,7 +2441,10 @@ contains
 
         character (len=*), intent(in) :: pathToFile
 
-        open(unit=unitXML, file=pathToFile, status='unknown')
+        inquire(file=pathToFile, exist=pathExists)
+        if (pathExists) call move_to_backup(pathToFile)
+
+        open(unit=unitXML, file=pathToFile)
         write(unitXML,AFORMAT) XML_DOC
 
         call xml_catalog(unitXML)
@@ -2433,7 +2475,6 @@ contains
     subroutine xml_cleanup()
 
         character (len=MAX_LEN_FILE_PATH) :: dataSource
-        logical :: pathExists
 
         ! create CATALOG.XML
         call xml_write_catalog(trim(pathToYear)//'CATALOG.XML')

@@ -397,7 +397,7 @@ contains
         end if
 
         ! suspended ?
-        if (isSuspended .and. .not. isRoleAdmin) REQUEST = 0
+        if (isSuspendMode .and. (isRoleChair .or. isRoleSRE) ) REQUEST = 0
 
         select case (REQUEST)
 
@@ -406,8 +406,8 @@ contains
                     Teacher(requestingTeacher)%Status = 0
                 end if
                 call html_landing_page(device, &
-                    '<hr>The '//trim(UniversityCode)//SPACE//trim(REGISTRAR)//' has temporarily suspended '// &
-                    PROGNAME//FSLASH//trim(Action)//'. Please try again later.<hr>')
+                    '<hr>'//PROGNAME//FSLASH//trim(Action)//' is in suspend-mode. '// &
+                    'Only the Registrar, Student and Guest roles are allowed at this time.<hr>')
 
             case (fnStop)
                 call html_landing_page(device, 'The program will stop.')
@@ -430,7 +430,7 @@ contains
 
             case (fnSuspendProgram)
                 if (isRoleAdmin) then
-                    isSuspended = .not. isSuspended
+                    isSuspendMode = .not. isSuspendMode
                     call html_college_links(device, CollegeIdxUser, mesg='Toggled "Suspend" mode')
                 else
                     REQUEST = fnLogout
@@ -473,7 +473,7 @@ contains
                 call room_list_all (device)
 
             ! teacher info
-            case (fnTeachersByDept, fnTeachersByName, fnOnlineTeachers)
+            case (fnTeachersByDept, fnTeachersByName, fnOnlineTeachers, fnFindTeacher)
                 call teacher_list_all (device, REQUEST)
 
             ! schedule of classes
@@ -522,8 +522,11 @@ contains
             case (fnEditTeacher, fnGenerateTeacherPassword)
                 call teacher_edit (device)
 
+            case (fnDeleteTeacher)
+                call teacher_delete (device)
+
             case (fnTeacherEditSchedule)
-                call teacher_schedule(device, NumSections(targetTerm), Section(targetTerm,0:) )
+                call teacher_schedule (device, NumSections(targetTerm), Section(targetTerm,0:) )
 
             case (fnScheduleOfferSubject)
                 call section_offer_subject (device, NumSections(targetTerm), Section(targetTerm,0:), &
@@ -565,14 +568,13 @@ contains
                 termDescription = SPACE
                 call html_write_header(device, SPACE, &
                     '<hr>The functionality "'//trim(fnDescription(REQUEST))// &
-                    '" is not available in '//fileEXE)
+                    '" is not activated in this version of '//PROGNAME)
 
         end select
 
         call html_write_footer(device)
 
     end subroutine server_respond
-
 
 
     subroutine get_user_request()
@@ -720,7 +722,7 @@ contains
 
             case ('CLASSES.XML')
                 write(device,AFORMAT) XML_DOC
-                call xml_sections(device, NumSections(targetTerm), Section(targetTerm,0:), 0)
+                call xml_classes(device, NumSections(targetTerm), Section(targetTerm,0:), 0)
 
             case ('BLOCKS.XML')
                 write(device,AFORMAT) XML_DOC

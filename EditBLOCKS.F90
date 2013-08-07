@@ -344,7 +344,7 @@ contains
         end if
         if (updateCLASSES) then
             call offerings_summarize(NumSections, Section, Offering)
-            call xml_write_sections(pathToTerm, NumSections, Section, 0)
+            call xml_write_classes(pathToTerm, NumSections, Section, 0)
             call count_sections_by_dept(Term, NumSections, Section)
         end if
 
@@ -398,7 +398,7 @@ contains
             begintr//begintd//'Year level:'//endtd//begintd//'<select name="A2">', &
             '<option value="ALL"> All years'
         do ldx=1,7
-            write(device,AFORMAT) '<option value="'//trim(txtYear(ldx))//'"> '//trim(txtYear(ldx+9))//' Year'
+            write(device,AFORMAT) '<option value="'//trim(txtYear(ldx))//'"> '//trim(txtYear(ldx+10))//' Year'
         end do
         write(device,AFORMAT) '</select>'//nbsp//txtSemester(targetTerm+3)//' Term'//endtd//endtr, &
             begintr//begintd//'Number of blocks:'//endtd//begintd, &
@@ -540,7 +540,7 @@ contains
         if (createClasses) then
 
             call offerings_summarize(NumSections, Section, Offering)
-            call xml_write_sections(pathToTerm, NumSections, Section, 0)
+            call xml_write_classes(pathToTerm, NumSections, Section, 0)
             call count_sections_by_dept(Term, NumSections, Section)
 
         end if

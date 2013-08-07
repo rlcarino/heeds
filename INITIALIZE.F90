@@ -176,11 +176,11 @@ contains
         ! backup directory
         dirBACKUP = trim(dirUNIV)//'backup-'//trim(startDateTime)//DASH//trim(fileEXE)//DIRSEP
         call make_directory( dirBACKUP, .true. )
-        call make_directory( trim(dirBACKUP)//pathToYear, .true.  )
-        call make_directory( trim(dirBACKUP)//dataSource, .true.  )
+        call make_directory( trim(dirBACKUP)//pathToYear )
+        call make_directory( trim(dirBACKUP)//dataSource )
         do iTmp=1,3
-            call make_directory( trim(dirBACKUP)//trim(pathToYear)//trim(txtSemester(iTmp))//DIRSEP, .true.)
-            call make_directory( trim(dirBACKUP)//trim(dataSource)//trim(txtSemester(iTmp))//DIRSEP, .true.)
+            call make_directory( trim(dirBACKUP)//trim(pathToYear)//trim(txtSemester(iTmp))//DIRSEP )
+            call make_directory( trim(dirBACKUP)//trim(dataSource)//trim(txtSemester(iTmp))//DIRSEP )
         end do
 
         ! directory for start of School Year

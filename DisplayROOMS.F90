@@ -308,7 +308,7 @@ contains
                     end do
                     mesg = 'Deleted '//tClassId
                 end if
-                call xml_write_sections(pathToTerm, NumSections, Section, 0)
+                call xml_write_classes(pathToTerm, NumSections, Section, 0)
             end if
         end if
 

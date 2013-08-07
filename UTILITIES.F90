@@ -36,7 +36,7 @@ module UTILITIES
 ! the software
 !===========================================================
 
-    character(len= 7), parameter :: VERSION   = ' v.4.27'
+    character(len= 7), parameter :: VERSION   = ' v.4.28'
     character(len= 5), parameter :: PROGNAME  = 'HEEDS'
     character(len=45), parameter :: COPYRIGHT = 'Copyright (C) 2012, 2013 Ricolindo L. Carino'
     character(len=38), parameter :: EMAIL     = 'Ricolindo.Carino@AcademicForecasts.com'
@@ -133,7 +133,7 @@ module UTILITIES
 
     ! flag to control generation of log files, backups
     logical :: noWrites = .false. ! .true. means do not change data files
-    logical :: isSuspended = .false.  ! only REGISTRAR role can work
+    logical :: isSuspendMode = .false.  ! only REGISTRAR role can work
 
     ! constants
     character(len= 1), parameter :: &
@@ -193,7 +193,7 @@ module UTILITIES
     character(len= 9), parameter :: XML_ROOT_FAILRATES      = 'FAILRATES'
     character(len=15), parameter :: XML_ROOT_INTAKE         = 'FRESHMAN_INTAKE'
     character(len=13), parameter :: XML_ROOT_SUBSTITUTIONS  = 'SUBSTITUTIONS'
-    ! root names                                                 12345678901234567890
+    ! root names                                               12345678901234567890
     character(len=44), parameter :: XML_DOC = &
         '<?xml version="1.0" encoding="ISO-8859-1" ?>'
 
@@ -833,7 +833,7 @@ contains
 
         if (noWrites) return ! no backups
 
-        path = trim(dirBACKUP)//fname(lenDirDAT+1:)
+        path = trim(dirBACKUP)//trim(fname(lenDirDAT+1:))//DASH//currentDate//DASH//currentTime
         call rename (fname, path, iStat)
         if (iStat/=0) call log_comment('Status='//trim(itoa(iStat))//' in moving to '//trim(path) )
 
@@ -1057,7 +1057,7 @@ contains
 
         end do
 
-        call html_comment('cgi_url_decode() = '//str_out)
+        !call html_comment('cgi_url_decode() = '//str_out)
 
     end subroutine cgi_url_decode
 

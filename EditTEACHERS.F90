@@ -231,4 +231,54 @@ contains
     end subroutine teacher_edit
 
 
+    subroutine teacher_delete (device)
+        integer, intent (in) :: device
+        integer :: fac, nsect(3), sdx, tdx, term
+        integer :: n_meetings, meetings(MAX_SECTION_MEETINGS)
+        character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
+        character (len=127) :: mesg
+        integer, dimension(60,6) :: TimeTable
+        character (len=80) :: tDesc
+        integer :: tYear, tTerm
+
+        call html_comment('teacher_delete()')
+
+        ! which teacher ?
+        call cgi_get_named_string(QUERY_STRING, 'A1', tTeacher, tdx)
+        fac = index_to_teacher(tTeacher)
+        if (fac==0) then
+            call html_college_links(device, CollegeIdxUser, mesg='Teacher "'//trim(tTeacher)//'" not found.')
+            return
+        end if
+
+        ! count classes handled by teacher
+        nsect = 0
+        mesg = SPACE
+        do tTerm=termBegin,termEnd
+            call qualify_term (tTerm, tYear, term, tDesc)
+            call timetable_clear(TimeTable)
+            do sdx=1,NumSections(term)
+                call meetings_of_section_by_teacher(NumSections(term), Section(term,0:), &
+                    sdx, fac, n_meetings, meetings)
+                if (n_meetings==0) cycle ! teacher not assigned to this section
+                nsect(term) = nsect(term)+1
+            end do
+            if (nsect(term)>0) then
+                mesg = trim(mesg)//COMMA//SPACE//txtSemester(term+6)
+            end if
+        end do
+        if (sum(nsect)>0) then
+            mesg = 'Delete "'//trim(tTeacher)//'" failed; has classes during '//trim(mesg(2:))//' term.'
+            call html_college_links(device, CollegeIdxUser, mesg)
+            return
+        end if
+
+        call initialize_teacher(Teacher(fac))
+        Teacher(fac)%DeptIdx = 0
+        call xml_write_teachers(trim(pathToYear)//'TEACHERS.XML')
+        call html_college_links(device, CollegeIdxUser, mesg='Teacher "'//trim(tTeacher)//'" deleted.')
+
+    end subroutine teacher_delete
+
+
 end module EditTEACHERS

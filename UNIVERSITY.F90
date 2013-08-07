@@ -193,11 +193,12 @@ module UNIVERSITY
 !===========================================================
 
     integer, parameter :: MAX_LEN_TEXT_YEAR = 7
-    character (len=MAX_LEN_TEXT_YEAR), dimension(0:17) :: txtYear = (/ &
+    character (len=MAX_LEN_TEXT_YEAR), dimension(0:19) :: txtYear = (/ &
         'ERROR  ', 'FIRST  ', 'SECOND ', 'THIRD  ', 'FOURTH ', 'FIFTH  ', 'SIXTH  ', &
-        'SEVENTH', 'EIGHTH ', &
+        'SEVENTH', 'NOENROL', 'ONLEAVE', &
         '-------', 'First  ', 'Second ', 'Third  ', 'Fourth ', 'Fifth  ', 'Sixth  ', &
-        'Seventh', 'Eighth ' /)
+        'Seventh', 'NOEnrol', 'OnLeave' /)
+    integer, parameter :: NotOfficiallyEnrolled = 8, OnLeave = 9
 
      ! academic terms
     integer, parameter :: MAX_LEN_TEXT_SEMESTER = 6
@@ -658,13 +659,13 @@ contains
         integer :: i, idx
 
         idx = 0
-        do i=1,17
+        do i=1,19
             if (tYear==txtYear(i)) then
                 idx = i
                 exit
             end if
         end do
-        if (idx>9) idx = idx-9
+        if (idx>10) idx = idx-10
         index_to_year = idx
 
     end function index_to_year

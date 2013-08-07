@@ -343,7 +343,7 @@ contains
             tUnits = tUnits + credit
 
             write(device,AFORMAT) begintr//begintd// &
-                trim(txtYear(Year+9))//' Year, '//trim(txtSemester(Term+6))//' Term ('// &
+                trim(txtYear(Year+10))//' Year, '//trim(txtSemester(Term+6))//' Term ('// &
                 trim(ftoa(credit,1))//FSLASH//trim(ftoa(tUnits,1))//')'//endtd, &
                 begintd//'<input name="Subjects'//trim(itoa(tdx))//'" size="'//trim(itoa(MAX_LEN_CURRICULUM_NAME))// &
                 '" value="'//trim(mesg(3:))//'">'//endtd//endtr
