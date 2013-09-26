@@ -43,7 +43,7 @@ contains
         integer :: ierr, rdx, j
         character (len=255) :: mesg, remark
         type (TYPE_ROOM) :: wrk
-        logical :: isDirtyROOMS
+        logical :: isDirtyROOMS, criticalErr
 
         ! which subject ?
         call cgi_get_named_string(QUERY_STRING, 'A1', tRoom, rdx)
@@ -123,11 +123,17 @@ contains
                     if (j==0) then ! not used
 
                         if (trim(tAction)=='Add') then
-                            NumAdditionalRooms = NumAdditionalRooms+1
-                            Room(NumRooms+NumAdditionalRooms) = wrk
-                            rdx = NumRooms+NumAdditionalRooms
-                            tRoom = wrk%Code
-                            remark = ': Added new room '//wrk%Code
+
+                            call check_array_bound (NumRooms+NumAdditionalRooms+1, MAX_ALL_ROOMS, 'MAX_ALL_ROOMS', criticalErr)
+                            if (criticalErr) then
+                                remark = ': No more space for additional room'
+                            else
+                                NumAdditionalRooms = NumAdditionalRooms+1
+                                Room(NumRooms+NumAdditionalRooms) = wrk
+                                rdx = NumRooms+NumAdditionalRooms
+                                tRoom = wrk%Code
+                                remark = ': Added new room '//wrk%Code
+                            end if
                         else
                             ! update existing
                             Room(rdx) = wrk

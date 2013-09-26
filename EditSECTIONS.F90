@@ -49,6 +49,7 @@ contains
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
         integer :: crse, kdx, dept, Term
         character (len=127) :: mesg
+        logical :: criticalErr
 
         call html_comment('section_offer_subject()')
 
@@ -67,7 +68,15 @@ contains
             return
         end if
 
-#if defined UPLB
+        call check_array_bound (NumSections+2, MAX_ALL_SECTIONS, 'MAX_ALL_SECTIONS', criticalErr)
+        if (criticalErr) then
+            targetDepartment = DeptIdxUser
+            targetCollege = CollegeIdxUser
+            call html_write_header(device, 'Open a section', '<br><hr>No more space for additional section(s)')
+            return
+        end if
+
+#if defined REGIST
         ! Subject administered by departments
         targetDepartment = Subject(crse)%DeptIdx
         targetCollege = Department(targetDepartment)%CollegeIdx
@@ -121,6 +130,7 @@ contains
         character(len=MAX_LEN_SECTION_CODE) :: tSection
         character (len=127) :: mesg
         integer :: crse, sect, dept
+        logical :: criticalErr
 
         call html_comment('section_add_laboratory()')
 
@@ -135,6 +145,14 @@ contains
             targetCollege = CollegeIdxUser
             targetDepartment = DeptIdxUser
             call html_write_header(device, 'Add lab', '<br><hr>'//mesg)
+            return
+        end if
+
+        call check_array_bound (NumSections+1, MAX_ALL_SECTIONS, 'MAX_ALL_SECTIONS', criticalErr)
+        if (criticalErr) then
+            targetDepartment = DeptIdxUser
+            targetCollege = CollegeIdxUser
+            call html_write_header(device, 'Open a section', '<br><hr>No more space for additional section(s)')
             return
         end if
 
@@ -433,7 +451,8 @@ contains
             do rdx=1,NumRooms+NumAdditionalRooms
                 if (rdx/=RoomIdx) then
                     if ( (isRoleChair .and. Room(rdx)%DeptIdx==DeptIdxUser) .or. &
-                    (isRoleAdmin .and. Room(rdx)%DeptIdx==room_dept) ) then
+                         (isRoleDean .and. Department(Room(rdx)%DeptIdx)%CollegeIdx==CollegeIdxUser) .or. &
+                         (isRoleAdmin .and. Room(rdx)%DeptIdx==room_dept) ) then
                         write(device,AFORMAT) '<option value="'//trim(Room(rdx)%Code)//'"> '//trim(Room(rdx)%Code)
                     end if
                 else
@@ -447,7 +466,8 @@ contains
                 idx = TeacherRank(tdx)
                 if (idx/=TeacherIdx) then
                     if ( (isRoleChair .and. Teacher(idx)%DeptIdx==DeptIdxUser) .or. &
-                            (isRoleAdmin .and. Teacher(idx)%DeptIdx==teacher_dept) ) then
+                         (isRoleDean .and. Department(Teacher(idx)%DeptIdx)%CollegeIdx==CollegeIdxUser) .or. &
+                         (isRoleAdmin .and. Teacher(idx)%DeptIdx==teacher_dept) ) then
                         write(device,AFORMAT) '<option value="'//trim(Teacher(idx)%TeacherID)//'"> '//trim(Teacher(idx)%Name)
                     end if
                 else

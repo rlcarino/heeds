@@ -48,7 +48,7 @@ contains
 
         character (len=255) :: mesg, remark, tokenizeErr
         type (TYPE_CURRICULUM) :: wrk
-        logical :: changed, possibleImpact
+        logical :: changed, possibleImpact, critical1, critical2, critical3
         integer, dimension(MAX_SECTION_MEETINGS) :: subjectList
 
         ! which curriculum
@@ -213,21 +213,32 @@ contains
 
                     call tokenize_subjects(mesg, COMMA, MAX_SECTION_MEETINGS, m, subjectList, ierr)
                     if (ierr==0) then
-                        ptrS = SubstIdx(NumSubst+1)-1
 
-                        NumSubst = NumSubst + 1
-                        SubstIdx(NumSubst) = ptrS+1
-                        Substitution(ptrS+1) = targetCurriculum
-                        do i=1,m
-                            Substitution(ptrS+1+i) = subjectList(i)
-                        end do
-                        ptrS = ptrS+m+1
+                        call check_array_bound (NumSubst+1, MAX_ALL_SUBSTITUTIONS, 'MAX_ALL_SUBSTITUTIONS', critical1)
+                        call check_array_bound (ptrS+m, MAX_LEN_SUBSTITUTION_ARRAY, 'MAX_LEN_SUBSTITUTION_ARRAY', critical2)
 
-                        SubstIdx(NumSubst+1) = ptrS+1
+                        if (critical1 .or. critical2) then
+                            changed = .false.
+                            remark = trim(remark)//': No more space for substitution rule'
+                            call html_comment('No more space for substitution rule '//mesg)
 
-                        changed = .true.
-                        remark = trim(remark)//': New substitution rule'
-                        call html_comment('New substitution rule '//mesg)
+                        else
+                            ptrS = SubstIdx(NumSubst+1)-1
+
+                            NumSubst = NumSubst + 1
+                            SubstIdx(NumSubst) = ptrS+1
+                            Substitution(ptrS+1) = targetCurriculum
+                            do i=1,m
+                                Substitution(ptrS+1+i) = subjectList(i)
+                            end do
+                            ptrS = ptrS+m+1
+
+                            SubstIdx(NumSubst+1) = ptrS+1
+
+                            changed = .true.
+                            remark = trim(remark)//': New substitution rule'
+                            call html_comment('New substitution rule '//mesg)
+                        end if
                     end if
                 end if
 
@@ -238,29 +249,39 @@ contains
                         if (j>0) then
                             remark = ' : Add new curriculum failed; "'//trim(wrk%Code)//'" already exists.'
                             call html_comment(remark)
+
                         else
-                            ! redirect global substitution rules before incrementing NumCurricula
-                            do i=1,NumSubst
-                                k = SubstIdx(i)
-                                if (Substitution(k) == NumCurricula+1) Substitution(k) = NumCurricula+2
-                            end do
+                            call check_array_bound (NumCurricula+1, MAX_ALL_CURRICULA, 'MAX_ALL_CURRICULA', critical3)
 
-                            ! bump OTHER
-                            Curriculum(NumCurricula+1) = Curriculum(NumCurricula)
-                            ! add new curriculum
-                            Curriculum(NumCurricula) = wrk
-                            targetCurriculum = NumCurricula
+                            if (critical3) then
+                                changed = .false.
+                                remark = ' : No more space for another curriculum'
+                                call html_comment(remark)
 
-                            NumCurricula = NumCurricula+1
-                            targetCollege = wrk%CollegeIdx
-                            tCurriculum = wrk%Code
-                            remark = ' : Added new curriculum '//wrk%Code
-                            call html_comment(remark)
-                            ! redirect new substitution rule
-                            if (ptrS>0) then
-                                Substitution(SubstIdx(NumSubst)) = targetCurriculum
+                            else
+
+                                ! redirect global substitution rules before incrementing NumCurricula
+                                do i=1,NumSubst
+                                    k = SubstIdx(i)
+                                    if (Substitution(k) == NumCurricula+1) Substitution(k) = NumCurricula+2
+                                end do
+
+                                Curriculum(NumCurricula+1) = Curriculum(NumCurricula)
+                                ! add new curriculum
+                                Curriculum(NumCurricula) = wrk
+                                targetCurriculum = NumCurricula
+
+                                NumCurricula = NumCurricula+1
+                                targetCollege = wrk%CollegeIdx
+                                tCurriculum = wrk%Code
+                                remark = ' : Added new curriculum '//wrk%Code
+                                call html_comment(remark)
+                                ! redirect new substitution rule
+                                if (ptrS>0) then
+                                    Substitution(SubstIdx(NumSubst)) = targetCurriculum
+                                end if
+                                call make_curriculum_groups()
                             end if
-                            call make_curriculum_groups()
                         end if
                     else
                         ! update existing
@@ -280,7 +301,7 @@ contains
         call html_write_header(device, 'Edit curriculum '//tCurriculum, remark(3:))
         write(device,AFORMAT) trim(make_href(fnCurriculumList, CurrProgCode(targetCurriculum), &
             A1=CurrProgCode(targetCurriculum), &
-            pre='<small>Edit other'//nbsp, post=' option</small>', alt=SPACE))//'<br>'
+            pre='<small>Edit other'//nbsp, post=' option</small>'))//'<br>'
 
         call make_form_start(device, fnEditCurriculum, tCurriculum)
         write(device,AFORMAT) '<table border="0" width="100%">', &

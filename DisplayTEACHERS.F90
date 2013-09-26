@@ -61,7 +61,7 @@ contains
                 call cgi_get_named_string(QUERY_STRING, 'A1', stats, ierr)
                 sdx = len_trim(stats)
                 if (sdx>0) then
-                    call upper_case(stats)
+                    !call upper_case(stats)
                     do tdx=1,NumTeachers+NumAdditionalTeachers
                         fac = TeacherRank(tdx)
                         if (index(Teacher(fac)%Name,stats(:sdx))==0) cycle
@@ -76,7 +76,7 @@ contains
             case (fnOnlineTeachers)
                 do tdx=1,NumTeachers+NumAdditionalTeachers
                     fac = TeacherRank(tdx)
-                    if (Teacher(fac)%Status==0 .or. trim(Teacher(fac)%Role)==REGISTRAR) cycle
+                    if (Teacher(fac)%Status==0 .or. Teacher(fac)%Role==ADMINISTRATION) cycle
                     nfacs = nfacs+1
                     tArray(nfacs) = fac
                 end do
@@ -89,7 +89,7 @@ contains
                 do tdx=1,NumTeachers+NumAdditionalTeachers
                     fac = TeacherRank(tdx)
                     if (targetDepartment/=Teacher(fac)%DeptIdx) cycle
-                    if (trim(Teacher(fac)%Role)==trim(REGISTRAR)) cycle
+                    if (Teacher(fac)%Role==ADMINISTRATION) cycle
                     nfacs = nfacs+1
                     tArray(nfacs) = fac
                 end do
@@ -103,7 +103,7 @@ contains
                 do tdx=1,NumTeachers+NumAdditionalTeachers
                     fac = TeacherRank(tdx)
                     if (Department(Teacher(fac)%DeptIdx)%CollegeIdx /= targetCollege) cycle
-                    if (trim(Teacher(fac)%Role)==trim(REGISTRAR)) cycle
+                    if (Teacher(fac)%Role==ADMINISTRATION) cycle
                     if (Teacher(fac)%Name(1:1) /= ch) cycle
                     nfacs = nfacs+1
                     tArray(nfacs) = fac
@@ -126,7 +126,7 @@ contains
                 begintr//begintd//'(None?)'//endtd//tdalignright
             if (isRoleAdmin .and. fn/=fnOnlineTeachers) then
                 write(device,AFORMAT) trim(make_href(fnEditTeacher, 'Add teacher', &
-                    A1='Guest', pre='<small>('//nbsp, post=' )</small>', alt=SPACE))
+                    A1='Guest', pre='<small>('//nbsp, post=' )</small>'))
             end if
             write(device,AFORMAT) endtd//endtr//'</table>'
         else
@@ -146,7 +146,7 @@ contains
                 endtd//tdalignright
             if (isRoleAdmin .and. fn/=fnOnlineTeachers) then
                 write(device,AFORMAT) trim(make_href(fnEditTeacher, 'Add teacher', &
-                    A1='Guest', pre='<small>('//nbsp, post=' )</small>', alt=SPACE))
+                    A1='Guest', pre='<small>('//nbsp, post=' )</small>'))
             end if
             write(device,AFORMAT) endtd//endtr//'</table>'
 
@@ -203,11 +203,13 @@ contains
                     ' ('//trim(Teacher(fac)%Specialization)//') / '// &
                     trim(Teacher(fac)%TeacherID)//' / '//Teacher(fac)%Role
 
-                if (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==Teacher(fac)%DeptIdx) ) then
+                if (isRoleAdmin .or. &
+                    (isRoleChair .and. DeptIdxUser==Teacher(fac)%DeptIdx) .or. &
+                    (isRoleDean .and. CollegeIdxUser==Department(Teacher(fac)%DeptIdx)%CollegeIdx ) ) then
                     write(device,AFORMAT) trim(make_href(fnEditTeacher, 'Edit', &
-                        A1=QUERY_put, pre=nbsp//'<small>( ', post=' )</small>', alt=SPACE))
+                        A1=QUERY_put, pre=nbsp//'<small>( ', post=' )</small>'))
                     write(device,AFORMAT) trim(make_href(fnRecentTeacherActivity, 'Activity', &
-                        A1=QUERY_put, pre=nbsp//'<small>( ', post=' )</small>', alt=SPACE))
+                        A1=QUERY_put, pre=nbsp//'<small>( ', post=' )</small>'))
                 end if
 
                 write(device,AFORMAT) endtd
@@ -338,21 +340,24 @@ contains
                 end do
                 QUERY_put = Teacher(fac)%TeacherID
 
-                write(device,AFORMAT) begintr//begintd//trim(itoa(tdx))//'. '//trim(Teacher(fac)%Name)// &
+                write(device,AFORMAT) '<tr bgcolor="'//bgcolor(mod(tdx,2))//'">'// &
+                    begintd//trim(itoa(tdx))//'. '//trim(Teacher(fac)%Name)// &
                     ' ('//trim(Teacher(fac)%Specialization)//')'
-                if (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==Teacher(fac)%DeptIdx) ) then
+                if (isRoleAdmin .or. &
+                    !(isRoleChair .and. DeptIdxUser==Teacher(fac)%DeptIdx) .or. &
+                    (isRoleDean .and. CollegeIdxUser==Department(Teacher(fac)%DeptIdx)%CollegeIdx ) ) then
                     write(device,AFORMAT) trim(make_href(fnEditTeacher, 'Edit', &
-                        A1=QUERY_put, pre=nbsp//'<small>', post='</small>', alt=SPACE))
+                        A1=QUERY_put, pre=nbsp//'<small>', post='</small>'))
                 end if
                 write(device,AFORMAT) endtd//tdaligncenter//trim(Teacher(fac)%Role)//endtd, &
                     tdaligncenter//itoa(nsect)//trim(make_href(fnTeacherEditSchedule, 'Edit', &
-                    A1=QUERY_put, pre=' <small>', post='</small>', alt=SPACE))
+                    A1=QUERY_put, pre=' <small>', post='</small>'))
                 write(device,'(2(a,f5.1), a,f5.2,a)') endtd//tdaligncenter, totalLect, &
                     endtd//tdaligncenter, totalLab, &
                     endtd//tdaligncenter, totalUnits, &
                     '/'//trim(itoa(Teacher(fac)%MaxLoad))// &
                     trim(make_href(fnPrintableWorkload, 'Printable', &
-                    A1=QUERY_put, pre=nbsp//'<small>', post='</small>', alt=SPACE))//endtd// &
+                    A1=QUERY_put, pre=nbsp//'<small>', post='</small>'))//endtd// &
                     tdaligncenter//trim(mesg)//endtd//endtr
             end do
             write(device,AFORMAT) '</table>'
@@ -388,7 +393,8 @@ contains
         targetTeacher = mdx
         targetDepartment = Teacher(targetTeacher)%DeptIdx
         targetCollege = Department(targetDepartment)%CollegeIdx
-        allowed_to_edit = isRoleAdmin .or. (isRoleChair .and. targetDepartment==DeptIdxUser)
+        allowed_to_edit = isRoleAdmin .or. (isRoleChair .and. targetDepartment==DeptIdxUser) .or. &
+            (isRoleDean .and. CollegeIdxUser==targetCollege)
         mesg = SPACE
 
         ! check if there are other arguments
@@ -425,8 +431,6 @@ contains
         if (tLen1>0) call timetable_display(device, Section, TimeTable)
 
         write(device,AFORMAT) '<hr>'
-
-        if (isRoleSRE .or. isRoleStudent) return
 
         ! make list of TBA sections LoadSource that fit the schedule of teacher
         if (present(LoadSource)) then
@@ -494,7 +498,7 @@ contains
         character (len=*), intent(in)  :: header, remark, tAction
         character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
         character (len=MAX_LEN_PASSWD_VAR) :: Password
-        integer :: i, j
+        integer :: i, j, k
 
         call html_comment('teacher_info()')
 
@@ -571,49 +575,49 @@ contains
         write(device,AFORMAT) &
             begintr//begintd//'Max load '//endtd//begintd//'<input name="Load" size="3" value="'// &
             trim(itoa(wrk%MaxLoad))//'">'//endtd//endtr
+
         ! Role
-        write(device,AFORMAT) &
-            begintr//begintd//'Role '//endtd//begintd//'<select name="Role">',  &
-            '<option value="Guest">Guest'
-        do i=2,NumDepartments-1
-            if (trim(Department(i)%Code)/=trim(wrk%Role)) then
-                j=0
-            else
-                j=1
-            end if
-            write(device,AFORMAT) '<option '//trim(selected(j))//' value="'//trim(Department(i)%Code)//'">'// &
-                trim(Department(i)%Code)//' Teaching Load Scheduler'
-        end do
-        done = .false.
-        do i=1,NumCurricula-1
-            if (done(i)) cycle
-            if (trim(CurrProgCode(i))/=trim(wrk%Role)) then
-                j=0
-            else
-                j=1
-            end if
-            write(device,AFORMAT) '<option '//trim(selected(j))//' value="'//trim(CurrProgCode(i))//'">'// &
-                trim(CurrProgCode(i))//' Curriculum Adviser'
-            do j = i+1,NumCurricula-1
-                if (CurrProgCode(i)==CurrProgCode(j)) done(j) = .true.
+        if (isRoleAdmin .or. &
+            (isRoleChair .and. DeptIdxUser==Teacher(tdx)%DeptIdx) .or. &
+            (isRoleDean .and. CollegeIdxUser==Department(Teacher(tdx)%DeptIdx)%CollegeIdx) ) then
+
+            if (isRoleAdmin) k = 3
+            if (isRoleDean)  k = 2
+            if (isRoleChair) k = 1
+            write(device,AFORMAT) &
+                begintr//begintd//'Role '//endtd//begintd//'<select name="Role">'
+            do i=0,k
+                if (txtRole(i)/=wrk%Role) then
+                    j=0
+                else
+                    j=1
+                end if
+                write(device,AFORMAT) '<option '//trim(selected(j))//' value="'//trim(txtRole(i))//'">'//txtRole(i)
             end do
-        end do
-        write(device,AFORMAT) '</select>'//endtd//endtr
-        if (isRoleAdmin) then
+            write(device,AFORMAT) '</select>'//endtd//endtr
+
             write(device,AFORMAT) begintr//begintd//'Password'//endtd//begintd//trim(Password)//  &
                 trim(make_href(fnGenerateTeacherPassword, 'Reset password', &
                     A1=tTeacher, pre=' <small>', post='</small>')), &
                 endtd//endtr
+        else
+            write(device,AFORMAT) &
+                begintr//begintd//'Role '//endtd//begintd//trim(wrk%Role),  &
+                endtd//endtr
+
         end if
+
         write(device,AFORMAT) &
             '</table><br>'//nbsp//'<input name="action" type="submit" value="'//trim(tAction)//'"> ', &
             ' <i>(or, select another action below)</i></form><hr>'
 
-        call make_form_start(device, fnDeleteTeacher, tTeacher)
-        write(device,AFORMAT) '<table border="0" cellpadding="0" cellspacing="0">', &
-            begintr//begintd//'<b>Delete teacher</b> '//tTeacher// &
-            '<input type="submit" name="action" value="Delete"></form>'// &
-            endtd//endtr//'</table><hr>'
+        if (isRoleAdmin) then
+            call make_form_start(device, fnDeleteTeacher, tTeacher)
+            write(device,AFORMAT) '<table border="0" cellpadding="0" cellspacing="0">', &
+                begintr//begintd//'<b>Delete teacher</b> '//tTeacher// &
+                '<input type="submit" name="action" value="Delete"></form>'// &
+                endtd//endtr//'</table><hr>'
+        end if
 
         call make_form_start(device, fnFindTeacher)
         write(device,AFORMAT) '<table border="0" cellpadding="0" cellspacing="0">', &
@@ -658,7 +662,9 @@ contains
         targetDepartment = Teacher(targetTeacher)%DeptIdx
         targetCollege = Department(targetDepartment)%CollegeIdx
 
-        write(device,AFORMAT) '<table border="0" width="100%">', &
+        write(device,AFORMAT) &
+            '<html><head><title>'//trim(UniversityCode)//SPACE//PROGNAME//VERSION// &
+            '</title></head><body>', '<table border="0" width="100%">', &
             begintr//tdaligncenter//'Republic of the Philippines'//endtd//endtr, &
             begintr//tdaligncenter//'<b>'//trim(UniversityName)//'</b>'//endtd//endtr, &
             begintr//tdaligncenter//trim(UniversityAddress)//endtd//endtr, &

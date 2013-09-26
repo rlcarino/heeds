@@ -124,9 +124,9 @@ contains
 
             if (isRoleAdmin) then
                 write(device,AFORMAT) trim(make_href(fnAction, tAction, A1=Curriculum(ldx)%Code, &
-                    pre=nbsp//'<small>', post=nbsp, alt=SPACE))
+                    pre=nbsp//'<small>', post=nbsp))
                 write(device,AFORMAT) trim(make_href(fnEditCurriculum, 'Edit', A1=Curriculum(ldx)%Code, &
-                    pre=nbsp, post='</small>', alt=SPACE))
+                    pre=nbsp, post='</small>'))
             end if
 
             write(device,AFORMAT) '</li>'
@@ -155,7 +155,7 @@ contains
         end if
         targetCollege = Curriculum(targetCurriculum)%CollegeIdx
 
-        call html_write_header(device, Curriculum(targetCurriculum)%Code)
+        call html_write_header(device, SPACE) ! Curriculum(targetCurriculum)%Code)
 
         write(device,AFORMAT) '<b>'//trim(Curriculum(targetCurriculum)%Code)//' - '// &
         trim(Curriculum(targetCurriculum)%Title)//'</b>'
@@ -177,9 +177,9 @@ contains
         write(device,AFORMAT) nbsp//'<i> '//tStatus//'</i>'//nbsp
         if (isRoleAdmin) then
             write(device,AFORMAT) trim(make_href(fnAction, tAction, A1=Curriculum(targetCurriculum)%Code, &
-                pre=nbsp//'<small>', post=nbsp, alt=SPACE))
+                pre=nbsp//'<small>', post=nbsp))
             write(device,AFORMAT) trim(make_href(fnEditCurriculum, 'Edit', A1=Curriculum(targetCurriculum)%Code, &
-                pre=nbsp, post='</small>', alt=SPACE))
+                pre=nbsp, post='</small>'))
         end if
 
         write(device,AFORMAT) '<br>Note: A '//red//'SUBJECT'//black//' in column <b><i>Prerequisite</i></b> ', &

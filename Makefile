@@ -35,68 +35,61 @@
 #
 
 #---------------------------------------------------------------
-# module to build (MODULE)
+# raw data format (RAWDATA)
 #---------------------------------------------------------------
-MODULE=Schedules
+#RAWDATA=REGIST
+RAWDATA=CUSTOM
 
 #---------------------------------------------------------------
-# organization of academic departments (ORGANIZATION)
+# operating system (OS) and destination of binary (BIN)
 #---------------------------------------------------------------
-ORGANIZATION=SIAS
-#UPLB - departments are specialized
-#SIAS - no departments; each college is a mini-university 
-
-#---------------------------------------------------------------
-# operating system (OS)
-#---------------------------------------------------------------
+#OS=GLNX
+#BIN=~/HEEDS/bin/$(OS)
 OS=MSWIN
-#GLNX
-#MSWIN
+BIN=/c/HEEDS/bin/$(OS)
 
 #---------------------------------------------------------------
-# destination of binary (BIN)
+# debugging flags 
 #---------------------------------------------------------------
-BIN=/c/HEEDS/bin/MSWIN
-#/c/HEEDS/bin/MSWIN
-#$(HOME)/HEEDS/bin/GLNX
+DEBUG=-Dno_password_check 
+#-DDBsubst -DDBprereq -DDBcoreq -DDBconcpreq
+#-DBperformance -DBunits -DBsimplify -DBpriority
 
 #---------------------------------------------------------------
 # Fortran compiler and flags
 #---------------------------------------------------------------
 FFLAGS=-Wunused -ffree-form
 #-fbounds-check
-OPTIONS =-D$(MODULE) -D$(OS) -D$(ORGANIZATION) 
+OPTIONS = -D$(OS) -D$(RAWDATA) $(DEBUG) 
 FC = gfortran $(FFLAGS) $(OPTIONS)
 
 #---------------------------------------------------------------
 # object files
 #---------------------------------------------------------------
 
-COMMON = UTILITIES.o UNIVERSITY.o IO.o INITIALIZE.o 
-
-VIEWERS = HTML.o EditUNIVERSITY.o \
-	DisplayROOMS.o DisplayTEACHERS.o DisplaySUBJECTS.o DisplayCURRICULA.o DisplaySECTIONS.o DisplayBLOCKS.o
-
-SCHEDULERS = EditROOMS.o EditTEACHERS.o EditSUBJECTS.o EditCURRICULA.o EditSECTIONS.o EditBLOCKS.o
-
+OBJ = UTILITIES.o UNIVERSITY.o INITIALIZE.o Input$(RAWDATA).o XMLIO.o HTML.o EditUNIVERSITY.o \
+	DisplayROOMS.o DisplayTEACHERS.o DisplaySUBJECTS.o DisplayCURRICULA.o DisplaySECTIONS.o DisplayBLOCKS.o \
+	EditROOMS.o EditTEACHERS.o EditSUBJECTS.o EditCURRICULA.o EditSECTIONS.o EditBLOCKS.o SERVER.o
 
 #---------------------------------------------------------------
 # targets
 #---------------------------------------------------------------
-all:	HEEDS_$(MODULE)
+all:	INTERACTIVE
 
-HEEDS_$(MODULE):	$(COMMON) $(VIEWERS) $(SCHEDULERS) MAIN.o
-	$(FC) $(COMMON) $(VIEWERS) $(SCHEDULERS) MAIN.o -o $(BIN)/HEEDS_$(ORGANIZATION)_$(MODULE) -lfcgi -Wl,--rpath -Wl,/usr/local/lib
+INTERACTIVE:	$(OBJ)
+	$(FC) $(OBJ) -o $(BIN)/HEEDS_SERVER -lfcgi -Wl,--rpath -Wl,/usr/local/lib
 
 UTILITIES.o:	Makefile
 
 UNIVERSITY.o:	UTILITIES.o
 
-IO.o:	UNIVERSITY.o 
+InputCUSTOM.o:	UNIVERSITY.o
 
-INITIALIZE.o:	IO.o
+XMLIO.o:	UNIVERSITY.o  Input$(RAWDATA).o
 
-HTML.o:	$(COMMON)
+INITIALIZE.o:	XMLIO.o
+
+HTML.o:	XMLIO.o
 
 EditUNIVERSITY.o:	HTML.o
 
@@ -123,10 +116,6 @@ EditSECTIONS.o:	DisplaySECTIONS.o
 DisplayBLOCKS.o:	HTML.o
 
 EditBLOCKS.o:	DisplayBLOCKS.o
-
-MAIN.o:	$(COMMON)
-
-BATCH.o:	$(COMMON)
 
 .F90.o:
 	$(FC) -c $<

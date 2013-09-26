@@ -235,7 +235,7 @@ contains
                 targetCollege = index_to_college(tCollege)
                 call cgi_get_named_string(QUERY_STRING, 'A2', searchString, i)
                 header = trim(header)//' "'//trim(searchString)//'"'
-#if defined UPLB
+#if defined REGIST
                 ! department already set above
 #else
                 ! Subjects administered by program
@@ -248,7 +248,7 @@ contains
                 call cgi_get_named_string(QUERY_STRING, 'A1', tCollege, i)
                 targetCollege = index_to_college(tCollege)
                 header = tCollege//header
-#if defined UPLB
+#if defined REGIST
                 ! department already set above
 #else
                 ! Subjects administered by program
@@ -386,7 +386,7 @@ contains
 
         nclosed = 0
         ! make list of closed subjects here, starting at tArray(nsections+nopen+1)
-#if defined UPLB
+#if defined REGIST
         do cdx=1,NumSubjects+NumAdditionalSubjects
             if (Offering(cdx)%NSections>0) cycle
             if (Subject(cdx)%DeptIdx/=targetDepartment) cycle
@@ -406,7 +406,9 @@ contains
         if (fn/=fnTeacherClasses) then
             ! offer to open sections
             if (fnAvailable(fnScheduleOfferSubject) .and. &
-                    nclosed>0 .and. (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==targetDepartment))) then
+                    nclosed>0 .and. &
+                    (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==targetDepartment) .or. &
+                     (isRoleDean .and. CollegeIdxUser==targetCollege) ) ) then
                 call make_form_start(device, fnScheduleOfferSubject, A2=Department(targetDepartment)%Code)
                 write(device,AFORMAT) &
                     '<table border="0" width="100%">'//begintr//'<td colspan="'//trim(itoa(maxcol))//'" align="right">', &
@@ -468,16 +470,17 @@ contains
             write(device,AFORMAT) '('//trim(text_term_offered_separated(Subject(cdx)%TermOffered))//')'
             if (fn/=fnTeacherClasses .and. isRoleAdmin) then
                 write(device,AFORMAT) trim(make_href(fnEditSubject, 'Edit', A1=Subject(cdx)%Name, &
-                    pre=nbsp//'<small>[ ', post=' ]</small>', alt=SPACE))
+                    pre=nbsp//'<small>[ ', post=' ]</small>'))
             end if
             write(device,AFORMAT) endtd//endtr, &
                 begintr//tdnbspendtd//'<td colspan="7">'//nbsp//'Pr. '//trim(text_prerequisite_of_subject(cdx,0))//endtd
 
-#if defined UPLB
+#if defined REGIST
             okToAdd = isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==Subject(cdx)%DeptIdx)
 #else
             ! Subjects administered by program
-            okToAdd = isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==targetDepartment)
+            okToAdd = isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==targetDepartment) .or. &
+                (isRoleDean .and. CollegeIdxUser==targetCollege)
 #endif
 
             if (fn/=fnTeacherClasses .and. okToAdd) then
@@ -515,13 +518,7 @@ contains
                 write(device,AFORMAT) begintr//tdnbspendtd
 
                 ! section code, link to gradesheet entry form
-                if ( (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==owner_dept) .or. &
-                     isUserTeacher) ) then
-                    write(device,AFORMAT) trim(make_href(fnGradeSheet, trim(Section(sdx)%Code), &
-                        A1=QUERY_PUT, pre=begintd, post=endtd))
-                else
-                    write(device,AFORMAT) begintd//trim(Section(sdx)%Code)//endtd
-                end if
+                write(device,AFORMAT) begintd//trim(Section(sdx)%Code)//endtd
 
                 ! blocks
                 write(device,AFORMAT) begintd
@@ -529,8 +526,7 @@ contains
                 write(device,AFORMAT) endtd
 
                 ! seats, link to classlist
-                write(device,AFORMAT) trim(make_href(fnClassList, tSeats, &
-                    A1=QUERY_PUT, pre=begintd, post=endtd))
+                write(device,AFORMAT) begintd//tSeats//endtd
 
                 ! time, day, room, teacher
                 if (is_regular_schedule(sdx, Section)) then
@@ -598,7 +594,9 @@ contains
 
                 end if
                 write(device,AFORMAT) begintd//'<small>'
-                if (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==owner_dept)) then
+                if (isRoleAdmin .or. &
+                    (isRoleChair .and. DeptIdxUser==owner_dept) .or. &
+                    (isRoleDean .and. CollegeIdxUser==owner_coll) ) then
                     write(device,AFORMAT) trim(make_href(fnScheduleEdit, ' Edit', &
                         A1=QUERY_put))
                     if (fn/=fnTeacherClasses) then

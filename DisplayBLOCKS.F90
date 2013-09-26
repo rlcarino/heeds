@@ -130,8 +130,8 @@ contains
         targetCollege = Curriculum(targetCurriculum)%CollegeIdx
         tCollege = College(targetCollege)%Code
         call html_write_header(device, trim(tCurriculum)//' blocks')
-        if (isRoleChair) tCollege = College(CollegeIdxUser)%Code
-        if ( (isRoleChair .and. targetCollege==CollegeIdxUser ) .or. isRoleAdmin) then
+        if (isRoleChair .or. isRoleDean) tCollege = College(CollegeIdxUser)%Code
+        if ( ((isRoleChair .or. isRoleDean) .and. targetCollege==CollegeIdxUser ) .or. isRoleAdmin) then
             write(device,AFORMAT) trim(make_href(fnBlockNewSelect, 'Add', &
                 A1=tCollege, pre='<b>(', post=' block)</b>'))
         end if
@@ -210,14 +210,15 @@ contains
         targetCollege = Curriculum(Block(targetBlock)%CurriculumIdx)%CollegeIdx
         targetDepartment = Block(targetBlock)%DeptIdx
 
-#if defined UPLB
+#if defined REGIST
         ! Subject administered by departments
         allowed_to_edit = isRoleAdmin .or. & ! USER is the ADMINISTRATOR
             (isRoleChair .and. targetDepartment==DeptIdxUser) ! USER is Chair, and Department is the same as that of the Block
 #else
         ! Subjects administered by program
-        allowed_to_edit = isRoleAdmin .or. & ! USER is the ADMINISTRATOR
-            (isRoleChair .and. targetCollege==CollegeIdxUser ) ! USER is Dean, and College is the same as that of the Block
+        allowed_to_edit = isRoleAdmin .or. &
+            (isRoleDean .and. targetCollege==CollegeIdxUser) .or. &
+            (isRoleChair .and. targetDepartment==DeptIdxUser)
 #endif
 
         call html_comment('targetBlock='//trim(Block(targetBlock)%BlockID)//'@'//itoa(targetBlock))
@@ -295,7 +296,7 @@ contains
                 '</form>'//endtr, &
                 trim(make_href(fnBlockDeleteNotClasses, 'KEEP', A1=tBlock, &
                 pre=begintr//'<td colspan="3">Delete block, but '//nbsp, post=nbsp//' its sections.'//endtd//endtr)), &
-                trim(make_href(fnBlockDeleteIncludingClasses, 'DELETE', A1=tBlock, &
+                trim(make_href(fnBlockDeleteAlsoClasses, 'DELETE', A1=tBlock, &
                 pre=begintr//'<td colspan="3"><br>Delete block, and '//nbsp, post=nbsp//' its sections.'//endtd//endtr))
 
             jdx = Block(targetBlock)%CurriculumIdx

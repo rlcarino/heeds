@@ -36,24 +36,13 @@ module UTILITIES
 ! the software
 !===========================================================
 
-    character(len= 7), parameter :: VERSION   = ' v.4.28'
+    character(len= 7), parameter :: VERSION   = ' v.4.35'
     character(len= 5), parameter :: PROGNAME  = 'HEEDS'
     character(len=45), parameter :: COPYRIGHT = 'Copyright (C) 2012, 2013 Ricolindo L. Carino'
     character(len=38), parameter :: EMAIL     = 'Ricolindo.Carino@AcademicForecasts.com'
     character(len=72), parameter :: CONTACT   = 'E-mail inquiries about '//PROGNAME//' to '//EMAIL//'.'
     character(len=32), parameter :: WEB       = 'http://code.google.com/p/heeds/'
     character(len=13), parameter :: IP_ADDR   = '54.225.97.166' ! the IP address xxx.xxx.xxx.xxx
-
-!===========================================================
-! the functionality
-!===========================================================
-    
-    character(len= 9), parameter :: ACTION    = 'Schedules'
-
-    logical :: advisingPeriod = .false., &
-        isActionClasslists = .false., &
-        isActionAdvising = .false.
-
 
 !===========================================================
 ! OS-related parameters
@@ -86,16 +75,23 @@ module UTILITIES
 
 
 !===========================================================
-! Academic Year, Term, times
+! Academic Year, Term
 !===========================================================
 
     integer :: currentYear ! year of start of Academic Year
     integer :: currentTerm ! current term 1=1st sem, 2=2nd sem; 3=summer
     integer :: nextYear, nextTerm, targetTerm, termBegin, termEnd
     integer :: cTm1Year, cTm1, cTm2Year, cTm2, cTm3Year, cTm3
+
+!===========================================================
+! times
+!===========================================================
+
     character(len=10) :: currentTime ! current time
     character(len= 8) :: currentDate ! current date
     character(len=18) :: startDateTime ! program start date & time
+    integer(8) :: tick, count_rate, count_max ! system clock
+    integer, parameter :: maxIdleTime = 1800 ! seconds before auto-logout
 
 
 !===========================================================
@@ -118,6 +114,7 @@ module UTILITIES
         dirBACKUP, & ! directory for backup files
         dirDATA, & ! directory for XML data files
         dirLOG, &  ! directory for log files
+        dirWEB, &  ! directory for HTML files
         dirSUBSTITUTIONS, & ! directory for subject substitutions
         dirTRANSCRIPTS, & ! directory for individual enrollment records
         pathToYear, pathToNextYear, pathToTerm, &  ! path data files for the year, next year
@@ -128,12 +125,6 @@ module UTILITIES
 
     ! position of last character in dirDATA (to simplify derivation of path to backup)
     integer :: lenDirDAT
-
-    logical :: hasCATALOG = .false.
-
-    ! flag to control generation of log files, backups
-    logical :: noWrites = .false. ! .true. means do not change data files
-    logical :: isSuspendMode = .false.  ! only REGISTRAR role can work
 
     ! constants
     character(len= 1), parameter :: &
@@ -190,7 +181,6 @@ module UTILITIES
     character(len=10), parameter :: XML_ROOT_ENLISTMENT     = 'ENLISTMENT'
     character(len=11), parameter :: XML_ROOT_GRADESHEETS    = 'GRADESHEETS'
     character(len=14), parameter :: XML_ROOT_STUDENT_RECORD = 'STUDENT_RECORD'
-    character(len= 9), parameter :: XML_ROOT_FAILRATES      = 'FAILRATES'
     character(len=15), parameter :: XML_ROOT_INTAKE         = 'FRESHMAN_INTAKE'
     character(len=13), parameter :: XML_ROOT_SUBSTITUTIONS  = 'SUBSTITUTIONS'
     ! root names                                               12345678901234567890
@@ -258,14 +248,11 @@ module UTILITIES
     ! the QUERY, encryption key, cipher text
     character (len=MAX_LEN_QUERY_STRING) :: QUERY_STRING, queryEncryptionKey, cipher
 
-    ! login check message, user role
-    character(len=MAX_LEN_FILE_PATH) :: loginCheckMessage
-    logical :: isRoleSRE = .false., &
-        isRoleChair = .false., &
-        isRoleAdmin = .false., &
-        isRoleTeacher = .false., &
-        isRoleStudent = .false., &
-        isRoleGuest = .false.
+    ! functionality
+    character(len=14) :: ACTION
+    logical :: &
+        isActionClasslists = .false., &
+        isActionAdvising = .false.
 
     ! local work areas
     character(len=MAX_CGI_WRK_LEN), private :: cgi_wrk
@@ -305,13 +292,25 @@ contains
 
 
 
-    subroutine check_array_bound(current, limit, msg)
+    subroutine check_array_bound(current, limit, msg, critical)
         character (len=*), intent (in) :: msg
         integer, intent (in) :: current, limit
+        logical, optional, intent (out) :: critical
 
-        if (current > limit) then
-            call terminate('Aborting due to insufficient array size; increase '//trim(msg)// &
-                '. Limit is '//itoa(limit)//'; currently used is '//itoa(current) )
+        logical :: flag
+
+        flag = current > limit
+        if (flag) then
+            if (present(critical)) then
+                critical = flag
+            else
+                call terminate('Aborting due to insufficient array size; increase '//trim(msg)// &
+                    '. Limit is '//itoa(limit)//'; currently used is '//itoa(current) )
+            end if
+        else
+            if (present(critical)) then
+                critical = flag
+            end if
         end if
 
     end subroutine check_array_bound
@@ -831,8 +830,6 @@ contains
         character (len=MAX_LEN_FILE_PATH) :: path
         integer :: iStat
 
-        if (noWrites) return ! no backups
-
         path = trim(dirBACKUP)//trim(fname(lenDirDAT+1:))//DASH//currentDate//DASH//currentTime
         call rename (fname, path, iStat)
         if (iStat/=0) call log_comment('Status='//trim(itoa(iStat))//' in moving to '//trim(path) )
@@ -850,15 +847,11 @@ contains
         character (len=*), intent (in) :: fileName, rootName
         integer, intent (in out) :: errNo
         character(len=MAX_LEN_XML_LINE) :: xmlLine
-        logical :: found
         integer :: eof
 
-        errNo = -1
-        inquire(file=fileName, exist=found)
-        if (.not. found) return ! not there
-
         ! open & look for rootName in file
-        open (unit=device, file=fileName, status='old', iostat=eof)
+        open (unit=device, file=fileName, status='old', iostat=errNo)
+        if (errNo/=0) return
         do
             read(device, AFORMAT, iostat=eof) xmlLine
             if (eof<0) exit

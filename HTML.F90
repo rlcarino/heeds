@@ -30,8 +30,7 @@
 
 module HTML
 
-    use IO
-!    use PREDICTION
+    use XMLIO
 
     implicit none
 
@@ -40,98 +39,67 @@ module HTML
         fnLogin                   =  1, & ! login user
         fnGenerateTeacherPassword =  2, & ! generate new password for teacher
         fnChangeTeacherPassword   =  3, & ! change password for teacher
-        fnGenerateStudentPassword =  4, & ! generate new password for student
-        fnChangeStudentPassword   =  5, & ! change password for student
         fnLogout                  =  6, & ! logout user
         fnSuspendProgram          =  7, & ! suspend the program
         fnToggleTrainingMode      =  8, & ! toggle training mode
         fnStop                    =  9, & ! terminate program
         fnEditSignatories         = 10, & ! edit signatories
-        fnRecentStudentActivity   = 11, & ! recent student activity
         fnRecentTeacherActivity   = 12, & ! recent teacher activity
-        fnOnlineStudents          = 13, & ! online students
         fnOnlineTeachers          = 14, & ! online teachers
-        fnFindStudent             = 15, & ! find a student
         fnFindTeacher             = 16, & ! find a teacher
         fnDeleteTeacher           = 17, & ! delete teacher
+        fnResetPasswords          = 18, & ! reset all passwords except for ADMINS, SCHEDULERS
+        fnDownloadXML             = 19, & ! download XML data file
         !
-        fnCollegeLinks            = 20, & ! index to college info
+        fnCollegeLinks            = 20, & ! index to unit info
         fnSubjectList             = 21, & ! view list of subjects administered by a department
         fnEditSubject             = 22, & ! edit subject
-        fnCurriculumList          = 23, & ! view list of curricular programs administered by a college
+        fnCurriculumList          = 23, & ! view list of curricular programs administered by a unit
         fnCurriculum              = 24, & ! view a curricular program
         fnEditCurriculum          = 25, & ! edit curriculum
         fnActivateCurriculum      = 26, & ! activate curriculum
         fnDeactivateCurriculum    = 27, & ! deactivate curriculum
-        fnEditRoom                = 28, & ! edit room parameters
-        fnEditTeacher             = 29, & ! edit teacher record
+        fnRoomList                = 28, & ! view list rooms administered by a unit
+        fnTeachersByDept          = 29, & ! view list teachers belonging to a unit
+        fnTeachersByName          = 30, & ! view alphabetical list of teachers in a unit
+        fnEditRoom                = 31, & ! edit room parameters
+        fnEditTeacher             = 32, & ! edit teacher record
         !
-        fnStudentsByProgram       = 30, & ! view list students in a program
-        fnStudentsByCurriculum    = 31, & ! view list students in a curriculum
-        fnStudentsByName          = 32, & ! view alphabetical list of students in a college
-        fnStudentsByYear          = 33, & ! view list of students in college by year
-        fnStudentsDistribution    = 34, & ! view distribution of students, by curriculum and by college
-        fnStudentAdd              = 35, & ! add a student
-        fnStudentEdit             = 36, & ! display student info for editing
-        fnStudentPerformance      = 37, & ! view student performance
-        fnEditCheckList           = 38, & ! display checklist for editing
+        fnScheduleOfClasses       = 50, & ! display schedule of classes for editing
+        fnScheduleOfferSubject    = 51, & ! offer a subject
+        fnScheduleAddLab          = 52, & ! add a lab section
+        fnScheduleDelete          = 53, & ! delete a section
+        fnScheduleEdit            = 54, & ! edit a section
+        fnScheduleValidate        = 55, & ! check correctness of edit inputs
+        fnScheduleByArea          = 56, & ! display schedule of classes for editing, by area
         !
-        fnScheduleOfClasses       = 40, & ! display schedule of classes for editing
-        fnScheduleOfferSubject    = 41, & ! offer a subject
-        fnScheduleAddLab          = 42, & ! add a lab section
-        fnScheduleDelete          = 43, & ! delete a section
-        fnScheduleEdit            = 44, & ! edit a section
-        fnScheduleValidate        = 45, & ! check correctness of edit inputs
-        fnTeachersByDept          = 46, & ! view list teachers belonging to a college
-        fnTeachersByName          = 47, & ! view alphabetical list of teachers in a college
-        fnTeacherClasses          = 48, & ! view classes of a teacher
-        fnTeacherEditSchedule     = 49, & ! edit weekly schedule of a teacher
-        fnRoomList                = 50, & ! view list rooms administered by a college
-        fnRoomSchedule            = 51, & ! view weekly schedule of a room
-        fnRoomConflicts           = 52, & ! view list of rooms with conflicts
-        fnTeacherConflicts        = 53, & ! view list of teachers with conflicts
-        fnTBARooms                = 54, & ! view list of sections with TBA rooms
-        fnTBATeachers             = 55, & ! view list of sections with TBA teachers
-        fnPrintableWorkload       = 56, & ! printable teaching load
-        fnScheduleByArea          = 57, & ! display schedule of classes for editing, by area
+        fnTeacherClasses          = 60, & ! view classes of a teacher
+        fnTeacherEditSchedule     = 61, & ! edit weekly schedule of a teacher
+        fnTeacherConflicts        = 62, & ! view list of teachers with conflicts
+        fnTBATeachers             = 63, & ! view list of sections with TBA teachers
+        fnPrintableWorkload       = 64, & ! printable teaching load
+        fnRoomSchedule            = 65, & ! view weekly schedule of a room
+        fnRoomConflicts           = 66, & ! view list of rooms with conflicts
+        fnTBARooms                = 67, & ! view list of sections with TBA rooms
         !
-        fnBlockSchedule           = 60, & ! display schedule of block section
-        fnBlockEditName           = 61, & ! edit name of block section
-        fnBlockDeleteNotClasses   = 62, & ! delete block, but keep its sections
-        fnBlockDeleteIncludingClasses = 63, & ! delete block and its sections
-        fnBlockNewSelect          = 64, & ! select parameters for a new block
-        fnBlockNewAdd             = 65, & ! add a new block
-        fnBlockCopy               = 66, & ! copy block
-        fnBlockEditSection        = 67, & ! edit section in block
-        fnBlockEditSubject        = 68, & ! update subjects in block
-        fnBlockList               = 69, & ! list blocks
-        fnBlockConflicts          = 70, & ! conflicts in block schedules
-        !
-        fnDemandFreshmen          = 80, & ! view demand for subjects by incoming students
-        fnUpdateDemandFreshmen    = 81, & ! update no. of incoming students
-        fnPrintableSchedule       = 82, & ! printable weekly timetable
-        fnDemandForSubjects       = 83, & ! view demand for subjects
-        fnPotentialStudents       = 84, & ! list of potential students of a subject
-        !
-        fnChangeMatriculation     = 90, & ! change matriculation
-        fnFindBlock               = 91, & ! find a block for student
-        !
-        fnEnlistmentSummary       =100, & ! summary of enlistment by subject
-        fnNotAccommodated         =101, & ! students not accommodated in a priority subject
-        fnBottleneck              =102, & ! "bottleneck" subjects
-        fnExtraSlots              =103, & ! subjects with excess slots
-        fnUnderloadSummary        =104, & ! summary of underloading
-        fnUnderloadedStudents     =105, & ! underloaded students
-        fnClassList               =106, & ! view list of students in a class
-        fnGradeSheet              =107, & ! enter grades
-        fnDownloadXML             =108 ! download XML data file
+        fnBlockSchedule           = 70, & ! display schedule of block section
+        fnBlockEditName           = 71, & ! edit name of block section
+        fnBlockDeleteNotClasses   = 72, & ! delete block, but keep its sections
+        fnBlockDeleteAlsoClasses  = 73, & ! delete block and its sections
+        fnBlockNewSelect          = 74, & ! select parameters for a new block
+        fnBlockNewAdd             = 75, & ! add a new block
+        fnBlockCopy               = 76, & ! copy block
+        fnBlockEditSection        = 77, & ! edit section in block
+        fnBlockEditSubject        = 78, & ! update subjects in block
+        fnBlockList               = 79, & ! list blocks
+        fnBlockConflicts          = 80    ! conflicts in block schedules
 
     ! the requested server function, index to requesting, user
-    integer :: REQUEST, requestingTeacher!, requestingStudent
+    integer :: REQUEST, requestingTeacher, requestingStudent
 
     ! the target of the function
     integer :: targetCollege, targetDepartment, targetSubject, targetRoom, targetTeacher, &
-        targetCurriculum, targetBlock, targetSection!, targetStudent
+        targetCurriculum, targetStudent, targetBlock, targetSection
 
     ! work arrays
     integer :: tArray(2*MAX_ALL_SUBJECTS)
@@ -146,47 +114,35 @@ contains
 
         select case (fn)
 
-            case (fnStop                   )
+            case (fnStop)
                     fnDescription = 'stop program'
 
-            case (fnLogin                   )
+            case (fnLogin)
                     fnDescription = 'login'
 
-            case (fnLogout                )
+            case (fnLogout )
                     fnDescription = 'logout'
 
-            case (fnGenerateTeacherPassword   )
+            case (fnGenerateTeacherPassword )
                     fnDescription = 'generate new password for teacher'
 
-            case (fnGenerateStudentPassword   )
-                    fnDescription = 'generate new password for student'
-
-            case (fnChangeTeacherPassword          )
+            case (fnChangeTeacherPassword)
                     fnDescription = 'change password for Teacher'
 
-            case (fnChangeStudentPassword          )
-                    fnDescription = 'change password for student'
+            case (fnResetPasswords)
+                    fnDescription = 'reset all passwords except for ADMINS, SCHEDULERS'
 
-            case (fnToggleTrainingMode      )
+            case (fnToggleTrainingMode)
                     fnDescription = 'toggle training mode'
 
             case (fnEditSignatories)
                     fnDescription = 'edit signatories'
 
-            case (fnRecentStudentActivity)
-                    fnDescription = 'show recent student activity'
-
             case (fnRecentTeacherActivity)
                     fnDescription = 'recent teacher activity'
 
-            case (fnOnlineStudents)
-                    fnDescription = 'list online students'
-
             case (fnOnlineTeachers)
                     fnDescription = 'list online teachers'
-
-            case (fnFindStudent)
-                    fnDescription = 'find a student'
 
             case (fnFindTeacher)
                     fnDescription = 'find a teacher'
@@ -194,196 +150,127 @@ contains
             case (fnDeleteTeacher)
                     fnDescription = 'delete teacher'
 
-            case (fnCollegeLinks            )
-                    fnDescription = 'index to college info'
+            case (fnCollegeLinks )
+                    fnDescription = 'index to unit info'
 
-            case (fnSubjectList             )
+            case (fnSubjectList)
                     fnDescription = 'view list of subjects administered by a department'
 
-            case (fnEditSubject             )
+            case (fnEditSubject)
                     fnDescription = 'edit subject'
 
-            case (fnCurriculumList          )
-                    fnDescription = 'view list of curricular programs administered by a college'
+            case (fnCurriculumList)
+                    fnDescription = 'view list of curricular programs administered by a unit'
 
-            case (fnCurriculum              )
+            case (fnCurriculum )
                     fnDescription = 'view a curricular program'
 
-            case (fnEditCurriculum          )
+            case (fnEditCurriculum)
                     fnDescription = 'edit curriculum'
 
-            case (fnActivateCurriculum      )
+            case (fnActivateCurriculum)
                     fnDescription = 'activate curriculum'
 
-            case (fnDeactivateCurriculum    )
+            case (fnDeactivateCurriculum)
                     fnDescription = 'deactivate curriculum'
 
-            case (fnEditRoom                )
+            case (fnEditRoom )
                     fnDescription = 'edit room parameters'
 
-            case (fnEditTeacher             )
+            case (fnEditTeacher)
                     fnDescription = 'edit teacher record'
 
-            case (fnStudentsByProgram       )
-                    fnDescription = 'view list students in a program'
-
-            case (fnStudentsByCurriculum    )
-                    fnDescription = 'view list students in a curriculum'
-
-            case (fnStudentsByName          )
-                    fnDescription = 'view alphabetical list of students in a college'
-
-            case (fnStudentsByYear          )
-                    fnDescription = 'view list of students in college by year'
-
-            case (fnStudentsDistribution    )
-                    fnDescription = 'view distribution of students, by curriculum and by college'
-
-            case (fnStudentAdd              )
-                    fnDescription = 'add a student'
-
-            case (fnStudentEdit             )
-                    fnDescription = 'display student info for editing'
-
-            case (fnEditCheckList           )
-                    fnDescription = 'display checklist for editing'
-
-            case (fnChangeMatriculation     )
-                    fnDescription = 'change matriculation'
-
-            case (fnFindBlock               )
-                    fnDescription = 'find a block for student'
-
-            case (fnScheduleOfClasses       )
+            case (fnScheduleOfClasses )
                     fnDescription = 'display schedule of classes for editing'
 
-            case (fnScheduleOfferSubject    )
+            case (fnScheduleOfferSubject)
                     fnDescription = 'offer a subject'
 
-            case (fnScheduleAddLab          )
+            case (fnScheduleAddLab)
                     fnDescription = 'add a lab section'
 
-            case (fnScheduleDelete          )
+            case (fnScheduleDelete)
                     fnDescription = 'delete a section'
 
-            case (fnScheduleEdit            )
+            case (fnScheduleEdit )
                     fnDescription = 'edit a section'
 
-            case (fnScheduleValidate        )
+            case (fnScheduleValidate)
                     fnDescription = 'check correctness of edit inputs'
 
-            case (fnTeachersByDept          )
-                    fnDescription = 'view list teachers belonging to a college'
+            case (fnTeachersByDept)
+                    fnDescription = 'view list teachers belonging to a unit'
 
-            case (fnTeachersByName          )
-                    fnDescription = 'view alphabetical list of teachers in a college'
+            case (fnTeachersByName)
+                    fnDescription = 'view alphabetical list of teachers in a unit'
 
-            case (fnTeacherClasses         )
+            case (fnTeacherClasses )
                     fnDescription = 'view classes of a teacher'
 
-            case (fnTeacherEditSchedule         )
+            case (fnTeacherEditSchedule )
                     fnDescription = 'edit weekly schedule of a teacher'
 
-            case (fnRoomList                )
-                    fnDescription = 'view list rooms administered by a college'
+            case (fnRoomList )
+                    fnDescription = 'view list rooms administered by a unit'
 
-            case (fnRoomSchedule            )
+            case (fnRoomSchedule )
                     fnDescription = 'view weekly schedule of a room'
 
-            case (fnRoomConflicts           )
+            case (fnRoomConflicts)
                     fnDescription = 'view list of rooms with conflicts'
 
-            case (fnTeacherConflicts        )
+            case (fnTeacherConflicts)
                     fnDescription = 'view list of teachers with conflicts'
 
-            case (fnTBARooms                )
+            case (fnTBARooms )
                     fnDescription = 'view list of sections with TBA rooms'
 
-            case (fnTBATeachers             )
+            case (fnTBATeachers)
                     fnDescription = 'view list of sections with TBA teachers'
 
-            case (fnBlockSchedule           )
+            case (fnBlockSchedule)
                     fnDescription = 'display schedule of block section'
 
-            case (fnBlockEditName           )
+            case (fnBlockEditName)
                     fnDescription = 'edit name of block section'
 
-            case (fnBlockDeleteNotClasses         )
+            case (fnBlockDeleteNotClasses )
                     fnDescription = 'delete block, but keep its sections'
 
-            case (fnBlockDeleteIncludingClasses          )
+            case (fnBlockDeleteAlsoClasses)
                     fnDescription = 'delete block and its sections'
 
-            case (fnBlockNewSelect          )
+            case (fnBlockNewSelect)
                     fnDescription = 'select parameters for a new block'
 
-            case (fnBlockNewAdd             )
+            case (fnBlockNewAdd)
                     fnDescription = 'add a new block'
 
-            case (fnBlockCopy               )
+            case (fnBlockCopy)
                     fnDescription = 'copy block'
 
-            case (fnBlockList               )
+            case (fnBlockList)
                     fnDescription = 'list blocks'
 
             case (fnBlockConflicts)
                     fnDescription = 'conflicts in block schedules'
 
-            case (fnBlockEditSection        )
+            case (fnBlockEditSection)
                     fnDescription = 'edit section in block'
 
-            case (fnBlockEditSubject        )
+            case (fnBlockEditSubject)
                     fnDescription = 'update subjects in block'
 
-            case (fnScheduleByArea          )
+            case (fnScheduleByArea)
                     fnDescription = 'display schedule of classes for editing, by area'
 
-            case (fnPrintableWorkload       )
+            case (fnPrintableWorkload )
                     fnDescription = 'printable teaching load'
 
-            case (fnEnlistmentSummary       )
-                    fnDescription = 'summary of enlistment by subject'
-
-            case (fnNotAccommodated         )
-                    fnDescription = 'students not accommodated in a priority subject'
-
-            case (fnBottleneck              )
-                    fnDescription = '"bottleneck" subjects'
-
-            case (fnExtraSlots              )
-                    fnDescription = 'subjects with excess slots'
-
-            case (fnUnderloadSummary        )
-                    fnDescription = 'summary of underloading'
-
-            case (fnUnderloadedStudents     )
-                    fnDescription = 'underloaded students'
-
-            case (fnClassList               )
-                    fnDescription = 'view list of students in a class'
-
-            case (fnGradeSheet              )
-                    fnDescription = 'enter grades'
-
-            case (fnDemandFreshmen          )
-                    fnDescription = 'view demand for subjects by incoming students'
-
-            case (fnUpdateDemandFreshmen    )
-                    fnDescription = 'update no. of incoming students'
-
-            case (fnPrintableSchedule       )
-                    fnDescription = 'printable weekly timetable'
-
-            case (fnDemandForSubjects       )
-                    fnDescription = 'view demand for subjects'
-
-            case (fnPotentialStudents       )
-                    fnDescription = 'list of potential students of a subject'
-
-            case (fnSuspendProgram             )
+            case (fnSuspendProgram)
                     fnDescription = 'toggle suspend mode'
 
-            case (fnDownloadXML             )
+            case (fnDownloadXML)
                     fnDescription = 'download XML data file'
 
         end select
@@ -397,46 +284,34 @@ contains
 
         select case (fn)
 
-            case (fnStop                   )
+            case (fnStop)
                     fnAvailable = .true.
 
-            case (fnLogin                   )
+            case (fnLogin)
                     fnAvailable = .true.
 
-            case (fnLogout                )
+            case (fnLogout )
                     fnAvailable = .true.
 
-            case (fnGenerateTeacherPassword   )
+            case (fnGenerateTeacherPassword )
                     fnAvailable = .true.
 
-            case (fnGenerateStudentPassword   )
+            case (fnChangeTeacherPassword)
                     fnAvailable = .true.
 
-            case (fnChangeTeacherPassword          )
+            case (fnResetPasswords)
                     fnAvailable = .true.
 
-            case (fnChangeStudentPassword          )
-                    fnAvailable = .true.
-
-            case (fnToggleTrainingMode      )
+            case (fnToggleTrainingMode)
                     fnAvailable = .true.
 
             case (fnEditSignatories)
                     fnAvailable = .true.
 
-            case (fnRecentStudentActivity)
-                    fnAvailable = .true.
-
             case (fnRecentTeacherActivity)
                     fnAvailable = .true.
 
-            case (fnOnlineStudents)
-                    fnAvailable = .true.
-
             case (fnOnlineTeachers)
-                    fnAvailable = .true.
-
-            case (fnFindStudent)
                     fnAvailable = .true.
 
             case (fnFindTeacher)
@@ -445,199 +320,127 @@ contains
             case (fnDeleteTeacher)
                     fnAvailable = .true.
 
-            case (fnCollegeLinks            )
+            case (fnCollegeLinks )
                     fnAvailable = .true.
 
-            case (fnSubjectList             )
+            case (fnSubjectList)
                     fnAvailable = .true.
 
-            case (fnEditSubject             )
+            case (fnEditSubject)
                     fnAvailable = .true.
 
-            case (fnCurriculumList          )
+            case (fnCurriculumList)
                     fnAvailable = .true.
 
-            case (fnCurriculum              )
+            case (fnCurriculum )
                     fnAvailable = .true.
 
-            case (fnEditCurriculum          )
+            case (fnEditCurriculum)
                     fnAvailable = .true.
 
-            case (fnActivateCurriculum      )
+            case (fnActivateCurriculum)
                     fnAvailable = .true.
 
-            case (fnDeactivateCurriculum    )
+            case (fnDeactivateCurriculum)
                     fnAvailable = .true.
 
-            case (fnEditRoom                )
+            case (fnEditRoom )
                     fnAvailable = .true.
 
-            case (fnEditTeacher             )
+            case (fnEditTeacher)
                     fnAvailable = .true.
 
-            case (fnStudentsByProgram       )
+            case (fnScheduleOfClasses )
                     fnAvailable = .true.
 
-            case (fnStudentsByCurriculum    )
+            case (fnScheduleOfferSubject)
                     fnAvailable = .true.
 
-            case (fnStudentsByName          )
+            case (fnScheduleAddLab)
                     fnAvailable = .true.
 
-            case (fnStudentsByYear          )
+            case (fnScheduleDelete)
                     fnAvailable = .true.
 
-            case (fnStudentsDistribution    )
+            case (fnScheduleEdit )
                     fnAvailable = .true.
 
-            case (fnStudentAdd              )
+            case (fnScheduleValidate)
                     fnAvailable = .true.
 
-            case (fnStudentEdit             )
+            case (fnTeachersByDept)
                     fnAvailable = .true.
 
-            case (fnStudentPerformance      )
+            case (fnTeachersByName)
                     fnAvailable = .true.
 
-            case (fnEditCheckList           )
+            case (fnTeacherClasses )
                     fnAvailable = .true.
 
-            case (fnChangeMatriculation     )
-                    fnAvailable = isActionClasslists
-
-            case (fnFindBlock               )
-                    fnAvailable = isActionClasslists
-
-            case (fnScheduleOfClasses       )
+            case (fnTeacherEditSchedule )
                     fnAvailable = .true.
 
-            case (fnScheduleOfferSubject    )
+            case (fnRoomList )
                     fnAvailable = .true.
 
-            case (fnScheduleAddLab          )
+            case (fnRoomSchedule )
                     fnAvailable = .true.
 
-            case (fnScheduleDelete          )
+            case (fnRoomConflicts)
                     fnAvailable = .true.
 
-            case (fnScheduleEdit            )
+            case (fnTeacherConflicts)
                     fnAvailable = .true.
 
-            case (fnScheduleValidate        )
+            case (fnTBARooms )
                     fnAvailable = .true.
 
-            case (fnTeachersByDept          )
+            case (fnTBATeachers)
                     fnAvailable = .true.
 
-            case (fnTeachersByName          )
+            case (fnBlockSchedule)
                     fnAvailable = .true.
 
-            case (fnTeacherClasses         )
+            case (fnBlockEditName)
                     fnAvailable = .true.
 
-            case (fnTeacherEditSchedule         )
+            case (fnBlockDeleteNotClasses )
                     fnAvailable = .true.
 
-            case (fnRoomList                )
+            case (fnBlockDeleteAlsoClasses)
                     fnAvailable = .true.
 
-            case (fnRoomSchedule            )
+            case (fnBlockNewSelect)
                     fnAvailable = .true.
 
-            case (fnRoomConflicts           )
+            case (fnBlockNewAdd)
                     fnAvailable = .true.
 
-            case (fnTeacherConflicts        )
+            case (fnBlockCopy)
                     fnAvailable = .true.
 
-            case (fnTBARooms                )
-                    fnAvailable = .true.
-
-            case (fnTBATeachers             )
-                    fnAvailable = .true.
-
-            case (fnBlockSchedule           )
-                    fnAvailable = .true.
-
-            case (fnBlockEditName           )
-                    fnAvailable = .true.
-
-            case (fnBlockDeleteNotClasses         )
-                    fnAvailable = .true.
-
-            case (fnBlockDeleteIncludingClasses          )
-                    fnAvailable = .true.
-
-            case (fnBlockNewSelect          )
-                    fnAvailable = .true.
-
-            case (fnBlockNewAdd             )
-                    fnAvailable = .true.
-
-            case (fnBlockCopy               )
-                    fnAvailable = .true.
-
-            case (fnBlockList               )
+            case (fnBlockList)
                     fnAvailable = .true.
 
             case (fnBlockConflicts)
                     fnAvailable = .true.
 
-            case (fnBlockEditSection        )
+            case (fnBlockEditSection)
                     fnAvailable = .true.
 
-            case (fnBlockEditSubject        )
+            case (fnBlockEditSubject)
                     fnAvailable = .true.
 
-            case (fnScheduleByArea          )
+            case (fnScheduleByArea)
                     fnAvailable = .true.
 
-            case (fnPrintableWorkload       )
+            case (fnPrintableWorkload )
                     fnAvailable = .true.
 
-            case (fnEnlistmentSummary       )
-                    fnAvailable = isActionClasslists
-
-            case (fnNotAccommodated         )
-                    fnAvailable = isActionClasslists
-
-            case (fnBottleneck              )
-                    fnAvailable = isActionClasslists
-
-            case (fnExtraSlots              )
-                    fnAvailable = isActionClasslists
-
-            case (fnUnderloadSummary        )
-                    fnAvailable = isActionClasslists
-
-            case (fnUnderloadedStudents     )
-                    fnAvailable = isActionClasslists
-
-            case (fnClassList               )
-                    fnAvailable = isActionClasslists
-
-            case (fnGradeSheet              )
-                    fnAvailable = isActionClasslists
-
-            case (fnDemandFreshmen          )
+            case (fnSuspendProgram)
                     fnAvailable = .true.
 
-            case (fnUpdateDemandFreshmen    )
-                    fnAvailable = .true.
-
-            case (fnPrintableSchedule       )
-                    fnAvailable = isActionClasslists
-
-            case (fnDemandForSubjects       )
-                    fnAvailable = .true.
-
-            case (fnPotentialStudents       )
-                    fnAvailable = .true.
-
-            case (fnSuspendProgram             )
-                    fnAvailable = .true.
-
-            case (fnDownloadXML             )
+            case (fnDownloadXML)
                     fnAvailable = .true.
 
         end select
@@ -686,8 +489,8 @@ contains
 
         ! the function and user name
         cipher = 'F='//trim(itoa(fn))//'&N='//USERNAME
-        ! the term if specified
-        if (targetTerm>0) then
+        ! force term to be current term ?
+        if (targetTerm>0) then ! specified
             cipher = trim(cipher)//'&A9='//itoa(targetTerm)
         end if
 
@@ -739,7 +542,6 @@ contains
 
         make_href = cipher
 
-
     end function make_href
 
 
@@ -755,8 +557,8 @@ contains
 
         ! the function and user name
         cipher = 'F='//trim(itoa(fn))//'&N='//USERNAME
-        ! the term if specified
-        if (targetTerm>0) then
+        ! force term to be current term ?
+        if (targetTerm>0) then ! specified
             cipher = trim(cipher)//'&A9='//itoa(targetTerm)
         end if
 
@@ -802,13 +604,16 @@ contains
 
         write(device,AFORMAT) &
             '<small><i>'//PROGNAME//nbsp//COPYRIGHT//'<br>', &
-            'This program comes with ABSOLUTELY NO WARRANTY; for details see the ', &
-            'GNU GENERAL PUBLIC LICENSE Version 3 ', &
+            'This program comes with ABSOLUTELY NO WARRANTY; for details see the GNU GENERAL PUBLIC LICENSE Version 3 ', &
             '(<a target="0" href="http://www.gnu.org/licenses/gpl-3.0.html">GPLv3</a>).<br>', &
             'This program is free software, and you are welcome to redistribute it under certain conditions; ', &
             ' see the GPLv3 for details.<br>', &
-            'The source code is available at <a target="0" href="'//WEB//'">'// &
-            WEB//'</a><br>', &
+            ' Support for the development of this program was provided by: '// &
+            ' University of the Philippines Los Banos (1997-2001); '// &
+            ' BalikScientist Program of the Department of Science and Technology (2010); '// &
+            ' Isabela State University (2011); and '// &
+            ' Cagayan State University (2012). ', &
+            'The source code is available at <a target="0" href="'//WEB//'">'//WEB//'</a><br>', &
             CONTACT//'</i></small><hr>'
 
 
@@ -829,15 +634,13 @@ contains
             '<html><head><title>'//trim(UniversityCode)//SPACE//PROGNAME//'</title></head><body>'
 
         if (len_trim(mesg)>0) then ! Stop/Logout page
-            write(device,aformat) '<h2>'//trim(UniversityCode)//SPACE//PROGNAME// &
-                ' for '//text_school_year(currentYear)//'</h2>', &
+            write(device,aformat) '<h2>'//trim(UniversityCode)//SPACE//PROGNAME//'</h2>', &
                 red//trim(mesg)//black
             if (REQUEST==fnStop)  &
                 write(device,AFORMAT)'<br><br>Go to <a href="/">'//PROGNAME//' Index</a>'
         else ! Login page
             write(device,AFORMAT) &
-                '<h2>Welcome to '//trim(UniversityCode)//SPACE//PROGNAME//SPACE//trim(ACTION)// &
-                ' for '//text_school_year(currentYear)//' !</h2><hr>', &
+                '<h2>Welcome to '//trim(UniversityCode)//SPACE//PROGNAME//SPACE//trim(ACTION)//' !</h2><hr>', &
                 '<table border="0" width="100%">'//begintr, &
                 '<td valign="top" width="25%">'
             call make_form_start(device, fnLogin)
@@ -851,21 +654,14 @@ contains
             if (len_trim(loginCheckMessage)>0) write(device,AFORMAT) &
                 '<br>'//red//trim(loginCheckMessage)//black//'<br>'
             write(device,AFORMAT) endtd//begintd, &
-                '<b>Role - <i>privilege</i> ( Username )</b><ul>', &
-                '<li>Guest - <i>view public data</i> ( Guest )</li>', &
-                '<li>Student - <i>view public data and own record</i> ( StdNo )</li>'
-            write(device,AFORMAT) &
-                '<li>Curriculum adviser - <i>edit records of students in curriculum</i>'// &
-                ' ( TeacherID or CurriculumCode )</li>'
-            write(device,AFORMAT) &
-                '<li>Teaching load scheduler - <i>edit teacher info, room info and class schedules of own department</i>'//&
-                ' ( TeacherID or DepartmentCode )</li>'
-            write(device,AFORMAT) '</ul>', &
-                '<b>Forgot your Username and/or Password?</b> <i>Visit the Registrar; bring University-issued ID.</i>', &
-                endtd//endtr//'</table>', &
-                red//'<br><b>Warning #1:</b> <i>Do not use the browser ''Back'' button unless '// &
-                ' the page on display has no hyperlink nor ''submit'' button.</i>'//black, &
-                red//'<br><b>Warning #2:</b> <i>Advisers and Schedulers - do not forget to logout.</i>'//black//'<hr>'
+                '<b>Forgot your Username and/or Password?</b> <i>Visit your Dean or the Registrar; '// &
+                'bring University-issued ID.</i><br>', &
+                '<br><b>Tips:</b><ul>', &
+                '<li>Change your initial password. Do not forget to logout.</li>', &
+                '<li>Do not use the browser ''Back'' button unless '// &
+                ' there are no hyperlinks or ''Submit'' buttons on the displayed page.</li>', &
+                '<li>HEEDS is best viewed using the Mozilla Firefox browser.</li>', &
+                endtd//endtr//'</table><hr>'
             call html_copyright(device)
 
         end if
@@ -1109,7 +905,7 @@ contains
                         else
                             write(device,AFORMAT) tdnbspendtd//endtr
                         end if
-                    elseif (target_fn==fnChangeMatriculation .or. target_fn==fnBlockEditSection) then
+                    elseif (target_fn==fnBlockEditSection) then
                         if ( permitted ) then
                             ! operate on lab classes, not lecture classes
                             if (is_lecture_lab_subject(Section(sdx)%SubjectIdx) .and.  is_lecture_class(sdx, Section)) then
@@ -1180,7 +976,7 @@ contains
                     else
                         write(device,AFORMAT) tdnbspendtd//endtr
                     end if
-                elseif (target_fn==fnChangeMatriculation .or. target_fn==fnBlockEditSection) then
+                elseif (target_fn==fnBlockEditSection) then
                     if ( permitted ) then
                         ! operate on lab classes, not lecture classes
                         if (is_lecture_lab_subject(Section(sdx)%SubjectIdx) .and.  is_lecture_class(sdx, Section)) then
@@ -1212,6 +1008,7 @@ contains
     end subroutine list_sections_to_edit
 
 
+
     subroutine html_write_header(device, header, errmsg)
         integer, intent (in) :: device
         character(len=*), intent (in) :: header
@@ -1239,127 +1036,126 @@ contains
         ! banner line 1: user context & shortcuts
         write(device,AFORMAT) &
             '<table border="0" width="100%" cellpadding="0" cellspacing="0">', &
-            begintr//begintd//'<h2>'//trim(UniversityCode)//SPACE//trim(ACTION)// &
-            trim(description)//'</h2>'//endtd, &
-            '<td align="right" valign="top"><small>User is '
+            begintr//'<td width="50%"><h2>'//trim(UniversityCode)//SPACE//trim(PROGNAME)// &
+            trim(description)//'</h2>'
+        if (present(errmsg)) then
+            if (errmsg/=SPACE) write(device,AFORMAT) red//'<i>'//trim(errmsg)//'</i>'//black
+        end if
 
-            if (USERNAME/=ROLE) then
-                write(device,AFORMAT) trim(USERNAME)//'/'//trim(ROLE)//'.'
-            else
-                if (isRoleSRE) then
-                    write(device,AFORMAT) trim(USERNAME)//'/Adviser.'
-                elseif (isRoleChair) then
-                    write(device,AFORMAT) trim(USERNAME)//'/Scheduler.'
+        write(device,AFORMAT) endtd//'<td align="right" valign="top"><small>'// &
+            '[ <b>User is '//trim(USERNAME)//'</b>.'
+        QUERY_put = USERNAME
+
+        if ( trim(USERNAME)/=trim(GUEST) .and. ROLE/=ADMINISTRATION) then
+            if (REQUEST/=fnTeacherClasses) then
+                if (targetTerm==0) then
+                    targetTerm = currentTerm
+                        write(device,AFORMAT) &
+                            trim(make_href(fnTeacherClasses, 'Classes', A1=QUERY_put, pre=nbsp, &
+                            post=DASH//txtSemester(targetTerm+6)))
+                    targetTerm = 0
                 else
-                    write(device,AFORMAT) trim(USERNAME)//'.'
+                    write(device,AFORMAT) &
+                        trim(make_href(fnTeacherClasses, 'Classes', A1=QUERY_put, pre=nbsp, &
+                        post=DASH//txtSemester(targetTerm+6)))
                 end if
-            end if
-
-        ! primary links for Department Chair
-        if (isRoleChair) then
-            if (REQUEST/=fnLogin) then
-                call info_department(device, Department(DeptIdxUser)%Code)
-            end if
-
-        ! primary links for Registration Adviser
-        else if (isRoleSRE) then
-            if (REQUEST/=fnCurriculum) then
-                write(device,AFORMAT) trim(make_href(fnCurriculumList, 'Curriculum', &
-                    A1=CurrProgCode(CurriculumIdxUser), pre=nbsp))
-            end if
-
-        ! primary links for a teacher
-        else if (isRoleTeacher) then
-            QUERY_put = USERNAME
-            if (REQUEST/=fnTeacherClasses .and. targetTerm/=0) &
-                write(device,AFORMAT) &
-                    trim(make_href(fnTeacherClasses, 'Classes', A1=QUERY_put, pre=nbsp, alt=SPACE))
-            if (REQUEST/=fnPrintableWorkload .and. targetTerm/=0) &
-                write(device,AFORMAT) &
-                    trim(make_href(fnPrintableWorkload, 'Load form', A1=QUERY_put, pre=nbsp, alt=SPACE))
-
-        ! primary links for a student
-        else if (isRoleStudent) then
-            QUERY_put = USERNAME
-            if (REQUEST/=fnEditCheckList) then
-                write(device,AFORMAT) trim(make_href(fnEditCheckList, 'Checklist', &
-                    A1=QUERY_put, pre=nbsp, alt=SPACE))
-            end if
-            if (REQUEST/=fnStudentPerformance) then
-                write(device,AFORMAT) trim(make_href(fnStudentPerformance, 'Performance', &
-                    A1=QUERY_put, pre=nbsp, alt=SPACE))
             end if
         end if
 
         ! Logout for all users
         write(device,AFORMAT) trim(make_href(fnLogout, 'Logout', pre=nbsp))
 
-        ! end of line 1
-        write(device,AFORMAT) '</small>'//endtd//endtr
+        ! emergency stop
+#if defined no_password_check
+        if (isRoleAdmin) &
+            write(device,AFORMAT) trim(make_href(fnStop, 'Stop '//PROGNAME, pre=nbsp))
+#endif
 
-        ! line 2 for banner: colleges
-        write(device,AFORMAT) begintr//'<td colspan="2"><small>[ <b>Colleges:</b>'
+        ! end of line 1
+        write(device,AFORMAT) ' ]</small><br><small>[ <b>Go to</b> :'
         do gdx = 1,NumColleges
             if (.not. College(gdx)%hasInfo) cycle
             ! fnCollegeLinks requested already printed above?
             write(device,AFORMAT) trim(make_href(fnCollegeLinks, College(gdx)%Code, &
                 A1=College(gdx)%Code, pre=nbsp))
         end do
-        write(device,AFORMAT) ' ]</small>'//endtd//endtr
-
-        ! line 3 for banner: higher level context for selected function
-        write(device,AFORMAT) begintr//'<td colspan="2"><small>'
+        write(device,AFORMAT) ' ]</small>'
 
         ! a teacher ?
-        if (targetTeacher>0) then
-            write(device,AFORMAT) '[ <b>'//trim(Teacher(targetTeacher)%Name)//'</b> '
+        if (targetTeacher>0 .and. requestingTeacher/=targetTeacher) then
+            write(device,AFORMAT) '<br><small>[ <b>'//trim(Teacher(targetTeacher)%Name)//'</b> '
 
-            if (isRoleAdmin .or. (isRoleChair .and. DeptIdxUser==Teacher(targetTeacher)%DeptIdx) ) then
+            if (isRoleAdmin .or. &
+                (isRoleDean .and. CollegeIdxUser==Department(Teacher(targetTeacher)%DeptIdx)%CollegeIdx ) .or. &
+                (isRoleChair .and. DeptIdxUser==Teacher(targetTeacher)%DeptIdx) ) then
+
                 if (REQUEST/=fnEditTeacher .and. REQUEST/=fnGenerateTeacherPassword) then
                     write(device,AFORMAT) trim(make_href(fnEditTeacher, 'Edit info', &
-                        A1=Teacher(targetTeacher)%TeacherID, pre=nbsp, alt=SPACE))
-                end if
-                if (REQUEST/=fnTeacherEditSchedule) then
-                    write(device,AFORMAT) trim(make_href(fnTeacherEditSchedule, 'Edit load', &
                         A1=Teacher(targetTeacher)%TeacherID, pre=nbsp))
                 end if
+                if (targetTerm>0) then
+                    if (REQUEST/=fnTeacherEditSchedule) then
+                        write(device,AFORMAT) trim(make_href(fnTeacherEditSchedule, 'Edit load', &
+                            A1=Teacher(targetTeacher)%TeacherID, pre=nbsp, post=DASH//txtSemester(targetTerm+6) ))
+                    end if
+                else
+                    targetTerm = currentTerm
+                    if (REQUEST/=fnTeacherEditSchedule) then
+                        write(device,AFORMAT) trim(make_href(fnTeacherEditSchedule, 'Edit load', &
+                            A1=Teacher(targetTeacher)%TeacherID, pre=nbsp, post=DASH//txtSemester(targetTerm+6) ))
+                    end if
+                    targetTerm = 0
+                end if
             end if
-            if (REQUEST/=fnTeacherClasses) then
-                write(device,AFORMAT) trim(make_href(fnTeacherClasses, 'Classes', &
-                    A1=Teacher(targetTeacher)%TeacherID, pre=nbsp))
+
+            if (targetTerm>0) then
+                if (REQUEST/=fnTeacherClasses) then
+                    write(device,AFORMAT) trim(make_href(fnTeacherClasses, 'Classes', &
+                        A1=Teacher(targetTeacher)%TeacherID, pre=nbsp, post=DASH//txtSemester(targetTerm+6)))
+                end if
+                if (REQUEST/=fnPrintableWorkload) then
+                    write(device,AFORMAT) trim(make_href(fnPrintableWorkload, 'Load form', &
+                        A1=Teacher(targetTeacher)%TeacherID, pre=nbsp, post=DASH//txtSemester(targetTerm+6)))
+                end if
+            else
+                targetTerm = currentTerm
+                if (REQUEST/=fnTeacherClasses) then
+                    write(device,AFORMAT) trim(make_href(fnTeacherClasses, 'Classes', &
+                        A1=Teacher(targetTeacher)%TeacherID, pre=nbsp, post=DASH//txtSemester(targetTerm+6)))
+                end if
+                if (REQUEST/=fnPrintableWorkload) then
+                    write(device,AFORMAT) trim(make_href(fnPrintableWorkload, 'Load form', &
+                        A1=Teacher(targetTeacher)%TeacherID, pre=nbsp, post=DASH//txtSemester(targetTerm+6)))
+                end if
+                targetTerm = 0
             end if
-            if (REQUEST/=fnPrintableWorkload) then
-                write(device,AFORMAT) trim(make_href(fnPrintableWorkload, 'Load form', &
-                    A1=Teacher(targetTeacher)%TeacherID, pre=nbsp))
-            end if
-            if (isRoleAdmin .and. REQUEST/=fnRecentTeacherActivity) then
+
+            if (REQUEST/=fnRecentTeacherActivity) then
                 write(device,AFORMAT) trim(make_href(fnRecentTeacherActivity, 'Activity', &
-                    A1=Teacher(targetTeacher)%TeacherID, pre=nbsp, alt=SPACE))
+                    A1=Teacher(targetTeacher)%TeacherID, pre=nbsp))
             end if
-            write(device,AFORMAT) ' ] '//nbsp
+            write(device,AFORMAT) ' ]</small>'
         end if
 
         ! show department options ?
-        if (targetDepartment>0 .and. DeptIdxUser/=targetDepartment .and. REQUEST/=fnLogin) then
+        if (targetDepartment>0 .and. REQUEST/=fnLogin) then
             tDepartment = Department(targetDepartment)%Code
-            write(device,AFORMAT) '[ <b>'//trim(tDepartment)//'</b>'
+            write(device,AFORMAT) '<br><small>[ <b>'//trim(tDepartment)//'</b>'
             call info_department(device, tDepartment)
-            write(device,AFORMAT) ' ] '//nbsp
+            write(device,AFORMAT) ' ]</small>'
         end if
 
-        write(device,AFORMAT) '</small>'//endtd//endtr
-
-        ! line 4 of banner, if any
-        if (present(errmsg)) then
-            if (errmsg/=SPACE) write(device,AFORMAT) begintr//'<td colspan="2">'// &
-                red//'<i>'//trim(errmsg)//'</i>'//black//endtd//endtr
-        end if
-        write(device,AFORMAT) '</table><hr>'
+        write(device,AFORMAT) endtd//endtr, &
+            '</table><hr>'
 
         ! start of body
+        if (targetTerm==1) then
+            termDescription = Fuchsia//trim(termDescription)//black
+        elseif (targetTerm==2) then
+            termDescription = Lime//trim(termDescription)//black
+        end if
         if (len_trim(header)>0) write(device,AFORMAT) '<h3>'//trim(header)// &
             trim(termDescription)//'</h3>'
-
 
     end subroutine html_write_header
 
@@ -1375,8 +1171,7 @@ contains
         if (REQUEST/=fnStop .and. &
             REQUEST/=fnLogout .and. &
             REQUEST/=fnChangeTeacherPassword .and. &
-            REQUEST/=fnPrintableWorkload .and. &
-            REQUEST/=fnPrintableSchedule) then
+            REQUEST/=fnPrintableWorkload) then
 
             write(device,AFORMAT) &
                 '<table border="0" width="100%" cellpadding="0" cellspacing="0">', &
@@ -1390,25 +1185,14 @@ contains
             if (.not. isSuspendMode) then
                 write(device,AFORMAT) 'User is '//trim(USERNAME)//'@'//REMOTE_ADDR//nbsp
                 if (USERNAME/=GUEST) then
-                    if (isRoleStudent) then
-                        write(device,AFORMAT) &
-                            trim(make_href(fnChangeStudentPassword, 'Change password'))
-                    else
-                        write(device,AFORMAT) &
-                            trim(make_href(fnChangeTeacherPassword, 'Change password'))
-                    end if
+                    write(device,AFORMAT) &
+                        trim(make_href(fnChangeTeacherPassword, 'Change password'))
                 end if
                 write(device,AFORMAT) &
                     trim(make_href(fnLogout, 'Logout', pre=nbsp))
             end if
             write(device,AFORMAT) '</small>'//endtd//endtr//'</table>'
 
-            if (noWrites) then ! training mode
-                write(device,AFORMAT) &
-                    '<small><i>'//red//PROGNAME//FSLASH//ACTION//' is in read-only mode. '// &
-                    'Changes to data will be lost on exit.'// &
-                    black//'</i></small>'
-            end if
             if (isSuspendMode) then
                 write(device,AFORMAT)  &
                     '<small><i>'//red//PROGNAME//FSLASH//ACTION//' is in suspend-mode. '// &
@@ -1442,8 +1226,8 @@ contains
             targetCOLLEGE = index_to_college(tCollege)
         end if
 
-        if (cdx/=0 .or. targetCOLLEGE==0) then ! force to select a college
-            call html_write_header(device, 'Select a college', mesg)
+        if (cdx/=0 .or. targetCOLLEGE==0) then ! force to select a unit
+            call html_write_header(device, 'Select a unit', mesg)
             ! start of body
             write(device,aformat) '<ul>'
             do cdx = 1,NumColleges
@@ -1462,37 +1246,34 @@ contains
 
 
     subroutine info_department(device, tDepartment)
+
         integer, intent(in) :: device
         character(len=MAX_LEN_DEPARTMENT_CODE), intent (in) :: tDepartment
 
-
         call html_comment('info_department()')
 
-        if (REQUEST/=fnSubjectList) then
-            write(device,AFORMAT) trim(make_href(fnSubjectList, 'Subjects', &
-                A1=tDepartment, pre=nbsp))
-        end if
+        !if (REQUEST/=fnSubjectList) then
+        !    write(device,AFORMAT) trim(make_href(fnSubjectList, 'Subjects', A1=tDepartment, pre=nbsp))
+        !end if
 
         if (REQUEST/=fnTeachersByDept) then
-            write(device,AFORMAT) trim(make_href(fnTeachersByDept, 'Teachers', &
-                A1=tDepartment, pre=nbsp))
+            write(device,AFORMAT) trim(make_href(fnTeachersByDept, 'Teachers', A1=tDepartment, pre=nbsp))
         end if
 
         if (REQUEST/=fnRoomList) then
-            write(device,AFORMAT) trim(make_href(fnRoomList, 'Rooms', &
-                A1=tDepartment, pre=nbsp))
+            write(device,AFORMAT) trim(make_href(fnRoomList, 'Rooms', A1=tDepartment, pre=nbsp))
         end if
 
         if (REQUEST/=fnScheduleOfClasses .and. targetTerm>0) then
-            write(device,AFORMAT) trim(make_href(fnScheduleOfClasses, 'Classes', &
-                A1=tDepartment, pre=nbsp))
+            write(device,AFORMAT) trim(make_href(fnScheduleOfClasses, 'Classes', A1=tDepartment, &
+                pre=nbsp, post=DASH//txtSemester(targetTerm+6) ))
         end if
-
 
     end subroutine info_department
 
 
     subroutine html_college_info(device, coll)
+
         integer, intent(in) :: device
         integer, intent(in) :: coll
         integer :: tdx, rdx, ldx, cdx, dept, n_curr, n_count, tLen
@@ -1500,11 +1281,15 @@ contains
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
         character (len=1) :: ch
         character (len=80) :: description
-        logical :: addHR
+        logical :: hasRooms, hasTeachers, hasStudents, hasSubjects
 
         call html_comment('html_college_info()')
 
         tCollege = College(coll)%Code
+        hasRooms = .false.
+        hasTeachers = .false.
+        hasStudents = .false.
+        hasSubjects = .false.
 
         ! any curricular programs
         n_curr = 0
@@ -1514,9 +1299,9 @@ contains
             exit
         end do
 
-        ! subject areas in college
+        ! subject areas in unit
         tLen = 0
-#if defined UPLB
+#if defined REGIST
         do cdx=1,NumSubjectAreas
             if (SubjectArea(cdx)%CollegeIdx==coll) then
                 tLen = tLen+1
@@ -1536,6 +1321,7 @@ contains
             end do
         end do
 #endif
+        hasSubjects = n_curr>0 .or. tLen>0
 
         ! start of body
         write(device,AFORMAT) '<ul>'
@@ -1543,17 +1329,11 @@ contains
         if (isRoleAdmin .and. coll==CollegeIdxUSER) then
 
             write(device,AFORMAT) trim(make_href(fnStop, 'Stop', &
-                pre='<li><b>', post='</b> '//PROGNAME//red//' - Are you sure you want to do this?'//black//'</li>'))
-
-            if (noWrites) then ! training mode
-                write(device,AFORMAT) trim(make_href(fnToggleTrainingMode, 'Turn it OFF', &
-                    pre='<li><b>Training-mode is '//red//'ON'//black//'</b>. ', &
-                    post=' to enable writing of edited data to file.</li>'))
-            else
-                write(device,AFORMAT) trim(make_href(fnToggleTrainingMode, 'Turn it ON', &
-                    pre='<li><b>Training-mode is '//green//'OFF'//black//'</b>. ', &
-                    post=' to disable writing of edited data to file.</li>'))
-            end if
+                pre='<li><b>', post='</b> '//PROGNAME//red// &
+                ' - Are you sure you want to do this? '//black//'View ')), &
+                trim(make_href(fnOnlineTeachers, 'online users', pre=nbsp//'<b>', post='.</b>')), &
+                trim(make_href(fnDownloadXML, 'Backup', A1='BACKUP.XML', &
+                pre=nbsp//'<b>', post='</b> data.</li>'))
 
             if (isSuspendMode) then ! suspended mode
                 write(device,AFORMAT) trim(make_href(fnSuspendProgram, 'Turn it OFF', &
@@ -1565,25 +1345,17 @@ contains
                     post=' to allow only the Registrar, Student and Guest roles.</li>'))
             end if
 
-            write(device,AFORMAT) '<li><b>Logged in </b> ', &
-                trim(make_href(fnOnlineTeachers, 'teachers', pre=nbsp)), &
-                '</li>'
-
             write(device,AFORMAT) trim(make_href(fnEditSignatories, 'signatories', &
-                pre='<li><b>Edit '//nbsp, post=nbsp//'in teaching load form</b></li>'))
+                pre='<li><b>Edit '//nbsp, post=nbsp//'</b>in teaching load form.</li>'))
 
-            write(device,AFORMAT) '<li><b>Download academic catalog.</b> '//&
-                'Right-click on link, then "Save Link As..." '//trim(pathToYear), &
-                trim(make_href(fnDownloadXML, 'CATALOG.XML', A1='CATALOG.XML', post='</li>'))
-
-            write(device,AFORMAT) '<li><b>Download passwords of teachers</b> '//&
-                'Right-click on link, then "Save Link As..." ', &
-                trim(make_href(fnDownloadXML, 'PASSWORDS-TEACHERS.CSV', A1='PASSWORDS-TEACHERS.CSV', post='</li>'))
+            write(device,AFORMAT) '<li><b>'//trim(make_href(fnResetPasswords, 'Reset', &
+                post='</b> passwords. <b>Download</b> : right-click on link, then "Save Link As..." ')), &
+                trim(make_href(fnDownloadXML, 'PASSWORDS-TEACHERS.CSV', A1='PASSWORDS-TEACHERS.CSV', post=nbsp)), &
+                trim(make_href(fnDownloadXML, 'PASSWORDS-STUDENTS.CSV', A1='PASSWORDS-STUDENTS.CSV', post='</li>'))
 
         end if
 
-        addHR = n_curr>0
-        if (addHR) then
+        if (hasSubjects) then
             write(device,AFORMAT) '<li><b>Curricular programs</b> : '
             done = .false.
             do cdx=1,NumCurricula-1
@@ -1607,57 +1379,7 @@ contains
         ! subjects
         call links_to_subjects(device, coll, tLen, tArray(1))
 
-        if (addHR) write(device,AFORMAT) '<hr>'
-
-        ! teachers
-        n_count = 0
-        do tdx=1,NumTeachers+NumAdditionalTeachers
-            if (Department(Teacher(tdx)%DeptIdx)%CollegeIdx /= coll) cycle
-            n_count = n_count+1
-            exit
-        end do
-        addHR = n_count>0
-        if (addHR) then
-
-            call html_comment('teacher links()')
-
-            call make_form_start(device, fnFindTeacher)
-            write(device,AFORMAT) '<li><table border="0" cellpadding="0" cellspacing="0">', &
-                begintr//begintd//'<b>Search for teacher</b> with <input name="A1" value=""> in name. ', &
-                '<input type="submit" name="action" value="Search"></form>'// &
-                endtd//endtr//'</table></li>'
-
-            write(device,AFORMAT) '<li><b>Teachers by department</b> : '
-            do dept=2,NumDepartments
-                if (Department(dept)%CollegeIdx /= coll) cycle
-                n_count = 0
-                do tdx=1,NumTeachers+NumAdditionalTeachers
-                    if (Teacher(tdx)%DeptIdx /= dept) cycle
-                    if (trim(Teacher(tdx)%Role)==trim(REGISTRAR)) cycle
-                    n_count = n_count+1
-                end do
-                if (n_count==0) cycle
-                tDepartment = Department(dept)%Code
-                write(device,AFORMAT) trim(make_href(fnTeachersByDept, tDepartment, &
-                    A1=tDepartment, pre=nbsp, post='('//trim(itoa(n_count))//')'))
-            end do
-            write(device,AFORMAT) '</li><li><b>Teachers by last name</b> : '
-            do dept=iachar('A'), iachar('Z')
-                ch = achar(dept)
-                n_count = 0
-                do tdx=1,NumTeachers+NumAdditionalTeachers
-                    if (Teacher(tdx)%Name(1:1) /= ch) cycle
-                    if (Department(Teacher(tdx)%DeptIdx)%CollegeIdx /= coll) cycle
-                    if (trim(Teacher(tdx)%Role)==trim(REGISTRAR)) cycle
-                    n_count = n_count+1
-                end do
-                if (n_count==0) cycle
-                write(device,AFORMAT) trim(make_href(fnTeachersByName, ch, &
-                    A1=tCollege, A2=ch, pre=nbsp, post='('//trim(itoa(n_count))//')'))
-            end do
-            write(device,AFORMAT) '</li>'
-
-        end if
+        if (hasSubjects) write(device,AFORMAT) '<hr>'
 
         ! rooms
         n_count = 0
@@ -1666,8 +1388,8 @@ contains
             n_count = n_count+1
             exit
         end do
-        if (n_count>0) then
-            addHR = .true.
+        hasRooms = n_count>0
+        if (hasRooms) then
 
             call html_comment('room links()')
 
@@ -1687,7 +1409,58 @@ contains
             write(device,AFORMAT) '</li>'
         end if
 
-        if (addHR) write(device,AFORMAT) '<hr>'
+        ! teachers
+        n_count = 0
+        do tdx=1,NumTeachers+NumAdditionalTeachers
+            if (Department(Teacher(tdx)%DeptIdx)%CollegeIdx /= coll) cycle
+            n_count = n_count+1
+            exit
+        end do
+        hasTeachers = n_count>0
+        if (hasTeachers) then
+
+            call html_comment('teacher links()')
+
+            write(device,AFORMAT) '<li><b>Teachers by department</b> : '
+            do dept=2,NumDepartments
+                if (Department(dept)%CollegeIdx /= coll) cycle
+                n_count = 0
+                do tdx=1,NumTeachers+NumAdditionalTeachers
+                    if (Teacher(tdx)%DeptIdx /= dept) cycle
+                    if (Teacher(tdx)%Role==ADMINISTRATION) cycle
+                    n_count = n_count+1
+                end do
+                if (n_count==0) cycle
+                tDepartment = Department(dept)%Code
+                write(device,AFORMAT) trim(make_href(fnTeachersByDept, tDepartment, &
+                    A1=tDepartment, pre=nbsp, post='('//trim(itoa(n_count))//')'))
+            end do
+            write(device,AFORMAT) '</li><li><b>Teachers by last name</b> : '
+            do dept=iachar('A'), iachar('Z')
+                ch = achar(dept)
+                n_count = 0
+                do tdx=1,NumTeachers+NumAdditionalTeachers
+                    if (Teacher(tdx)%Name(1:1) /= ch) cycle
+                    if (Department(Teacher(tdx)%DeptIdx)%CollegeIdx /= coll) cycle
+                    if (Teacher(tdx)%Role==ADMINISTRATION) cycle
+                    n_count = n_count+1
+                end do
+                if (n_count==0) cycle
+                write(device,AFORMAT) trim(make_href(fnTeachersByName, ch, &
+                    A1=tCollege, A2=ch, pre=nbsp, post='('//trim(itoa(n_count))//')'))
+            end do
+            write(device,AFORMAT) '</li>'
+
+            call make_form_start(device, fnFindTeacher)
+            write(device,AFORMAT) '<li><table border="0" cellpadding="0" cellspacing="0">', &
+                begintr//begintd//'<b>Find teachers</b> with <input name="A1" value=""> in name. ', &
+                '<input type="submit" name="action" value="Search"></form>'// &
+                endtd//endtr//'</table></li>'
+
+        end if
+
+        if (hasRooms .or. hasTeachers) write(device,AFORMAT) '<hr>'
+
 
         ! per term
         cdx = targetTerm ! remember targetTerm
@@ -1695,20 +1468,9 @@ contains
 
             call qualify_term (ldx, rdx, targetTerm, description)
             write(device,AFORMAT) '<li><b>'//trim(description)//'</b><ul>'
-            if (coll==NumColleges .and. .not. (isRoleGuest .or. isRoleStudent)) then
-                write(device,AFORMAT) &
-                    '<li><b>Download Schedule of Classes.</b> Right-click on link, then "Save Link As..." '// &
-                    trim(dirDATA)//trim(itoa(rdx))//DIRSEP//trim(txtSemester(targetTerm))//DIRSEP, &
-                    trim(make_href(fnDownloadXML, 'CLASSES.XML', A1='CLASSES.XML', post='</li>'))
-                write(device,AFORMAT) &
-                    '<li><b>Download blocked sections.</b> Right-click on link, then "Save Link As..." '// &
-                    trim(dirDATA)//trim(itoa(rdx))//DIRSEP//trim(txtSemester(targetTerm))//DIRSEP, &
-                    trim(make_href(fnDownloadXML, 'BLOCKS.XML', A1='BLOCKS.XML', post='</li>'))
-
-            end if
 
             ! blocks
-!#if defined UPLB
+!#if defined REGIST
 !#else
             if (n_curr>0) call links_to_blocks(device, coll, targetTerm)
 !#endif
@@ -1737,7 +1499,7 @@ contains
         do dept=2,NumDepartments
             if (Department(dept)%CollegeIdx/=coll) cycle
             n_count = 0
-#if defined UPLB
+#if defined REGIST
             do crse=1,NumSubjects+NumAdditionalSubjects
                 if (Subject(crse)%DeptIdx /= dept) cycle
                 n_count = n_count+1
@@ -1766,7 +1528,7 @@ contains
         integer, intent (in) :: AreaList(1:numAreas)
         integer :: dept, n_count
         character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
-#if defined UPLB
+#if defined REGIST
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
         integer :: crse
 #endif
@@ -1774,7 +1536,7 @@ contains
 
         call html_comment('links_to_subjects()')
 
-#if defined UPLB
+#if defined REGIST
         write(device,AFORMAT) '<li><b>Subjects</b> in :'
         do dept=2,NumDepartments
             if (Department(dept)%CollegeIdx /= coll) cycle
@@ -1823,14 +1585,14 @@ contains
         call html_comment('links_to_sections()')
 
         tCollege = College(coll)%Code
-#if defined UPLB
+#if defined REGIST
         ddx = 0
 #else
         tDepartment = tCollege
         ddx = index_to_dept(tDepartment)
 #endif
 
-#if defined UPLB
+#if defined REGIST
         write(device,AFORMAT) '<li><b>Classes</b> in : '
         do dept=2,NumDepartments
             if (Department(dept)%CollegeIdx /= coll) cycle
@@ -1864,7 +1626,7 @@ contains
             k1 = len_trim(tSubject)+1
             n_count = 0 ! how many sections with this code currently open
             do sect=1,NumSections(term)
-#if defined UPLB
+#if defined REGIST
                 if (Section(term,sect)%ClassId(:k1)==tSubject(:k1)) n_count = n_count+1
 #else
                 if (Section(term,sect)%ClassId(:k1)==tSubject(:k1) .and. &
@@ -1895,22 +1657,10 @@ contains
             pre=nbsp, post='('//trim(itoa(m_count))//')'))
 
         write(device,AFORMAT) '</li><li><b>Conflicts in schedules of </b> '
-        write(device,AFORMAT) trim(make_href(fnTeacherConflicts, 'teachers', &
-            A1=tCollege, pre=nbsp))
-        write(device,AFORMAT) trim(make_href(fnRoomConflicts, 'rooms', &
-            A1=tCollege, pre=nbsp))
-        write(device,AFORMAT) trim(make_href(fnBlockConflicts, 'blocks', &
-            A1=tCollege, pre=nbsp))
+        write(device,AFORMAT) trim(make_href(fnTeacherConflicts, 'teachers', A1=tCollege, pre=nbsp))
+        write(device,AFORMAT) trim(make_href(fnRoomConflicts, 'rooms', A1=tCollege, pre=nbsp))
+        write(device,AFORMAT) trim(make_href(fnBlockConflicts, 'blocks', A1=tCollege, pre=nbsp))
         write(device,AFORMAT) '</li>'
-
-        if (isRoleTeacher) then
-            QUERY_put = USERNAME
-            write(device,AFORMAT) &
-                trim(make_href(fnTeacherClasses, 'classes', &
-                    A1=QUERY_put, pre='<li><b>My </b>'//nbsp)), &
-                trim(make_href(fnPrintableWorkload, 'form', &
-                    A1=QUERY_put, pre=nbsp//'and teaching load'//nbsp, post='</li>'))
-        end if
 
     end subroutine links_to_sections
 
@@ -1967,7 +1717,6 @@ contains
     end subroutine blocks_in_section
 
 
-
     subroutine recent_teacher_activity(device)
         integer, intent(in) :: device
         character(len=MAX_LEN_TEACHER_CODE) :: tTeacher, tRole
@@ -1988,59 +1737,15 @@ contains
 
         call html_write_header(device, 'Recent activity of '//trim(Teacher(targetTeacher)%Name), SPACE)
 
-!        if (trim(tRole)==GUEST) then
-            logFile = trim(dirLOG)// &
-                trim(College(ldx)%Code)//DIRSEP// &
-                trim(tTeacher)//'.log'
-            inquire(file=logFile, exist=logExists)
-            if (logExists) then
-                call copy_to_unit(logFile, device)
-            else
-                write(device,AFORMAT) '<br>(None)<hr>'
-            end if
-!        else
-!            nDays = 0 ! no. of days active
-!            sYear = atoi(startDateTime(1:4))
-!            sMonth = atoi(startDateTime(5:6))
-!            sDay = atoi(startDateTime(7:8))
-!            eYear = atoi(currentDate(1:4))
-!            eMonth = atoi(currentDate(5:6))
-!            eDay = atoi(currentDate(7:8))
-!
-!            do
-!                logFile = trim(dirLOG)// &
-!                    trim(College(ldx)%Code)//DIRSEP// &
-!                    trim(tTeacher)//DASH//currentDate//'.log'
-!                inquire(file=logFile, exist=logExists)
-!                if (logExists) then
-!                    nDays = nDays + 1
-!                    write(device,AFORMAT) '<br><b>'// &
-!                        trim(itoa(sYear))//DASH//trim(itoa2bz(sMonth))//DASH//trim(itoa2bz(sDay))//'</b>'
-!                    call copy_to_unit(logFile, device)
-!                end if
-!                if (sYear==eYear .and. sMonth==eMonth .and. sDay==eDay) exit
-!                sDay = sDay + 1
-!                if (sDay>31) then
-!                    sDay = 1
-!                    sMonth = sMonth + 1
-!                end if
-!                if (sMonth>12) then
-!                    sMonth = 1
-!                    sYear = sYear + 1
-!                end if
-!            end do
-!            if (nDays==0) then
-!                logFile = trim(dirLOG)// &
-!                    trim(College(ldx)%Code)//DIRSEP// &
-!                    trim(tTeacher)//'.log'
-!                inquire(file=logFile, exist=logExists)
-!                if (logExists) then
-!                    call copy_to_unit(logFile, device)
-!                else
-!                    write(device,AFORMAT) '<br>(None)<hr>'
-!                end if
-!            end if
-!        end if
+        logFile = trim(dirLOG)// &
+            trim(College(ldx)%Code)//DIRSEP// &
+            trim(tTeacher)//'.log'
+        inquire(file=logFile, exist=logExists)
+        if (logExists) then
+            call copy_to_unit(logFile, device)
+        else
+            write(device,AFORMAT) '<br>(None)<hr>'
+        end if
 
     end subroutine recent_teacher_activity
 
@@ -2063,6 +1768,85 @@ contains
         write(device,AFORMAT) '</pre><hr>'
 
     end subroutine copy_to_unit
+
+
+    subroutine timetable_meetings_of_teacher(NumSections, Section, teacher_index, to_skip, len_list, list, TimeTable, conflicted)
+        type (TYPE_SECTION), intent(in) :: Section(0:)
+        integer, intent (in) :: NumSections
+        integer, intent(in) :: teacher_index, to_skip
+        integer, intent (out) :: len_list, list(:)
+        integer, dimension(60,6), intent (out) :: TimeTable
+        logical, intent(out) :: conflicted
+        integer :: n_meetings, meetings(MAX_SECTION_MEETINGS)
+        integer :: idx, conflict_loc, sdx
+
+        len_list = 0 ! initialize list
+        call timetable_clear(TimeTable) ! initialize weekly schedule
+        conflicted = .false.
+        do sdx=1,NumSections ! loop over all sections
+            if (sdx==to_skip) cycle ! skip specified section (if, for example, the section is being edited)
+            if (Section(sdx)%SubjectIdx==0) cycle ! section ws deleted
+            call meetings_of_section_by_teacher(NumSections, Section, sdx, teacher_index, n_meetings, meetings) ! collect meetings assigned to teacher
+            if (n_meetings==0) cycle ! teacher not assigned to this section
+            do idx=1,n_meetings ! loop over meetings for this section
+                list(len_list+1) = sdx ! add index to Section() to list of meetings for teacher
+                list(len_list+2) = meetings(idx) ! index to Section(sdx)%DayIdx(), etc
+                conflict_loc = -10 ! assume no conflicting section
+                call timetable_add_meetings_of_section(NumSections, Section, sdx, 1, meetings(idx), TimeTable, conflict_loc) ! add meeting to weekly schedule
+                if (conflict_loc/=-10) then
+                    conflicted = .true.
+                else
+                    conflict_loc = 0
+                end if
+                list(len_list+3) = conflict_loc ! index to conflicting section, if any
+                len_list = len_list+3
+            end do
+        end do
+        ! end markers
+        list(len_list+1) = 0
+        list(len_list+2) = 0
+        list(len_list+3) = 0
+
+    end subroutine timetable_meetings_of_teacher
+
+
+    subroutine timetable_meetings_in_room(NumSections, Section, room_index, to_skip, len_list, list, TimeTable, conflicted)
+        type (TYPE_SECTION), intent(in) :: Section(0:)
+        integer, intent (in) :: NumSections
+        integer, intent(in) :: room_index, to_skip
+        integer, intent (out) :: len_list, list(:)
+        integer, dimension(60,6), intent (out) :: TimeTable
+        logical, intent(out) :: conflicted
+        integer :: n_meetings, meetings(MAX_SECTION_MEETINGS)
+        integer :: idx, conflict_loc, sdx
+        len_list = 0 ! initialize list
+        call timetable_clear(TimeTable) ! initialize weekly schedule
+        conflicted = .false.
+        do sdx=1,NumSections ! loop over all sections
+            if (sdx==to_skip) cycle ! skip specified section (if, for example, the section is being edited)
+            if (Section(sdx)%SubjectIdx==0) cycle ! section ws deleted
+            call meetings_of_section_in_room(NumSections, Section, sdx, room_index, n_meetings, meetings) ! collect meetings assigned to room
+            if (n_meetings==0) cycle ! room not assigned to this section
+            do idx=1,n_meetings ! loop over meetings for this section
+                list(len_list+1) = sdx ! add index to Section() to list of meetings in room
+                list(len_list+2) = meetings(idx) ! index to Section(sdx)%DayIdx(), etc
+                conflict_loc = -10 ! assume no conflicting section
+                call timetable_add_meetings_of_section(NumSections, Section, sdx, 1, meetings(idx), TimeTable, conflict_loc) ! add meeting to weekly schedule
+                if (conflict_loc/=-10) then
+                    conflicted = .true.
+                else
+                    conflict_loc = 0
+                end if
+                list(len_list+3) = conflict_loc ! index to conflicting section, if any
+                len_list = len_list+3
+            end do
+        end do
+        ! end markers
+        list(len_list+1) = 0
+        list(len_list+2) = 0
+        list(len_list+3) = 0
+
+    end subroutine timetable_meetings_in_room
 
 
 end module HTML

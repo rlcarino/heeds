@@ -61,14 +61,15 @@ contains
         targetCollege = Curriculum(Block(targetBlock)%CurriculumIdx)%CollegeIdx
         targetDepartment = Block(targetBlock)%DeptIdx
 
-#if defined UPLB
+#if defined REGIST
         ! Subject administered by departments
         allowed_to_edit = isRoleAdmin .or. & ! USER is the ADMINISTRATOR
             (isRoleChair .and. targetDepartment==DeptIdxUser) ! USER is Chair, and Department is the same as that of the Block
 #else
         ! Subjects administered by program
         allowed_to_edit = isRoleAdmin .or. & ! USER is the ADMINISTRATOR
-            (isRoleChair .and. targetCollege==CollegeIdxUser ) ! USER is Dean, and College is the same as that of the Block
+            (isRoleDean .and. targetCollege==CollegeIdxUser ) .or. &
+            (isRoleChair .and. targetDepartment==DeptIdxUser)
 #endif
 
         mesg = SPACE
@@ -214,7 +215,7 @@ contains
                 call initialize_block(Block(targetBlock))
                 updateBLOCKS = .true.
 
-            case (fnBlockDeleteIncludingClasses)
+            case (fnBlockDeleteAlsoClasses)
                 mesg = ' : Deleted block '//trim(Block(targetBlock)%BlockID)//' and sections (if any)'
                 ! delete sections
                 do fdx=1,Block(targetBlock)%NumClasses
@@ -348,7 +349,7 @@ contains
             call count_sections_by_dept(Term, NumSections, Section)
         end if
 
-        if (fn==fnBlockDeleteIncludingClasses .or. fn==fnBlockDeleteNotClasses) then
+        if (fn==fnBlockDeleteAlsoClasses .or. fn==fnBlockDeleteNotClasses) then
             call html_college_links(device, targetCollege, mesg(3:))
         else
             blk = targetBlock
@@ -461,7 +462,17 @@ contains
         if (inputError) then
             targetDepartment = DeptIdxUser
             targetCollege = CollegeIdxUser
-            call html_write_header(device, 'Add block', '<hr><br>'//mesg)
+            call html_write_header(device, 'Add block', '<br><hr>'//mesg)
+            return
+        end if
+
+        ! how many to add?
+        jdx = ncopies*(YearLast-YearFirst+1)
+        call check_array_bound (NumBlocks+jdx, MAX_ALL_BLOCKS, 'MAX_ALL_BLOCKS', inputError)
+        if (inputError) then
+            targetDepartment = DeptIdxUser
+            targetCollege = CollegeIdxUser
+            call html_write_header(device, 'Add block', '<br><hr>No more space for additional block(s)')
             return
         end if
 
@@ -471,7 +482,7 @@ contains
 
         targetCollege = Curriculum(targetCurriculum)%CollegeIdx
 
-#if defined UPLB
+#if defined REGIST
         ! Subject administered by departments
         targetDepartment = DeptIdxUser
         tDepartment =  Department(targetDepartment)%Code
@@ -530,7 +541,12 @@ contains
 
                 ! the sections
                 if (createClasses) then
-                    call block_add_and_create_sections (targetBlock, Term, NumBlocks, Block,  NumSections, Section)
+                    call check_array_bound (NumSections+2, MAX_ALL_SECTIONS, 'MAX_ALL_SECTIONS', inputError)
+                    if (.not. inputError) then
+                        call block_add_and_create_sections (targetBlock, Term, NumBlocks, Block,  NumSections, Section)
+                    else
+                        createClasses = .false.
+                    end if
                 end if
             end do ! copy=1,copies
         end do ! Year=YearFirst,YearLast

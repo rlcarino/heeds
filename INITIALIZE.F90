@@ -29,7 +29,7 @@
 
 module INITIALIZE
 
-    use IO
+    use UNIVERSITY
 
     implicit none
 
@@ -42,10 +42,9 @@ contains
 
     subroutine initializations()
 
-        integer :: jTmp, iTmp, errNo, numArgs
+        integer :: iTmp, numArgs
         character (len=MAX_LEN_FILE_PATH) :: dataSource
         logical :: pathExists
-        !integer :: idxGrp=0, MaxAlternates=1
 
         ! program starts
         call date_and_time (date=currentDate,time=currentTime)
@@ -68,7 +67,7 @@ contains
 
         ! arguments are: UNIV YEAR TERM
         numArgs = iargc() ! UNIV YEAR TERM
-        if (numArgs<3) call usage('Error: Not enough command arguments')
+        if (numArgs<4) call usage('Error: Not enough command arguments')
 
         ! user's HOME directory
 #if defined GLNX
@@ -77,10 +76,17 @@ contains
         dirUNIV = SPACE
 #endif
 
+        ! ACTION
+        call getarg(4, ACTION)
+
         ! University code
         call getarg(1, UniversityCode)
 
-        ! append University code to HOME directory
+        ! top-level HEEDS directories
+        dirWEB  = trim(dirUNIV)//DIRSEP//'HEEDS'//DIRSEP//'web'//DIRSEP
+        inquire(file=trim(dirWEB), exist=pathExists)
+        if (.not. pathExists) call usage('Error: directory '//trim(dirWEB)//' does not exist')
+
         dirUNIV = trim(dirUNIV)//DIRSEP//'HEEDS'//DIRSEP//trim(UniversityCode)//DIRSEP
         inquire(file=trim(dirUNIV), exist=pathExists)
         if (.not. pathExists) call usage('Error: directory '//trim(dirUNIV)//' does not exist')
@@ -174,8 +180,12 @@ contains
             'Executable is : '//trim(fileEXE)//SPACE//DASH//SPACE//'( '//PROGNAME//VERSION//' )' )
 
         ! backup directory
+#if defined no_password_check
+        dirBACKUP = dirLOG
+#else
         dirBACKUP = trim(dirUNIV)//'backup-'//trim(startDateTime)//DASH//trim(fileEXE)//DIRSEP
-        call make_directory( dirBACKUP, .true. )
+#endif
+        call make_directory( dirBACKUP )
         call make_directory( trim(dirBACKUP)//pathToYear )
         call make_directory( trim(dirBACKUP)//dataSource )
         do iTmp=1,3
@@ -183,90 +193,70 @@ contains
             call make_directory( trim(dirBACKUP)//trim(dataSource)//trim(txtSemester(iTmp))//DIRSEP )
         end do
 
-        ! directory for start of School Year
-        pathToYear = trim(dirDATA)//trim(itoa(currentYear))//DIRSEP
+        ! the colleges
+        NumColleges = 0
+        call initialize_college (College(0))
+        College(1:) = College(0)
 
-        ! directory for year of next term
-        pathToNextYear = trim(dirDATA)//trim(itoa(nextYear))//DIRSEP
+        ! the departments
+        call initialize_department (Department(0))
+        Department(2:) = Department(0)
 
-        ! consolidated academic data file exists?
-        inquire(file=trim(pathToYear)//'CATALOG.XML', exist=hasCATALOG)
+        Department(0)%Code = 'ERROR'
+        Department(0)%Name = '(ERROR)'
+        Department(1)%Code = '(dummy)'
+        Department(1)%Name = '(dummy)'
+        NumDepartments = 1
+        ScheduleCount = 0
 
-        ! read the university-level data
-        call read_university(pathToYear, errNo)
-        if (errNo/=0) call terminate('Error in reading university info')
+        ! the subjects
+        NumDummySubjects = -1
+        NumSubjects = 0
+        NumAdditionalSubjects = 0
+        NumRenames = 0
+        Renamed = 0
 
-        ! read the colleges
-        call read_colleges(pathToYear, errNo)
-        if (errNo/=0) call terminate('Error in reading the list of colleges')
+        call initialize_subject (Subject(0))
+        Subject = Subject(0)
+        Subject(-1)%Name = '(dummy)'
+        Subject(-1)%Title = '(dummy)'
+        INDEX_TO_NONE = -1 ! fix after reading in all subject codes
 
-        ! log directory for users in the college
-        do iTmp=1,NumColleges
-            call make_directory( trim(dirLOG)//trim(College(iTmp)%Code)//DIRSEP )
-        end do
+        ! the curricular programs
+        NumCurricula = 0
+        Curriculum = TYPE_CURRICULUM (.true., SPACE, SPACE, SPACE, SPACE, 0, 0, 0, 0, 0)
+        NumSubst = 0
+        SubstIdx = 0
+        Substitution = 0
 
-        ! read the departments
-        call read_departments(pathToYear, errNo)
-        if (errNo/=0) call terminate('Error in reading the list of departments')
+        ! the rooms
+        NumRooms = 0
+        NumAdditionalRooms = 0
+        call initialize_room (Room(0))
+        Room = Room(0)
+        Room(0)%Code = 'TBA' ! for 'Room not found!'
 
-        ! read the subjects
-        call read_subjects(pathToYear, errNo)
-        if (errNo/=0) call terminate('Error in reading the list of subjects')
+        ! the teachers
+        call initialize_teacher(Teacher(0))
+        Teacher = Teacher(0)
+        Teacher(0)%TeacherId = 'TBA'
+        Teacher(0)%Name = '(Teacher to be assigned)'
 
-        ! read the curricular programs
-        call read_curricula(pathToYear, errNo)
-        if (errNo/=0) call terminate('Error in reading the list of curricular programs')
+        NumTeachers = 1
+        NumAdditionalTeachers = 0
+        ! the Guest account
+        Teacher(NumTeachers)%TeacherID = GUEST
+        Teacher(NumTeachers)%Name = 'Guest Account'
+        Teacher(NumTeachers)%DeptIdx = NumDepartments
+        Teacher(NumTeachers)%Role = GUEST
+        call set_password(Teacher(NumTeachers)%Password, GUEST)
 
-        ! Synchronize pre-requisites of co-requisite subjects
-        ! For example, CHEM 17.0 has MATH 11 or MATH 17, CHEM 17.1 has NONE. Set
-        ! pre-requisite of CHEM 17.1 to that of CHEM 17
-        call log_comment('Synchronizing pre-requisites of co-requisite subjects...')
-        do jTmp=1,NumSubjects
-            if (Subject(Subject(jTmp)%Prerequisite(1))%Name/='NONE') cycle ! pre-requisite is NONE
-            if (Subject(jTmp)%lenCoreq/=1) cycle ! should be one token only
-            iTmp = Subject(jTmp)%Corequisite(1)
-            if (iTmp<=0) cycle ! token should be a named subject
-            call log_comment(Subject(jTmp)%Name//'has co-requisite '//Subject(iTmp)%Name)
-            ! pre-requisite is NONE, co-requisite is a named subject
-            Subject(jTmp)%lenPreq = Subject(iTmp)%lenPreq
-            Subject(jTmp)%Prerequisite = Subject(iTmp)%Prerequisite
-        end do
-
-        ! read the teachers
-        call read_teachers(pathToYear, errNo)
-
-        ! read the rooms
-        call read_rooms(pathToYear, errNo)
-
-        ! mark colleges with subject or curriculum information
-        do jTmp=1,NumDepartments
-            iTmp = Department(jTmp)%CollegeIdx
-            College(iTmp)%hasInfo = College(iTmp)%hasInfo .or. Department(jTmp)%hasInfo
-        end do
-
-        ! initialize update files and create backup CATALOG.XML
-        if (hasCATALOG) then
-            call xml_write_university(trim(pathToYear)//'UNIVERSITY.XML')
-            call xml_write_colleges(trim(pathToYear)//'COLLEGES.XML')
-            call xml_write_departments(trim(pathToYear)//'DEPARTMENTS.XML')
-            call xml_write_rooms(trim(pathToYear)//'ROOMS.XML')
-            call xml_write_teachers(trim(pathToYear)//'TEACHERS.XML')
-            call xml_write_subjects(trim(pathToYear)//'SUBJECTS.XML')
-            call xml_write_curricula(trim(pathToYear)//'CURRICULA.XML')
-            call xml_write_equivalencies(trim(pathToYear)//'EQUIVALENCIES.XML')
-            call move_to_backup(trim(pathToYear)//'CATALOG.XML')
-
-        else
-            call xml_write_catalog(trim(dirBACKUP)//trim(itoa(currentYear))//DIRSEP//'CATALOG.XML')
-
-        end if
-
-        ! initialize data on classes
+        ! classes
         NumSections = 0
         call initialize_section (Section(1,0))
         Section(:,:) = Section(1,0)
 
-        ! initialize data on blocks
+        ! blocks
         NumBlocks = 0
         call initialize_block(Block(1,0))
         Block(:,:) = Block(1,0)
@@ -276,11 +266,8 @@ contains
         termEnd = termBegin
 
         ! action flags
-        isActionAdvising = .false.
+        isActionAdvising = .false. ! REGD grade is PASSing ?
         isActionClasslists = .false.
-
-        ! allow files to be rewritten by default
-        noWrites = .false.
 
     end subroutine initializations
 

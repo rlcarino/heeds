@@ -44,7 +44,7 @@ contains
         integer :: ierr, tdx, j
         character (len=255) :: header, remark, tmpRHS
         type (TYPE_TEACHER) :: wrk
-        logical :: isDirtyTEACHERS
+        logical :: isDirtyTEACHERS, criticalErr
         !character (len=MAX_LEN_PASSWD_VAR) :: Password
         !integer :: lenP
 
@@ -191,13 +191,23 @@ contains
                     if (j==0) then ! not used
 
                         if (trim(tAction)=='Add') then
-                            NumTeachers = NumTeachers+1
-                            tdx = NumTeachers
-                            tTeacher = wrk%TeacherID
-                            remark = ': Added new teacher'//remark
+                            call check_array_bound (NumTeachers+1, MAX_ALL_TEACHERS, 'MAX_ALL_TEACHERS', criticalErr)
+                            if (criticalErr) then
+                                targetDepartment = DeptIdxUser
+                                targetCollege = CollegeIdxUser
+                                call html_college_links(device, targetCollege, &
+                                    'No more space for additional teacher')
+                                return
+                            else
+                                NumTeachers = NumTeachers+1
+                                tdx = NumTeachers
+                                tTeacher = wrk%TeacherID
+                                remark = ': Added new teacher'//remark
+                            end if
                         else
                             remark = ': Updated teacher'//remark
                         end if
+
                         Teacher(tdx) = wrk
                         call sort_alphabetical_teachers()
 

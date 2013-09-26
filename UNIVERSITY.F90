@@ -40,7 +40,7 @@ module UNIVERSITY
     ! year that University records usable by HEEDS are available
     integer :: baseYear = 2000
 
-    character (len=20) :: UniversityCode = 'UNIVERSITY CODE'
+    character (len=20) :: UniversityCode = 'DEMO'
 
     character (len=80) :: &
         UniversityName = '(Specify NAME in UNIVERSITY.XML)', &
@@ -79,19 +79,12 @@ module UNIVERSITY
     type (TYPE_COLLEGE), dimension (0:MAX_ALL_COLLEGES) :: College
     integer :: NumColleges
 
-    ! 'Administrative' college, for data not under the academic colleges
-    character (len=MAX_LEN_COLLEGE_CODE) :: ADMINISTRATION = 'ADMIN'
-
 !===========================================================
 ! declarations for departments
 !===========================================================
 
     integer, parameter :: &
-#if defined UPLB
         MAX_ALL_DEPARTMENTS = 100, & ! max no. of departments
-#else
-        MAX_ALL_DEPARTMENTS = 50, & ! max no. of departments
-#endif
         MAX_LEN_DEPARTMENT_CODE = 10, & ! length of dept codes
         MAX_DEPARTMENT_NAME_LEN = 60 ! length of dept names
 
@@ -108,19 +101,12 @@ module UNIVERSITY
 
     integer, dimension(1:3,MAX_ALL_DEPARTMENTS) :: ScheduleCount ! last section in department
 
-    ! 'Administrative' department, for data not under the academic departments
-    character (len=MAX_LEN_DEPARTMENT_CODE) :: REGISTRAR = 'Registrar'
-
 !===========================================================
 ! declarations for rooms
 !===========================================================
 
     integer, parameter :: &
-#if defined UPLB
         MAX_ALL_ROOMS = 600, & ! room names
-#else
-        MAX_ALL_ROOMS = 300, & ! room names
-#endif
         MAX_LEN_ROOM_CODE=16    ! length of room code
 
     type :: TYPE_ROOM
@@ -136,16 +122,12 @@ module UNIVERSITY
 !===========================================================
 
     integer, parameter :: &
-#if defined UPLB
         MAX_ALL_TEACHERS = 1500, & ! maximum number of teachers
-#else
-        MAX_ALL_TEACHERS = 900, & ! maximum number of teachers
-#endif
         MAX_LEN_TEACHER_CODE=20, & ! length of login name
         MAX_LEN_TEACHER_DEGREE=80, & ! length of string for Teacher degrees
         MAX_LEN_ACADEMIC_RANK=19, & ! length of string for academic rank
         MAX_LEN_STEP_IN_RANK=6, & ! length of string for step in academic rank
-        MAX_LEN_ROLE = 20
+        MAX_LEN_ROLE = 7
 
     type :: TYPE_TEACHER
         character (len=MAX_LEN_TEACHER_CODE)   :: TeacherId
@@ -153,13 +135,36 @@ module UNIVERSITY
         integer                                :: DeptIdx, MaxLoad, Rank, Step
         character (len=MAX_LEN_TEACHER_DEGREE) :: Bachelor, Master, Doctorate, Specialization
         character (len=MAX_LEN_PASSWD_VAR)     :: Password ! Encrypted password
-        character (len=MAX_LEN_ROLE):: Role     ! Guest; set by Admin
-        integer                                :: Status   ! 0=logged out, 1=logged in
+        character (len=MAX_LEN_ROLE)           :: Role     ! Guest; set by Admin
+        integer(8)                             :: Status   ! 0=logged out, 1+=clock tick of last activity
     end type TYPE_TEACHER
 
     type (TYPE_TEACHER), dimension(0:MAX_ALL_TEACHERS) :: Teacher
     integer, dimension(0:MAX_ALL_TEACHERS) :: TeacherRank
     integer :: NumTeachers, NumAdditionalTeachers
+
+    character (len=MAX_LEN_ROLE), parameter ::  &
+        GUEST          = 'Guest  ', &
+        CHAIR          = 'Chair  ', & ! Chair of Department(Teacher()%DeptIdx); also a Teacher
+        DEAN           = 'Dean   ', & ! Dean of College(Department(Teacher()%DeptIdx)); also a Chair
+        ADMINISTRATION = 'ADMIN  '    ! President/VPAA/Registrar; also a Dean
+
+    character (len=MAX_LEN_ROLE), dimension(0:3) :: txtRole = (/ &
+        GUEST, CHAIR, DEAN, ADMINISTRATION /)
+
+    ! Users
+    character (len=MAX_LEN_ROLE) :: ROLE
+    character (len=MAX_LEN_TEACHER_CODE) :: USERNAME
+    integer :: DeptIdxUser, CollegeIdxUser, CurriculumIdxUser
+
+    ! login check message, user role
+    character(len=MAX_LEN_FILE_PATH) :: loginCheckMessage
+    logical :: &
+        isRoleAdmin = .false., &
+        isRoleDean = .false., &
+        isRoleChair = .false., &
+        isRoleGuest = .false.
+    logical :: isSuspendMode = .false.  ! only ADMINISTRATION role can make changes if true
 
     character (len=MAX_LEN_ACADEMIC_RANK), dimension(0:4) :: AcademicRank = (/ &
         '(Specify Rank)     ', &
@@ -182,11 +187,6 @@ module UNIVERSITY
         'X     ', &
         'XI    ', &
         'XII   ' /)
-
-    ! Users
-    character (len=MAX_LEN_TEACHER_CODE) :: USERNAME, GUEST = 'Guest'
-    character (len=MAX_LEN_PERSON_NAME) :: ROLE
-    integer :: DeptIdxUser, CollegeIdxUser, CurriculumIdxUser
 
 !===========================================================
 ! declarations for time notions
@@ -250,11 +250,7 @@ module UNIVERSITY
 !===========================================================
 
     integer, parameter :: &
-#if defined UPLB
         MAX_ALL_SUBJECTS = 4000, &  ! max no. of subjects
-#else
-        MAX_ALL_SUBJECTS = 3000, &  ! max no. of subjects
-#endif
         MAX_LEN_SUBJECT_CODE = 20, &         ! length of subject names
         MAX_LEN_SUBJECT_TITLE=100, &         ! length of subject titles
         MAX_ALL_SUBJECT_PREREQ = 50, &       ! max number of tokens in prereq of a subject
@@ -297,11 +293,11 @@ module UNIVERSITY
 
     ! substitutions/equivalencies
     integer, parameter :: &
-        MaxAllSubstitutions = 700, &                ! max no. of substitutions
-        MaxSubsArraySize = MaxAllSubstitutions*10   ! max size of substitutions array
+        MAX_ALL_SUBSTITUTIONS = 1000, &                ! max no. of substitutions
+        MAX_LEN_SUBSTITUTION_ARRAY = MAX_ALL_SUBSTITUTIONS*10   ! max size of substitutions array
     integer :: NumSubst
-    integer, dimension(MaxAllSubstitutions) :: SubstIdx
-    integer, dimension(MaxSubsArraySize) :: Substitution
+    integer, dimension(MAX_ALL_SUBSTITUTIONS) :: SubstIdx
+    integer, dimension(MAX_LEN_SUBSTITUTION_ARRAY) :: Substitution
 
     ! renamed subjects
     integer, parameter :: MAX_ALL_RENAMES = 500
@@ -343,9 +339,6 @@ module UNIVERSITY
     type (TYPE_CURRICULUM), dimension (0:MAX_ALL_CURRICULA) :: Curriculum
     integer :: NumCurricula
 
-!    ! freshman intake by curriculum
-!    integer, dimension(0:MAX_ALL_CURRICULA) :: NFintake
-
     ! flags to indicate processing is done for a curriculum group
     logical :: done(0:MAX_ALL_CURRICULA)
 
@@ -354,6 +347,11 @@ module UNIVERSITY
     character (len=MAX_LEN_CURRICULUM_CODE), dimension(0:MAX_ALL_CURRICULA) :: CurrProgCode
 
     real, dimension(0:20) :: TermUnits, SpecifiedUnits
+
+    ! classification
+    character (len=9), dimension(0:10) :: txtStanding = (/ &
+        'ERROR    ', 'FRESHMAN ', 'SOPHOMORE', 'JUNIOR   ', 'SENIOR   ', 'FIFTH    ', &
+        'SIXTH    ', 'SEVENTH  ', 'EIGHTH   ', 'NINTH    ', 'GRADUATE '/)
 
 
 !===========================================================
@@ -422,7 +420,6 @@ module UNIVERSITY
 
     integer, dimension (0:MAX_ALL_SECTIONS_OF_A_SUBJECT) :: &
         Undesirability, UndesirabilityRank
-
 
 
 contains
@@ -527,7 +524,7 @@ contains
         integer :: index_to_room
         character (len=MAX_LEN_ROOM_CODE), intent (in) :: tRoom
 
-        integer :: rdx
+        integer :: rdx ! i, j,
 
         index_to_room = 0
 
@@ -645,6 +642,7 @@ contains
         is_teacher_password = tPassword(:MAX_LEN_PASSWORD)==Password(:MAX_LEN_PASSWORD)
 
     end function is_teacher_password
+
 
 
 !===========================================================
@@ -967,26 +965,34 @@ contains
     end subroutine tokenize_subjects
 
 
-    function is_graduate_level_subject(subj)
-        logical :: is_graduate_level_subject
-        integer, intent (in) :: subj
-        character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
-        integer :: i,f,l,num
-        tSubject = Subject(subj)%Name
-        i = index(tSubject,DASH)
-        if (i>0) then
-            l = i-1
-        else
-            l = len_trim(tSubject)
-        end if
-        i = index(tSubject,'.')
-        if (i>0) l = i-1
-        f = index(tSubject, SPACE)+1
-        tSubject = tSubject(f:l)
-        num = atoi(tSubject)
-        is_graduate_level_subject = num>200
 
-    end function is_graduate_level_subject
+    subroutine get_subject_areas()
+
+        character (len=MAX_LEN_SUBJECT_CODE) :: token
+        integer :: i, j, k
+
+        NumSubjectAreas = 0
+        SubjectArea = TYPE_SUBJECT_AREA (SPACE, 0, 0)
+        do i=1,NumSubjects+NumAdditionalSubjects
+            token = Subject(i)%Name
+            j = index(token, SPACE)
+            token(j:) = SPACE
+            ! find token if it already exists
+            k = 0
+            do j=NumSubjectAreas,1,-1
+                if (SubjectArea(j)%Code/=token) cycle
+                k = j
+                exit
+            end do
+            if (k==0) then ! not found
+                call check_array_bound (NumSubjectAreas+1, MAX_ALL_SUBJECTS/3, 'NumSubjectAreas')
+                NumSubjectAreas = NumSubjectAreas+1
+                SubjectArea(NumSubjectAreas) = TYPE_SUBJECT_AREA(token, Department(Subject(i)%DeptIdx)%CollegeIdx, 1)
+            else
+                SubjectArea(k)%Count = SubjectArea(k)%Count + 1
+            end if
+        end do
+    end subroutine get_subject_areas
 
 
     function is_offered(subj, term)
@@ -1668,7 +1674,7 @@ contains
         type (TYPE_SECTION), intent(in) :: Section(0:)
         integer :: sect, dept
         ScheduleCount(Term,:) = 0
-#if defined UPLB
+#if defined REGIST
         ! Subject administered by departments
         do sect=1,NumSections
             if (Section(sect)%SubjectIdx==0) cycle
@@ -1687,20 +1693,20 @@ contains
     end subroutine count_sections_by_dept
 
 
-    subroutine delete_sections_of_dept(NumSections, Section, DeptIdx)
-        integer, intent (in out) :: NumSections
-        type (TYPE_SECTION), intent(in out) :: Section(0:)
-        integer, intent (in) :: DeptIdx
-        integer :: sect
-
-        do sect=1,NumSections
-            if (Section(sect)%SubjectIdx==0) cycle
-            if (DeptIdx==Section(sect)%DeptIdx) then
-                call initialize_section(Section(sect))
-            end if
-        end do
-
-    end subroutine delete_sections_of_dept
+!    subroutine delete_sections_of_dept(NumSections, Section, DeptIdx)
+!        integer, intent (in out) :: NumSections
+!        type (TYPE_SECTION), intent(in out) :: Section(0:)
+!        integer, intent (in) :: DeptIdx
+!        integer :: sect
+!
+!        do sect=1,NumSections
+!            if (Section(sect)%SubjectIdx==0) cycle
+!            if (DeptIdx==Section(sect)%DeptIdx) then
+!                call initialize_section(Section(sect))
+!            end if
+!        end do
+!
+!    end subroutine delete_sections_of_dept
 
 
     function is_regular_schedule(sect, Section)
@@ -1809,30 +1815,30 @@ contains
     end subroutine sort_alphabetical_blocks
 
 
-    subroutine delete_blocks_from_dept(NumBlocks, Block,  DeptIdx)
-        integer, intent(in out) :: NumBlocks
-        type (TYPE_BLOCK), dimension(0:), intent(in out) :: Block
-        integer, intent (in) :: DeptIdx
-        integer :: blk, idx
-
-        !write(*,*) 'Removing blocks in '//Department(DeptIdx)%Code ! , ', total=',  NumBlocks
-        do blk=1,NumBlocks
-            if (DeptIdx==Block(blk)%DeptIdx) then
-                !write(*,*) 'Removing block '//Block(blk)%BlockID
-                call initialize_block(Block(blk))
-            end if
-        end do
-        blk = 0
-        do idx=1,NumBlocks
-            if (Block(idx)%CurriculumIdx/=0) then
-                blk = blk+1
-                Block(blk) = Block(idx)
-            end if
-        end do
-        NumBlocks = blk
-        !write(*,*) NumBlocks, ' left'
-
-    end subroutine delete_blocks_from_dept
+!    subroutine delete_blocks_from_dept(NumBlocks, Block,  DeptIdx)
+!        integer, intent(in out) :: NumBlocks
+!        type (TYPE_BLOCK), dimension(0:), intent(in out) :: Block
+!        integer, intent (in) :: DeptIdx
+!        integer :: blk, idx
+!
+!        !write(*,*) 'Removing blocks in '//Department(DeptIdx)%Code ! , ', total=',  NumBlocks
+!        do blk=1,NumBlocks
+!            if (DeptIdx==Block(blk)%DeptIdx) then
+!                !write(*,*) 'Removing block '//Block(blk)%BlockID
+!                call initialize_block(Block(blk))
+!            end if
+!        end do
+!        blk = 0
+!        do idx=1,NumBlocks
+!            if (Block(idx)%CurriculumIdx/=0) then
+!                blk = blk+1
+!                Block(blk) = Block(idx)
+!            end if
+!        end do
+!        NumBlocks = blk
+!        !write(*,*) NumBlocks, ' left'
+!
+!    end subroutine delete_blocks_from_dept
 
 
     subroutine delete_section_from_blocks(sect, NumSections, Section, NumBlocks, Block)
@@ -2355,85 +2361,6 @@ contains
     end subroutine meetings_of_section_in_room
 
 
-    subroutine timetable_meetings_of_teacher(NumSections, Section, teacher_index, to_skip, len_list, list, TimeTable, conflicted)
-        type (TYPE_SECTION), intent(in) :: Section(0:)
-        integer, intent (in) :: NumSections
-        integer, intent(in) :: teacher_index, to_skip
-        integer, intent (out) :: len_list, list(:)
-        integer, dimension(60,6), intent (out) :: TimeTable
-        logical, intent(out) :: conflicted
-        integer :: n_meetings, meetings(MAX_SECTION_MEETINGS)
-        integer :: idx, conflict_loc, sdx
-
-        len_list = 0 ! initialize list
-        call timetable_clear(TimeTable) ! initialize weekly schedule
-        conflicted = .false.
-        do sdx=1,NumSections ! loop over all sections
-            if (sdx==to_skip) cycle ! skip specified section (if, for example, the section is being edited)
-            if (Section(sdx)%SubjectIdx==0) cycle ! section ws deleted
-            call meetings_of_section_by_teacher(NumSections, Section, sdx, teacher_index, n_meetings, meetings) ! collect meetings assigned to teacher
-            if (n_meetings==0) cycle ! teacher not assigned to this section
-            do idx=1,n_meetings ! loop over meetings for this section
-                list(len_list+1) = sdx ! add index to Section() to list of meetings for teacher
-                list(len_list+2) = meetings(idx) ! index to Section(sdx)%DayIdx(), etc
-                conflict_loc = -10 ! assume no conflicting section
-                call timetable_add_meetings_of_section(NumSections, Section, sdx, 1, meetings(idx), TimeTable, conflict_loc) ! add meeting to weekly schedule
-                if (conflict_loc/=-10) then
-                    conflicted = .true.
-                else
-                    conflict_loc = 0
-                end if
-                list(len_list+3) = conflict_loc ! index to conflicting section, if any
-                len_list = len_list+3
-            end do
-        end do
-        ! end markers
-        list(len_list+1) = 0
-        list(len_list+2) = 0
-        list(len_list+3) = 0
-
-    end subroutine timetable_meetings_of_teacher
-
-
-    subroutine timetable_meetings_in_room(NumSections, Section, room_index, to_skip, len_list, list, TimeTable, conflicted)
-        type (TYPE_SECTION), intent(in) :: Section(0:)
-        integer, intent (in) :: NumSections
-        integer, intent(in) :: room_index, to_skip
-        integer, intent (out) :: len_list, list(:)
-        integer, dimension(60,6), intent (out) :: TimeTable
-        logical, intent(out) :: conflicted
-        integer :: n_meetings, meetings(MAX_SECTION_MEETINGS)
-        integer :: idx, conflict_loc, sdx
-        len_list = 0 ! initialize list
-        call timetable_clear(TimeTable) ! initialize weekly schedule
-        conflicted = .false.
-        do sdx=1,NumSections ! loop over all sections
-            if (sdx==to_skip) cycle ! skip specified section (if, for example, the section is being edited)
-            if (Section(sdx)%SubjectIdx==0) cycle ! section ws deleted
-            call meetings_of_section_in_room(NumSections, Section, sdx, room_index, n_meetings, meetings) ! collect meetings assigned to room
-            if (n_meetings==0) cycle ! room not assigned to this section
-            do idx=1,n_meetings ! loop over meetings for this section
-                list(len_list+1) = sdx ! add index to Section() to list of meetings in room
-                list(len_list+2) = meetings(idx) ! index to Section(sdx)%DayIdx(), etc
-                conflict_loc = -10 ! assume no conflicting section
-                call timetable_add_meetings_of_section(NumSections, Section, sdx, 1, meetings(idx), TimeTable, conflict_loc) ! add meeting to weekly schedule
-                if (conflict_loc/=-10) then
-                    conflicted = .true.
-                else
-                    conflict_loc = 0
-                end if
-                list(len_list+3) = conflict_loc ! index to conflicting section, if any
-                len_list = len_list+3
-            end do
-        end do
-        ! end markers
-        list(len_list+1) = 0
-        list(len_list+2) = 0
-        list(len_list+3) = 0
-
-    end subroutine timetable_meetings_in_room
-
-
     subroutine timetable_undesirability(ns, NumSections, Section, TimeTable)
         integer, intent(in) :: ns
         type (TYPE_SECTION), intent(in) :: Section(0:)
@@ -2588,11 +2515,15 @@ contains
     end subroutine timetable_undesirability
 
 
+!===========================================================
+! routines for predictions/pre-enlistment
+!===========================================================
+
     subroutine recalculate_available_seats(Section)
         type (TYPE_SECTION), intent(in out) :: Section(0:)
         ! calculate priority demand, priority accomodated/not accommodated
         Section(:)%RemSlots = Section(:)%Slots
-    end subroutine recalculate_available_seats
 
+    end subroutine recalculate_available_seats
 
 end module UNIVERSITY

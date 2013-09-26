@@ -44,7 +44,7 @@ contains
         integer :: ierr, crse, i, j
         character (len=255) :: mesg, remark
         type (TYPE_SUBJECT) :: wrk
-        logical :: isDirtySUBJECTS
+        logical :: isDirtySUBJECTS, criticalErr
 
         call html_comment('subject_edit()')
 
@@ -250,12 +250,22 @@ contains
                         ! add new subject?
                         j = index_to_subject(wrk%Name)
                         if (j==0) then
-                            NumAdditionalSubjects = NumAdditionalSubjects+1
-                            Subject(NumSubjects+NumAdditionalSubjects) = wrk
-                            crse = NumSubjects+NumAdditionalSubjects
-                            tSubject = wrk%Name
-                            remark = ': Added new subject '//wrk%Name
-                            call get_subject_areas()
+                            call check_array_bound (NumSubjects+NumAdditionalSubjects+1, MAX_ALL_SUBJECTS, 'MAX_ALL_SUBJECTS', &
+                                criticalErr)
+                            if (criticalErr) then
+                                targetDepartment = DeptIdxUser
+                                targetCollege = CollegeIdxUser
+                                call html_college_links(device, targetCollege, &
+                                    'No more space for additional subject')
+                                return
+                            else
+                                NumAdditionalSubjects = NumAdditionalSubjects+1
+                                Subject(NumSubjects+NumAdditionalSubjects) = wrk
+                                crse = NumSubjects+NumAdditionalSubjects
+                                tSubject = wrk%Name
+                                remark = ': Added new subject '//wrk%Name
+                                call get_subject_areas()
+                            end if
                         else
                             remark = ': Add new subject failed; "'//trim(wrk%Name)//'" already exists.'
                         end if

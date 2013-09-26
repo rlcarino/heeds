@@ -48,7 +48,7 @@ contains
         if (targetDepartment>0) then
             targetCollege = Department(targetDepartment)%CollegeIdx
             nSubjects = 0
-#if defined UPLB
+#if defined REGIST
             do idx=1,NumSubjects+NumAdditionalSubjects
                 if (Subject(idx)%DeptIdx == targetDepartment) then
                     nSubjects = nSubjects+1

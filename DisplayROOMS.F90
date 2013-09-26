@@ -71,7 +71,7 @@ contains
                 begintr//begintd//'(None?)'//endtd//tdalignright
             if (isRoleAdmin) then
                 write(device,AFORMAT) trim(make_href(fnEditRoom, 'Add room', &
-                    A1='TBA', pre='<small>('//nbsp, post=' )</small>', alt=SPACE))
+                    A1='TBA', pre='<small>('//nbsp, post=' )</small>'))
             end if
             write(device,AFORMAT) endtd//endtr//'</table>'
         else
@@ -88,7 +88,7 @@ contains
 
             if (isRoleAdmin) then
                 write(device,AFORMAT) trim(make_href(fnEditRoom, 'Add room', &
-                    A1='TBA', pre='<small>('//nbsp, post=' )</small>', alt=SPACE))//'<br>'
+                    A1='TBA', pre='<small>('//nbsp, post=' )</small>'))//'<br>'
             end if
 
             write(device,AFORMAT) '<i>Note: Number under Term links to classes in the room.</i><br>', &
@@ -132,9 +132,12 @@ contains
 
                 QUERY_put = Room(rdx)%Code
                 write(device,AFORMAT) begintr//begintd//trim(Room(rdx)%Code)
-                if (isRoleAdmin .or. (isRoleChair .and. Room(rdx)%DeptIdx==DeptIdxUser)) then
+                if (isRoleAdmin .or. &
+                    !(isRoleChair .and. Room(rdx)%DeptIdx==DeptIdxUser) .or. &
+                    (isRoleDean .and. Department(Room(rdx)%DeptIdx)%CollegeIdx==CollegeIdxUser) &
+                        ) then
                     write(device,AFORMAT) trim(make_href(fnEditRoom, 'Edit', &
-                        A1=QUERY_put, pre=nbsp//'<small>', post='</small>', alt=SPACE))
+                        A1=QUERY_put, pre=nbsp//'<small>', post='</small>'))
                 end if
                 write(device,AFORMAT) &
                     endtd//tdaligncenter//trim(itoa(Room(rdx)%Cluster))//endtd// &
@@ -244,9 +247,12 @@ contains
                 end do
                 QUERY_put = Room(rdx)%Code
                 write(device,AFORMAT) begintr//begintd//trim(Room(rdx)%Code)
-                if (isRoleAdmin .or. (isRoleChair .and. Room(rdx)%DeptIdx==DeptIdxUser)) then
+                if (isRoleAdmin .or. &
+                    !(isRoleChair .and. Room(rdx)%DeptIdx==DeptIdxUser) .or. &
+                    (isRoleDean .and. Department(Room(rdx)%DeptIdx)%CollegeIdx==CollegeIdxUser) &
+                        ) then
                     write(device,AFORMAT) trim(make_href(fnEditRoom, 'Edit', &
-                        A1=QUERY_put, pre=nbsp//'<small>', post='</small>', alt=SPACE))
+                        A1=QUERY_put, pre=nbsp//'<small>', post='</small>'))
                 end if
                 write(device,AFORMAT) &
                     endtd//tdaligncenter//trim(itoa(Room(rdx)%Cluster))//endtd// &
@@ -285,7 +291,9 @@ contains
 
         targetRoom = index_to_room(tRoom)
         targetDepartment = Room(targetRoom)%DeptIdx
-        allowed_to_edit = isRoleAdmin .or. (isRoleChair .and. targetDepartment==DeptIdxUser)
+        allowed_to_edit = isRoleAdmin .or. &
+            (isRoleChair .and. targetDepartment==DeptIdxUser) .or. &
+            (isRoleDean .and. Department(targetDepartment)%CollegeIdx==CollegeIdxUser)
         mesg = SPACE
 
         ! check if there are other arguments
@@ -321,8 +329,6 @@ contains
 
         if (tLen1>0) call timetable_display(device, Section, TimeTable)
         write(device,AFORMAT) '<hr>'
-
-        if (isRoleSRE .or. isRoleStudent) return
 
         ! make list of TBA sections LoadSource that fit the schedule of room
         if (present(LoadSource)) then
