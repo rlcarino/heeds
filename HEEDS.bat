@@ -5,134 +5,103 @@ rem USAGE: %0 UNIV YEAR TERM ACTION  (Note: Arguments are case-sensitive!)
 rem   UNIV is the University code
 rem   YEAR is the year when the current School Year started (ex. 2012 for SY 2012-13)
 rem   TERM is one of: 1, 2, S (1=First Semester, 2=Second Semester, S=Summer Term)
-rem
-rem   ACTION                Period=I   PERIOD=II  PERIOD=III PERIOD=IV
-rem      Classlists (S)        X                      
-rem      Probabilistic (B)                X                     
-rem      Advising (S)                     X
-rem      Gradesheets (S)                             X
-rem      Checklists (B)                                         X
-rem      Deterministic (B)                                      X
-rem      Preenlist (B)                                          X
-rem
-rem      Schedules      (S)    X          X          X          X
-rem      Resetpasswords (B)    X          X          X          X
-rem      Students       (B)    X          X          X          X
-rem      Import         (B)    X          X          X          X
-rem
-rem   Legend: S=server-mode, B=batch-mode, X=execute during this Period
+rem   ACTION is one of Classlists, Advising, Gradesheets, Preregistration, Checklists, Restore, Import
 rem
 
 SETLOCAL ENABLEEXTENSIONS
 SETLOCAL DISABLEDELAYEDEXPANSION
 
-rem 
-rem =======================================
-rem There must be at least 4 arguments: UNIV YEAR TERM ACTION
-rem =======================================
-rem
-set ERRMSG=ERROR: There must be at least 4 arguments
-if "z%4"=="z" goto usage
-
-
 rem =======================================
 :checkUNIV
-set ERRMSG=ERROR: UNIV '%1' not recognized.
 rem =======================================
 
-if "z%1"=="zUPLB" (
-    set HEEDS_Executable=.\HEEDS_UPLB_%4
-    set University_Port=600
-    goto checkACTION
-)
+set University=CSU-Aparri
+set University_Port=58020
+if "z%1"=="z%University%" goto checkACTION
 
-if "z%1"=="zISU" (
-    set HEEDS_Executable=.\HEEDS_SIAS_%4
-    set University_Port=590
-    goto checkACTION
-)
+set University=CSU-Carig
+set University_Port=58030
+if "z%1"=="z%University%" goto checkACTION
 
-if "z%1"=="zCSU" (
-    set HEEDS_Executable=.\HEEDS_SIAS_%4
-    set University_Port=580
-    goto checkACTION
-)
+set University=CSU-Gonzaga
+set University_Port=58040
+if "z%1"=="z%University%" goto checkACTION
 
-if "z%1"=="zKASC" (
-    set HEEDS_Executable=.\HEEDS_SIAS_%4
-    set University_Port=570
-    goto checkACTION
-)
+set University=CSU-Lal-lo
+set University_Port=58050
+if "z%1"=="z%University%" goto checkACTION
 
-if "z%1"=="zCSU-Demo" (
-    set HEEDS_Executable=.\HEEDS_SIAS_%4
-    set University_Port=560
-    goto checkACTION
-)
+set University=CSU-Lasam
+set University_Port=58060
+if "z%1"=="z%University%" goto checkACTION
 
-if "z%1"=="zDEMO" (
-    set HEEDS_Executable=.\HEEDS_UPLB_%4
-    set University_Port=550
-    goto checkACTION
-)
+set University=CSU-Piat
+set University_Port=58070
+if "z%1"=="z%University%" goto checkACTION
 
-goto usage
+set University=CSU-Sanchez-Mira
+set University_Port=58080
+if "z%1"=="z%University%" goto checkACTION
+
+set University=BNHS
+set University_Port=59000
+if "z%1"=="z%University%" goto checkACTION
+
+set University=DEMO
+set University_Port=60000
+if "z%1"=="z%University%" goto checkACTION
+
+set University=DEMO-UNIV
+set University_Port=60010
+if "z%1"=="z%University%" goto checkACTION
+
+set University=DEMO-SIAS
+set University_Port=60020
+if "z%1"=="z%University%" goto checkACTION
+
+set University=MUW
+set University_Port=60030
+if "z%1"=="z%University%" goto checkACTION
+
+rem default UNIV
+set University=CSU-Andrews
+set University_Port=58010
 
 
 rem =======================================
 :checkACTION
 rem =======================================
 
-if "z%4"=="zClasslists" (
-    set Port_Number=%University_Port%10
-    goto runSERVER
-)
+set HEEDS_Executable=.\HEEDS_STATIC
+set RUN_COMMAND=%HEEDS_Executable% %University% %2 %3 %4 %5 %6
 
-if "z%4"=="zAdvising" (
-    set Port_Number=%University_Port%20
-    goto runSERVER
-)
+if "zRestore"=="z%4" goto runACTION
 
-if "z%4"=="zGradesheets" (
-    set Port_Number=%University_Port%30
-    goto runSERVER
-)
+if "zChecklists"=="z%4" goto runACTION
 
-if "z%4"=="zSchedules" (
-    set Port_Number=%University_Port%40
-    goto runSERVER
-)
-
+if "zImport"=="z%4" goto runACTION
 
 rem =======================================
-:runBATCH
+rem Assume a Server-mode ACTION
 rem =======================================
-if exist %HEEDS_Executable%.exe (
-    %HEEDS_Executable% %*
-) else (
-    goto noEXE
-)
+
+set HEEDS_Executable=.\HEEDS_SERVER
+set RUN_COMMAND=spawn-fcgi -a 127.0.0.1 -p %University_Port% -f "%HEEDS_Executable% %University% %2 %3 %4 %5 %6"
+
+rem =======================================
+:runACTION
+rem =======================================
+
+if not exist %HEEDS_Executable%.exe goto noEXE
+
+echo %RUN_COMMAND% 
+%RUN_COMMAND% 
 goto quit
-
-
-rem =======================================
-:runSERVER
-rem =======================================
-if exist %HEEDS_Executable%.exe (
-    if "z%5"=="z" (
-        echo spawn-fcgi -a 127.0.0.1 -p %Port_Number% -f "%HEEDS_Executable% %*"
-        spawn-fcgi -a 127.0.0.1 -p %Port_Number% -f "%HEEDS_Executable% %*"
-    ) else (
-        echo %HEEDS_Executable% %*
-        %HEEDS_Executable% %*
-    )
-    goto quit
-)
-
 
 rem =======================================
 :noEXE
 rem =======================================
+
 echo ERROR: %HEEDS_Executable% not found!
 goto quit
 
@@ -142,24 +111,19 @@ rem =======================================
 rem =======================================
 echo %ERRMSG%
 echo.
-echo USAGE: %0 UNIV ACTION YEAR TERM (Note: Arguments are case-sensitive!)
-echo   UNIV is one of: UPLB, ISU, CSU, KASC, CSU-Demo
+echo USAGE: %0 UNIV YEAR TERM ACTION (Note: Arguments are case-sensitive!)
+echo   UNIV is the code/abbreviated University name
 echo   YEAR is the year when the current School Year started (ex. 2012 for SY 2012-13)
-echo   TERM is one of: 1, 2, S (1=First Semester, 2=Second Semester, S=Summer Term)
+echo   TERM is the current term (1=First Semester, 2=Second Semester, S=Summer Term)
 echo   ACTION is one of:
-echo     Classlists - Add/delete classes of students for current term
-echo     Schedules - Edit Schedule of Classes for current term
-echo     Advising - Advise students for next term
-echo     Gradesheets - Enter grades for current term
-echo     Checklists - Generate checklists
-echo     Deterministic - Deterministic demand for subjects (needs analysis) next term
-echo     Probabilistic - Probabilistic demand for subjects (needs analysis) next term
-echo     Preenlist - Preenlist students into classes 
-echo     Resetpasswords - Reset all user passwords; will display password for Registrar
-echo     Students - Create list of students from available FINALGRADE.CSV for YEAR
-echo     Import - Import raw data into HEEDS format
+echo     Classlists - Edit Schedule of Classes and Add/delete classes of students
+echo     Advising - Advise students and Edit Schedule of Classes
+echo     Gradesheets - Enter grades
+echo     Preregistration - Generate initial timetables of students (careful, existing classlists for TERM will be overwritten)
+echo     Checklists - Generate checklists from grade files (careful, existing student records will be overwritten)
+echo     Restore - Restore from backup (careful, existing data will be overwritten)
+echo     Import - Convert custom CSV data into HEEDS XML format (careful, existing data will be overwritten)
 echo.
-
 
 rem =======================================
 :quit

@@ -2,7 +2,7 @@
 #
 #    HEEDS (Higher Education Enrollment Decision Support) - A program
 #      to create enrollment scenarios for 'next term' in a university
-#    Copyright (C) 2012, 2013 Ricolindo L. Carino
+#    Copyright (C) 2012-2014 Ricolindo L. Carino
 #
 #    This file is part of the HEEDS program.
 #
@@ -38,15 +38,21 @@
 # raw data format (RAWDATA)
 #---------------------------------------------------------------
 #RAWDATA=REGIST
-RAWDATA=CUSTOM
+RAWDATA=SIAS
 
 #---------------------------------------------------------------
-# operating system (OS) and destination of binary (BIN)
+# operating system (OS)
+# directory for library (LIBPATH)
+# directory for binary (BINPATH)
 #---------------------------------------------------------------
+
 #OS=GLNX
-#BIN=~/HEEDS/bin/$(OS)
+#LIBPATH=-L/usr/lib -lfcgi
+#BINPATH=.
+
 OS=MSWIN
-BIN=/c/HEEDS/bin/$(OS)
+LIBPATH=-lfcgi -Wl,--rpath -Wl,/usr/local/lib
+BINPATH=/c/HEEDS/bin/$(OS)
 
 #---------------------------------------------------------------
 # debugging flags 
@@ -58,64 +64,70 @@ DEBUG=-Dno_password_check
 #---------------------------------------------------------------
 # Fortran compiler and flags
 #---------------------------------------------------------------
-FFLAGS=-Wunused -ffree-form
+FFLAGS=-Wunused -ffree-form 
 #-fbounds-check
-OPTIONS = -D$(OS) -D$(RAWDATA) $(DEBUG) 
+OPTIONS = -D$(OS) -D$(RAWDATA) $(DEBUG)
 FC = gfortran $(FFLAGS) $(OPTIONS)
 
 #---------------------------------------------------------------
 # object files
 #---------------------------------------------------------------
 
-OBJ = UTILITIES.o UNIVERSITY.o INITIALIZE.o Input$(RAWDATA).o XMLIO.o HTML.o EditUNIVERSITY.o \
-	DisplayROOMS.o DisplayTEACHERS.o DisplaySUBJECTS.o DisplayCURRICULA.o DisplaySECTIONS.o DisplayBLOCKS.o \
-	EditROOMS.o EditTEACHERS.o EditSUBJECTS.o EditCURRICULA.o EditSECTIONS.o EditBLOCKS.o SERVER.o
+BASE = UTILITIES.o UNIVERSITY.o INITIALIZE.o XMLIO.o
+
+WEB = $(BASE) HTML.o ADVISING.o EditUNIVERSITY.o EditTEACHERS.o EditSECTIONS.o EditBLOCKS.o \
+	EditSTUDENT.o EditCHECKLIST.o EditENLISTMENT.o 
+#TIMETABLING.o
 
 #---------------------------------------------------------------
 # targets
 #---------------------------------------------------------------
-all:	INTERACTIVE
+#all:	INTERACTIVE 
+all:	BATCH INTERACTIVE 
 
-INTERACTIVE:	$(OBJ)
-	$(FC) $(OBJ) -o $(BIN)/HEEDS_SERVER -lfcgi -Wl,--rpath -Wl,/usr/local/lib
+INTERACTIVE:	$(WEB) SERVER.o 
+	$(FC) $(WEB) SERVER.o  -o $(BINPATH)/HEEDS_SERVER $(LIBPATH)
 
-UTILITIES.o:	Makefile
+BATCH:	$(BASE) STATIC.o
+	$(FC) $(BASE) STATIC.o  -o $(BINPATH)/HEEDS_STATIC $(LIBPATH)
+
+STATIC.o:	$(BASE) Input$(RAWDATA).F90
+
+#UTILITIES.o:	Makefile
 
 UNIVERSITY.o:	UTILITIES.o
 
-InputCUSTOM.o:	UNIVERSITY.o
+INITIALIZE.o:	UNIVERSITY.o
 
-XMLIO.o:	UNIVERSITY.o  Input$(RAWDATA).o
+XMLIO.o:	UNIVERSITY.o XMLIO-OTHER.F90
 
-INITIALIZE.o:	XMLIO.o
-
-HTML.o:	XMLIO.o
+HTML.o:	$(BASE)
 
 EditUNIVERSITY.o:	HTML.o
 
-DisplayROOMS.o:	HTML.o
+EditROOMS.o:	HTML.o
 
-EditROOMS.o:	DisplayROOMS.o
+EditTEACHERS.o:	HTML.o
 
-DisplayTEACHERS.o:	HTML.o
+EditSUBJECTS.o:	HTML.o
 
-EditTEACHERS.o:	DisplayTEACHERS.o
+EditCURRICULA.o:	HTML.o
 
-DisplaySUBJECTS.o:	HTML.o
+EditSECTIONS.o:	HTML.o
 
-EditSUBJECTS.o:	DisplaySUBJECTS.o
+EditBLOCKS.o:	HTML.o
 
-DisplayCURRICULA.o:	HTML.o
+ADVISING.o:	HTML.o
 
-EditCURRICULA.o:	DisplayCURRICULA.o
+EditSTUDENT.o:	ADVISING.o
 
-DisplaySECTIONS.o:	HTML.o
+EditCHECKLIST.o:	HTML.o
 
-EditSECTIONS.o:	DisplaySECTIONS.o
+EditENLISTMENT.o:	HTML.o
 
-DisplayBLOCKS.o:	HTML.o
+TIMETABLING.o:	HTML.o
 
-EditBLOCKS.o:	DisplayBLOCKS.o
+SERVER.o:	$(WEB)
 
 .F90.o:
 	$(FC) -c $<

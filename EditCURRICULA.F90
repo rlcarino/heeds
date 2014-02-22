@@ -223,21 +223,43 @@ contains
                             call html_comment('No more space for substitution rule '//mesg)
 
                         else
-                            ptrS = SubstIdx(NumSubst+1)-1
-
-                            NumSubst = NumSubst + 1
-                            SubstIdx(NumSubst) = ptrS+1
-                            Substitution(ptrS+1) = targetCurriculum
+                            ! delete rule if NONE is in subjectList
+                            j = 0
                             do i=1,m
-                                Substitution(ptrS+1+i) = subjectList(i)
+                                if (subjectList(i)==INDEX_TO_NONE) j = i
                             end do
-                            ptrS = ptrS+m+1
+                            if (j==0) then ! add rule
+                                ptrS = SubstIdx(NumSubst+1)-1
 
-                            SubstIdx(NumSubst+1) = ptrS+1
+                                NumSubst = NumSubst + 1
+                                ptrS = ptrS+1
+                                SubstIdx(NumSubst) = ptrS
+                                Substitution(ptrS) = targetCurriculum
+                                do i=1,m
+                                    ptrS = ptrS+1
+                                    Substitution(ptrS) = subjectList(i)
+                                end do
 
-                            changed = .true.
-                            remark = trim(remark)//': New substitution rule'
-                            call html_comment('New substitution rule '//mesg)
+                                SubstIdx(NumSubst+1) = ptrS+1
+
+                                changed = .true.
+                                remark = trim(remark)//': New substitution rule'
+                                call html_comment('New substitution rule '//mesg)
+                            else ! delete rule
+                                do k=1,NumSubst
+                                    if (Substitution(SubstIdx(k))/=targetCurriculum) cycle ! not this curriculum
+                                    do j=SubstIdx(k)+1, SubstIdx(k+1)-1
+                                        if (subjectList(1)==Substitution(j)) then ! matched
+                                            Substitution(SubstIdx(k)) = 0 ! invalidate pointer to curriculum
+                                            exit
+                                        end if
+                                    end do
+                                end do
+                                changed = .true.
+                                remark = trim(remark)//': Removed substitution rule'
+                                call html_comment('Removed substitution rule '//mesg)
+
+                            end if
                         end if
                     end if
                 end if
@@ -260,14 +282,8 @@ contains
 
                             else
 
-                                ! redirect global substitution rules before incrementing NumCurricula
-                                do i=1,NumSubst
-                                    k = SubstIdx(i)
-                                    if (Substitution(k) == NumCurricula+1) Substitution(k) = NumCurricula+2
-                                end do
-
-                                Curriculum(NumCurricula+1) = Curriculum(NumCurricula)
                                 ! add new curriculum
+                                Curriculum(NumCurricula+1) = Curriculum(NumCurricula)
                                 Curriculum(NumCurricula) = wrk
                                 targetCurriculum = NumCurricula
 
@@ -301,16 +317,16 @@ contains
         call html_write_header(device, 'Edit curriculum '//tCurriculum, remark(3:))
         write(device,AFORMAT) trim(make_href(fnCurriculumList, CurrProgCode(targetCurriculum), &
             A1=CurrProgCode(targetCurriculum), &
-            pre='<small>Edit other'//nbsp, post=' option</small>'))//'<br>'
+            pre=beginsmall//'Edit other'//nbsp, post=' option'//endsmall))//linebreak
 
         call make_form_start(device, fnEditCurriculum, tCurriculum)
         write(device,AFORMAT) '<table border="0" width="100%">', &
-            begintr//begintd//'<b>Curriculum code</b>'//endtd//begintd//'<input name="Code" size="'// &
+            begintr//begintd//beginbold//'Curriculum code'//endbold//endtd//begintd//'<input name="Code" size="'// &
             trim(itoa(MAX_LEN_CURRICULUM_CODE))// &
             '" value="'//trim(tCurriculum)//'"> (A new curriculum will be created if this is changed)'//endtd//endtr
 
         write(device,AFORMAT) &
-            begintr//begintd//'<b>College</b>'//endtd//begintd//'<select name="College">'
+            begintr//begintd//beginbold//'College'//endbold//endtd//begintd//'<select name="College">'
         do i=1,NumColleges
             if (i/=targetCollege) then
                 j=0
@@ -330,17 +346,17 @@ contains
         end if
 
         write(device,AFORMAT) '</select>'//endtd//endtr, &
-            begintr//begintd//'<b>Title</b>'//endtd//begintd//'<input name="Title" size="'//trim(itoa(MAX_LEN_CURRICULUM_NAME))//&
+            begintr//begintd//beginbold//'Title'//endbold//endtd//begintd//'<input name="Title" size="'//trim(itoa(MAX_LEN_CURRICULUM_NAME))//&
             '" value="'//trim(Curriculum(targetCurriculum)%Title)//'">'//endtd//endtr, &
-            begintr//begintd//'<b>Specialization</b>'//endtd//begintd//'<input name="Specialization" size="'// &
+            begintr//begintd//beginbold//'Specialization'//endbold//endtd//begintd//'<input name="Specialization" size="'// &
             trim(itoa(MAX_LEN_CURRICULUM_NAME))//'" value="'//trim(Curriculum(targetCurriculum)%Specialization)// &
             '">'//endtd//endtr, &
-            begintr//begintd//'<b>Remark</b>'//endtd// &
+            begintr//begintd//beginbold//'Remark'//endbold//endtd// &
             begintd//'<input name="Remark" size="'//trim(itoa(MAX_LEN_CURRICULUM_NAME))// &
             '" value="'//trim(Curriculum(targetCurriculum)%Remark)//'">'//endtd//endtr, &
-            begintr//begintd//'<b>Status</b>'//endtd//begintd//trim(mesg)//endtd//endtr, &
-            begintr//begintd//'<b>Year, Term (Units/Cumulative)</b>'//endtd// &
-            begintd//'<b>Comma-separated subject codes</b>'//endtd//endtr
+            begintr//begintd//beginbold//'Status'//endbold//endtd//begintd//trim(mesg)//endtd//endtr, &
+            begintr//begintd//beginbold//'Year, Term (Units/Cumulative)'//endbold//endtd// &
+            begintd//beginbold//'Comma-separated subject codes'//endbold//endtd//endtr
 
         tunits = 0.0
 
@@ -370,7 +386,7 @@ contains
                 '" value="'//trim(mesg(3:))//'">'//endtd//endtr
         end do
 
-        write(device,AFORMAT) begintr//begintd//'<b>Substitution rules</b>'//endtd, &
+        write(device,AFORMAT) begintr//begintd//beginbold//'Substitution rules'//endbold//endtd, &
             begintd//'Required subjects in list will be PASSED if credits have been earned '// &
             'for the other subjects in the list'//endtd//endtr
 
@@ -388,12 +404,130 @@ contains
             begintd//'<input name="Substitution" size="'//trim(itoa(MAX_LEN_CURRICULUM_NAME))// &
             '" value="(Enter new substitution rule)">'//endtd//endtr
 
-        write(device,AFORMAT) '</table><br>'//nbsp//'<input name="action" type="submit" value="Update"></form><pre>', &
-            !'NOTE: Subjects for a term are specified by COMMA-separated subjects codes.', &
-            '</pre><hr>'
+        write(device,AFORMAT) endtable//linebreak//nbsp//'<input name="action" type="submit" value="Update">'//endform//'<pre>', &
+            '</pre>'//horizontal
 
     end subroutine curriculum_edit
 
+
+    subroutine equivalencies_edit(device)
+        integer, intent (in) :: device
+        integer :: idx, tdx, ierr, crse, ptrS, i, m!, j, k, Year, Term
+        character (len=255) :: mesg, remark!, tokenizeErr
+        character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
+        logical :: changed, critical1, critical2!, possibleImpact, critical3
+        integer, dimension(MAX_SECTION_MEETINGS) :: subjectList
+
+        changed = .false.
+        remark = SPACE
+
+        ! any deleted rules?
+        do tdx=1,NumSubst
+            if (Substitution(SubstIdx(tdx))==-1) then
+                call cgi_get_named_string(QUERY_STRING, 'del'//trim(itoa(tdx)), tSubject, ierr)
+                if (ierr/=0) cycle ! rule not found
+                ! delete rule
+                mesg = SPACE
+                do idx=SubstIdx(tdx)+1, SubstIdx(tdx+1)-1
+                    mesg = trim(mesg)//COMMA//Subject(Substitution(idx))%Name
+                end do
+                Substitution(SubstIdx(tdx)) = 0
+                remark = trim(remark)//': Deleted rule '//mesg(2:)
+                changed = .true.
+            end if
+        end do
+
+        ! a rule was added?
+        call cgi_get_named_string(QUERY_STRING, 'Required', tSubject, ierr)
+        if (len_trim(tSubject)>0) then ! new rule entered?
+            crse = index_to_subject(tSubject)
+            if (crse>0) then ! required subject is OK
+                call cgi_get_named_string(QUERY_STRING, 'Equivalent', mesg, ierr)
+
+                if (ierr==0) then  ! Equivalent list is not empty
+
+                    ! prepend Required
+                    mesg = trim(tSubject)//COMMA//mesg
+                    call tokenize_subjects(mesg, COMMA, MAX_SECTION_MEETINGS, m, subjectList, ierr)
+                    if (ierr==0) then ! Equivalent list is well-formed
+
+                        ptrS = SubstIdx(NumSubst+1)-1
+
+                        call check_array_bound (NumSubst+1, MAX_ALL_SUBSTITUTIONS, 'MAX_ALL_SUBSTITUTIONS', critical1)
+                        call check_array_bound (ptrS+m, MAX_LEN_SUBSTITUTION_ARRAY, 'MAX_LEN_SUBSTITUTION_ARRAY', critical2)
+
+                        if (critical1 .or. critical2) then
+                            changed = .false.
+                            remark = trim(remark)//': No more space for substitution rule'
+                            call html_comment('No more space for substitution rule '//mesg, &
+                                'Limit MAX_ALL_SUBSTITUTIONS= '//itoa(MAX_ALL_SUBSTITUTIONS)// &
+                                '; currently used is '//itoa(NumSubst), &
+                                'Limit MAX_LEN_SUBSTITUTION_ARRAY= '//itoa(MAX_LEN_SUBSTITUTION_ARRAY)// &
+                                '; currently used is '//itoa(ptrS) )
+
+                        else
+
+                            NumSubst = NumSubst + 1
+                            ptrS = ptrS+1
+                            SubstIdx(NumSubst) = ptrS
+                            Substitution(ptrS) = -1
+                            do i=1,m
+                                ptrS = ptrS+1
+                                Substitution(ptrS) = subjectList(i)
+                            end do
+
+                            SubstIdx(NumSubst+1) = ptrS+1
+
+                            changed = .true.
+                            remark = trim(remark)//': New equivalence rule '//mesg
+                            call html_comment('New equivalence rule '//mesg)
+                        end if
+                    end if
+                end if
+
+            end if
+
+        end if
+
+        if (changed) then
+            call xml_write_equivalencies(trim(pathToYear)//'EQUIVALENCIES.XML')
+        else
+            call cgi_get_named_string(QUERY_STRING, 'action', tSubject, ierr)
+            if (ierr==0) remark = ' : No changes to equivalence rules?'
+        end if
+
+        call html_write_header(device, 'Equivalence rules applicable to all curricular programs', remark(3:))
+        write(device,AFORMAT) 'Required subject will be PASSED if credits have been earned '// &
+            'for Equivalent(s). Checked rules will be deleted.'//linebreak//linebreak
+
+        call make_form_start(device, fnEditEquivalencies)
+        write(device,AFORMAT) '<table border="0" width="50%">', begintr// &
+            thalignleft//'Required'//endth// &
+            thalignleft//'Equivalent(s)'//endth// &
+            thalignleft//'Delete?'//endth//endtr
+        do tdx=1,NumSubst
+            if (Substitution(SubstIdx(tdx))==-1) then
+                write(device,AFORMAT) '<tr bgcolor="'//bgcolor(mod(tdx,2))//'">'// &
+                    begintd//trim(Subject(Substitution(SubstIdx(tdx)+1))%Name)//endtd
+                mesg = SPACE
+                do idx=SubstIdx(tdx)+2, SubstIdx(tdx+1)-1
+                    mesg = trim(mesg)//COMMA//Subject(Substitution(idx))%Name
+                end do
+                write(device,AFORMAT) begintd//trim(mesg(2:))//endtd// &
+                    begintd//'<input type="checkbox" name="del'//trim(itoa(tdx))//'">'//endtd//endtr
+            end if
+        end do
+
+        write(device,AFORMAT) begintr// &
+            begintd//'<input name="Required" size="'//trim(itoa(MAX_LEN_SUBJECT_CODE))// &
+            '" value="">'//endtd// &
+            begintd//'<input name="Equivalent" size="'//trim(itoa(MAX_LEN_SUBJECT_CODE))// &
+            '" value="">'//endtd//begintd//beginbold//'Add rule'//endbold//endtd//endtr
+
+        write(device,AFORMAT) endtable//linebreak//nbsp//'<input name="action" type="submit" value="Update">'//endform//'<pre>', &
+            '</pre>'//horizontal
+
+    end subroutine equivalencies_edit
 
 end module EditCURRICULA
 

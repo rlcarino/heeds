@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012, 2013 Ricolindo L. Carino
+!    Copyright (C) 2012-2014 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -36,13 +36,12 @@ module UTILITIES
 ! the software
 !===========================================================
 
-    character(len= 7), parameter :: VERSION   = ' v.4.35'
     character(len= 5), parameter :: PROGNAME  = 'HEEDS'
-    character(len=45), parameter :: COPYRIGHT = 'Copyright (C) 2012, 2013 Ricolindo L. Carino'
+    character(len=12), parameter :: VERSION   = ' R2014.03.XX'
+    character(len=44), parameter :: COPYRIGHT = 'Copyright (C) 2012-2014 Ricolindo L. Carino'
     character(len=38), parameter :: EMAIL     = 'Ricolindo.Carino@AcademicForecasts.com'
     character(len=72), parameter :: CONTACT   = 'E-mail inquiries about '//PROGNAME//' to '//EMAIL//'.'
     character(len=32), parameter :: WEB       = 'http://code.google.com/p/heeds/'
-    character(len=13), parameter :: IP_ADDR   = '54.225.97.166' ! the IP address xxx.xxx.xxx.xxx
 
 !===========================================================
 ! OS-related parameters
@@ -53,42 +52,50 @@ module UTILITIES
     character(len= 9), parameter :: mkdirCmd = 'mkdir -p '
     character(len= 6), parameter :: mvCmd = 'mv -f '
     character(len= 1), parameter :: DIRSEP = '/'
+
+    character(len=18), parameter :: WEBROOT = '/home/HEEDS/web/'
+
 #else
     ! file separator; delete, directory, mkdir commands
     character(len= 7), parameter :: delCmd = 'del /q '
     character(len= 6), parameter :: mkdirCmd = 'mkdir '
     character(len= 8), parameter :: mvCmd = 'move /y '
     character(len= 1), parameter :: DIRSEP = '\'
+    character(len=13), parameter :: WEBROOT = 'C:\HEEDS\web\'
 #endif
 
+! http://localhost
+character(len= 7), parameter :: PROTOCOL = 'http://'
+character(len= 9), parameter :: IP_ADDR = 'localhost'
 
 !===========================================================
 ! passwords
 !===========================================================
+    real :: harvest    ! random number
     integer, parameter :: &  ! length of password variables
         MAX_LEN_PASSWD_VAR=32, &
         MIN_LEN_PASSWORD=8, &
         MAX_LEN_PASSWORD=12, &
         lenPasswordEncryptionKey = 16
-    character(len=lenPasswordEncryptionKey) :: &
-                          passwordEncryptionKey = 'w!thUr0wnr3pL@c3'
+    character(len=lenPasswordEncryptionKey) :: & ! replace for your Institution
+                          passwordEncryptionKey = '0123456789ABCDEF'
 
 
 !===========================================================
 ! Academic Year, Term
 !===========================================================
 
-    integer :: currentYear ! year of start of Academic Year
-    integer :: currentTerm ! current term 1=1st sem, 2=2nd sem; 3=summer
-    integer :: nextYear, nextTerm, targetTerm, termBegin, termEnd
-    integer :: cTm1Year, cTm1, cTm2Year, cTm2, cTm3Year, cTm3
+    integer :: currentYear=0 ! year of start of Academic Year
+    integer :: currentTerm=0 ! current term 1=1st sem, 2=2nd sem; 3=summer
+    integer :: nextYear=0, nextTerm=0, termBegin=0, termEnd=0
+    integer :: cTm1Year=0, cTm1=0, cTm2Year=0, cTm2=0, cTm3Year=0, cTm3=0
 
 !===========================================================
 ! times
 !===========================================================
 
-    character(len=10) :: currentTime ! current time
-    character(len= 8) :: currentDate ! current date
+    character(len=10) :: currentTime ! current time - HHMMSS.LLL
+    character(len= 8) :: currentDate, previousDate ! current, previous dates - YYYYMMDD
     character(len=18) :: startDateTime ! program start date & time
     integer(8) :: tick, count_rate, count_max ! system clock
     integer, parameter :: maxIdleTime = 1800 ! seconds before auto-logout
@@ -110,13 +117,15 @@ module UTILITIES
 
     ! data & output paths
     character (len=MAX_LEN_FILE_PATH) :: &
-        dirUNIV, & ! HEEDS root directory
+        dirUNIV, & ! directory for university data
         dirBACKUP, & ! directory for backup files
         dirDATA, & ! directory for XML data files
         dirLOG, &  ! directory for log files
-        dirWEB, &  ! directory for HTML files
         dirSUBSTITUTIONS, & ! directory for subject substitutions
         dirTRANSCRIPTS, & ! directory for individual enrollment records
+        dirSTUDENTINFO, & ! directory for individual student info
+        dirADVANCECREDITS, & ! directory for advance/transfer credit records
+        dirCOMPLETIONS, & ! directory for completion records
         pathToYear, pathToNextYear, pathToTerm, &  ! path data files for the year, next year
         fileEXE, & ! name of executable
         fileLOG, & ! name of log file
@@ -124,7 +133,7 @@ module UTILITIES
         CGI_PATH ! URI
 
     ! position of last character in dirDATA (to simplify derivation of path to backup)
-    integer :: lenDirDAT
+    integer :: lenDirDATA
 
     ! constants
     character(len= 1), parameter :: &
@@ -137,7 +146,7 @@ module UTILITIES
     character(len=16), parameter :: HEXDIGITS = '0123456789ABCDEF'
     character(len=24), parameter :: SPECIAL = '<>"#%{}|^~[]`;/?:=&$+().'
 
-    ! some HTML colors
+    ! some HTML tokens
     character(len=20), parameter :: Blue = '<font color=#0000FF>'
     character(len=20), parameter :: Fuchsia = '<font color=#FF00FF>'
     character(len=20), parameter :: Gray = '<font color=#808080>'
@@ -152,7 +161,7 @@ module UTILITIES
     character(len=20), parameter :: Teal = '<font color=#008080>'
     character(len=20), parameter :: White = '<font color=#FFFFFF>'
     character(len=20), parameter :: Yellow = '<font color=#FFFF00>'
-    character(len= 7), parameter :: black='</font>'
+    character(len= 7), parameter :: black = '</font>'
 
 !===========================================================
 ! XML-related parameters
@@ -171,18 +180,17 @@ module UTILITIES
     character(len=16), parameter :: XML_ROOT_SUBJECTS       = 'LIST_OF_SUBJECTS'
     character(len=13), parameter :: XML_ROOT_ROOMS          = 'LIST_OF_ROOMS'
     character(len=16), parameter :: XML_ROOT_TEACHERS       = 'LIST_OF_TEACHERS'
-    character(len=16), parameter :: XML_ROOT_SECTIONS       = 'LIST_OF_SECTIONS'
     character(len=17), parameter :: XML_ROOT_CURRICULA      = 'LIST_OF_CURRICULA'
     character(len=21), parameter :: XML_ROOT_EQUIVALENCIES  = 'LIST_OF_EQUIVALENCIES'
-    character(len=14), parameter :: XML_ROOT_BLOCKS         = 'LIST_OF_BLOCKS'
     character(len=16), parameter :: XML_ROOT_STUDENTS       = 'LIST_OF_STUDENTS'
-    character(len=11), parameter :: XML_ROOT_PREDICTIONS    = 'PREDICTIONS'
-    character(len=11), parameter :: XML_ROOT_WAIVERS        = 'WAIVERS_COI'
-    character(len=10), parameter :: XML_ROOT_ENLISTMENT     = 'ENLISTMENT'
-    character(len=11), parameter :: XML_ROOT_GRADESHEETS    = 'GRADESHEETS'
+    character(len=12), parameter :: XML_ROOT_WAIVERS        = 'WAIVERS_COI_'
     character(len=14), parameter :: XML_ROOT_STUDENT_RECORD = 'STUDENT_RECORD'
+    character(len=12), parameter :: XML_ROOT_STUDENT_INFO   = 'STUDENT_INFO'
     character(len=15), parameter :: XML_ROOT_INTAKE         = 'FRESHMAN_INTAKE'
     character(len=13), parameter :: XML_ROOT_SUBSTITUTIONS  = 'SUBSTITUTIONS'
+    character(len=11), parameter :: XML_ROOT_ENLISTMENT     = 'ENLISTMENT_'
+    character(len=15), parameter :: XML_ROOT_BLOCKS         = 'LIST_OF_BLOCKS_'
+    character(len=17), parameter :: XML_ROOT_SECTIONS       = 'LIST_OF_SECTIONS_'
     ! root names                                               12345678901234567890
     character(len=44), parameter :: XML_DOC = &
         '<?xml version="1.0" encoding="ISO-8859-1" ?>'
@@ -195,7 +203,7 @@ module UTILITIES
         indent3 = INDENT_INCR*4, &
         indent4 = INDENT_INCR*5, &
         indent5 = INDENT_INCR*6
-    character(len=80)  :: indentation = ' '
+    character(len=80)  :: indentation = SPACE
 
 
 !===========================================================
@@ -229,6 +237,22 @@ module UTILITIES
     character(len= 4), parameter :: begintd= '<td>', beginth= '<th>', begintr= '<tr>'
     character(len= 5), parameter :: endtd= '</td>', endth= '</th>', endtr= '</tr>'
     character(len=15), parameter :: tdnbspendtd= '<td>&nbsp;</td>'
+    character(len= 8), parameter :: endtable = '</table>'
+    character(len= 7), parameter :: beginsmall = '<small>'
+    character(len= 8), parameter :: endsmall = '</small>'
+    character(len= 7), parameter :: endform = '</form>'
+    character(len= 3), parameter :: beginbold = '<b>'
+    character(len= 4), parameter :: endbold = '</b>'
+    character(len= 3), parameter :: beginitalic = '<i>'
+    character(len= 4), parameter :: enditalic = '</i>'
+    character(len= 4), parameter :: horizontal = '<hr>'
+    character(len= 4), parameter :: linebreak = '<br>'
+    character(len= 4), parameter :: beginitem = '<li>'
+    character(len= 5), parameter :: enditem = '</li>'
+
+    character(len= 8), parameter :: JUSTNONE = '( None )'
+    character(len=12), parameter :: BRNONE = linebreak//'( None )'
+    character(len=16), parameter :: BRNONEHR = linebreak//'( None )'//horizontal
 
     character(len=20), parameter :: selected(0:1) = (/ '                    ', ' selected="selected"' /)
     character(len=14), parameter :: checked(0:1) = (/ '              ', ' checked="yes"' /)
@@ -246,13 +270,19 @@ module UTILITIES
     character (len=16)                   :: REMOTE_ADDR
 
     ! the QUERY, encryption key, cipher text
-    character (len=MAX_LEN_QUERY_STRING) :: QUERY_STRING, queryEncryptionKey, cipher
+    character (len=MAX_LEN_QUERY_STRING) :: QUERY_STRING, queryEncryptionKey, cipher, MOTD
 
     ! functionality
-    character(len=14) :: ACTION
+    character (len=255) :: sorryMessage
+    character (len=15) :: ACTION
     logical :: &
-        isActionClasslists = .false., &
-        isActionAdvising = .false.
+        isEnabledEditGrade = .false., &
+        isEnabledGuest = .true., &
+        isProbabilistic = .false., &
+        isPeriodOne = .false., &
+        isPeriodTwo = .false., &
+        isPeriodThree = .false., &
+        isPeriodFour = .false.
 
     ! local work areas
     character(len=MAX_CGI_WRK_LEN), private :: cgi_wrk
@@ -273,20 +303,25 @@ contains
         ! fileEXE is set in the main program
         write(*,AFORMAT) trim(fileEXE)//' ('//VERSION//')'
         if (present(mesg)) write(*,AFORMAT) trim(mesg)
-#if defined GLNX
-        write(*,AFORMAT) &
-            'Webserver usage: spawn-fcgi -a IP_ADDRESS -p PORT_NUM -- '//trim(fileEXE)//' UNIV YEAR TERM'
-#else
-        write(*,AFORMAT) &
-            'Webserver usage: spawn-fcgi -a IP_ADDRESS -p PORT_NUM -f "'//trim(fileEXE)//' UNIV YEAR TERM"'
-#endif
-        write(*,AFORMAT) &
-            '  IP_ADDRESS, PORT_NUM - as specified by fastcgi_pass in nginx configuration', &
-            '  UNIV - code for university', &
-            '  YEAR - chronological year when the current School Year started', &
-            '  TERM - current term: 1=1st Sem, 2=2nd Sem, S=summer', &
-            SPACE
-         stop
+        if (index(fileEXE, '_SERVER')>0) then
+            write(*,AFORMAT) &
+                'Webserver usage: spawn-fcgi -a IP_ADDRESS -p PORT_NUM -f "'//trim(fileEXE)//' UNIV YEAR TERM ACTION"', &
+                '  IP_ADDRESS, PORT_NUM - as specified by fastcgi_pass in nginx configuration', &
+                '  UNIV - code for university', &
+                '  YEAR - chronological year when the current School Year started', &
+                '  TERM - current term: 1=1st Sem, 2=2nd Sem, S=summer', &
+                '  ACTION - Classlists, Advising, Gradesheets, Preregistration', &
+                SPACE
+        else
+            write(*,AFORMAT) &
+                'Usage: '//trim(fileEXE)//' UNIV YEAR TERM ACTION"', &
+                '  UNIV - code for university', &
+                '  YEAR - chronological year when the current School Year started', &
+                '  TERM - current term: 1=1st Sem, 2=2nd Sem, S=summer', &
+                '  ACTION - Restore, Checklists, Import', &
+                SPACE
+        end if
+        stop
 
     end subroutine usage
 
@@ -323,7 +358,7 @@ contains
 
         logical :: logExists
 
-        fileLOG = trim(dirLOG)//trim(fileEXE)//DASH//currentDate//'.log'
+        fileLOG = trim(dirLOG)//currentDate//DASH//trim(fileEXE)//'-message.log'
         inquire(file=trim(fileLOG), exist=logExists)
         if (.not. logExists) then
             open(unit=unitLOG, file=trim(fileLOG), status='new')
@@ -397,9 +432,9 @@ contains
                 end if
             end if
         end if
+        flush(unitHTML)
 
     end subroutine html_comment
-
 
 
     subroutine terminate(msg)
@@ -460,15 +495,19 @@ contains
     subroutine decrypt(key, text)
         character(len=*), intent (in) :: key
         character(len=*), intent (in out) :: text ! in=cipher, out=plaintext
-        integer :: i, j, k, lenKey, lenText, intText
+        integer :: i, j, k, lenKey, lenText, intText, ioERR
 
-        !call html_comment('decrypt('//trim(text)//')')
         lenKey = len_trim(key)
         lenText = len_trim(text)/2
         i = lenKey
         do j=lenText,1,-1
             k = 2*j
-            read(text(k-1:k), '(z2)') intText
+            read(text(k-1:k), '(z2)', iostat=ioERR) intText
+            if (ioERR/=0) then
+                call html_comment('Error '//itoa(ioERR)//' in decrypt('//trim(text)//')')
+                text = SPACE
+                return
+            end if
             text(j+lenText:j+lenText) = char( ieor(ichar(key(i:i)),intText) )
             i = i-1
             if (i==0) i = lenKey
@@ -482,7 +521,6 @@ contains
         character (len=MAX_LEN_PASSWD_VAR), intent (in out) :: Password
         character (len=*), intent (in), optional :: forcedPassword
         integer :: i, j, lenP, lenS
-        real :: harvest ! random number
         character (len=34) :: choice = 'A2B3D45F6G7H8J9bcdfghjkmnprstvwxyz'
 
         if (present(forcedPassword)) then
@@ -497,7 +535,7 @@ contains
             lenP = MIN_LEN_PASSWORD + int(harvest*(MAX_LEN_PASSWORD-MIN_LEN_PASSWORD+1))
             do i=1,lenP
                 call random_number(harvest)
-                j = 1 + int(harvest*34)
+                j = 1 + int(harvest*33)
                 Password(i:i) = choice(j:j)
             end do
         end if
@@ -506,7 +544,7 @@ contains
         Password(lenS+1:) = Password(:lenP) ! right-justify Password() to make space for salt
         do i=1,lenS ! generate random salt
             call random_number(harvest)
-            j = 1 + int(harvest*35)
+            j = 1 + int(harvest*33)
             Password(i:i) = choice(j:j)
         end do
         ! add length to beginning+1
@@ -551,14 +589,16 @@ contains
 
 
     subroutine upper_case(string)
-        ! change string to upper case
+        ! change lower-case letters in string to upper case
         character(len=*), intent (inout) :: string
-        integer :: i,length
+        integer :: i,length, code
         length=len_trim(string)
         do i=1,length
             if (string(i:i) .lt. 'a') cycle
-            if (string(i:i) .gt. 'z') cycle
-            string(i:i) = char(ichar(string(i:i))-32)
+            code = ichar(string(i:i))
+            if ( string(i:i) .le. 'z' .or. code .gt. 223 ) then
+                string(i:i) = char(code-32)
+            end if
         end do
 
     end subroutine upper_case
@@ -638,7 +678,7 @@ contains
                 if (j > 0) then
                     num = 10.0*num + 1.0*j - 1.0
                     mult = mult*0.1
-                elseif (string(i:i)=='.') then ! decimal point
+                elseif (string(i:i)==DOT) then ! decimal point
                     if (mult==0.0) then ! first decimal point
                         mult = 1.0
                     else
@@ -695,7 +735,7 @@ contains
         frac = abs(num) - k
         str10 = itoa(k) ! integral part
         l = len_trim(str10)+1 ! position of decimal point
-        str10(l:l) = '.' ! add decimal point
+        str10(l:l) = DOT ! add decimal point
         i = 0
         do
             l = l + 1
@@ -705,7 +745,7 @@ contains
             frac = frac*10.0 - j ! remainder
             if (frac==0.0 .or. i==dadp .or. l==10) exit
         end do
-        if (l<10 .and. str10(l:l)=='.') str10(l+1:l+1) = '0' ! add 0 after decimal point
+        if (l<10 .and. str10(l:l)==DOT) str10(l+1:l+1) = '0' ! add 0 after decimal point
         if (num < 0) str10 = DASH//str10
         ftoa = str10
 
@@ -824,15 +864,29 @@ contains
     end subroutine make_directory
 
 
-
     subroutine move_to_backup(fname)
         character (len=*), intent (in) :: fname ! must be in dirDATA
         character (len=MAX_LEN_FILE_PATH) :: path
         integer :: iStat
+        logical :: fileExists
 
-        path = trim(dirBACKUP)//trim(fname(lenDirDAT+1:))//DASH//currentDate//DASH//currentTime
+        inquire(file=trim(fname), exist=fileExists)
+        if (.not. fileExists) return
+
+        path = trim(dirBACKUP)//trim(fname(lenDirDATA+1:))//DASH//currentDate//DASH//currentTime
+        call log_comment('move_to_backup('//trim(path)//')')
+
         call rename (fname, path, iStat)
         if (iStat/=0) call log_comment('Status='//trim(itoa(iStat))//' in moving to '//trim(path) )
+        ! compress backup
+#if defined GLNX
+        call system('gzip -r '//trim(path), iStat)
+        if (iStat/=0) call log_comment(itoa(iStat)//' returned by: gzip -r '//trim(path))
+!#else
+!        call system('"C:\Program Files\7-Zip\7z.exe" a -t7z '//trim(path)//'.7z '//trim(path), iStat)
+!        if (iStat/=0) call log_comment(itoa(iStat)//' returned by: '// &
+!            '"C:\Program Files\7-Zip\7z.exe" a -t7z '//trim(path)//'.7z '//trim(path))
+#endif
 
     end subroutine move_to_backup
 
@@ -974,7 +1028,7 @@ contains
         integer :: code, i, idx_out, j, k, len_str_out
         logical :: encode
 
-        str_out = ' ' ! default return values
+        str_out = SPACE ! default return values
         idx_out = 1 ! index to str_out
         len_str_out = len(str_out) ! dimension of str_out
         do i=1,len_trim(str_in)
@@ -1021,7 +1075,7 @@ contains
         character(len=1) :: ch
         character(len=2) :: hex_code
 
-        str_out = ' ' ! default return values
+        str_out = SPACE ! default return values
         len_str_out = len(str_out) ! dimension of str_out
         idx_out = 1 ! index to str_out
 
@@ -1067,7 +1121,7 @@ contains
         integer :: i_start, j_end, l_string, l_lname
 
         ! default return values
-        rvalue = ' '
+        rvalue = SPACE
         ierr = 0
         l_string = len_trim(string)
 
@@ -1109,7 +1163,7 @@ contains
 
         call cgi_get_name_value(string, lname, tmpIN, ierr)
         if (ierr==-1) then ! not found
-            rvalue = ' '
+            rvalue = SPACE
         else
             call cgi_url_decode(tmpIN, tmpOUT) ! decode
             rvalue = trim(tmpOUT)
@@ -1172,8 +1226,8 @@ contains
         character(len=MAX_CGI_WRK_LEN) :: tmp
 
         ! default return values
-        lname  = ' '
-        rvalue = ' '
+        lname  = SPACE
+        rvalue = SPACE
         ierr = 0
         l_string = len_trim(string)
 
