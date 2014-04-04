@@ -153,7 +153,7 @@
         NumColleges = NumColleges + 1
         call check_array_bound (NumColleges, MAX_ALL_COLLEGES, 'MAX_ALL_COLLEGES')
         call initialize_college (College(NumColleges), &
-            SYSAD, UniversityCode//' Administration', SYSAD)
+            SYSAD, UniversityCode//' Administration', SYSAD, SPACE, SPACE)
 
     end subroutine custom_read_colleges
 

@@ -198,6 +198,12 @@ contains
                 case ('Dean')
                     wrkCollege%Dean = adjustl(value)
 
+                case ('TranscriptPreparer')
+                    wrkCollege%TranscriptPreparer = adjustl(value)
+
+                case ('TranscriptChecker')
+                    wrkCollege%TranscriptChecker = adjustl(value)
+
                 case ('/College') ! add temporary college data to College()
                     if (index(wrkCollege%Code,trim(SYSAD))>0) cycle ! add later
                     NumColleges = NumColleges + 1
@@ -214,7 +220,7 @@ contains
         NumColleges = NumColleges + 1
         call check_array_bound (NumColleges, MAX_ALL_COLLEGES, 'MAX_ALL_COLLEGES')
         call initialize_college (College(NumColleges), &
-            SYSAD, UniversityCode//' Administration', SYSAD)
+            SYSAD, UniversityCode//' Administration', SYSAD, SPACE, SPACE)
 
         close(unitXML)
         call log_comment (itoa(NumColleges)//' colleges in '//pathTofile)
@@ -253,7 +259,9 @@ contains
                         FSLASH//currentDate(5:6)//FSLASH//currentDate(7:8), &
             '        Code - college code', &
             '        Name - long name of college', &
-            '        Dean - signatory for college (Firstname MI Lastname, PhD)', &
+            '        Dean - dean of college (Firstname MI Lastname, PhD)', &
+            '        TranscriptPrepaper - transcript preparer for college (Firstname MI Lastname)', &
+            '        TranscriptChecker - transcript checker for college (Firstname MI Lastname)', &
             '    </comment>'
 
         do ldx = 1,NumColleges-1 ! exclude SYSAD
@@ -261,6 +269,8 @@ contains
             call xml_write_character(unitXML, indent1, 'Code', College(ldx)%Code)
             call xml_write_character(unitXML, indent1, 'Name', College(ldx)%Name)
             call xml_write_character(unitXML, indent1, 'Dean', College(ldx)%Dean)
+            call xml_write_character(unitXML, indent1, 'TranscriptPreparer', College(ldx)%TranscriptPreparer)
+            call xml_write_character(unitXML, indent1, 'TranscriptChecker', College(ldx)%TranscriptChecker)
             call xml_write_character(unitXML, indent0, '/College')
         end do
 
@@ -2257,7 +2267,7 @@ contains
         do i=1,NumTeachers+NumAdditionalTeachers
             Teacher(i)%NumAdvisees = 0
         end do
-        do i=1,NumStudents+NumAdditionalTeachers
+        do i=1,NumStudents+NumAdditionalStudents
             iCurr = index_to_teacher(Student(i)%Adviser)
             Teacher(iCurr)%NumAdvisees = Teacher(iCurr)%NumAdvisees + 1
         end do
@@ -2330,6 +2340,9 @@ contains
 
                 case ('LastAttended')
                     !wrkStudent%LastAttended = adjustl(value)
+
+                case ('TranscriptRemark')
+                    !wrkStudent%TranscriptRemark = adjustl(value)
 
                 case ('Gender')
                     wrkStudent%Gender = adjustl(value)
@@ -2412,6 +2425,15 @@ contains
             end do
         end if
 
+        ! update advisee counts
+        do i=1,NumTeachers+NumAdditionalTeachers
+            Teacher(i)%NumAdvisees = 0
+        end do
+        do i=1,NumStudents+NumAdditionalStudents
+            j = index_to_teacher(Student(i)%Adviser)
+            Teacher(j)%NumAdvisees = Teacher(j)%NumAdvisees + 1
+        end do
+
     end subroutine xml_write_students
 
 
@@ -2439,8 +2461,6 @@ contains
         do std=1,NumStudents+NumAdditionalStudents
 
             if (len_trim(Student(std)%StdNo)==0) cycle
-            !if (Student(std)%Classification>=NotOfficiallyEnrolled .and. &
-            !    sum(Enlistment(1:3,std)%lenSubject)==0) cycle ! no record for previous, current, next terms
 
             idx = Student(std)%CurriculumIdx
             if (iCurr>0) then

@@ -37,7 +37,7 @@
         idx = year_prefix(Student(std))
         fileName = trim(dirTRANSCRIPTS)//trim(Student(std)%StdNo(1:idx))//DIRSEP//trim(Student(std)%StdNo)//'.XML'
         call move_to_backup(fileName)
-        call html_comment('xml_write_student_grades('//trim(fileName)//')')
+        !call html_comment('xml_write_student_grades('//trim(fileName)//')')
 
         ! write file
         open(unit=unitXML, file=fileName, status='unknown')
@@ -283,7 +283,7 @@
         call xml_read_file(unitXML, XML_ROOT_STUDENT_RECORD, fileName, errNo)
         if (errNo/=0) return
 
-        call html_comment('xml_read_student_grades('//trim(filename)//')')
+        !call html_comment('xml_read_student_grades('//trim(filename)//')')
 
         ! examine the file line by line
         do
@@ -410,7 +410,7 @@
         call xml_read_file(unitXML, XML_ROOT_SUBSTITUTIONS, fileName, errNo)
         if (errNo/=0) return
 
-        call html_comment('xml_read_substitutions('//trim(filename)//')')
+        !call html_comment('xml_read_substitutions('//trim(filename)//')')
 
         ! examine the file line by line
         do
@@ -640,7 +640,7 @@
         open(unit=unitXML, file=fileName)
         write(unitXML,AFORMAT) XML_DOC
 
-        call html_comment('xml_student_info('//trim(filename)//')')
+        !call html_comment('xml_student_info('//trim(filename)//')')
 
         write(unitXML,AFORMAT) '<'//XML_ROOT_STUDENT_INFO//'>', &
             '    <comment>', &
@@ -698,6 +698,9 @@
         if (len_trim(StudentInfo%LastAttended)/=0) &
             call xml_write_character(unitXML, indent0, 'LastAttended', StudentInfo%LastAttended)
 
+        if (len_trim(StudentInfo%TranscriptRemark)/=0) &
+            call xml_write_character(unitXML, indent0, 'TranscriptRemark', StudentInfo%TranscriptRemark)
+
         if (len_trim(StudentInfo%AdmissionData)/=0) &
             call xml_write_character(unitXML, indent0, 'AdmissionData', StudentInfo%AdmissionData)
 
@@ -726,9 +729,12 @@
 
         ! open file, return on any error
         call xml_read_file(unitXML, XML_ROOT_STUDENT_INFO, fileName, errNo)
-        if (errNo/=0) return
+        if (errNo/=0) then
+            call student_copy_to_info(Student(std))
+            return
+        end if
 
-        call html_comment('xml_read_student_info('//trim(filename)//')')
+        !call html_comment('xml_read_student_info('//trim(filename)//')')
 
         ! examine the file line by line
         do
@@ -794,6 +800,9 @@
 
                 case ('Scholarship')
                     StudentInfo%Scholarship = value
+
+                case ('TranscriptRemark')
+                    StudentInfo%TranscriptRemark = value
 
                 case default
                     ! do nothing

@@ -48,7 +48,7 @@ contains
         targetDepartment = DeptIdxUser
         targetCollege = CollegeIdxUser
 
-        call html_write_header(device, 'Update signatories in teaching load form', mesg)
+        call html_write_header(device, 'Update University data and signatories', mesg)
 
         call make_form_start(device, fnEditSignatories)
 
@@ -92,12 +92,36 @@ contains
                 begintd//'<input name="TheRegistrar" size="60" value="'//trim(TheRegistrar)//'">'//endtd// &
             endtr
 
+        write(device,AFORMAT) endtable, linebreak, &
+            nbsp//'<input name="action" type="submit" value="Update">'//endform//linebreak
+
+
+        write(device,AFORMAT) '<h3>Update college signatories</h3>'
+
+        call make_form_start(device, fnEditSignatories)
+
+        write(device,AFORMAT) '<table border="0" width="100%">', &
+            begintr//thalignright//'Title or Position'//endth//tdnbspendtd//thalignleft//'Name'//endth//endtr
+
         do iColl=1,NumColleges-1
-            write(device,AFORMAT) begintr, &
+            write(device,AFORMAT) &
+                begintr, &
                 tdalignright//beginitalic//'(College Dean, '//trim(College(iColl)%Code)//')'//enditalic//endtd, &
                 tdnbspendtd, &
                 begintd//'<input name="DEAN:'//trim(College(iColl)%Code)//'" size="60" value="'// &
                          trim(College(iColl)%Dean)//'">'//endtd, &
+                endtr, &
+                begintr, &
+                tdalignright//beginitalic//'(Transcript Preparer, '//trim(College(iColl)%Code)//')'//enditalic//endtd, &
+                tdnbspendtd, &
+                begintd//'<input name="PREPARER:'//trim(College(iColl)%Code)//'" size="60" value="'// &
+                         trim(College(iColl)%TranscriptPreparer)//'">'//endtd, &
+                endtr, &
+                begintr, &
+                tdalignright//beginitalic//'(Transcript Checker, '//trim(College(iColl)%Code)//')'//enditalic//endtd, &
+                tdnbspendtd, &
+                begintd//'<input name="CHECKER:'//trim(College(iColl)%Code)//'" size="60" value="'// &
+                         trim(College(iColl)%TranscriptChecker)//'">'//endtd, &
                 endtr
         end do
 
@@ -236,6 +260,18 @@ contains
                 if (ierr/=0) tInput = College(iColl)%Dean
                 if (tInput /= College(iColl)%Dean) then
                     College(iColl)%Dean = tInput
+                    changes = .true.
+                end if
+                call cgi_get_named_string(QUERY_STRING, 'PREPARER:'//trim(College(iColl)%Code), tInput, ierr)
+                if (ierr/=0) tInput = College(iColl)%TranscriptPreparer
+                if (tInput /= College(iColl)%TranscriptPreparer) then
+                    College(iColl)%TranscriptPreparer = tInput
+                    changes = .true.
+                end if
+                call cgi_get_named_string(QUERY_STRING, 'CHECKER:'//trim(College(iColl)%Code), tInput, ierr)
+                if (ierr/=0) tInput = College(iColl)%TranscriptChecker
+                if (tInput /= College(iColl)%TranscriptChecker) then
+                    College(iColl)%TranscriptChecker = tInput
                     changes = .true.
                 end if
             end do

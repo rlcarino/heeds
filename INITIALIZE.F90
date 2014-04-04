@@ -67,6 +67,10 @@ contains
         end do
         fileEXE = fileEXE(iTmp+1:)
 
+        ! the version
+        iTmp = index(fileEXE, '-R')
+        VERSION = SPACE//fileEXE(iTmp+1:)
+
         ! arguments are: UNIV [YEAR TERM ACTION]
         numArgs = iargc()
         if (numArgs<1) call usage('Error: command arguments are UNIV [YEAR TERM ACTION]')
@@ -75,18 +79,24 @@ contains
         inquire(file=WEBROOT, exist=pathExists)
         if (.not. pathExists) call usage('Error: directory '//WEBROOT//' does not exist')
 
-        ! user's HOME directory (parent of dirUNIV)
+        ! data directory
+        if (numArgs>4) then
+            call getarg(5, dirUNIV)
+        else
+            ! user's HOME directory
 #if defined GLNX
-        call get_environment_variable("HOME", dirUNIV)
+            call get_environment_variable("HOME", dirUNIV)
 #else
-        dirUNIV = SPACE
+            dirUNIV = 'C:'
 #endif
+            dirUNIV = trim(dirUNIV)//DIRSEP//PROGNAME
+        end if
 
         ! University code
         call getarg(1, UniversityCode)
 
         ! dirUNIV - location of files for target University
-        dirUNIV = trim(dirUNIV)//DIRSEP//PROGNAME//DIRSEP//trim(UniversityCode)//DIRSEP
+        dirUNIV = trim(dirUNIV)//DIRSEP//trim(UniversityCode)//DIRSEP
         inquire(file=trim(dirUNIV), exist=pathExists)
         if (.not. pathExists) call usage('Error: directory '//trim(dirUNIV)//' does not exist')
 

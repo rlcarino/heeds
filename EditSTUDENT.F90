@@ -37,7 +37,6 @@ module EditSTUDENT
     character(len=MAX_LEN_STUDENT_CODE), private :: tStdNo
     character(len=MAX_LEN_SUBJECT_CODE), private :: tSubject
     character (len=MAX_LEN_XML_LINE), private :: line
-    integer, private :: NumMarkings
 
 contains
 
@@ -314,6 +313,13 @@ contains
                 call log_student_record_change(targetStudent, 'LastAttended='//wrkStudent%LastAttended)
             end if
 
+            call cgi_get_named_string(QUERY_STRING, 'TranscriptRemark', wrkStudent%TranscriptRemark, ierr)
+            if (wrkStudent%TranscriptRemark/=StudentInfo%TranscriptRemark) then
+                changed= .true.
+                comment = ': TranscriptRemark '//comment
+                call log_student_record_change(targetStudent, 'TranscriptRemark='//wrkStudent%TranscriptRemark)
+            end if
+
             call cgi_get_named_string(QUERY_STRING, 'AdmissionData', wrkStudent%AdmissionData, ierr)
             if (wrkStudent%AdmissionData/=StudentInfo%AdmissionData) then
                 changed= .true.
@@ -425,9 +431,12 @@ contains
         if (wrkStudent%Gender=='M') then
             write(device,AFORMAT) &
                 '<option value="F"> Female <option '//trim(selected(1))//' value="M"> Male'
-        else
+        else if (wrkStudent%Gender=='F') then
             write(device,AFORMAT) &
                 '<option '//trim(selected(1))//' value="F"> Female <option value="M"> Male'
+        else
+            write(device,AFORMAT) &
+                '<option value="">(select) <option value="F"> Female <option value="M"> Male'
         end if
         write(device,AFORMAT) &
             '</select>'//endtd//endtr
@@ -520,6 +529,10 @@ contains
         write(device,AFORMAT) &
             begintr//begintd//'Date of graduation:'//endtd//begintd// &
             '<input name="GraduationDate" size="20" value="'//trim(wrkStudent%GraduationDate)//'">'//endtd//endtr
+
+        write(device,AFORMAT) &
+            begintr//begintd//'Remark on transcript:'//endtd//begintd// &
+            '<input name="TranscriptRemark" size="80" value="'//trim(wrkStudent%TranscriptRemark)//'">'//endtd//endtr
 
         ! update button
         write(device,AFORMAT) &
@@ -964,6 +977,7 @@ contains
 
             crse = TCG(tdx)%Subject
             grd = TCG(tdx)%Grade
+            tUnits = Subject(crse)%Units
             if (grd==gdxINC .or. grd==gdxNFE) nINCs = nINCs+1
 
             up = 0.0
@@ -992,28 +1006,22 @@ contains
                 end if
             end if
 
-            if (Subject(crse)%Units == 0.0 .or. tSubject(1:5)=='NSTP ') then
+            if (tUnits == 0.0 .or. Subject(crse)%Name(1:5)=='NSTP ') then ! exclude
                 line = trim(line)//tdnbspendtd
-            else if (is_grade_numeric_pass(grd)) then
-                ! numeric pass
-                up = Subject(crse)%Units*fGrade(grd)
+
+            else if (grd==gdxDRP .or. grd==gdxPASS) then ! exclude
+                line = trim(line)//tdnbspendtd
+
+            else if (grd==gdxINC .or. grd==gdxNFE .or. grd==gdxREGD) then
+                line = trim(line)//tdnbspendtd
+
+            else
+                up = tUnits*fGrade(grd)
                 if (up/=0.0) then
-                    down = Subject(crse)%Units
-                    line = trim(line)//tdaligncenter//trim(ftoa(Subject(crse)%Units,1))//endtd
+                    down = tUnits
+                    line = trim(line)//tdaligncenter//trim(ftoa(tUnits,1))//endtd
                 else
                     down = 0.0
-                    line = trim(line)//tdnbspendtd
-                end if
-            else if (grd == gdx5) then
-                ! 5.0
-                down = Subject(crse)%Units
-                up = down*5.0
-                line = trim(line)//tdnbspendtd
-            else
-                ! non numeric grade
-                if ( is_grade_passing(grd) ) then
-                    line = trim(line)//tdaligncenter//trim(ftoa(Subject(crse)%Units,1))//endtd
-                else
                     line = trim(line)//tdnbspendtd
                 end if
             end if
@@ -1148,7 +1156,7 @@ contains
                     if (CheckList%SubjectTerm(idx)/=tdx) cycle ! not this term
                     crse = CheckList%SubjectIdx(idx)
                     if (crse<=0) cycle ! not named
-                    if (CLExt(idx)%Grade==0) then  ! named subject, not passed
+                    if ( .not. is_grade_passing(CLExt(idx)%Grade) ) then  ! named subject, not passed
                         tArray(tdx) = tArray(tdx)+1
                         call html_comment('Unearned during Year '//itoa(Year)//' Term '//itoa(Term)//' is '//Subject(crse)%Name)
                     end if
@@ -1195,7 +1203,8 @@ contains
                     tSubject = Subject(crse)%Name
                     call blank_to_underscore(tSubject, input_name2)
 
-                    if (CLExt(idx)%Grade==0) then  ! named subject, not passed
+                    if ( .not. is_grade_passing(CLExt(idx)%Grade) ) then  ! named subject, not passed
+                    !if (CLExt(idx)%Grade==0) then  ! named subject, not passed
 
                         write (device,AFORMAT) &
                             begintr//begintd//trim(tSubject)//endtd//'<td colspan="4">'//trim(Subject(crse)%Title)//endtd, &
@@ -1745,10 +1754,10 @@ contains
                     write(device,AFORMAT) '<select name="Adviser:'//trim(tStdNo)//'">', &
                          '<option value=""> (select)'
                     do l=1,NumTeachers+NumAdditionalTeachers
-                        if (Department(Teacher(l)%DeptIdx)%CollegeIdx/=Curriculum(ldx)%CollegeIdx) cycle
                         if (Teacher(l)%TeacherId==Student(std)%Adviser) then
                             j = 1
                         else
+                            if (Department(Teacher(l)%DeptIdx)%CollegeIdx/=Curriculum(ldx)%CollegeIdx) cycle
                             j = 0
                         end if
                         write(device,AFORMAT) '<option '//trim(selected(j))//' value="'//trim(Teacher(l)%TeacherId)//'"> '// &
@@ -1950,133 +1959,78 @@ contains
     end subroutine grade_certification
 
 
-    subroutine write_markings (device, lineNo)
-        integer, intent (in) :: device, lineNo
+    subroutine write_markings (device, nLines, pageNo, nPages)
+        integer, intent (in) :: device, nLines, pageNo, nPages
+        integer :: idx
 
-        select case (lineNo)
+        write(device,AFORMAT) '<table width="100%" frame="lhs">', &
+            begintr//'<td align="center" colspan="3">OFFICIAL MARKS'//endtd//endtr, & ! 1
+            begintr//'<td colspan="3">'//horizontal//endtd//endtr, & ! 2
+            begintr//tdnbspendtd//tdnbspendtd//tdnbspendtd//endtr, & ! 3
+            begintr//tdalignright//'Percentage'//endtd//tdnbspendtd//tdaligncenter//'Numeric'//endtd//endtr, & ! 4
+            begintr//tdalignright//'Equivalent'//endtd//tdnbspendtd//tdaligncenter//'Equivalent'//endtd//endtr, & ! 5
+            begintr//tdnbspendtd//tdnbspendtd//tdnbspendtd//endtr, & ! 6
+            begintr//tdalignright//'97 - 100'//endtd//tdnbspendtd//tdaligncenter//'1.00'//endtd//endtr, & ! 7
+            begintr//tdalignright//'94 - 96'//endtd//tdnbspendtd//tdaligncenter//'1.25'//endtd//endtr, & ! 8
+            begintr//tdalignright//'91 - 93'//endtd//tdnbspendtd//tdaligncenter//'1.50'//endtd//endtr, & ! 9
+            begintr//tdalignright//'88 - 90'//endtd//tdnbspendtd//tdaligncenter//'1.75'//endtd//endtr, & ! 10
+            begintr//tdalignright//'85 - 87'//endtd//tdnbspendtd//tdaligncenter//'2.00'//endtd//endtr, & ! 11
+            begintr//tdalignright//'82 - 84'//endtd//tdnbspendtd//tdaligncenter//'2.25'//endtd//endtr, & ! 12
+            begintr//tdalignright//'79 - 81'//endtd//tdnbspendtd//tdaligncenter//'2.50'//endtd//endtr, & ! 13
+            begintr//tdalignright//'76 - 78'//endtd//tdnbspendtd//tdaligncenter//'2.75'//endtd//endtr, & ! 14
+            begintr//tdalignright//'75'//endtd//tdnbspendtd//tdaligncenter//'3.00'//endtd//endtr, & ! 15
+            begintr//tdalignright//'Below 75'//endtd//tdnbspendtd//tdaligncenter//'5.00'//endtd//endtr, & ! 16
+            begintr//tdnbspendtd//tdnbspendtd//tdnbspendtd//endtr ! 17
 
-            case (2)
-                line = tdalignright//'Percentage'//endtd//tdnbspendtd//tdaligncenter//'Numeric'//endtd//endtr
 
-            case (3)
-                line = tdalignright//'Equivalent'//endtd//tdnbspendtd//tdaligncenter//'Equivalent'//endtd//endtr
+        write(device,AFORMAT) &
+            begintr//'<td colspan="3">'//horizontal//endtd//endtr, & ! 18
+            begintr//'<td align="center" colspan="3">GENERAL CLASSIFICATION'//endtd//endtr, & ! 19
+            begintr//'<td colspan="3">'//horizontal//endtd//endtr, & ! 20
+            begintr//tdnbspendtd//tdnbspendtd//tdnbspendtd//endtr, & ! 21
+            begintr//tdalignright//'1.00'//endtd//begintd//' - '//endtd//begintd//'Excellent'//endtd//endtr, & ! 22
+            begintr//tdalignright//'1.25'//endtd//begintd//' - '//endtd//begintd//'Very Outstanding'//endtd//endtr, & ! 23
+            begintr//tdalignright//'1.50'//endtd//begintd//' - '//endtd//begintd//'Outstanding'//endtd//endtr, & ! 24
+            begintr//tdalignright//'1.75'//endtd//begintd//' - '//endtd//begintd//'Very Good'//endtd//endtr, & ! 25
+            begintr//tdalignright//'2.00'//endtd//begintd//' - '//endtd//begintd//'Good'//endtd//endtr, & ! 26
+            begintr//tdalignright//'2.25'//endtd//begintd//' - '//endtd//begintd//'Very Satisfactory'//endtd//endtr, & ! 27
+            begintr//tdalignright//'2.50'//endtd//begintd//' - '//endtd//begintd//'Satisfactory'//endtd//endtr, & ! 28
+            begintr//tdalignright//'2.75'//endtd//begintd//' - '//endtd//begintd//'Fair'//endtd//endtr, & !28
+            begintr//tdalignright//'3.00'//endtd//begintd//' - '//endtd//begintd//'Passing'//endtd//endtr, & ! 29
+            begintr//tdalignright//'5.00'//endtd//begintd//' - '//endtd//begintd//'Failing'//endtd//endtr, & ! 30
+            begintr//tdnbspendtd//tdnbspendtd//tdnbspendtd//endtr ! 31
 
-            case (5)
-                line = tdalignright//'97 - 100'//endtd//tdnbspendtd//tdaligncenter//'1.00'//endtd//endtr
+        write(device,AFORMAT) &
+            begintr//'<td colspan="3">'//horizontal//endtd//endtr, & ! 32
+            begintr//'<td align="center" colspan="3">SUPPLEMENTARY MARKS'//endtd//endtr, & ! 33
+            begintr//'<td colspan="3">'//horizontal//endtd//endtr, & ! 34
+            begintr//tdnbspendtd//tdnbspendtd//tdnbspendtd//endtr, & ! 35
+            begintr//tdalignright//'XFR'//endtd//begintd//' - '//endtd//begintd//'Transfer credit'//endtd//endtr, & ! 36
+            begintr//tdalignright//'NFE'//endtd//begintd//' - '//endtd//begintd//'No final exam'//endtd//endtr, & ! 37
+            begintr//tdalignright//'INC'//endtd//begintd//' - '//endtd//begintd//'Incomplete'//endtd//endtr, & ! 38
+            begintr//tdalignright//'DRP'//endtd//begintd//' - '//endtd//begintd//'Dropped'//endtd//endtr, & ! 39
+            begintr//tdalignright//'P'//endtd//begintd//' - '//endtd//begintd//'Passed'//endtd//endtr, & ! 40
+            begintr//tdalignright//'F'//endtd//begintd//' - '//endtd//begintd//'Failed'//endtd//endtr, & ! 41
+            begintr//tdnbspendtd//tdnbspendtd//tdnbspendtd//endtr, & ! 42
+            begintr//'<td colspan="3">'//horizontal//endtd//endtr ! 43
 
-            case (6)
-                line = tdalignright//'94 - 96'//endtd//tdnbspendtd//tdaligncenter//'1.25'//endtd//endtr
-
-            case (7)
-                line = tdalignright//'91 - 93'//endtd//tdnbspendtd//tdaligncenter//'1.50'//endtd//endtr
-
-            case (8)
-                line = tdalignright//'88 - 90'//endtd//tdnbspendtd//tdaligncenter//'1.75'//endtd//endtr
-
-            case (9)
-                line = tdalignright//'85 - 87'//endtd//tdnbspendtd//tdaligncenter//'2.00'//endtd//endtr
-
-            case (10)
-                line = tdalignright//'82 - 84'//endtd//tdnbspendtd//tdaligncenter//'2.25'//endtd//endtr
-
-            case (11)
-                line = tdalignright//'79 - 81'//endtd//tdnbspendtd//tdaligncenter//'2.50'//endtd//endtr
-
-            case (12)
-                line = tdalignright//'76 - 78'//endtd//tdnbspendtd//tdaligncenter//'2.75'//endtd//endtr
-
-            case (13)
-                line = tdalignright//'75'//endtd//tdnbspendtd//tdaligncenter//'3.00'//endtd//endtr
-
-            case (14)
-                line = tdalignright//'Below 75'//endtd//tdnbspendtd//tdaligncenter//'5.00'//endtd//endtr
-
-            case (16)
-                line = '<td align="center" colspan="3">GENERAL CLASSIFICATION'//endtd//endtr
-
-            case (18)
-                line = tdalignright//'1.00'//endtd//begintd//' - '//endtd//begintd//'Excellent'//endtd//endtr
-
-            case (19)
-                line = tdalignright//'1.25'//endtd//begintd//' - '//endtd//begintd//'Very Outstanding'//endtd//endtr
-
-            case (20)
-                line = tdalignright//'1.50'//endtd//begintd//' - '//endtd//begintd//'Outstanding'//endtd//endtr
-
-            case (21)
-                line = tdalignright//'1.75'//endtd//begintd//' - '//endtd//begintd//'Very Good'//endtd//endtr
-
-            case (22)
-                line = tdalignright//'2.00'//endtd//begintd//' - '//endtd//begintd//'Good'//endtd//endtr
-
-            case (23)
-                line = tdalignright//'2.25'//endtd//begintd//' - '//endtd//begintd//'Very Satisfactory'//endtd//endtr
-
-            case (24)
-                line = tdalignright//'2.50'//endtd//begintd//' - '//endtd//begintd//'Satisfactory'//endtd//endtr
-
-            case (25)
-                line = tdalignright//'2.75'//endtd//begintd//' - '//endtd//begintd//'Fair'//endtd//endtr
-
-            case (26)
-                line = tdalignright//'3.00'//endtd//begintd//' - '//endtd//begintd//'Passing'//endtd//endtr
-
-            case (27)
-                line = tdalignright//'5.00'//endtd//begintd//' - '//endtd//begintd//'Failing'//endtd//endtr
-
-            case (29)
-                line = '<td align="center" colspan="3">SUPPLEMENTARY MARKS'//endtd//endtr
-
-            case (31)
-                line = tdalignright//'XFR'//endtd//begintd//' - '//endtd//begintd//'Transfer credit'//endtd//endtr
-
-            case (32)
-                line = tdalignright//'NFE'//endtd//begintd//' - '//endtd//begintd//'No final exam'//endtd//endtr
-
-            case (33)
-                line = tdalignright//'INC'//endtd//begintd//' - '//endtd//begintd//'Incomplete'//endtd//endtr
-
-            case (34)
-                line = tdalignright//'DRP'//endtd//begintd//' - '//endtd//begintd//'Dropped'//endtd//endtr
-
-            case (35)
-                line = tdalignright//'P'//endtd//begintd//' - '//endtd//begintd//'Passed'//endtd//endtr
-
-            case (36)
-                line = tdalignright//'F'//endtd//begintd//' - '//endtd//begintd//'Failed'//endtd//endtr
-
-            case default
-            !case (1, 4, 15, 17, 28, 30)
-                line = tdnbspendtd//tdnbspendtd//tdnbspendtd//endtr
-
-        end select
-
-        write(device,AFORMAT) trim(line)
-
-        ! set number of markings including blank lines here
-        NumMarkings = 36
+        do idx=44,nLines-2
+            write(device,AFORMAT) begintr//tdnbspendtd//tdnbspendtd//tdnbspendtd//endtr
+        end do
+        write(device,AFORMAT) &
+            begintr//'<td colspan="3">'//horizontal//endtd//endtr, &
+            begintr//'<td align="center" colspan="3">Page '// trim(itoa(pageNo))//' of '//trim(itoa(nPages))//endtd//endtr, &
+            '</table>'
 
     end subroutine write_markings
 
 
-    subroutine student_transcript(device)
-        implicit none
+    subroutine write_transcript_header(device, nLines)
         integer, intent (in) :: device
+        integer, intent (out) :: nLines
 
-        integer :: idx, tdx, grd, lineNo
-        integer :: prevtaken
+        integer :: idx
         character (len=6) :: gender
-
-        integer :: crse, ierr
-
-        ! which student?
-        call cgi_get_named_string(QUERY_STRING, 'A1', tStdNo, ierr)
-        targetStudent = index_to_student(tStdNo)
-        targetCurriculum = Student(targetStudent)%CurriculumIdx
-        targetCollege = Curriculum(targetCurriculum)%CollegeIdx
-
-        ! read checklist
-        call read_student_records (targetStudent)
 
         idx = year_prefix(Student(targetStudent))
         line = '/img/id/'//trim(Student(targetStudent)%StdNo(1:idx))//FSLASH//trim(Student(targetStudent)%StdNo)//'.jpg'
@@ -2086,78 +2040,124 @@ contains
             gender = 'Female'
         end if
 
-        call html_comment('Transcript of '//trim(StudentInfo%Name))
-
-        write(device,AFORMAT) &
-            '<html><head><title>'//trim(UniversityCode)//SPACE//PROGNAME//VERSION// &
-            '</title></head><body>', '<table border="0" width="100%">', &
+        write(device,AFORMAT) '<table border="0" width="100%">', &
             begintr, &
-            '<td width="25%" align="center" valign="middle">', &
-                '<img src="/img/logo.jpg" alt="/img/logo.jpg">', &
-            endtd, &
-            '<td width="50%" align="center">Republic of the Philippines'//linebreak, &
-                '<font size="5">'//trim(UniversityName)//'</font>'//linebreak, &
-                '<font size="4">OFFICE OF THE UNIVERSITY REGISTRAR</font>'//linebreak, &
-                trim(UniversityAddress)//linebreak, &
-                trim(UniversityPhone)//linebreak, &
-                trim(UniversityWeb)//linebreak, &
-                '<font size="4">OFFICIAL TRANSCRIPT OF RECORDS</font>', &
-            endtd, &
-            '<td width="25%" align="center" valign="middle">', &
-                '<img src="'//trim(line)//'" alt="'//trim(line)//'">', &
+            '<td width="25%" align="left" valign="middle">', &
+                '<img src="/img/logo.jpg" alt="/img/logo.jpg" height="90" width="90">', &
+            endtd
+        write(device,AFORMAT) &
+            '<td width="50%" align="center">Republic of the Philippines'//linebreak, &     ! line 1
+                '<font size="5">'//trim(UniversityName)//'</font>'//linebreak, &           ! line 2
+                '<font size="4">OFFICE OF THE UNIVERSITY REGISTRAR</font>'//linebreak, &   ! line 3
+                trim(UniversityAddress)//linebreak, &                                      ! line 4
+                trim(UniversityPhone)//linebreak, &                                        ! line 5
+                trim(UniversityWeb)//linebreak, &                                          ! line 6
+                '<font size="4">OFFICIAL TRANSCRIPT OF RECORDS</font>', &                  ! line 7
+            endtd
+        write(device,AFORMAT) &
+            '<td width="25%" align="right" valign="middle">', &
+                '<img src="'//trim(line)//'" alt="'//trim(line)//'" height="90" width="90">', &
             endtd, &
             endtr, &
             endtable
 
+
         write(device,AFORMAT) &
             '<table width="100%">', &
-            begintr//'<td colspan="6" width="100%">'//horizontal//'</td>'//endtr, &
-            begintr, &
-            '<td colspan="3" width="50%">', &
-                'Name: '//trim(StudentInfo%Name), &
-                linebreak//'Home Address: '//trim(StudentInfo%HomeAddress), &
-                linebreak//'Place of Birth: '//trim(StudentInfo%BirthPlace), &
-            endtd, &
-            '<td colspan="3" width="50%">', &
-                'ID No.: '//trim(StudentInfo%StdNo), &
-                linebreak//'Sex: '//trim(gender), &
-                linebreak//'Date of Birth: '//trim(StudentInfo%BirthDate), &
-            endtd, &
+            begintr//'<td colspan="6" width="100%">'//horizontal//'</td>'//endtr, &        ! line 8
+            begintr, &                                                                     ! line 9
+            '<td colspan="3" width="50%">Name: '//underline//trim(StudentInfo%Name)//endunderline//endtd, &
+            '<td colspan="3" width="50%">ID No.: '//underline//trim(StudentInfo%StdNo)//endunderline//endtd, &
             endtr, &
-            begintr, &
-            '<td colspan="6" width="100%">', &
-                'Last School Attended: '//trim(StudentInfo%LastAttended), &
-                linebreak//'Degree/Course: '//trim(Curriculum(targetCurriculum)%Title), &
-            endtd, &
+            begintr, &                                                                     ! line 10
+            '<td colspan="3" width="50%">Home Address: '//underline//trim(StudentInfo%HomeAddress)//endunderline//endtd, &
+            '<td colspan="3" width="50%">Gender: '//underline//trim(gender)//endunderline//endtd, &
             endtr, &
-            begintr, &
-            '<td colspan="2" width="34%">', &
-                'Date of Graduation: '//trim(StudentInfo%GraduationDate), &
-            endtd, &
-            '<td colspan="2" width="33%">', &
-                'Admission Data: '//trim(StudentInfo%AdmissionData), &
-            endtd, &
-            '<td colspan="2" width="33%">', &
-                'Admission Date: '//trim(StudentInfo%EntryDate), &
-            endtd, &
+            begintr, &                                                                     ! line 11
+            '<td colspan="3" width="50%">Place of Birth: '//underline//trim(StudentInfo%BirthPlace)//endunderline//endtd, &
+            '<td colspan="3" width="50%">Date of Birth: '//underline//trim(StudentInfo%BirthDate)//endunderline//endtd, &
+            endtr, &
+            begintr, &                                                                     ! line 12
+            '<td colspan="6" width="100%">Last School Attended: '//underline//trim(StudentInfo%LastAttended)// &
+                endunderline//endtd, &
+            endtr, &
+            begintr, &                                                                     ! line 13
+            '<td colspan="6" width="100%">Degree/Course: '//underline//trim(Curriculum(targetCurriculum)%Title)
+        if (len_trim(Curriculum(targetCurriculum)%Specialization)>0) then
+            write(device,AFORMAT) nbsp//trim(Curriculum(targetCurriculum)%Specialization)
+        end if
+        write(device,AFORMAT) &
+                endunderline//endtd, &
+            endtr, &
+            begintr, &                                                                     ! line 14
+            '<td colspan="2" width="34%">Date of Graduation: '//underline//trim(StudentInfo%GraduationDate)//endunderline//endtd, &
+            '<td colspan="2" width="33%">Admission Data: '//underline//trim(StudentInfo%AdmissionData)//endunderline//endtd, &
+            '<td colspan="2" width="33%">Admission Date: '//underline//trim(StudentInfo%EntryDate)//endunderline//endtd, &
             endtr, &
             endtable
 
         ! the column headers
-        write(device,AFORMAT) &
-            '<table width="100%">', &
-            begintr//'<td colspan="10">'//horizontal//endtd//endtr, &
-            begintr, &
-                begintd//'SUBJECT'//endtd, &
-                '<td colspan="4">DESCRIPTIVE TITLE'//endtd, &
-                tdaligncenter//'GRADE'//endtd, &
-                tdaligncenter//'UNITS'//endtd, &
-                '<td align="center" colspan="3">OFFICIAL MARKS'//endtd, &
-            endtr, &
-            begintr//'<td colspan="10">'//horizontal//endtd//endtr
+        write(device,AFORMAT) '<table width="100%">', &
+            begintr//'<td colspan="10">'//horizontal//endtd//endtr !, &                     ! line 15
+        nLines = 15
 
-        prevtaken = 0
-        lineNo = 1
+    end subroutine write_transcript_header
+
+
+    subroutine write_transcript_footer(device, coll)
+
+        integer, intent (in) :: device, coll
+
+        write(device,AFORMAT) endtable, &
+            horizontal, 'Remarks: '//trim(StudentInfo%TranscriptRemark), horizontal, &
+            '<table width="100%">', &
+            begintr//'<td width="33%" align="left">Prepared by:'//endtd, &
+                     '<td width="33%" align="left">Checked by:'//endtd, &
+                     '<td width="34%" align="left">'//nbsp//endtd//endtr
+        write(device,AFORMAT) &
+            begintr//'<td width="33%" align="center">'//linebreak// &
+                    underline//trim(College(coll)%TranscriptPreparer)//endunderline, &
+                     linebreak//'Record Custodian'//endtd, &
+                     '<td width="33%" align="center">'//linebreak//underline// &
+                     trim(College(coll)%TranscriptChecker)//endunderline, &
+                     linebreak//'Record Custodian'//endtd, &
+                     '<td width="34%" align="center">'//linebreak//endtd//endtr, &
+            begintr//'<td width="66%" colspan="2">'//horizontal//endtd//&
+                     tdaligncenter//underline//trim(TheRegistrar)//endunderline//endtd//endtr, &
+            begintr//'<td width="33%" align="left">Released by:'//endtd, &
+                     '<td width="33%" align="left">Date Released:'//endtd, &
+                     '<td width="34%" align="center">'//trim(titleTheRegistrar)//endtd//endtr, &
+            endtable//horizontal, &
+            beginsmall//beginitalic//'This transcript is not valid without the seal of the University or '// &
+            ' the original signature of the University Registrar.'//enditalic//endsmall
+
+    end subroutine write_transcript_footer
+
+
+    subroutine student_transcript(device)
+        integer, intent (in) :: device
+
+        integer :: idx, tdx, grd, prevtaken, crse, ierr, lineNo
+        integer :: nLines, nParts, ptrPart(30), pageNo, nPages, ptrPage(5)
+        character(len=255) :: trLine(MAX_SUBJECTS_IN_CURRICULUM)
+
+        ! which student?
+        call cgi_get_named_string(QUERY_STRING, 'A1', tStdNo, ierr)
+        targetStudent = index_to_student(tStdNo)
+        targetCurriculum = Student(targetStudent)%CurriculumIdx
+        targetCollege = Curriculum(targetCurriculum)%CollegeIdx
+
+        call html_comment('Transcript of '//tStdNo)
+
+        ! read checklist
+        call read_student_records (targetStudent)
+
+        ! generate transcript line-by-line
+        nLines = 0
+        trLine = SPACE
+        nParts = 0
+        ptrPart = 0
+
         ! the advance credits (PASSed subjects)
         prevtaken = 0
         do tdx=1,lenTCG
@@ -2165,11 +2165,13 @@ contains
             if (TCG(tdx)%Code==2 .and. is_grade_passing(TCG(tdx)%Grade)) prevtaken = prevtaken+1
         end do
         if (prevtaken>0) then ! there are advance credits
-            write(device,AFORMAT) &
-                begintr//'<td colspan="5" align="left">'//beginbold//'TRANSFER CREDITS'//endbold//endtd// &
-                    tdnbspendtd//tdnbspendtd
-            lineNo = lineNo + 1
-            call write_markings(device, lineNo)
+
+            nLines = nLines + 1
+            trLine(nLines) = &
+                '<td colspan="5" align="left">'//beginbold//'TRANSFER CREDITS'//endbold//endtd// &
+                tdnbspendtd//tdnbspendtd
+            nParts = nParts + 1
+            ptrPart(nParts) = nLines
 
             do tdx=1,lenTCG
 
@@ -2178,7 +2180,7 @@ contains
                 crse = TCG(tdx)%Subject
                 grd = TCG(tdx)%Grade
                 tSubject = Subject(crse)%Name
-                line = begintr//begintd//trim(tSubject)//endtd// &
+                line = begintd//trim(tSubject)//endtd// &
                     '<td colspan="4">'//trim(Subject(crse)%Title)//endtd// &
                     tdaligncenter//'XFR'//endtd
 
@@ -2195,10 +2197,8 @@ contains
                     end if
                 end if
 
-                write (device,AFORMAT) trim(line)
-
-                lineNo = lineNo + 1
-                call write_markings(device, lineNo)
+                nLines = nLines + 1
+                trLine(nLines) = line
 
                 TCG(tdx)%Used = .true.
 
@@ -2213,19 +2213,20 @@ contains
 
             if (prevtaken /= TCG(tdx)%Taken) then
                 ! header for next term
-                write(device,AFORMAT) &
-                    begintr//'<td colspan="5" align="left"> '//beginbold, &
-                        trim(text_term_school_year(TCG(tdx)%Term, TCG(tdx)%Year))//endbold//endtd// &
-                        tdnbspendtd//tdnbspendtd
-                lineNo = lineNo + 1
-                call write_markings(device, lineNo)
+                nLines = nLines + 1
+                trLine(nLines) = '<td colspan="5" align="left"> '//beginbold// &
+                    trim(text_term_school_year(TCG(tdx)%Term, TCG(tdx)%Year))//endbold//endtd// &
+                    tdnbspendtd//tdnbspendtd
+                nParts = nParts + 1
+                ptrPart(nParts) = nLines
+
                 prevtaken = TCG(tdx)%Taken
             end if
 
             crse = TCG(tdx)%Subject
             grd = TCG(tdx)%Grade
             tSubject = Subject(crse)%Name
-            line = begintr//begintd//trim(tSubject)//endtd// &
+            line = begintd//trim(tSubject)//endtd// &
                 '<td colspan="4">'//trim(Subject(crse)%Title)//endtd
 
             if (TCG(tdx)%ReExam/=0) then
@@ -2245,9 +2246,9 @@ contains
                 else
                     line = trim(line)//tdnbspendtd
                 end if
-            else if (grd == gdx5) then
-                ! 5.0
-                line = trim(line)//tdnbspendtd
+            !else if (grd == gdx5) then
+            !    ! 5.0
+            !    line = trim(line)//tdnbspendtd
             else
                 ! non numeric grade
                 if ( is_grade_passing(grd) ) then
@@ -2257,50 +2258,70 @@ contains
                 end if
             end if
 
-            write (device,AFORMAT) trim(line)
+            nLines = nLines + 1
+            trLine(nLines) = line
 
-            lineNo = lineNo + 1
-            call write_markings(device, lineNo)
         end do
+        !do tdx=1,nLines
+        !    call html_comment(itoa(tdx)//trLine(tdx))
+        !end do
 
-        write(device,AFORMAT) begintr, &
-            '<td colspan="7">'//beginbold//'----'//beginitalic//'Nothing follows'//enditalic//'-----'//endbold//endtd
-        lineNo = lineNo + 1
-        call write_markings(device, lineNo)
+        ! ptr to next (non-existent) part
+        ptrPart(nParts+1) = nLines+1
 
-        if (lineNo<NumMarkings) then
-            tdx = lineNo
-            do idx=tdx+1,NumMarkings
-                write(device,AFORMAT) &
-                    begintr//'<td colspan="7">'//nbsp//endtd
+        nPages = nLines/51 + 1
+        pageNo = 1
+        ptrPage(pageNo) = 1
+        do tdx=1,nParts
+            if (ptrPart(tdx+1)-ptrPage(pageNo) < 51) cycle
+            pageNo = pageNo+1
+            ptrPage(pageNo) = ptrPart(tdx)
+        end do
+        ptrPage(pageNo+1) = ptrPart(nParts+1)
+
+        write(device,AFORMAT) &
+            '<html><head><title>'//PROGNAME//VERSION//' transcript for '//trim(StudentInfo%Name)// &
+            '</title></head><body>'
+
+        do pageNo=1,nPages
+
+            call write_transcript_header(device, nLines)
+
+            write(device,AFORMAT) begintr//'<td colspan="7" width="80%">'
+
+            write(device,AFORMAT) '<table width="100%">', &
+                begintr, &
+                    begintd//'SUBJECT'//endtd, &
+                    '<td colspan="4">DESCRIPTIVE TITLE'//endtd, &
+                    tdaligncenter//'GRADE'//endtd, &
+                    tdaligncenter//'UNITS'//endtd, &
+                endtr, & ! 1
+                begintr//'<td colspan="7">'//horizontal//endtd//endtr ! 2
+            lineNo = 2
+            do idx=ptrPage(pageNo),ptrPage(pageNo+1)-1
                 lineNo = lineNo + 1
-                call write_markings(device, lineNo)
+                write(device,AFORMAT) begintr//trim(trLine(idx))//endtr
             end do
-        end if
+            lineNo = lineNo + 2
+            write(device,AFORMAT) &
+                begintr//'<td colspan="7">'//horizontal//endtd//endtr, &
+                begintr//'<td colspan="7" align="center">'// &
+                    beginbold//beginitalic//'No entry below this line'//enditalic//endbold//endtd, &
+                endtr
+            do idx=lineNo,55
+                write(device,AFORMAT) begintr//'<td colspan="7">'//nbsp//endtd//endtr
+            end do
 
-        write(device,AFORMAT) &
-            begintr//'<td colspan="10">'//horizontal//endtd//endtr, &
-            begintr//'<td colspan="10">Remarks:'//endtd//endtr, &
-            begintr//'<td colspan="10">'//horizontal//endtd//endtr, &
-            endtable
+            write(device,AFORMAT) '</table>'//endtd//'<td colspan="3" width="20%">'
 
-        write(device,AFORMAT) &
-            '<table width="100%">', &
-            begintr//'<td width="33%" align="left">Prepared by:'//linebreak//linebreak//endtd, &
-                     '<td width="33%" align="left">Checked by:'//linebreak//linebreak//endtd, &
-                     '<td width="34%" align="left">'//linebreak//linebreak//endtd//endtr
-        write(device,AFORMAT) &
-            begintr//'<td width="33%" align="center">'//linebreak//'Record Custodian'//endtd, &
-                     '<td width="33%" align="center">'//linebreak//'Record Custodian'//endtd, &
-                     '<td width="34%" align="center">'//linebreak//endtd//endtr, &
-            begintr//'<td width="66%" colspan="2">'//horizontal//endtd//&
-                     tdaligncenter//trim(TheRegistrar)//endtd//endtr, &
-            begintr//'<td width="33%" align="left">Released by:'//endtd, &
-                     '<td width="33%" align="left">Date Released:'//endtd, &
-                     '<td width="34%" align="center">'//trim(titleTheRegistrar)//endtd//endtr, &
-            endtable//horizontal, &
-            beginsmall//beginitalic//'This transcript is not valid without the seal of the University or '// &
-            ' the original signature of the University Registrar.'//enditalic//endsmall
+            call write_markings(device, 55, pageNo, nPages)
+
+            write(device,AFORMAT) endtd//endtr
+
+            ! write footer
+            call write_transcript_footer(device, targetCollege)
+
+        end do
 
 
     end subroutine student_transcript

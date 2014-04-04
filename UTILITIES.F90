@@ -37,11 +37,11 @@ module UTILITIES
 !===========================================================
 
     character(len= 5), parameter :: PROGNAME  = 'HEEDS'
-    character(len=12), parameter :: VERSION   = ' R2014.03.XX'
     character(len=44), parameter :: COPYRIGHT = 'Copyright (C) 2012-2014 Ricolindo L. Carino'
     character(len=38), parameter :: EMAIL     = 'Ricolindo.Carino@AcademicForecasts.com'
     character(len=72), parameter :: CONTACT   = 'E-mail inquiries about '//PROGNAME//' to '//EMAIL//'.'
     character(len=32), parameter :: WEB       = 'http://code.google.com/p/heeds/'
+    character(len=12)            :: VERSION   = ' RYYYY-MM-YY'
 
 !===========================================================
 ! OS-related parameters
@@ -53,6 +53,10 @@ module UTILITIES
     character(len= 6), parameter :: mvCmd = 'mv -f '
     character(len= 1), parameter :: DIRSEP = '/'
 
+    ! HEEDS@PLDT Cloud
+    character(len= 7), parameter :: PROTOCOL = 'http://'
+    !character(len= 9), parameter :: IP_ADDR = 'localhost'
+    character(len=14), parameter :: IP_ADDR = '112.206.226.26' ! the IP address xxx.xxx.xxx.xxx
     character(len=18), parameter :: WEBROOT = '/home/HEEDS/web/'
 
 #else
@@ -61,12 +65,11 @@ module UTILITIES
     character(len= 6), parameter :: mkdirCmd = 'mkdir '
     character(len= 8), parameter :: mvCmd = 'move /y '
     character(len= 1), parameter :: DIRSEP = '\'
+    character(len= 7), parameter :: PROTOCOL = 'http://'
+    character(len= 9), parameter :: IP_ADDR = 'localhost'
     character(len=13), parameter :: WEBROOT = 'C:\HEEDS\web\'
 #endif
 
-! http://localhost
-character(len= 7), parameter :: PROTOCOL = 'http://'
-character(len= 9), parameter :: IP_ADDR = 'localhost'
 
 !===========================================================
 ! passwords
@@ -78,7 +81,7 @@ character(len= 9), parameter :: IP_ADDR = 'localhost'
         MAX_LEN_PASSWORD=12, &
         lenPasswordEncryptionKey = 16
     character(len=lenPasswordEncryptionKey) :: & ! replace for your Institution
-                          passwordEncryptionKey = '0123456789ABCDEF'
+                          passwordEncryptionKey = 'w!thUr0wnr3pL@c3'
 
 
 !===========================================================
@@ -243,6 +246,8 @@ character(len= 9), parameter :: IP_ADDR = 'localhost'
     character(len= 7), parameter :: endform = '</form>'
     character(len= 3), parameter :: beginbold = '<b>'
     character(len= 4), parameter :: endbold = '</b>'
+    character(len= 3), parameter :: underline = '<u>'
+    character(len= 4), parameter :: endunderline = '</u>'
     character(len= 3), parameter :: beginitalic = '<i>'
     character(len= 4), parameter :: enditalic = '</i>'
     character(len= 4), parameter :: horizontal = '<hr>'

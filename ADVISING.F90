@@ -152,6 +152,7 @@ contains
         CheckList = Curriculum(idxCURR)
         CLExt = TYPE_CHECKLIST_EXTENSION (0, 0, 0, 0, 0.0, .false., .false., .false., &
             SPACE, SPACE, SPACE, SPACE, SPACE, SPACE, SPACE)
+        advising_comment = SPACE
 
         if (Curriculum(idxCURR)%NSubjects==0) then ! no subjects specified in curriculum
 

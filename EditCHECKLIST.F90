@@ -36,6 +36,44 @@ module EditCHECKLIST
 
 contains
 
+    subroutine reset_demand_for_subjects(device, thisTerm, NumSections, Section, Offering, eList, path, mesg)
+        integer, intent (in) :: device, thisTerm, NumSections
+        type (TYPE_OFFERED_SUBJECTS), intent(in), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS) :: Offering
+        type (TYPE_SECTION), intent(in) :: Section(0:)
+        type (TYPE_PRE_ENLISTMENT), intent (in out) :: eList(0:)
+        character(len=*), intent(in) :: path
+        character(len=*), intent(out) :: mesg
+
+        integer :: std
+        character (len=MAX_LEN_COLLEGE_CODE) :: tCollege
+
+        call cgi_get_named_string(QUERY_STRING, 'A1', tCollege, std)
+        targetCollege = index_to_college(tCollege)
+
+        call html_comment('reset_demand_for_subjects('//tCollege//')')
+
+        if (isRoleOfficial) then
+            mesg = 'Needs Analysis not reset. '//sorryMessage
+            return
+        end if
+
+        do std = 1,NumStudents+NumAdditionalStudents
+
+            if (targetCollege/=NumColleges) then ! only some students; check if student is in targetCollege
+                if (Curriculum(Student(std)%CurriculumIdx)%CollegeIdx/=targetCollege) cycle
+                ! other check here to skip std
+            end if
+
+            call initialize_pre_enlistment(eList(std))
+
+        end do
+
+        call xml_write_pre_enlistment(path, 'ENLISTMENT', eList, Section)
+
+        mesg = 'Needs Analysis cleared for '//tCollege
+
+    end subroutine reset_demand_for_subjects
+
 
     subroutine needs_analysis(thisTerm, UseClasses, Section, Offering, eList, path, mesg)
 
@@ -72,9 +110,11 @@ contains
 
             if (targetCollege/=NumColleges) then ! only some students; check if student is in targetCollege
                 if (Curriculum(Student(std)%CurriculumIdx)%CollegeIdx/=targetCollege) cycle
-                if (eList(std)%Status/=0) cycle
                 ! other check here to skip std
             end if
+
+            ! exclude student if advice is locked
+            if (eList(std)%Status/=0) cycle
 
             numEntries = eList(std)%NPriority + eList(std)%NAlternates + eList(std)%NCurrent
 
@@ -92,7 +132,6 @@ contains
         mesg = 'Needs Analysis updated '
 
     end subroutine needs_analysis
-
 
 
     subroutine checklist_display  (device, std, thisTerm, Advice, MissingPOCW, NRemaining)
@@ -118,9 +157,12 @@ contains
         do tdx=1,CheckList%NumTerms,3
             call rank_to_year_term(tdx, Year, Term)
             write(device,AFORMAT) begintr//'<td colspan="5">'//linebreak//beginbold//trim(txtYear(Year))// &
-                ' Year, First Semester'//endbold//' ('//trim(ftoa(TermUnits(tdx),1))//' units)'//endtd// &
+                ' Year, '//txtSemester(Term)//termQualifier(Term)//endbold//' ('//trim(ftoa(TermUnits(Term),1))// &
+                ' units)'//endtd// &
                 tdnbspendtd//'<td colspan="5">'//linebreak//beginbold//trim(txtYear(Year))// &
-                ' Year, Second Semester'//endbold//' ('//trim(ftoa(TermUnits(tdx+1),1))//' units)'//endtd//endtr
+                ' Year, '//txtSemester(Term+1)//termQualifier(Term+1)//endbold//' ('//trim(ftoa(TermUnits(Term+1),1))// &
+                ' units)'// &
+                endtd//endtr
             m = 0
             n = 0
             p = 0
@@ -190,7 +232,8 @@ contains
             if (m > 0) then
                 !write(device,AFORMAT) SPACE, SPACE//trim(txtYear(Year))//' Year, Summer'
                 write(device,AFORMAT) begintr//'<td colspan="5">'//linebreak//beginbold//trim(txtYear(Year))// &
-                    ' Year, Summer'//endbold//' ('//trim(ftoa(TermUnits(tdx+2),1))//' units)'//endtd// &
+                    ' Year, '//txtSemester(Term+2)//termQualifier(Term+2)//endbold//' ('//trim(ftoa(TermUnits(tdx+2),1))// &
+                    ' units)'//endtd// &
                     '<td colspan="6">'//nbsp//endtd//endtr
                 do idx=1,m
                     write(device,AFORMAT) &
@@ -275,14 +318,17 @@ contains
                 ': '//nbsp//' Year in curriculum='//trim(txtYear(Advice%StdYear))
         end if
 
+        write(device,AFORMAT) linebreak//'<a name="FEASIBLE SUBJECTS"></a>'
+        call checklist_links(device)
+
         select case (Advice%StdPriority)
 
             case (10)
-                write(device,AFORMAT) linebreak//linebreak//'PROGRAM COMPLETE?'
+                write(device,AFORMAT) linebreak//'PROGRAM COMPLETE?'
 
             case (9)
                 write(device,AFORMAT) &
-                    linebreak//linebreak//beginbold//'NO FEASIBLE SUBJECTS?'//endbold// &
+                    linebreak//beginbold//'NO FEASIBLE SUBJECTS?'//endbold// &
                         ' PREREQUISITES NOT SATISFIED or PLAN OF STUDY IS INCOMPLETE', &
                     linebreak//'Some remaining subject are : <table border="0" width="100%">', &
                     begintr//thalignleft//'Subject'//endth// &
@@ -301,18 +347,18 @@ contains
                 write(device,AFORMAT) endtable
 
             case (8)
-                write(device,AFORMAT) linebreak//linebreak//'CHECK RECORDS! SUBJECTS ARE FOR A NEW FRESHMAN?'
+                write(device,AFORMAT) linebreak//'CHECK RECORDS! SUBJECTS ARE FOR A NEW FRESHMAN?'
 
             case (7)
-                write(device,AFORMAT) linebreak//linebreak//'GRADUATE, DIPLOMA, NON-DEGREE or SPECIAL STUDENT?'
+                write(device,AFORMAT) linebreak//'GRADUATE, DIPLOMA, NON-DEGREE or SPECIAL STUDENT?'
 
             !case (6)
             !  write(device,AFORMAT) SPACE, ' DISMISSED or PERMANENTLY DISQUALIFIED?'
 
             case default
 
-                write(device,AFORMAT) linebreak//linebreak//beginbold//'FEASIBLE subjects for '// &
-                    txtSemester(thisTerm+6)//termQualifier(thisTerm+6), &
+                write(device,AFORMAT) beginbold//'FEASIBLE subjects for '// &
+                    txtSemester(thisTerm+3)//termQualifier(thisTerm+3), &
                     endbold//' (ALLOWED load = '//trim(ftoa(Advice%AllowedLoad,1))//') '//linebreak// &
                         '<table border="0" width="100%">'
                 if (Advice%NPriority>0) then
@@ -431,325 +477,311 @@ contains
         TCGline = SPACE
         mesg = SPACE
 
-        !select case (trim(tAction))
+        if (.not. isRoleOfficial .and. trim(tAction)=='Change CURRICULUM') then
 
-            if (.not. isRoleOfficial .and. trim(tAction)=='Change CURRICULUM') then
+            ! change to which curriculum?
+            call cgi_get_named_string(QUERY_STRING, 'A2', tCurriculum, ierr)
+            cdx = index_to_curriculum(tCurriculum)
+            !write(*,*) tCurriculum, cdx, Curriculum(cdx)%Code
+            if (ierr/=0 .or. cdx<=0) then
+                mesg = 'Index to replacement curriculum not valid?'
+            else
+                Student(targetStudent)%CurriculumIdx = cdx
+                StudentInfo%CurriculumIdx = cdx
+                call xml_student_info(targetStudent)
+                targetCurriculum = cdx
+                mesg = trim(tAction)//' to '//Curriculum(cdx)%Code
 
-                ! change to which curriculum?
-                call cgi_get_named_string(QUERY_STRING, 'A2', tCurriculum, ierr)
-                cdx = index_to_curriculum(tCurriculum)
-                !write(*,*) tCurriculum, cdx, Curriculum(cdx)%Code
-                if (ierr/=0 .or. cdx<=0) then
-                    mesg = 'Index to replacement curriculum not valid?'
-                else
-                    Student(targetStudent)%CurriculumIdx = cdx
-                    StudentInfo%CurriculumIdx = cdx
-                    call xml_student_info(targetStudent)
-                    targetCurriculum = cdx
-                    mesg = trim(tAction)//' to '//Curriculum(cdx)%Code
-
-                    isDirtySTUDENTS = .true. ! trigger rewrite of STUDENTS
-                end if
-
+                isDirtySTUDENTS = .true. ! trigger rewrite of STUDENTS
             end if
 
+        end if
 
-            if (.not. isRoleOfficial .and. trim(tAction)=='ADDITIONAL subject') then
 
-                call cgi_get_named_string(QUERY_STRING, 'subject', tSubject, crse)
-                call cgi_get_named_string(QUERY_STRING, 'year', tYear, year)
-                call cgi_get_named_string(QUERY_STRING, 'term', tTerm, term)
-                if (crse/=0 .or. year/=0 .or. term/=0) then ! a name was not specified?
-                    mesg = trim(tAction)//' : "year" or "term" or "subject" not spelled correctly?'
-                else if (tSubject==SPACE .or. tYear==SPACE .or. tTerm==SPACE) then ! a value was not specified?
-                    mesg = trim(tAction)//' : "year" or "term" or "subject" not specified?'
-                else
-                    crse = index_to_subject(tSubject)
-                    term = index_to_term(tTerm)
-                    year = index_to_year(tYear)
-                    if (crse<=0 .or. term<0 .or. year<=0) then
-                        mesg = trim(tAction)//' : Year or Term or Subject" not valid?'
-                    else ! add ADDITIONAL subject to Reqd()
-                        mesg = trim(tAction)//' : '//trim(tYear)//COMMA//trim(tTerm)//COMMA//tSubject
-                        isDirtyPlan = .true.
+        if (.not. isRoleOfficial .and. trim(tAction)=='ADDITIONAL subject') then
 
-                        input_name1 = 'ADDITIONAL'
-                        crse_required = index_to_subject(input_name1)
+            call cgi_get_named_string(QUERY_STRING, 'subject', tSubject, crse)
+            call cgi_get_named_string(QUERY_STRING, 'year', tYear, year)
+            call cgi_get_named_string(QUERY_STRING, 'term', tTerm, term)
+            if (crse/=0 .or. year/=0 .or. term/=0) then ! a name was not specified?
+                mesg = trim(tAction)//' : "year" or "term" or "subject" not spelled correctly?'
+            else if (tSubject==SPACE .or. tYear==SPACE .or. tTerm==SPACE) then ! a value was not specified?
+                mesg = trim(tAction)//' : "year" or "term" or "subject" not specified?'
+            else
+                crse = index_to_subject(tSubject)
+                term = index_to_term(tTerm)
+                year = index_to_year(tYear)
+                if (crse<=0 .or. term<0 .or. year<=0) then
+                    mesg = trim(tAction)//' : Year or Term or Subject" not valid?'
+                else ! add ADDITIONAL subject to Reqd()
+                    mesg = trim(tAction)//' : '//trim(tYear)//COMMA//trim(tTerm)//COMMA//tSubject
+                    isDirtyPlan = .true.
 
-                        lenTCG = lenTCG+1
-                        TCG(lenTCG)%Code = 1
-                        TCG(lenTCG)%Used = .false.
-                        TCG(lenTCG)%Year = year
-                        TCG(lenTCG)%Term = term
-                        TCG(lenTCG)%Reqd(0) = 1
-                        TCG(lenTCG)%Reqd(1) = crse_required
-                        TCG(lenTCG)%Subst(0) = 1
-                        TCG(lenTCG)%Subst(1) = crse
+                    input_name1 = 'ADDITIONAL'
+                    crse_required = index_to_subject(input_name1)
 
-                    end if
+                    lenTCG = lenTCG+1
+                    TCG(lenTCG)%Code = 1
+                    TCG(lenTCG)%Used = .false.
+                    TCG(lenTCG)%Year = year
+                    TCG(lenTCG)%Term = term
+                    TCG(lenTCG)%Reqd(0) = 1
+                    TCG(lenTCG)%Reqd(1) = crse_required
+                    TCG(lenTCG)%Subst(0) = 1
+                    TCG(lenTCG)%Subst(1) = crse
+
                 end if
-
             end if
 
-            if (.not. isRoleOfficial .and. trim(tAction)=='Cancel ADDITIONAL') then
+        end if
 
-                call cgi_get_named_string(QUERY_STRING, 'subject', tSubject, crse)
-                if (crse/=0) then ! a name was not specified?
-                    mesg = trim(tAction)//' : subject not spelled correctly?'
-                else if (tSubject==SPACE) then ! a value was not specified?
-                    mesg = trim(tAction)//' : subject not specified?'
+        if (.not. isRoleOfficial .and. trim(tAction)=='Cancel ADDITIONAL') then
+
+            call cgi_get_named_string(QUERY_STRING, 'subject', tSubject, crse)
+            if (crse/=0) then ! a name was not specified?
+                mesg = trim(tAction)//' : subject not spelled correctly?'
+            else if (tSubject==SPACE) then ! a value was not specified?
+                mesg = trim(tAction)//' : subject not specified?'
+            else
+                crse = index_to_subject(tSubject)
+                if (crse<=0) then
+                    mesg = trim(tAction)//' : subject not valid?'
                 else
-                    crse = index_to_subject(tSubject)
-                    if (crse<=0) then
-                        mesg = trim(tAction)//' : subject not valid?'
-                    else
-                        mesg = trim(tAction)//' : subject to delete not found in checklist - '//tSubject
-                        ! check TCG for specified ADDITIONAL subject
-                        input_name1 = 'ADDITIONAL'
-                        crse_required = index_to_subject(input_name1)
+                    mesg = trim(tAction)//' : subject to delete not found in checklist - '//tSubject
+                    ! check TCG for specified ADDITIONAL subject
+                    input_name1 = 'ADDITIONAL'
+                    crse_required = index_to_subject(input_name1)
 
-                        FlagIsUp = .false. ! not found
-                        do k=1,lenTCG
-                            if (TCG(k)%Reqd(1)==crse_required .and. &
-                                TCG(k)%Subst(1)==crse) then
-                                FlagIsUp = .true. ! found
-                                exit
-                            end if
-                        end do
-                        if (FlagIsUp) then ! shift-erase
-                            do i=k+1,lenTCG
-                                TCG(i-1) = TCG(i)
-                            end do
-                            ! re-initialize previous last location
-                            TCG(lenTCG) = TCG(lenTCG+1)
-                            lenTCG = lenTCG - 1
-
-                            isDirtyPlan = .true.
-                            mesg = tAction//tSubject
-
+                    FlagIsUp = .false. ! not found
+                    do k=1,lenTCG
+                        if (TCG(k)%Reqd(1)==crse_required .and. &
+                            TCG(k)%Subst(1)==crse) then
+                            FlagIsUp = .true. ! found
+                            exit
                         end if
+                    end do
+                    if (FlagIsUp) then ! shift-erase
+                        do i=k+1,lenTCG
+                            TCG(i-1) = TCG(i)
+                        end do
+                        ! re-initialize previous last location
+                        TCG(lenTCG) = TCG(lenTCG+1)
+                        lenTCG = lenTCG - 1
+
+                        isDirtyPlan = .true.
+                        mesg = tAction//tSubject
 
                     end if
-                end if
 
+                end if
             end if
 
-            if (.not. isRoleOfficial .and. trim(tAction)=='Subject SUBSTITUTION') then
+        end if
 
-                nsubs = 0
-                nreqs = 0
-                TCGline = SPACE
+        if (.not. isRoleOfficial .and. trim(tAction)=='Subject SUBSTITUTION') then
 
-                ! PlanOfStudy,Year,Term,Reqd(1),Reqd(2),...,Reqd(m),Subst(1),Subst(2),...,Subst(n)
-                !1                2    3    4                           5
-                ! get substitute subjects
-                do i=5,1,-1
-                    call cgi_get_named_string(QUERY_STRING, 'sub'//trim(itoa(i)), tSubject, ierr)
-                    if (ierr/=0 .or. tSubject==SPACE) cycle
-                    crse = index_to_subject(tSubject)
-                    if (crse <= 0) then
-                        mesg = trim(tAction)//' : '//tSubject//'- Substitute subject code not valid?'
+            nsubs = 0
+            nreqs = 0
+            TCGline = SPACE
+
+            ! PlanOfStudy,Year,Term,Reqd(1),Reqd(2),...,Reqd(m),Subst(1),Subst(2),...,Subst(n)
+            !1                2    3    4                           5
+            ! get substitute subjects
+            do i=5,1,-1
+                call cgi_get_named_string(QUERY_STRING, 'sub'//trim(itoa(i)), tSubject, ierr)
+                if (ierr/=0 .or. tSubject==SPACE) cycle
+                crse = index_to_subject(tSubject)
+                if (crse <= 0) then
+                    mesg = trim(tAction)//' : '//tSubject//'- Substitute subject code not valid?'
+                    nsubs = 0
+                    exit
+                else
+                    j = index_of_subject_in_curriculum(Curriculum(targetCurriculum), crse)
+                    if (j>0) then ! a required subject
+                        mesg = trim(tAction)//' : '//tSubject//'- substitute subject already in curriculum?'
                         nsubs = 0
                         exit
                     else
-                        j = index_of_subject_in_curriculum(Curriculum(targetCurriculum), crse)
-                        if (j>0) then ! a required subject
-                            mesg = trim(tAction)//' : '//tSubject//'- substitute subject already in curriculum?'
-                            nsubs = 0
-                            exit
-                        else
-                            TCGline = COMMA//trim(tSubject)//TCGline
-                            nsubs = nsubs + 1
-                            TCG(lenTCG+1)%Subst(0) = nsubs
-                            TCG(lenTCG+1)%Subst(nsubs) = crse
-                        end if
+                        TCGline = COMMA//trim(tSubject)//TCGline
+                        nsubs = nsubs + 1
+                        TCG(lenTCG+1)%Subst(0) = nsubs
+                        TCG(lenTCG+1)%Subst(nsubs) = crse
                     end if
-                end do
+                end if
+            end do
 
-                ! get required subjects
-                do i=5,1,-1
-                    call cgi_get_named_string(QUERY_STRING, 'req'//trim(itoa(i)), tSubject, ierr)
-                    if (ierr/=0 .or. tSubject==SPACE) cycle
-                    crse = index_to_subject(tSubject)
-                    if (crse <= 0) then
-                        mesg = trim(tAction)//' : '//tSubject//'- Required subject code not valid?'
-                        nreqs = 0
-                        exit
-                    else
-                        j = index_of_subject_in_curriculum(Curriculum(targetCurriculum), crse)
-                        if (j>0) then ! a required subject
-                            ! check if already required in another substitution rule
-                            FlagIsUp = .false.
-                            do k=1,lenTCG
-                                if (TCG(k)%Code/=1) cycle
-                                do l=1,TCG(k)%Reqd(0)
-                                    if (crse==TCG(k)%Reqd(l)) then
-                                        FlagIsUp = .true.
-                                        exit
-                                    end if
-                                end do
-                                if (FlagIsUp) exit
+            ! get required subjects
+            do i=5,1,-1
+                call cgi_get_named_string(QUERY_STRING, 'req'//trim(itoa(i)), tSubject, ierr)
+                if (ierr/=0 .or. tSubject==SPACE) cycle
+                crse = index_to_subject(tSubject)
+                if (crse <= 0) then
+                    mesg = trim(tAction)//' : '//tSubject//'- Required subject code not valid?'
+                    nreqs = 0
+                    exit
+                else
+                    j = index_of_subject_in_curriculum(Curriculum(targetCurriculum), crse)
+                    if (j>0) then ! a required subject
+                        ! check if already required in another substitution rule
+                        FlagIsUp = .false.
+                        do k=1,lenTCG
+                            if (TCG(k)%Code/=1) cycle
+                            do l=1,TCG(k)%Reqd(0)
+                                if (crse==TCG(k)%Reqd(l)) then
+                                    FlagIsUp = .true.
+                                    exit
+                                end if
                             end do
-                            if (.not. FlagIsUp) then
-                                TCGline = COMMA//trim(tSubject)//TCGline
-                                nreqs = nreqs + 1
+                            if (FlagIsUp) exit
+                        end do
+                        if (.not. FlagIsUp) then
+                            TCGline = COMMA//trim(tSubject)//TCGline
+                            nreqs = nreqs + 1
 
-                                rank = Curriculum(targetCurriculum)%SubjectTerm(j)
-                                call rank_to_year_term (rank, year, term)
-                                TCG(lenTCG+1)%Year = year
-                                TCG(lenTCG+1)%Term = term
-                                TCG(lenTCG+1)%Reqd(0) = nreqs
-                                TCG(lenTCG+1)%Reqd(nreqs) = crse
+                            rank = Curriculum(targetCurriculum)%SubjectTerm(j)
+                            call rank_to_year_term (rank, year, term)
+                            TCG(lenTCG+1)%Year = year
+                            TCG(lenTCG+1)%Term = term
+                            TCG(lenTCG+1)%Reqd(0) = nreqs
+                            TCG(lenTCG+1)%Reqd(nreqs) = crse
 
-                            else
-                                mesg = trim(tAction)//' : '//tSubject// &
-                                    '- required subject already used in another substitution.'
-                                nreqs = 0
-                                exit
-                            end if
                         else
-                            mesg = trim(tAction)//' : '//tSubject//'- required subject not in curriculum?'
+                            mesg = trim(tAction)//' : '//tSubject// &
+                                '- required subject already used in another substitution.'
                             nreqs = 0
                             exit
                         end if
+                    else
+                        mesg = trim(tAction)//' : '//tSubject//'- required subject not in curriculum?'
+                        nreqs = 0
+                        exit
                     end if
-                end do
+                end if
+            end do
 
-                if (nsubs*nreqs>0) then
-                    mesg = trim(tAction)//' : '//TCGline(2:)
-                    lenTCG = lenTCG + 1
-                    TCG(lenTCG)%Code = 1
-                    if (nreqs>1) then ! group substitution; no year/term
-                        TCG(lenTCG)%Year = 0
-                        TCG(lenTCG)%Term = 0
-                    end if
-
-                    isDirtyPlan = .true.
+            if (nsubs*nreqs>0) then
+                mesg = trim(tAction)//' : '//TCGline(2:)
+                lenTCG = lenTCG + 1
+                TCG(lenTCG)%Code = 1
+                if (nreqs>1) then ! group substitution; no year/term
+                    TCG(lenTCG)%Year = 0
+                    TCG(lenTCG)%Term = 0
                 end if
 
+                isDirtyPlan = .true.
             end if
 
-            if (.not. isRoleOfficial .and. trim(tAction)=='Cancel SUBSTITUTION') then
+        end if
 
-                call cgi_get_named_string(QUERY_STRING, 'subject', tSubject, crse)
+        if (.not. isRoleOfficial .and. trim(tAction)=='Cancel SUBSTITUTION') then
 
-                if (crse/=0) then ! a name was not specified?
-                    mesg = trim(tAction)//' : subject not spelled correctly?'
+            call cgi_get_named_string(QUERY_STRING, 'subject', tSubject, crse)
 
-                else if (tSubject==SPACE) then ! a value was not specified?
-                    mesg = trim(tAction)//' : required subject not specified?'
+            if (crse/=0) then ! a name was not specified?
+                mesg = trim(tAction)//' : subject not spelled correctly?'
 
-                else ! some subject was specified
-                    crse = index_to_subject(tSubject)
-                    if (crse<=0) then ! not a named subject
-                        mesg = trim(tAction)//' : subject not valid?'
-                    else
-                        mesg = trim(tAction)//' : rule not found in checklist - '//tSubject
-                        ! check Reqd() for specified SUBSTITUTION
-                        idx = 0
+            else if (tSubject==SPACE) then ! a value was not specified?
+                mesg = trim(tAction)//' : required subject not specified?'
+
+            else ! some subject was specified
+                crse = index_to_subject(tSubject)
+                if (crse<=0) then ! not a named subject
+                    mesg = trim(tAction)//' : subject not valid?'
+                else
+                    mesg = trim(tAction)//' : rule not found in checklist - '//tSubject
+                    ! check Reqd() for specified SUBSTITUTION
+                    idx = 0
+                    do k=1,lenTCG
+                        if (TCG(k)%Code/=1) cycle
+                        do i=1,TCG(k)%Reqd(0)
+                            if (TCG(k)%Reqd(i)==crse) then
+                                isDirtyPlan = .true.
+                                idx = k
+                                exit
+                            end if
+                        end do
+                        if (isDirtyPlan) exit
+                    end do
+                    if (isDirtyPlan) then ! required subject found
+                        ! shift substitutions down
+                        do k=idx+1,lenTCG
+                            TCG(k-1) = TCG(k)
+                        end do
+                        ! re-initialize previous last location
+                        TCG(lenTCG) = TCG(lenTCG+1)
+                        lenTCG = lenTCG - 1 ! decrease counter
+                        mesg = trim(tAction)//' for '//tSubject
+                        ! copy to Student(std)
+                    end if
+                end if
+            end if
+
+        end if
+
+        if (.not. isRoleOfficial .and. trim(tAction)=='Update PLAN') then
+
+            n_changes = 0
+            do idx=1,Curriculum(targetCurriculum)%NSubjects
+                crse_required = Curriculum(targetCurriculum)%SubjectIdx(idx)
+                if (crse_required > 0) cycle ! named subject
+                rank = Curriculum(targetCurriculum)%SubjectTerm(idx)
+
+                call blank_to_underscore(Subject(crse_required)%Name, input_name1)
+                input_name1 = trim(input_name1)//DASH//trim(itoa(rank))//':'
+                !write(*,*) 'Looking for '//input_name1
+                call cgi_get_wild_name_value(QUERY_STRING, input_name1, input_name2, input_value, ierr)
+                if (ierr/=0) cycle ! not found
+
+                call rank_to_year_term(rank, Year, Term)
+                call underscore_to_blank(input_name2, currentSubject)
+                call underscore_to_blank(input_value, update)
+
+                !write(*,*) '  Found : '//Subject(crse_required)%Name, currentSubject, update
+
+                crse_current = index_to_subject(currentSubject)
+
+                if (update/=SPACE) then ! something in update
+
+                    crse_update = index_to_subject(update)
+                    if (crse_update <= 0) then
+                        !mesg = trim(tAction)//' : '//update//'- code not valid?'
+                        !write(*,*) trim(mesg)
+                        !write(*,*) trim(tAction)//' : '//update//'- code not valid?'
+                        cycle
+                    end if
+
+                    jdx = index_of_subject_in_curriculum(Curriculum(targetCurriculum), crse_update)
+                    if (jdx>0) then ! a required subject
+                        !mesg = trim(tAction)//' : '//update//'- already required?'
+                        !write(*,*) trim(mesg)
+                        !write(*,*) trim(tAction)//' : '//update//'- already required?'
+                        cycle
+                    end if
+
+                    if (currentSubject == update) then ! no change
+                        !mesg = trim(tAction)//' : No change to '//currentSubject
+                        !write(*,*) trim(mesg)
+                        !write(*,*) trim(tAction)//' : No change to '//currentSubject
+                        cycle
+                    end if
+
+                    ! make change
+                    if (crse_current>0) then ! previously specified
+                        FlagIsUp = .true.
                         do k=1,lenTCG
                             if (TCG(k)%Code/=1) cycle
-                            do i=1,TCG(k)%Reqd(0)
-                                if (TCG(k)%Reqd(i)==crse) then
-                                    isDirtyPlan = .true.
-                                    idx = k
-                                    exit
-                                end if
-                            end do
-                            if (isDirtyPlan) exit
-                        end do
-                        if (isDirtyPlan) then ! required subject found
-                            ! shift substitutions down
-                            do k=idx+1,lenTCG
-                                TCG(k-1) = TCG(k)
-                            end do
-                            ! re-initialize previous last location
-                            TCG(lenTCG) = TCG(lenTCG+1)
-                            lenTCG = lenTCG - 1 ! decrease counter
-                            mesg = trim(tAction)//' for '//tSubject
-                            ! copy to Student(std)
-                        end if
-                    end if
-                end if
-
-            end if
-
-            if (.not. isRoleOfficial .and. trim(tAction)=='Update ELECTIVE') then
-
-                n_changes = 0
-                do idx=1,Curriculum(targetCurriculum)%NSubjects
-                    crse_required = Curriculum(targetCurriculum)%SubjectIdx(idx)
-                    if (crse_required > 0) cycle ! named subject
-                    rank = Curriculum(targetCurriculum)%SubjectTerm(idx)
-
-                    call blank_to_underscore(Subject(crse_required)%Name, input_name1)
-                    input_name1 = trim(input_name1)//DASH//trim(itoa(rank))//':'
-                    !write(*,*) 'Looking for '//input_name1
-                    call cgi_get_wild_name_value(QUERY_STRING, input_name1, input_name2, input_value, ierr)
-                    if (ierr/=0) cycle ! not found
-
-                    call rank_to_year_term(rank, Year, Term)
-                    call underscore_to_blank(input_name2, currentSubject)
-                    call underscore_to_blank(input_value, update)
-
-                    !write(*,*) '  Found : '//Subject(crse_required)%Name, currentSubject, update
-
-                    crse_current = index_to_subject(currentSubject)
-
-                    if (update/=SPACE) then ! something in update
-
-                        crse_update = index_to_subject(update)
-                        if (crse_update <= 0) then
-                            !mesg = trim(tAction)//' : '//update//'- code not valid?'
-                            !write(*,*) trim(mesg)
-                            !write(*,*) trim(tAction)//' : '//update//'- code not valid?'
-                            cycle
-                        end if
-
-                        jdx = index_of_subject_in_curriculum(Curriculum(targetCurriculum), crse_update)
-                        if (jdx>0) then ! a required subject
-                            !mesg = trim(tAction)//' : '//update//'- already required?'
-                            !write(*,*) trim(mesg)
-                            !write(*,*) trim(tAction)//' : '//update//'- already required?'
-                            cycle
-                        end if
-
-                        if (currentSubject == update) then ! no change
-                            !mesg = trim(tAction)//' : No change to '//currentSubject
-                            !write(*,*) trim(mesg)
-                            !write(*,*) trim(tAction)//' : No change to '//currentSubject
-                            cycle
-                        end if
-
-                        ! make change
-                        if (crse_current>0) then ! previously specified
-                            FlagIsUp = .true.
-                            do k=1,lenTCG
-                                if (TCG(k)%Code/=1) cycle
-                                if (TCG(k)%Reqd(1)==crse_required .and. &
-                                    TCG(k)%Subst(1)==crse_current) then
-                                    TCG(k)%Subst(1) = crse_update
-                                    FlagIsUp = .false.
-                                    mesg = trim(mesg)//', '//trim(Subject(crse_update)%Name)
-                                    exit
-                                end if
-                            end do
-
-                            if (FlagIsUp) then ! make new entry
-                                lenTCG = lenTCG + 1
-
-                                call rank_to_year_term (rank, TCG(lenTCG)%Year, TCG(lenTCG)%Term)
-                                TCG(lenTCG)%Code = 1
-                                TCG(lenTCG)%Reqd(0) = 1
-                                TCG(lenTCG)%Reqd(1) = crse_required
-                                TCG(lenTCG)%Subst(0) = 1
-                                TCG(lenTCG)%Subst(1) = crse_update
+                            if (TCG(k)%Reqd(1)==crse_required .and. &
+                                TCG(k)%Subst(1)==crse_current) then
+                                TCG(k)%Subst(1) = crse_update
+                                FlagIsUp = .false.
                                 mesg = trim(mesg)//', '//trim(Subject(crse_update)%Name)
-
+                                exit
                             end if
+                        end do
 
-                        else ! make new entry in TCG
+                        if (FlagIsUp) then ! make new entry
                             lenTCG = lenTCG + 1
+
                             call rank_to_year_term (rank, TCG(lenTCG)%Year, TCG(lenTCG)%Term)
                             TCG(lenTCG)%Code = 1
                             TCG(lenTCG)%Reqd(0) = 1
@@ -757,116 +789,126 @@ contains
                             TCG(lenTCG)%Subst(0) = 1
                             TCG(lenTCG)%Subst(1) = crse_update
                             mesg = trim(mesg)//', '//trim(Subject(crse_update)%Name)
-                            mesg = trim(mesg)//', '//trim(Subject(crse_update)%Name)
 
                         end if
-                        n_changes = n_changes + 1
 
-                    else ! update is blank? remove current elective
-                        if (crse_current>0) then ! previously specified
+                    else ! make new entry in TCG
+                        lenTCG = lenTCG + 1
+                        call rank_to_year_term (rank, TCG(lenTCG)%Year, TCG(lenTCG)%Term)
+                        TCG(lenTCG)%Code = 1
+                        TCG(lenTCG)%Reqd(0) = 1
+                        TCG(lenTCG)%Reqd(1) = crse_required
+                        TCG(lenTCG)%Subst(0) = 1
+                        TCG(lenTCG)%Subst(1) = crse_update
+                        mesg = trim(mesg)//', '//trim(Subject(crse_update)%Name)
+                        mesg = trim(mesg)//', '//trim(Subject(crse_update)%Name)
 
-                            FlagIsUp = .false.
-                            do k=1,lenTCG
-                                if (TCG(k)%Code/=1) cycle
-                                if (TCG(k)%Reqd(1)==crse_required .and. &
-                                    TCG(k)%Subst(1)==crse_current) then
-                                    FlagIsUp = .true.
-                                    exit
-                                end if
-                            end do
-                            if (FlagIsUp) then
-                                do i=k+1,lenTCG
-                                    TCG(i-1) = TCG(i)
-                                end do
-                                ! re-initialize previous last location
-                                TCG(lenTCG) = TCG(lenTCG+1)
-                                lenTCG = lenTCG - 1
-                                n_changes = n_changes + 1
-                            end if
-
-                        end if
                     end if
+                    n_changes = n_changes + 1
 
-                end do
+                else ! update is blank? remove current elective
+                    if (crse_current>0) then ! previously specified
 
-                if (n_changes==0) then
-                    mesg = trim(tAction)//' : Nothing to update?'
-                else
-                    ! copy to Student(std)
-                    mesg = trim(tAction)//mesg
-                    isDirtyPlan = .true.
+                        FlagIsUp = .false.
+                        do k=1,lenTCG
+                            if (TCG(k)%Code/=1) cycle
+                            if (TCG(k)%Reqd(1)==crse_required .and. &
+                                TCG(k)%Subst(1)==crse_current) then
+                                FlagIsUp = .true.
+                                exit
+                            end if
+                        end do
+                        if (FlagIsUp) then
+                            do i=k+1,lenTCG
+                                TCG(i-1) = TCG(i)
+                            end do
+                            ! re-initialize previous last location
+                            TCG(lenTCG) = TCG(lenTCG+1)
+                            lenTCG = lenTCG - 1
+                            n_changes = n_changes + 1
+                        end if
+
+                    end if
                 end if
 
+            end do
+
+            if (n_changes==0) then
+                mesg = trim(tAction)//' : Nothing to update?'
+            else
+                ! copy to Student(std)
+                mesg = trim(tAction)//mesg
+                isDirtyPlan = .true.
             end if
 
+        end if
 
-            if (.not. isRoleOfficial .and. trim(tAction)=='As ADVICE') then
 
-                call collect_advice(Advice, n_changes, mesg)
-                NumEnlistment(thisTerm) = NumEnlistment(thisTerm)- eList(targetStudent)%lenSubject + Advice%lenSubject
+        if (.not. isRoleOfficial .and. trim(tAction)=='As ADVICE') then
+
+            call collect_advice(Advice, n_changes, mesg)
+            NumEnlistment(thisTerm) = NumEnlistment(thisTerm)- eList(targetStudent)%lenSubject + Advice%lenSubject
+            eList(targetStudent) = Advice
+            isDirtyPREDICTIONS = .true.
+            mesg = trim(tAction)//' : '//trim(itoa(Advice%lenSubject))//' entries.'
+
+        end if
+
+
+        if (.not. isRoleOfficial .and. trim(tAction)=='Update ADVICE') then
+
+            call collect_advice(Advice, n_changes, mesg)
+            if (n_changes>0) then
+                mesg = trim(tAction)//mesg
                 eList(targetStudent) = Advice
                 isDirtyPREDICTIONS = .true.
-                mesg = trim(tAction)//' : '//trim(itoa(Advice%lenSubject))//' entries.'
-
             end if
 
-
-            if (.not. isRoleOfficial .and. trim(tAction)=='Update ADVICE') then
-
-                call collect_advice(Advice, n_changes, mesg)
-                if (n_changes>0) then
-                    mesg = trim(tAction)//mesg
-                    eList(targetStudent) = Advice
-                    isDirtyPREDICTIONS = .true.
-                end if
-
-            end if
+        end if
 
 
-            if (.not. isRoleOfficial .and. trim(tAction)=='Delete ALL') then
+        if (.not. isRoleOfficial .and. trim(tAction)=='Delete ALL') then
 
-                call collect_advice(Advice, n_changes, mesg)
-                do l=1,Advice%lenSubject
-                    Advice%Contrib(l) = 0
-                    Advice%Subject(l) = 0
-                    Advice%Section(l) = 0
-                end do
-                Advice%AllowedLoad = 0
-                Advice%StdPriority = 0
-                Advice%NPriority = 0
-                Advice%NAlternates = 0
-                Advice%NCurrent = 0
-                Advice%lenSubject = 0
+            call collect_advice(Advice, n_changes, mesg)
+            do l=1,Advice%lenSubject
+                Advice%Contrib(l) = 0
+                Advice%Subject(l) = 0
+                Advice%Section(l) = 0
+            end do
+            Advice%AllowedLoad = 0
+            Advice%StdPriority = 0
+            Advice%NPriority = 0
+            Advice%NAlternates = 0
+            Advice%NCurrent = 0
+            Advice%lenSubject = 0
 
-                mesg = 'Deleted all advised subjects.'
-                eList(targetStudent) = Advice
-                isDirtyPREDICTIONS = .true.
+            mesg = 'Deleted all advised subjects.'
+            eList(targetStudent) = Advice
+            isDirtyPREDICTIONS = .true.
 
-            end if
-
-
-            if (.not. isRoleOfficial .and. trim(tAction)=='Lock ADVICE') then
-
-                call collect_advice(Advice, n_changes, mesg)
-                Advice%Status = 1 ! lock advice
-                mesg = 'Locked advice.'
-                eList(targetStudent) = Advice
-                isDirtyPREDICTIONS = .true.
-
-            end if
-
-            if (.not. isRoleOfficial .and. trim(tAction)=='Unlock ADVICE') then
-
-                call collect_advice(Advice, n_changes, mesg)
-                Advice%Status = 0 ! unlock advice
-                mesg = 'Unlocked advice.'
-                eList(targetStudent) = Advice
-                isDirtyPREDICTIONS = .true.
-
-            end if
+        end if
 
 
-        !end select
+        if (.not. isRoleOfficial .and. trim(tAction)=='Lock ADVICE') then
+
+            call collect_advice(Advice, n_changes, mesg)
+            Advice%Status = 1 ! lock advice
+            mesg = 'Locked advice.'
+            eList(targetStudent) = Advice
+            isDirtyPREDICTIONS = .true.
+
+        end if
+
+        if (.not. isRoleOfficial .and. trim(tAction)=='Unlock ADVICE') then
+
+            call collect_advice(Advice, n_changes, mesg)
+            Advice%Status = 0 ! unlock advice
+            mesg = 'Unlocked advice.'
+            eList(targetStudent) = Advice
+            isDirtyPREDICTIONS = .true.
+
+        end if
+
 
         if (len_trim(tAction)>0 .and. isRoleOfficial) then
             mesg = '"'//trim(tAction)//'" failed. '//sorryMessage
@@ -937,8 +979,7 @@ contains
 
             ! change curriculum form
             call make_form_start(device, fnEditCheckList, Student(targetStudent)%StdNo, A9=thisTerm)
-            write(device,AFORMAT) &
-                '<select name="A2">'
+            write(device,AFORMAT) '<select name="A2">'
             do l=1,NumCurricula
                 k = Curriculum(l)%CollegeIdx
                 if (l==idxCurr) then
@@ -1002,7 +1043,6 @@ contains
                 end if
 
             end if
-            write(device,AFORMAT) horizontal
 
         else ! un-authorized users do not see the remainder of the checklist
             write(device,AFORMAT) horizontal
@@ -1010,8 +1050,11 @@ contains
 
         end if
 
+        write(device,AFORMAT) '<a name="ADVISED SUBJECTS"></a>'
+        call checklist_links(device)
+
         write(device,AFORMAT) &
-            linebreak//beginbold//'ADVISED SUBJECTS for '//txtSemester(thisTerm+3)//termQualifier(thisTerm+3)//endbold
+            beginbold//'ADVISED SUBJECTS for '//txtSemester(thisTerm+3)//termQualifier(thisTerm+3)//endbold
 
         if (.not. isPeriodOne) then
 
@@ -1113,7 +1156,8 @@ contains
 
                 write(device,AFORMAT) &
                     '<input type="submit" name="action" value="Update ADVICE">', nbsp//nbsp//nbsp//nbsp//nbsp, &
-                    '<input type="submit" name="action" value="Delete ALL">', nbsp//nbsp//nbsp//nbsp//nbsp, &
+                    '<input type="submit" name="action" value="Delete ALL">'
+                if (isPeriodOne .or. isPeriodFour) write(device,AFORMAT) nbsp//nbsp//nbsp//nbsp//nbsp, &
                     '<input type="submit" name="action" value="Lock ADVICE">'
 
             else ! Unlock only
@@ -1123,7 +1167,7 @@ contains
 
             end if
 
-            write(device,AFORMAT) endform//horizontal
+            write(device,AFORMAT) endform
 
         else ! if (.not. isRoleStudent) then ! prevent students from editing their schedules
 
@@ -1176,7 +1220,7 @@ contains
 
             write(device,AFORMAT) endtable, linebreak, &
                 '<input type="submit" name="action" value="Use FOR ENLISTMENT">', &
-                endform, horizontal
+                endform
         end if
 
         if (notSpecified>0) then
@@ -1209,8 +1253,11 @@ contains
         !      nbsp//nbsp//'<input type="submit" name="action" value="Cancel ADDITIONAL">', &
         !      endform//horizontal
 
+        write(device,AFORMAT) '<a name="Approved SUBSTITUTIONS"></a>'
+        call checklist_links(device)
+
         write(device,AFORMAT) &
-            linebreak//beginbold//'Approved SUBSTITUTIONS'//endbold// &
+            beginbold//'Approved SUBSTITUTIONS'//endbold// &
                 '. Credit will be earned for required subject if substitute is passed.'//linebreak// &
             '<table border="0" width="50%">'
         j = 0
@@ -1277,17 +1324,22 @@ contains
         integer :: idx, tdx, Year, Term, m, n, rank
         integer, dimension(MAX_LEN_STUDENT_RECORD) :: p, q
 
-!        write(device,AFORMAT) '<a name="Update ELECTIVE"></a>'//horizontal
+        write(device,AFORMAT) '<a name="Update PLAN"></a>'
+        call checklist_links(device)
+
         call make_form_start(device, fnEditCheckList, Student(std)%StdNo)
-        write(device,AFORMAT) linebreak//beginbold//'PLAN OF STUDY update form'//endbold, &
-            linebreak//beginitalic//'Enter or modify contents of the edit boxes below, then click "Update ELECTIVE"'//enditalic// &
+        write(device,AFORMAT) beginbold//'PLAN OF STUDY update form'//endbold, &
+            linebreak//beginitalic//'Enter or modify contents of the edit boxes below, then click "Update PLAN"'//enditalic// &
             '<table border="0" width="90%">'
         do tdx=1,CheckList%NumTerms,3
             call rank_to_year_term(tdx, Year, Term)
             write(device,AFORMAT) begintr//'<td colspan="4">'//linebreak//beginbold//trim(txtYear(Year))// &
-                ' Year, First Semester'//endbold//' ('//trim(ftoa(TermUnits(tdx),1))//' units)'//endtd// &
+                ' Year, '//txtSemester(Term)//termQualifier(Term)//endbold// &
+                ' ('//trim(ftoa(TermUnits(tdx),1))//' units)'//endtd// &
                 tdnbspendtd//'<td colspan="4">'//linebreak//beginbold//trim(txtYear(Year))// &
-                ' Year, Second Semester'//endbold//' ('//trim(ftoa(TermUnits(tdx+1),1))//' units)'//endtd//endtr
+                ' Year, '//txtSemester(Term+1)//termQualifier(Term+1)//endbold// &
+                ' ('//trim(ftoa(TermUnits(tdx+1),1))//' units)'//endtd//endtr
+
             m = 0
             n = 0
             p = 0
@@ -1342,7 +1394,8 @@ contains
             end do ! idx=1,CheckList%NSubjects
             if (m > 0) then
                 write(device,AFORMAT) begintr//'<td colspan="4">'//linebreak//beginbold//trim(txtYear(Year))// &
-                    ' Year, Summer'//endbold//' ('//trim(ftoa(TermUnits(tdx+2),1))//' units)'//endtd// &
+                    ' Year, '//txtSemester(Term+2)//termQualifier(Term+2)//endbold// &
+                    ' ('//trim(ftoa(TermUnits(tdx+2),1))//' units)'//endtd// &
                     '<td colspan="5">'//nbsp//endtd//endtr
                 do idx=1,m
                     write(device,AFORMAT) begintr//begintd//trim(CLExt(p(idx))%Disp_Subject)//endtd//&
@@ -1354,7 +1407,7 @@ contains
             end if
         end do
         write(device,AFORMAT) endtable, &
-            linebreak//'<input type="submit" name="action" value="Update ELECTIVE">'//endform//horizontal
+            linebreak//'<input type="submit" name="action" value="Update PLAN">'//endform
 
     end subroutine substitution_form
 

@@ -629,6 +629,20 @@ contains
 
         if (trim(tAction)=='LOCK Schedule' .and. .not. isRoleOfficial) then
 
+                ! keep only enlisted subjects
+                mdx = 0
+                do fdx=1,eList(targetStudent)%lenSubject
+                    if (eList(targetStudent)%Section(fdx)==0) cycle
+                    mdx = mdx + 1
+                    eList(targetStudent)%Subject(mdx) = eList(targetStudent)%Subject(fdx)
+                    eList(targetStudent)%Section(mdx) = eList(targetStudent)%Section(fdx)
+                    eList(targetStudent)%Grade(mdx) = eList(targetStudent)%Grade(fdx)
+                    eList(targetStudent)%Contrib(mdx) = eList(targetStudent)%Contrib(fdx)
+                end do
+                eList(targetStudent)%lenSubject = mdx
+                eList(targetStudent)%NPriority = mdx
+                eList(targetStudent)%NAlternates = 0
+                eList(targetStudent)%NCurrent = 0
                 eList(targetStudent)%Status = eList(targetStudent)%Status + 2;
                 mesg = 'Locked the schedule; unlock it to allow changes.'
                 isDirtyFORM5 = .true.
@@ -643,6 +657,16 @@ contains
 
         end if
 
+        if (trim(tAction)=='DELIST Student' .and. .not. isRoleOfficial) then
+
+                call initialize_pre_enlistment(eList(targetStudent))
+                mesg = 'Delisted student from classes in '//txtSemester(thisTerm+3)//termQualifier(thisTerm+3)
+                call log_student_record_change(targetStudent, 'Not enrolled: Removed subjects for '// &
+                    trim(txtSemester(thisTerm+3)//termQualifier(thisTerm+3)) )
+                isDirtyFORM5 = .true.
+
+        end if
+
         if (len_trim(tAction)>0 .and. isRoleOfficial) then
             mesg = '"'//trim(tAction)//'" failed. '//sorryMessage
         end if
@@ -652,6 +676,11 @@ contains
                 Student(targetStudent)%CurriculumIdx)
             call log_student_record_change(targetStudent, mesg )
         end if
+
+        !if (trim(tAction)=='DELIST Student' .and. .not. isRoleOfficial) then
+        !    call html_college_info(device, Curriculum(Student(targetStudent)%CurriculumIdx)%CollegeIdx)
+        !    return
+        !end if
 
         call html_write_header(device, trim(Student(targetStudent)%StdNo)//SPACE//trim(Student(targetStudent)%Name)//linebreak// &
             trim(text_curriculum_info(Student(targetStudent)%CurriculumIdx))//linebreak//linebreak//'Schedule of Classes ', mesg)
@@ -669,15 +698,19 @@ contains
             allowed_to_edit, beginbold//'Enlisted subjects'//endbold//nbsp//trim(make_href(fnPrintableSchedule, 'Printable', &
             A1=tStdNo, A9=thisTerm, pre=beginsmall//'(', post=')'//endsmall)) )
 
-        if (tLen1>0) then
+        if (tLen1>0 .and. allowed_to_edit) then
 
             ! lock or unlock
             call make_form_start(device, fnChangeMatriculation, A1=tStdNo, A9=thisTerm)
             if (eList(targetStudent)%Status<2) then ! enable Lock CLASSES
-                write(device,AFORMAT) '<input type="submit" name="A2" value="LOCK Schedule">'//endform
+                write(device,AFORMAT) '<input type="submit" name="A2" value="LOCK Schedule">'
             else
-                write(device,AFORMAT) '<input type="submit" name="A2" value="UNLOCK Schedule">'//endform
+                write(device,AFORMAT) '<input type="submit" name="A2" value="UNLOCK Schedule">'
             end if
+
+            ! student not enrolling
+            write(device,AFORMAT) nbsp//nbsp//nbsp//nbsp, &
+                '<input type="submit" name="A2" value="DELIST Student"> (not enrolling)'//endform
 
             call timetable_display(device, Section, TimeTable)
         end if
@@ -1077,7 +1110,7 @@ contains
         n_blks = 0
         do blk=1,NumBlocks
             !if (CurrProgCode(Block(blk)%CurriculumIdx)/=CurrProgCode(targetCurriculum)) cycle ! not this curriculum
-            if (Block(blk)%CurriculumIdx/=targetCurriculum) cycle ! not this curriculum
+            !if (Block(blk)%CurriculumIdx/=targetCurriculum) cycle ! not this curriculum
             ! count how many subjects in this block match the predicted subjects of the student
             n_matches = 0
             in_block = 0 ! subjects in block with assigned sections
@@ -1289,7 +1322,7 @@ contains
         type (TYPE_SECTION), intent(in) :: Section(0:)
         type (TYPE_PRE_ENLISTMENT), intent(in) :: eList(0:)
 
-        integer :: ldx, n_count, tdx, std, errNo, sect, ncol, crse, pos, otherSect
+        integer :: n_count, tdx, std, errNo, ncol, crse, pos, otherSect !, ldx, sect
         character(len=MAX_LEN_CLASS_ID) :: tClassId, otherClass
         character(len=255) :: header
 
@@ -1306,29 +1339,30 @@ contains
 #endif
         targetCollege = Department(targetDepartment)%CollegeIdx
 
-        ! collect students
-        n_count = 0
-        do tdx=1,NumStudents+NumAdditionalStudents
-            std = StdRank(tdx)
-            do ncol=1,eList(std)%lenSubject
-                sect = eList(std)%Section(ncol)
-                if (sect==0) cycle
-                if (targetSection == sect) then
-                    n_count = n_count+1
-                    tArray(n_count) = std
-                    exit
-                elseif (eList(std)%Subject(ncol)==crse .and. is_lecture_lab_subject(crse)) then
-                    ldx = index(Section(sect)%ClassId,DASH)
-                    if (ldx>0) then ! student is accommodated in a lab section
-                        if (trim(tClassId)==Section(sect)%ClassId(:ldx-1)) then ! lab of lecture
-                            n_count = n_count+1
-                            tArray(n_count) = std
-                            exit
-                        end if
-                    end if
-                end if
-            end do
-        end do
+        call collect_students_in_section (targetSection, NumSections, Section, eList, n_count, tArray)
+!        ! collect students
+!        n_count = 0
+!        do tdx=1,NumStudents+NumAdditionalStudents
+!            std = StdRank(tdx)
+!            do ncol=1,eList(std)%lenSubject
+!                sect = eList(std)%Section(ncol)
+!                if (sect==0) cycle
+!                if (targetSection == sect) then
+!                    n_count = n_count+1
+!                    tArray(n_count) = std
+!                    exit
+!                elseif (eList(std)%Subject(ncol)==crse .and. is_lecture_lab_subject(crse)) then
+!                    ldx = index(Section(sect)%ClassId,DASH)
+!                    if (ldx>0) then ! student is accommodated in a lab section
+!                        if (trim(tClassId)==Section(sect)%ClassId(:ldx-1)) then ! lab of lecture
+!                            n_count = n_count+1
+!                            tArray(n_count) = std
+!                            exit
+!                        end if
+!                    end if
+!                end if
+!            end do
+!        end do
 
         ncol = n_count
         if (is_lecture_lab_subject(crse)) then

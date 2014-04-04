@@ -43,26 +43,26 @@ module UNIVERSITY
     character (len=20) :: UniversityCode = 'DEMO'
 
     character (len=80) :: &
-        UniversityName = '(Specify NAME in UNIVERSITY.XML)', &
-        UniversityAddress = '(Specify ADDRESS in UNIVERSITY.XML)', &
-        UniversityWeb = '(Specify WEB in UNIVERSITY.XML)', &
-        UniversityPhone = '(Specify PHONE in UNIVERSITY.XML)'
+        UniversityName = 'Long Name of Univesity', &
+        UniversityAddress = 'University Address', &
+        UniversityWeb = 'University URL', &
+        UniversityPhone = 'University Phone'
 
     integer, parameter :: MAX_LEN_PERSON_NAME = 40 ! Max length of a person's name
     character (len=MAX_LEN_PERSON_NAME) :: &
-        UniversityPresident = 'Firstname MI LastName, PhD', &
+        UniversityPresident = 'Fname MI LName', &
         titleUniversityPresident = 'University President', &
         !
-        VPAcademicAffairs = 'Firstname MI LastName, PhD', &
+        VPAcademicAffairs = 'Fname MI LName', &
         titleVPAcademicAffairs = 'Vice-President for Academic Affairs', &
         !
-        DeanOfCampus = 'Firstname MI LastName, PhD', &
+        DeanOfCampus = 'Fname MI LName', &
         titleDeanOfCampus = 'Dean of Campus', &
         !
-        DeanOfInstruction = 'Firstname MI LastName, PhD', &
+        DeanOfInstruction = 'Fname MI LName', &
         titleDeanOfInstruction = 'Dean Of Instruction', &
         !
-        TheRegistrar = 'Firstname MI LastName, PhD', &
+        TheRegistrar = 'Fname MI LName', &
         titleTheRegistrar = 'University Registrar'
 
 !===========================================================
@@ -76,7 +76,7 @@ module UNIVERSITY
 
     type :: TYPE_COLLEGE
         character (len=MAX_LEN_COLLEGE_CODE) :: Code
-        character (len=MAX_LEN_COLLEGE_NAME) :: Name, Dean
+        character (len=MAX_LEN_COLLEGE_NAME) :: Name, Dean, TranscriptPreparer, TranscriptChecker
         logical :: hasInfo, AllowEnlistmentByStudents(3)
     end type TYPE_COLLEGE
 
@@ -410,7 +410,7 @@ module UNIVERSITY
         character(len=MAX_LEN_STUDENT_CODE) :: StdNo, BirthDate, EntryDate, GraduationDate
         character(len=MAX_LEN_PERSON_NAME)  :: Name, AdmissionData, Scholarship
         character(len=2*MAX_LEN_PERSON_NAME)  :: BirthPlace, HomeAddress
-        character(len=3*MAX_LEN_PERSON_NAME)  :: LastAttended
+        character(len=3*MAX_LEN_PERSON_NAME)  :: LastAttended, TranscriptRemark
         character(len=1) :: Gender
         character(len=MAX_LEN_TEACHER_CODE) :: Adviser
         integer :: CountryIdx
@@ -468,13 +468,23 @@ module UNIVERSITY
         gdxS    = 14, gdxU    = 15, gdxPASS  = 16, gdxLOA = 17, &
         gdxREGD = 18, gdxFAIL = 19, gdxNFE   = 20
 
+!    real, dimension(0:ZERO_PERCENT_GRADE+100) :: fGrade = (/  & ! float value for grades
+!        0.00,                   & ! error
+!        1.00, 1.25, 1.50, 1.75, & ! 1, 1.25, 1.5, 1.75
+!        2.00, 2.25, 2.50, 2.75, & ! 2, 2.25, 2.5, 2.75
+!        3.00, 4.00, 0.00, 5.00, & ! 3, 4, INC, 5
+!        0.00, 0.00, 0.00, 0.00, & ! DRP, S, U, PASS
+!        0.00, 0.00, 0.00, 0.00, & ! LOA, REGD, FAIL, ****
+!        (0.0, NumStudents=21,ZERO_PERCENT_GRADE+100) /)
+
+    ! CSU equivalents of 1.0-5.0 grading scale
     real, dimension(0:ZERO_PERCENT_GRADE+100) :: fGrade = (/  & ! float value for grades
         0.00,                   & ! error
-        1.00, 1.25, 1.50, 1.75, & ! 1, 1.25, 1.5, 1.75
-        2.00, 2.25, 2.50, 2.75, & ! 2, 2.25, 2.5, 2.75
-        3.00, 4.00, 0.00, 5.00, & ! 3, 4, INC, 5
-        0.00, 0.00, 0.00, 0.00, & ! DRP, S, U, PASS
-        0.00, 0.00, 0.00, 0.00, & ! LOA, REGD, FAIL, ****
+        100.0, 96.0, 93.0, 90.0, & ! 1, 1.25, 1.5, 1.75
+         87.0, 84.0, 81.0, 78.0, & ! 2, 2.25, 2.5, 2.75
+         75.0, 0.00, 0.00, 0.00, & ! 3, 4, INC, 5
+         0.00, 0.00, 0.00, 0.00, & ! DRP, S, U, PASS
+         0.00, 0.00, 0.00, 0.00, & ! LOA, REGD, FAIL, ****
         (0.0, NumStudents=21,ZERO_PERCENT_GRADE+100) /)
 
 
@@ -655,15 +665,16 @@ contains
 ! routines for colleges
 !===========================================================
 
-    subroutine initialize_college (wrkCollege, tCode, tName, tDean)
+    subroutine initialize_college (wrkCollege, tCode, tName, tDean, tPreparer, tChecker)
 
         type(TYPE_COLLEGE), intent(out) :: wrkCollege
-        character(len=*), intent(in), optional :: tCode, tName, tDean
+        character(len=*), intent(in), optional :: tCode, tName, tDean, tPreparer, tChecker
 
         if (present(tCode)) then
-            wrkCollege = TYPE_COLLEGE(tCode, tName, tDean, .false., .false.)
+            wrkCollege = TYPE_COLLEGE(tCode, tName, tDean, tPreparer, tChecker, .false., .false.)
         else
-            wrkCollege = TYPE_COLLEGE(SPACE, SPACE, 'Firstname MI Lastname, Ph.D.', .false., .false.)
+            wrkCollege = TYPE_COLLEGE(SPACE, SPACE, 'Fname MI LName', 'Fname MI LName', &
+                'Fname MI LName', .false., .false.)
         end if
 
     end subroutine initialize_college
@@ -2045,6 +2056,7 @@ contains
         StudentInfo%BirthPlace = SPACE
         StudentInfo%HomeAddress = SPACE
         StudentInfo%LastAttended = SPACE
+        StudentInfo%TranscriptRemark = SPACE
         StudentInfo%AdmissionData = SPACE
         StudentInfo%Scholarship = SPACE
         StudentInfo%Gender = 'F'
@@ -2773,9 +2785,9 @@ contains
     end subroutine timetable_add_meetings_of_section
 
 
-    function is_conflict_timetable_with_struct_section(Section, m_first, m_last, TimeTable)
+    function is_conflict_timetable_with_struct_section(wrkSection, m_first, m_last, TimeTable)
         logical :: is_conflict_timetable_with_struct_section
-        type (TYPE_SECTION), intent (in) :: Section
+        type (TYPE_SECTION), intent (in) :: wrkSection
         integer, intent (in) :: m_first, m_last
         integer, dimension(60,6), intent (in) :: TimeTable
         integer :: idx, jdx, mdx
@@ -2783,9 +2795,9 @@ contains
         is_conflict_timetable_with_struct_section = .false.
         loop_meets : &
         do mdx=m_first,m_last
-            jdx = Section%DayIdx(mdx)
+            jdx = wrkSection%DayIdx(mdx)
             if (jdx==0) cycle
-            do idx = Section%bTimeIdx(mdx), Section%eTimeIdx(mdx)-1
+            do idx = wrkSection%bTimeIdx(mdx), wrkSection%eTimeIdx(mdx)-1
                 if (TimeTable(idx, jdx)/=0) then
                     is_conflict_timetable_with_struct_section = .true.
                     exit loop_meets

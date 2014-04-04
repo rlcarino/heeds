@@ -291,12 +291,14 @@ contains
         type (TYPE_SECTION) :: wrk
         character(len=MAX_LEN_CLASS_ID) :: tClassId, tAction
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
-        character (len=255) :: mesg
+        character (len=255) :: errMesg
+        character (len=80) :: header
 
         call html_comment('section_validate_inputs()')
 
         call cgi_get_named_string(QUERY_STRING, 'A1', tClassId, sect)
         sect = index_to_section(tClassId, NumSections, Section)
+        errMesg = SPACE
 
         dept = Section(sect)%DeptIdx
         targetDepartment = dept
@@ -305,12 +307,12 @@ contains
         teacher_dept = 0
 
         if (REQUEST==fnScheduleEdit) then
-            mesg = 'Edit section '//tClassId
+            header = 'Edit section '//tClassId
             action_index = 1
             wrk = Section(sect)
 
         else ! (REQUEST==fnScheduleValidate) then
-            mesg = 'Proposed changes to section '//tClassId
+            header = 'Proposed changes to section '//tClassId
 
             ! extract section info from QUERY
             call section_build_from_query (Section, sect, wrk)
@@ -321,17 +323,39 @@ contains
 
                 case ('Confirm') ! Accept previously validated edits
                     if (isROleOfficial) then
-                        mesg = '"Edit '//trim(wrk%ClassId)//'" failed. '//sorryMessage
+                        errMesg = '"Edit '//trim(tClassId)//'" failed. '//sorryMessage
                     else
-                        mesg = 'Finished editing '//trim(wrk%ClassId)
-                        Section(sect) = wrk
-                        call xml_write_classes(pathToTerm, NumSections, Section, 0)
-                        call offerings_summarize(NumSections, Section, Offering)
-                        call count_sections_by_dept(thisTerm, NumSections, Section)
+!                        ! who are the students in the class?
+!                        call collect_students_in_section (sect, NumSections, Section, eList, count_in_class, tArray)
+!                        call html_comment(itoa(count_in_class)//'students in '//tClassId)
+!
+!                        ! how many with messed schedules
+!                        do idx=1,count_in_class
+!                            std = tArray(idx)
+!                            call timetable_meetings_of_student(NumSections, Section, std, eList, sect, & ! skip target section
+!                                tLen1, tArray(count_in_class+1:), TimeTable, conflicted)
+!                            !if (conflicted) cycle ! there's prior conflict
+!                            if (is_conflict_timetable_with_struct_section(wrk, 1, wrk%NMeets, TimeTable)) then
+!                                count_affected = count_affected + 1
+!                                tArray(count_affected) = std ! move to beginning of list
+!                                call html_comment(text_student_curriculum(std))
+!                                errMesg = ' : '//trim(Student(std)%StdNo)//errMesg
+!                            end if
+!                        end do
+!                        if (count_affected==0) then ! no problems
+                            header = 'Finished editing '//trim(tClassId)
+                            Section(sect) = wrk
+                            call xml_write_classes(pathToTerm, NumSections, Section, 0)
+                            call offerings_summarize(NumSections, Section, Offering)
+                            call count_sections_by_dept(thisTerm, NumSections, Section)
+                            call section_list_classes (device, thisTerm, NumSections, Section, NumBlocks, Block, eList,  &
+                                fnScheduleByArea, dept, tClassId, header)
+                            return
+!                        else
+!                            errMesg = 'Changes not valid - will result in schedule conflicts for'//errMesg
+!                            action_index = 1
+!                        end if
                     end if
-                    call section_list_classes (device, thisTerm, NumSections, Section, NumBlocks, Block, eList,  &
-                        fnScheduleByArea, dept, tClassId, mesg)
-                    return
 
                 case ('Find rooms')
                     action_index = 3
@@ -354,8 +378,9 @@ contains
         if (teacher_dept<=0) teacher_dept = targetDepartment
 
         ! page heading
-        call html_write_header(device, mesg)
-        call section_validation_form(device, thisTerm, NumSections, Section, action_index, sect, wrk, teacher_dept, room_dept)
+        call html_write_header(device, header, errMesg)
+        call section_validation_form(device, thisTerm, NumSections, Section, eList, &
+            action_index, sect, wrk, teacher_dept, room_dept)
 
     end subroutine section_validate_inputs
 
@@ -542,15 +567,17 @@ contains
 
 
 
-    subroutine section_validation_form(device, thisTerm, NumSections, Section, &
+    subroutine section_validation_form(device, thisTerm, NumSections, Section, eList, &
             action_index, section_index, wrk, teacher_dept, room_dept)
         integer, intent (in out) :: NumSections
         type (TYPE_SECTION), intent(in out) :: Section(0:)
+        type (TYPE_PRE_ENLISTMENT), intent(in) :: eList(0:)
         integer, intent (in) :: device, thisTerm, action_index, section_index, teacher_dept, room_dept
         type (TYPE_SECTION), intent(in) :: wrk
         integer :: ierr, crse, ddx, idx, jdx, mdx, rdx, sdx, tdx, idx_meet, idx_select, tLen, idxWrk
         integer, dimension(60,6) :: TimeTable
-        logical :: conflict_teacher, conflict_room, flagIsUp
+        logical :: conflict_teacher, conflict_room, flagIsUp, conflict_student
+        integer :: count_in_class, count_affected
 
         call html_comment('section_validation_form()', &
             ' action_index='//itoa(action_index), &
@@ -646,6 +673,35 @@ contains
           !    ierr = ierr+1
           !end if
         end do
+
+        ! who are the students in the class?
+        call collect_students_in_section (section_index, NumSections, Section, eList, count_in_class, tArray)
+        call html_comment(itoa(count_in_class)//'students in '//wrk%ClassId)
+
+        ! how many with messed schedules
+        count_affected = 0
+        do idx=1,count_in_class
+            sdx = tArray(idx)
+            call timetable_meetings_of_student(NumSections, Section, sdx, eList, section_index, & ! skip target section
+                tLen, tArray(count_in_class+1:), TimeTable, conflict_student)
+            if (is_conflict_timetable_with_struct_section(wrk, 1, wrk%NMeets, TimeTable)) then
+                count_affected = count_affected + 1
+                tArray(count_affected) = sdx ! move to beginning of list
+                call html_comment(text_student_curriculum(sdx))
+            end if
+        end do
+        if (count_affected>0) then ! schedule conflicts
+            ierr = ierr + 1
+            write(device,AFORMAT) red//'  Proposed class times '
+            do idx=1,wrk%NMeets
+                write(device,AFORMAT) trim(itoa(idx))//DOT//nbsp//txtDay(wrk%DayIdx(idx))//nbsp// &
+                    trim(text_time_period(wrk%bTimeIdx(idx), wrk%eTimeIdx(idx)))//nbsp
+            end do
+            write(device,AFORMAT) '  will cause schedule conflicts for the following students:'//black//linebreak
+            call html_student_list (device, count_affected, tArray, &
+                is_dean_of_college(Department(Section(section_index)%DeptIdx)%CollegeIdx, orHigherUp))
+        end if
+
         if (ierr>0) write(device,AFORMAT) horizontal
 
         ! common form inputs
