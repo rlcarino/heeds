@@ -249,9 +249,9 @@ contains
             end if
         end do
         write(device,AFORMAT) endtable, &
-            linebreak//beginbold//'LEGENDS'//endbold//' for grades and remarks:'//nbsp//' * - specify subject/GE/PE activity;'//&
-            nbsp//' # - failed;'//nbsp//' % - conditional;', &
-            linebreak//nbsp//' PASS - credit earned/exempted;'//nbsp//' REGD - currently registered;', &
+            linebreak//beginbold//'LEGENDS'//endbold//' for grades and remarks:'//nbsp//' * - specify subject or PE activity;'//&
+            nbsp//' # - failed;'//nbsp//' % - conditional;'//nbsp//' PASS - transfer/advance credit;', &
+            linebreak//nbsp//' REGD - registered, no grade;', &
             nbsp//' PriN - Nth priority subject;'//nbsp//' AltK - Kth alternate subject'
 
         call get_scholastic_three_terms (cTm3Year, cTm3, UnitsPaid, UnitsDropped, UnitsPassed, Standing)

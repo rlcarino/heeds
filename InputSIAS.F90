@@ -153,7 +153,7 @@
         NumColleges = NumColleges + 1
         call check_array_bound (NumColleges, MAX_ALL_COLLEGES, 'MAX_ALL_COLLEGES')
         call initialize_college (College(NumColleges), &
-            SYSAD, UniversityCode//' Administration', SYSAD, SPACE, SPACE)
+            SYSAD, trim(UniversityCodeNoMirror)//' Administration', SYSAD, SPACE, SPACE)
 
     end subroutine custom_read_colleges
 
@@ -212,7 +212,7 @@
         NumDepartments = NumDepartments + 1
         call check_array_bound (NumDepartments, MAX_ALL_DEPARTMENTS, 'MAX_ALL_DEPARTMENTS')
         call initialize_department (Department(NumDepartments), &
-            SYSAD, UniversityCode//' Registrar', TheRegistrar, 'Z', NumColleges)
+            SYSAD, trim(UniversityCodeNoMirror)//' Registrar', TheRegistrar, 'Z', NumColleges)
 
     end subroutine custom_read_departments
 
@@ -1207,6 +1207,7 @@
 
                     end do
                     close(unitRAW)
+                    write(*,*) NumStudents, ' students in '//trim(fileName)
                     call write_transcripts(idxYear, idxTerm)
 
                     ! create "equivalent" ENLISTMENT.XML
@@ -1370,6 +1371,7 @@
 
                     end do
                     close(unitRAW)
+                    write(*,*) NumStudents, ' students in '//trim(fileName)
                     call write_transcripts(idxYear, idxTerm)
 
                 end if
@@ -1536,6 +1538,7 @@
 
                     end do
                     close(unitRAW)
+                    write(*,*) NumStudents, ' students in '//trim(fileName)
                     call write_transcripts(idxYear, idxTerm)
 
                 end if
@@ -1622,6 +1625,7 @@
                     end do
 
                     close(unitRAW)
+                    write(*,*) NumStudents, ' students in '//trim(fileName)
 
                     call write_transcripts(idxYear, idxTerm)
 

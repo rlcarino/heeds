@@ -148,60 +148,53 @@ contains
         character(len=MAX_LEN_STUDENT_CODE) :: tStdNo
         integer :: ierr, std
         logical :: criticalErr
+        character(len=80) :: mesg
 
         call html_comment('student_add()')
 
-        ! student exists?
+        ! student supplied?
         call cgi_get_named_string(QUERY_STRING, 'A1', tStdNo, ierr)
-        std = index_to_student(tStdNo)
-
         if (ierr/=0 .or. tStdNo==SPACE) then
             call html_college_links(device, CollegeIdxUser, 'Add student: student number not specified?')
             return
-        else if (std/=0) then
-            REQUEST = fnStudentEdit
-            call xml_read_student_info(std, ierr)
-            if (ierr==0) then ! previously entered
-                call student_copy_from_info(Student(std))
-            else ! initialize info file
-                call xml_student_info(std, Student(std))
+        end if
+
+        ! already in RAM?
+        std = index_to_student(tStdNo)
+        if (std==0) then
+
+            ! add a record
+            if (NumStudents>0) then
+                NumAdditionalStudents = NumAdditionalStudents + 1
+            else ! this is the first student
+                NumStudents = 1
             end if
-            call student_edit_info(device, std, 'Student "'//tStdNo//'" already on record.')
-            return
-        end if
+            call check_array_bound (NumStudents+NumAdditionalStudents, MAX_ALL_STUDENTS, 'MAX_ALL_STUDENTS', criticalErr)
+            if (criticalErr) then
+                call html_college_links(device, CollegeIdxUser, linebreak//horizontal//'No more space for another student.')
+                return
+            end if
 
-        ! add a record
-        if (NumStudents>0) then
-            NumAdditionalStudents = NumAdditionalStudents + 1
-        else ! this is the first student
-            NumStudents = 1
-        end if
-        call check_array_bound (NumStudents+NumAdditionalStudents, MAX_ALL_STUDENTS, 'MAX_ALL_STUDENTS', criticalErr)
-        if (criticalErr) then
-            call html_college_links(device, CollegeIdxUser, linebreak//horizontal//'No more space for another student.')
-            return
-        end if
+            std = NumStudents+NumAdditionalStudents
+            call initialize_student(Student(std))
+            Student(std)%StdNo = tStdNo
+            Student(std)%CurriculumIdx = NumCurricula
+            call set_password(Student(std)%Password)
 
-        std = NumStudents+NumAdditionalStudents
-        call initialize_student(Student(std))
-        Student(std)%StdNo = tStdNo
-        Student(std)%CurriculumIdx = NumCurricula
-        call set_password(Student(std)%Password)
+            ierr = year_prefix(Student(std))
+            if (index(StdNoPrefix, ':'//tStdNo(:ierr))==0) then
+                call make_student_directories()
+            end if
+            mesg = 'Added student '//tStdNo
 
-        ierr = year_prefix(Student(std))
-        if (index(StdNoPrefix, ':'//tStdNo(:ierr))==0) then
-            call make_student_directories()
-        end if
+        else
 
-        call xml_read_student_info(std, ierr)
-        if (ierr==0) then ! previously entered
-            call student_copy_from_info(Student(std))
-        else ! initialize info file
-            call xml_student_info(std, Student(std))
+            mesg = 'Student "'//tStdNo//'" already on record.'
+
         end if
 
         REQUEST = fnStudentEdit
-        call student_edit_info(device, std, 'Added student '//tStdNo)
+        call student_edit_info(device, std, mesg)
 
     end subroutine student_add
 
@@ -234,7 +227,13 @@ contains
             targetStudent = index_to_student(tStdNo)
             header = 'Edit existing student info'
             comment = SPACE
-            call xml_read_student_info(targetStudent, ierr)
+        end if
+
+        call xml_read_student_info(targetStudent, ierr)
+        if (ierr==0) then ! previously entered
+            call student_copy_from_info(Student(targetStudent))
+        else ! initialize info file
+            call xml_student_info(std, Student(targetStudent))
         end if
 
         idxCURR = Student(targetStudent)%CurriculumIdx
@@ -492,7 +491,7 @@ contains
                 j = 0
             end if
             write(device,AFORMAT) '<option '//trim(selected(j))//' value="'//trim(itoa(l))//'"> '// &
-                trim(txtYear(l+10))
+                trim(txtYear(l+11))
         end do
         write(device,AFORMAT) '</select> '//beginsmall//beginitalic//'(Note: '// &
             'Hidden - not officially enrolled, exclude from Needs Analysis.)'//enditalic//endsmall// &
@@ -566,14 +565,13 @@ contains
         logical, intent (in) :: UseClasses
         type (TYPE_OFFERED_SUBJECTS), intent(in), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS) :: Offering
 
-        character(len=MAX_LEN_SUBJECT_CODE) :: tArea
-        character(len=255) :: AreaNumbers
-        real :: SumEnrolled, SumEarned, SumDown, SumUp, tUnits
-        real :: GSumEnrolled, GSumEarned, GSumDown, GSumUp
+        real :: GSumDown, GSumUp, SumDown, SumUp, tUnits, up, down
+        !character(len=MAX_LEN_SUBJECT_CODE) :: tArea
+        !character(len=255) :: AreaNumbers
+        !real :: GSumEnrolled, GSumEarned, SumEnrolled, SumEarned
 
         integer :: grd, Year, Term, m, tdx
         integer :: prevtaken, nINCs
-        real :: up, down
         character (len=10) :: token1, token2
 
         logical :: FlagIsUp, isEditor
@@ -935,7 +933,7 @@ contains
             if (TCG(tdx)%Code/=3 .or. TCG(tdx)%Used .or. TCG(tdx)%ErrorCode>1) cycle
 
             if (prevtaken /= TCG(tdx)%Taken) then
-                if (isEditor .and. prevtaken/=-10 .and. FlagIsUp .and. isEnabledEditGrade) then
+                if (isEditor .and. prevtaken/=-10 .and. FlagIsUp) then
                     write(device,AFORMAT) begintr, &
                         '<td colspan="6" align="right"><input type="submit" name="action" value="Change GRADE">'//endform// &
                         endtd//'<td colspan="4">'//endtd//endtr
@@ -994,13 +992,15 @@ contains
                 txtGrade(pGrade(TCG(tdx)%ReExam))//endtd
                 grd = TCG(tdx)%ReExam
             else
-                if (isEditor .and. isEnabledEditGrade .and. .not. ( &
+                if (isEditor .and. .not. ( &
                          (currentYear==TCG(tdx)%Year .and. currentTerm==TCG(tdx)%Term) .or. &
                          (cTm1Year==TCG(tdx)%Year .and. cTm1==TCG(tdx)%Term) ) ) then
                     line = trim(line)//tdaligncenter//'<input type="text" size="4" name="GRADE:'// &
                         trim(itoa(TCG(tdx)%Year))//':'//trim(itoa(TCG(tdx)%Term))//':'//trim(input_name2)// &
                         ':'//trim(itoa(grd))//'" value="'//trim(txtGrade(pGrade(grd)))//'">'//endtd
                     FlagIsUp = .true.
+                else if (grd==gdxREGD) then
+                    line = trim(line)//tdaligncenter//beginitalic//'No grade'//enditalic//endtd
                 else
                     line = trim(line)//tdaligncenter//txtGrade(pGrade(grd))//endtd
                 end if
@@ -1038,7 +1038,7 @@ contains
             SumDown = SumDown + Down
         end do
         ! write summary for last term
-        if (isEditor .and. FlagIsUp .and. isEnabledEditGrade) then
+        if (isEditor .and. FlagIsUp) then
             write(device,AFORMAT) &
                 begintr//'<td colspan="6" align="right"><input type="submit" name="action" value="Change GRADE">'//&
                     endform//endtd// &
@@ -1240,83 +1240,83 @@ contains
         end if
 
 
-        write(device,AFORMAT) linebreak//beginbold//'WEIGHTED AVERAGE BY SUBJECT AREA'//endbold//linebreak, horizontal, &
-            '<table border="0" width="100%">'// &
-            begintr//begintd//'SUBJECT AREA'//endtd// &
-            tdalignright//'UNITS'//endtd// &
-            tdalignright//'UNITS'//endtd// &
-            tdalignright//'WEIGHTED'//endtd// &
-            begintd//nbsp//'SUBJECTS'//endtd//endtr, &
-            begintr//begintd//nbsp//endtd// &
-            tdalignright//'ENROLLED'//endtd// &
-            tdalignright//'EARNED'//endtd// &
-            tdalignright//'AVERAGE'//endtd// &
-            begintd//nbsp//endtd//endtr// &
-            begintr//'<td colspan="5">'//horizontal//endtd//endtr
-
-        GSumDown = 0.0
-        GSumUp = 0.0
-        GSumEnrolled = 0.0
-        GSumEarned = 0.0
-        do j=lenTCG,1,-1
-            TCG(j)%Used = .false.
-        end do
-        do idx=1,NumSubjectAreas
-            SumDown = 0.0
-            SumUp = 0.0
-            SumEnrolled = 0.0
-            SumEarned = 0.0
-            AreaNumbers = SPACE
-            do j=lenTCG,1,-1
-                if (TCG(j)%Used .or. TCG(j)%Code<2) cycle ! already counted or not a grade
-                crse = TCG(j)%Subject
-                tSubject = Subject(crse)%Name
-                tArea = get_area(tSubject)
-                jdx = len_trim(tArea)+1
-                if (SubjectArea(idx)%Code/=tArea) cycle
-                if (Subject(crse)%Units == 0.0 .or. tSubject(1:5)=='NSTP ') cycle
-                gdx = TCG(j)%Grade
-                if (gdx==gdxREGD) cycle
-                tUnits = max(1.0,1.0*Subject(crse)%Units)
-                if (gdx/=gdxLOA .and. gdx/=gdxDRP) then
-                    if (TCG(j)%Code==3) then ! FINALGRADE
-                        SumEnrolled = SumEnrolled + tUnits
-                        AreaNumbers = COMMA//trim(tSubject(jdx:))//AreaNumbers
-                    end if
-                    if (is_grade_passing(gdx)) then
-                        SumEarned = SumEarned + tUnits
-                    elseif (is_grade_passing(TCG(j)%ReExam)) then
-                        SumEarned = SumEarned + tUnits
-                        gdx = TCG(j)%ReExam
-                    end if
-                    if (fGrade(gdx)>0) then
-                        SumDown = SumDown + tUnits
-                        SumUp = SumUp + tUnits*fGrade(gdx)
-                    end if
-                end if
-                TCG(j)%Used = .true.
-            end do
-            if (SumEnrolled==0.0) cycle ! no units enrolled in this area
-            !write(*,*) SubjectArea(idx), SumEnrolled, SumEarned, SumUp/max(1.0,SumDown), trim(AreaNumbers)
-            write(device,'(2(a,f5.1),a,f8.2,a)') &
-                begintr//begintd//trim(SubjectArea(idx)%Code)// &
-                endtd//tdalignright, SumEnrolled, &
-                endtd//tdalignright, SumEarned, &
-                endtd//tdalignright, SumUp/max(1.0,SumDown), &
-                endtd//begintd//nbsp//trim(SubjectArea(idx)%Code)//trim(AreaNumbers(2:))//endtd//endtr
-
-            GSumEnrolled = GSumEnrolled + SumEnrolled
-            GSumEarned = GSumEarned + SumEarned
-            GSumDown = GSumDown + SumDown
-            GSumUp = GSumUp + SumUp
-        end do
-        write(device,AFORMAT) begintr//'<td colspan="5">'//horizontal//endtd//endtr
-        write(device,'(2(a,f5.1),a,f8.2,a)') &
-            begintr//tdalignright//'TOTALS'//nbsp// &
-            endtd//tdalignright, GSumEnrolled, &
-            endtd//tdalignright, GSumEarned, &
-            endtd//tdnbspendtd//tdnbspendtd//endtr
-        write(device,AFORMAT) endtable//horizontal
+!        write(device,AFORMAT) linebreak//beginbold//'WEIGHTED AVERAGE BY SUBJECT AREA'//endbold//linebreak, horizontal, &
+!            '<table border="0" width="100%">'// &
+!            begintr//begintd//'SUBJECT AREA'//endtd// &
+!            tdalignright//'UNITS'//endtd// &
+!            tdalignright//'UNITS'//endtd// &
+!            tdalignright//'WEIGHTED'//endtd// &
+!            begintd//nbsp//'SUBJECTS'//endtd//endtr, &
+!            begintr//begintd//nbsp//endtd// &
+!            tdalignright//'ENROLLED'//endtd// &
+!            tdalignright//'EARNED'//endtd// &
+!            tdalignright//'AVERAGE'//endtd// &
+!            begintd//nbsp//endtd//endtr// &
+!            begintr//'<td colspan="5">'//horizontal//endtd//endtr
+!
+!        GSumDown = 0.0
+!        GSumUp = 0.0
+!        GSumEnrolled = 0.0
+!        GSumEarned = 0.0
+!        do j=lenTCG,1,-1
+!            TCG(j)%Used = .false.
+!        end do
+!        do idx=1,NumSubjectAreas
+!            SumDown = 0.0
+!            SumUp = 0.0
+!            SumEnrolled = 0.0
+!            SumEarned = 0.0
+!            AreaNumbers = SPACE
+!            do j=lenTCG,1,-1
+!                if (TCG(j)%Used .or. TCG(j)%Code<2) cycle ! already counted or not a grade
+!                crse = TCG(j)%Subject
+!                tSubject = Subject(crse)%Name
+!                tArea = get_area(tSubject)
+!                jdx = len_trim(tArea)+1
+!                if (SubjectArea(idx)%Code/=tArea) cycle
+!                if (Subject(crse)%Units == 0.0 .or. tSubject(1:5)=='NSTP ') cycle
+!                gdx = TCG(j)%Grade
+!                if (gdx==gdxREGD) cycle
+!                tUnits = max(1.0,1.0*Subject(crse)%Units)
+!                if (gdx/=gdxLOA .and. gdx/=gdxDRP) then
+!                    if (TCG(j)%Code==3) then ! FINALGRADE
+!                        SumEnrolled = SumEnrolled + tUnits
+!                        AreaNumbers = COMMA//trim(tSubject(jdx:))//AreaNumbers
+!                    end if
+!                    if (is_grade_passing(gdx)) then
+!                        SumEarned = SumEarned + tUnits
+!                    elseif (is_grade_passing(TCG(j)%ReExam)) then
+!                        SumEarned = SumEarned + tUnits
+!                        gdx = TCG(j)%ReExam
+!                    end if
+!                    if (fGrade(gdx)>0) then
+!                        SumDown = SumDown + tUnits
+!                        SumUp = SumUp + tUnits*fGrade(gdx)
+!                    end if
+!                end if
+!                TCG(j)%Used = .true.
+!            end do
+!            if (SumEnrolled==0.0) cycle ! no units enrolled in this area
+!            !write(*,*) SubjectArea(idx), SumEnrolled, SumEarned, SumUp/max(1.0,SumDown), trim(AreaNumbers)
+!            write(device,'(2(a,f5.1),a,f8.2,a)') &
+!                begintr//begintd//trim(SubjectArea(idx)%Code)// &
+!                endtd//tdalignright, SumEnrolled, &
+!                endtd//tdalignright, SumEarned, &
+!                endtd//tdalignright, SumUp/max(1.0,SumDown), &
+!                endtd//begintd//nbsp//trim(SubjectArea(idx)%Code)//trim(AreaNumbers(2:))//endtd//endtr
+!
+!            GSumEnrolled = GSumEnrolled + SumEnrolled
+!            GSumEarned = GSumEarned + SumEarned
+!            GSumDown = GSumDown + SumDown
+!            GSumUp = GSumUp + SumUp
+!        end do
+!        write(device,AFORMAT) begintr//'<td colspan="5">'//horizontal//endtd//endtr
+!        write(device,'(2(a,f5.1),a,f8.2,a)') &
+!            begintr//tdalignright//'TOTALS'//nbsp// &
+!            endtd//tdalignright, GSumEnrolled, &
+!            endtd//tdalignright, GSumEarned, &
+!            endtd//tdnbspendtd//tdnbspendtd//endtr
+!        write(device,AFORMAT) endtable//horizontal
 
     end subroutine student_edit_grades
 
@@ -1324,7 +1324,7 @@ contains
     subroutine student_advisers_by_teacher (device)
         integer, intent (in) :: device
 
-        integer :: n_count, tdx, std, ierr, nSteps, first, last, idx
+        integer :: n_count, tdx, std, ierr, nSteps, first, last, idx, classification
         character(len=MAX_LEN_TEACHER_CODE) :: tTeacher, newAdviser
         character(len=MAX_LEN_STUDENT_CODE) :: tStdNo
         character(len=MAX_LEN_TEACHER_CODE+MAX_LEN_STUDENT_CODE) :: tAction
@@ -1342,6 +1342,10 @@ contains
         ! range
         call cgi_get_named_integer(QUERY_STRING, 'A2', first, ierr)
         call cgi_get_named_integer(QUERY_STRING, 'A3', last, ierr)
+
+        ! classification if needed
+        call cgi_get_named_integer(QUERY_STRING, 'A4', classification, ierr)
+        if (ierr/=0) classification = 0
 
         ! action
         call cgi_get_named_string(QUERY_STRING, 'action'//trim(itoa(first)), tAction, ierr)
@@ -1396,7 +1400,7 @@ contains
         end if
 
         call change_adviser_form(device, n_count, nSteps, tArray(1:n_count), &
-            fnAdvisersByTeacher, tTeacher, 'Advisees of '//Teacher(targetTeacher)%Name, mesg)
+            fnAdvisersByTeacher, tTeacher, classification, 'Advisees of '//Teacher(targetTeacher)%Name, mesg)
 
     end subroutine student_advisers_by_teacher
 
@@ -1405,7 +1409,7 @@ contains
     subroutine student_advisers_by_curriculum (device)
         integer, intent (in) :: device
 
-        integer :: n_count, tdx, std, ierr, nSteps, first, last, idx
+        integer :: n_count, tdx, std, ierr, nSteps, first, last, idx, classification, lenCode
         character(len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
         character(len=MAX_LEN_TEACHER_CODE) :: newAdviser
         character(len=MAX_LEN_STUDENT_CODE) :: tStdNo
@@ -1418,26 +1422,32 @@ contains
 
         ! which curriculum
         call cgi_get_named_string(QUERY_STRING, 'A1', tCurriculum, ierr)
-        targetCurriculum = index_to_curriculum(tCurriculum)
-        targetCollege = Curriculum(targetCurriculum)%CollegeIdx
 
         ! range
         call cgi_get_named_integer(QUERY_STRING, 'A2', first, ierr)
         call cgi_get_named_integer(QUERY_STRING, 'A3', last, ierr)
+
+        ! student classification
+        call cgi_get_named_integer(QUERY_STRING, 'A4', classification, ierr)
+        if (ierr/=0) classification = 0
 
         ! action
         call cgi_get_named_string(QUERY_STRING, 'action'//trim(itoa(first)), tAction, ierr)
         changeAdvisers = ierr==0 .and. trim(tAction)=='Submit'
         mesg = SPACE
 
+        lenCode = len_trim(tCurriculum)
+
         ! collect students
         n_count = 0
         do tdx=1,NumStudents+NumAdditionalStudents
             std = StdRank(tdx)
-            if (Student(std)%CurriculumIdx/=targetCurriculum) cycle
+            if (Student(std)%Classification/=classification) cycle
+            if (Curriculum(Student(std)%CurriculumIdx)%Code(:lenCode)/=tCurriculum(:lenCode)) cycle
             n_count = n_count+1
             tArray(n_count) = std
         end do
+        if (n_count>0) targetCollege = Curriculum(Student(tArray(1))%CurriculumIdx)%CollegeIdx
 
         if (changeAdvisers .and. .not. isRoleOfficial) then
 
@@ -1478,7 +1488,8 @@ contains
         end if
 
         call change_adviser_form(device, n_count, nSteps, tArray(1:n_count), &
-            fnAdvisersByCurriculum, tCurriculum, 'Advisers of students in '//tCurriculum, mesg)
+            fnAdvisersByCurriculum, tCurriculum, classification, &
+            'Students in '//trim(tCurriculum)//' with classification '//txtYear(classification), mesg)
 
     end subroutine student_advisers_by_curriculum
 
@@ -1701,8 +1712,8 @@ contains
     end subroutine recent_student_activity
 
 
-    subroutine change_adviser_form(device, n_count, nSteps, tArray, fn, label, header, mesg)
-        integer, intent (in) :: device, fn, n_count, nSteps, tArray(1:n_count)
+    subroutine change_adviser_form(device, n_count, nSteps, tArray, fn, label, classification, header, mesg)
+        integer, intent (in) :: device, fn, n_count, nSteps, classification, tArray(1:n_count)
         character(len=*), intent (in) :: label, header, mesg
 
         integer :: ldx, tdx, std, j, k, l, first, last, skip, nAdvised(3), nClasses(3), Term
@@ -1729,7 +1740,7 @@ contains
             last = min(first+skip-1, n_count)
 
             if ( allowed_to_edit ) then
-                call make_form_start(device, fn, label, itoa(first), itoa(last))
+                call make_form_start(device, fn, label, itoa(first), itoa(last), itoa(classification))
             end if
 
             write(device,AFORMAT) &
@@ -1839,7 +1850,7 @@ contains
         call read_student_records (targetStudent)
 
         write(device,AFORMAT) &
-            '<html><head><title>'//trim(UniversityCode)//SPACE//PROGNAME//VERSION// &
+            '<html><head><title>'//trim(UniversityCodeNoMirror)//SPACE//PROGNAME//VERSION// &
             '</title></head><body>', '<table border="0" width="100%">', &
             begintr//tdaligncenter//'Republic of the Philippines'//endtd//endtr, &
             begintr//tdaligncenter//trim(UniversityName)//endtd//endtr, &
@@ -2031,9 +2042,14 @@ contains
 
         integer :: idx
         character (len=6) :: gender
+        logical :: photoExists
+
 
         idx = year_prefix(Student(targetStudent))
         line = '/img/id/'//trim(Student(targetStudent)%StdNo(1:idx))//FSLASH//trim(Student(targetStudent)%StdNo)//'.jpg'
+        inquire(file=WEBROOT//line(2:), exist=photoExists)
+        if (.not. photoExists) line = '/img/id/photo.jpg'
+
         if (StudentInfo%Gender=='M') then
             gender = 'Male'
         else
@@ -2043,7 +2059,7 @@ contains
         write(device,AFORMAT) '<table border="0" width="100%">', &
             begintr, &
             '<td width="25%" align="left" valign="middle">', &
-                '<img src="/img/logo.jpg" alt="/img/logo.jpg" height="90" width="90">', &
+                '<img src="/img/logo.jpg" alt="/img/logo.jpg" height="120" width="120">', &
             endtd
         write(device,AFORMAT) &
             '<td width="50%" align="center">Republic of the Philippines'//linebreak, &     ! line 1
@@ -2056,7 +2072,7 @@ contains
             endtd
         write(device,AFORMAT) &
             '<td width="25%" align="right" valign="middle">', &
-                '<img src="'//trim(line)//'" alt="'//trim(line)//'" height="90" width="90">', &
+                '<img src="'//trim(line)//'" height="120" width="120">', &
             endtd, &
             endtr, &
             endtable
@@ -2067,7 +2083,7 @@ contains
             begintr//'<td colspan="6" width="100%">'//horizontal//'</td>'//endtr, &        ! line 8
             begintr, &                                                                     ! line 9
             '<td colspan="3" width="50%">Name: '//underline//trim(StudentInfo%Name)//endunderline//endtd, &
-            '<td colspan="3" width="50%">ID No.: '//underline//trim(StudentInfo%StdNo)//endunderline//endtd, &
+            '<td colspan="3" width="50%">ID No.: '//underline//trim(Student(targetStudent)%StdNo)//endunderline//endtd, &
             endtr, &
             begintr, &                                                                     ! line 10
             '<td colspan="3" width="50%">Home Address: '//underline//trim(StudentInfo%HomeAddress)//endunderline//endtd, &
@@ -2233,6 +2249,8 @@ contains
                 line = trim(line)//tdaligncenter//txtGrade(pGrade(grd))//FSLASH// &
                 txtGrade(pGrade(TCG(tdx)%ReExam))//endtd
                 grd = TCG(tdx)%ReExam
+            else if (grd==gdxREGD) then
+                line = trim(line)//tdaligncenter//beginitalic//'No grade'//enditalic//endtd
             else
                 line = trim(line)//tdaligncenter//txtGrade(pGrade(grd))//endtd
             end if
@@ -2246,9 +2264,6 @@ contains
                 else
                     line = trim(line)//tdnbspendtd
                 end if
-            !else if (grd == gdx5) then
-            !    ! 5.0
-            !    line = trim(line)//tdnbspendtd
             else
                 ! non numeric grade
                 if ( is_grade_passing(grd) ) then
@@ -2262,9 +2277,6 @@ contains
             trLine(nLines) = line
 
         end do
-        !do tdx=1,nLines
-        !    call html_comment(itoa(tdx)//trLine(tdx))
-        !end do
 
         ! ptr to next (non-existent) part
         ptrPart(nParts+1) = nLines+1
@@ -2279,10 +2291,11 @@ contains
         end do
         ptrPage(pageNo+1) = ptrPart(nParts+1)
 
-        write(device,AFORMAT) &
-            '<html><head><title>'//PROGNAME//VERSION//' transcript for '//trim(StudentInfo%Name)// &
-            '</title></head><body>'
-
+        write(device,AFORMAT) '<html><head>', &
+            '<title>'//PROGNAME//VERSION//' transcript for '//trim(StudentInfo%Name)//'</title>', &
+            '<style tyle="text/css">', &
+            '@page { size:8.5in 14in; margin: 0.1in }', &
+            '</style>', '</head><body>'
         do pageNo=1,nPages
 
             call write_transcript_header(device, nLines)

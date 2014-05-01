@@ -114,6 +114,17 @@ contains
         ! create year/term directories in dirDATA
         call make_year_term_directory( dirDATA, currentYear )
 
+        ! instance is running as mirror?
+        iTmp = index(UniversityCode, '-mirror')
+        if (iTmp > 0) then
+            isReadOnly = .true.
+            UniversityCodeNoMirror = UniversityCode(:iTmp-1)
+        else
+            isReadOnly = .false.
+            UniversityCodeNoMirror = UniversityCode
+        end if
+        isAllowedNonEditors = .true.
+
         ! ACTION
         if (numArgs>3) then
             call getarg(4, ACTION)
@@ -173,6 +184,18 @@ contains
 
         ! compute relative years and terms (before and after current)
         call initialize_past_future_years_terms ()
+
+        ! reset basic data
+        call initialize_basic_data ()
+
+    end subroutine initializations
+
+
+    subroutine initialize_basic_data ()
+
+        integer :: iTmp
+        character (len=MAX_LEN_FILE_PATH) :: dataSource
+        logical :: pathExists
 
         ! the colleges
         NumColleges = 0
@@ -255,7 +278,6 @@ contains
         isPeriodThree = .false.
         isPeriodFour = .false.
         isProbabilistic = .true.
-        isEnabledEditGrade = .true.
         termBegin = currentTerm
         termEnd = termBegin-1
 
@@ -282,7 +304,7 @@ contains
             Teacher(iTmp)%DeptIdx = 0
         end if
 
-    end subroutine initializations
+    end subroutine initialize_basic_data
 
 
     subroutine initialize_date_change()

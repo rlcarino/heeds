@@ -183,7 +183,7 @@ contains
             if (tInput /= titleTheRegistrar) then
                 titleTheRegistrar = tInput
                 changes = .true.
-                sorryMessage = trim(UniversityCode)//' officials and their friends '// &
+                sorryMessage = trim(UniversityCodeNoMirror)//' officials and their friends '// &
                     ' have a "read-only" permission at this time. '// &
                     ' Please see the '//trim(titleTheRegistrar)//' if you wish to change some data.'
             end if
@@ -330,9 +330,11 @@ contains
                     call html_college_links(device, CollegeIdxUser, mesg='"Message of the day" not changed. '//sorryMessage)
                 else
                     call html_college_links(device, CollegeIdxUser, mesg='Message of the day is: '//trim(MOTD))
-                    open (unit=unitETC, file=trim(pathToYear)//'MOTD.TXT', status='unknown')
-                    write(unitETC, AFORMAT) trim(MOTD)
-                    close(unitETC)
+                    if (.not. isReadOnly) then
+                        open (unit=unitETC, file=trim(pathToYear)//'MOTD.TXT', status='unknown')
+                        write(unitETC, AFORMAT) trim(MOTD)
+                        close(unitETC)
+                    end if
                 end if
             end if
 
@@ -396,6 +398,10 @@ contains
             !write(*,*) 'ierr=', ierr, ', Cluster=', wrk%Cluster
             if (ierr/=0) wrk%Cluster = Room(rdx)%Cluster
 
+            call cgi_get_named_integer(QUERY_STRING, 'EnergyFee', wrk%EnergyFee, ierr)
+            !write(*,*) 'ierr=', ierr, ', EnergyFeer=', wrk%EnergyFee
+            if (ierr/=0) wrk%EnergyFee = Room(rdx)%EnergyFee
+
             call cgi_get_named_string(QUERY_STRING, 'Code', mesg, ierr)
             wrk%Code = trim(mesg)
             !write(*,*) 'ierr=', ierr, ', Code=', wrk%Code
@@ -424,6 +430,11 @@ contains
             if ( wrk%Cluster /= Room(rdx)%Cluster) then
                 isDirtyROOMS = .true.
                 remark = trim(remark)//': Cluster changed to '//itoa(wrk%Cluster)
+            end if
+
+            if ( wrk%EnergyFee /= Room(rdx)%EnergyFee) then
+                isDirtyROOMS = .true.
+                remark = trim(remark)//': Energy fee changed to '//itoa(wrk%EnergyFee)
             end if
 
             if (isDirtyROOMS) then ! some changes
@@ -535,7 +546,8 @@ contains
                 '<table border="0" width="75%">'//&
                 begintr//thalignleft//'Code'//endth// &
                 thaligncenter//'Cluster'//endth, &
-                thaligncenter//'Capacity'//endth
+                thaligncenter//'Capacity'//endth, &
+                thaligncenter//'Energy Fee'//endth
             do tTerm=termBegin,termEnd
                 call qualify_term (tTerm, tYear, term)
                 write(device,AFORMAT) &
@@ -570,13 +582,14 @@ contains
 
                 QUERY_put = Room(rdx)%Code
                 write(device,AFORMAT) begintr//begintd//trim(Room(rdx)%Code)
-                if ( is_dean_of_college(Department(Room(rdx)%DeptIdx)%CollegeIdx, orHigherUp) ) then
+                if ( is_dean_of_college(targetCollege, orHigherUp)  .or. is_admin_of_college(targetCollege) ) then
                     write(device,AFORMAT) trim(make_href(fnEditRoom, 'Edit', &
                         A1=QUERY_put, pre=nbsp//beginsmall, post=endsmall))
                 end if
                 write(device,AFORMAT) &
                     endtd//tdaligncenter//trim(itoa(Room(rdx)%Cluster))//endtd// &
-                    tdaligncenter//trim(itoa(Room(rdx)%MaxCapacity))//endtd
+                    tdaligncenter//trim(itoa(Room(rdx)%MaxCapacity))//endtd// &
+                    tdaligncenter//trim(itoa(Room(rdx)%EnergyFee))//endtd
 
                 do tTerm=termBegin,termEnd
                     call qualify_term (tTerm, tYear, term)
@@ -680,7 +693,7 @@ contains
                 end do
                 QUERY_put = Room(rdx)%Code
                 write(device,AFORMAT) begintr//begintd//trim(Room(rdx)%Code)
-                if ( is_dean_of_college(Department(Room(rdx)%DeptIdx)%CollegeIdx, orHigherUp) ) then
+                if ( is_dean_of_college(targetCollege, orHigherUp) .or. is_admin_of_college(targetCollege) ) then
                     write(device,AFORMAT) trim(make_href(fnEditRoom, 'Edit', &
                         A1=QUERY_put, pre=nbsp//beginsmall, post=endsmall))
                 end if
@@ -726,7 +739,7 @@ contains
         allowed_to_edit = is_admin_of_college(targetCollege) .or. &
             ( is_chair_of_department(targetDepartment,orHigherUp) .and. &
               ( (thisTerm==currentTerm .and. isPeriodOne) .or. &
-                (thisTerm==nextTerm .and. (.not. isPeriodOne)) ) )
+                thisTerm==nextTerm ) ) ! (thisTerm==nextTerm .and. (.not. isPeriodOne)) ) )
 
         ! check if there are other arguments
         call cgi_get_named_string(QUERY_STRING, 'A2', tAction, ierr)
@@ -866,7 +879,9 @@ contains
             begintr//begintd//'Maximum seating capacity'//endtd//begintd//'<input name="MaxCapacity" size="3" value="'// &
             trim(itoa(wrk%MaxCapacity))//'">'//endtd//endtr, &
             begintr//begintd//'Cluster'//endtd//begintd//'<input name="Cluster" size="3" value="'// &
-            trim(itoa(wrk%Cluster))//'">'//endtd//endtr
+            trim(itoa(wrk%Cluster))//'">'//endtd//endtr, &
+            begintr//begintd//'Energy fee'//endtd//begintd//'<input name="EnergyFee" size="3" value="'// &
+            trim(itoa(wrk%EnergyFee))//'">'//endtd//endtr
 
         write(device,AFORMAT) endtable//linebreak//nbsp// &
             '<input name="action" type="submit" value="'//trim(tAction)//'">'//endform//'<pre>', &
@@ -1156,8 +1171,8 @@ contains
             trim(text_term_offered_separated(Subject(crse)%TermOffered))//'"> (1, 2, S, or combination)'//endtd//endtr, &
             begintr//begintd//'Tuition fee'//endtd//begintd//'<input name="Tuition" size="3" value="'// &
             trim(ftoa(Subject(crse)%Tuition,2))//'"> (total amount)'//endtd//endtr, &
-            begintr//begintd//'Lab fee'//endtd//begintd//'<input name="LabFee" size="3" value="'// &
-            trim(ftoa(Subject(crse)%LabFee,2))//'"> (additional to tuition)'//endtd//endtr
+            begintr//begintd//'Subject fee'//endtd//begintd//'<input name="LabFee" size="3" value="'// &
+            trim(ftoa(Subject(crse)%LabFee,2))//'"> (total amount; additional to tuition)'//endtd//endtr
         write(device,AFORMAT)  &
             begintr//begintd//'Hours lecture class'//endtd//begintd//'<input name="LectHours" size="3" value="'// &
             trim(ftoa(Subject(crse)%LectHours,2))//'"> (0, if no lecture component)'//endtd//endtr, &
@@ -1322,7 +1337,7 @@ contains
                     begintr//'<td colspan="11">'//nbsp//endtd//endtr
 
                 write(device,AFORMAT) begintr//begintd//'<a name="'//trim(tSubject)//'">'//beginbold//'Name:'//endbold
-                if (isRoleSysAd .or. isRoleOfficial) then
+                if (isRoleSysAd .or. isRoleStaff .or. isRoleOfficial) then
                     write(device,AFORMAT) trim(make_href(fnEditSubject, tSubject, A1=tSubject))
                 else
                     write(device,AFORMAT) tSubject
@@ -1712,7 +1727,7 @@ contains
             tUnits = tUnits + credit
 
             write(device,AFORMAT) begintr//begintd// &
-                trim(txtYear(Year+10))//' Year, '//trim(txtSemester(Term+6))//' Term ('// &
+                trim(txtYear(Year+11))//' Year, '//trim(txtSemester(Term+6))//' Term ('// &
                 trim(ftoa(credit,1))//FSLASH//trim(ftoa(tUnits,1))//')'//endtd, &
                 begintd//'<input name="Subjects'//trim(itoa(tdx))//'" size="'//trim(itoa(MAX_LEN_CURRICULUM_NAME))// &
                 '" value="'//trim(mesg(3:))//'">'//endtd//endtr
@@ -2072,7 +2087,7 @@ contains
                 do idx=1,Curriculum(targetCurriculum)%NSubjects
                     if (Curriculum(targetCurriculum)%SubjectTerm(idx) /= tdx) cycle
                     n = Curriculum(targetCurriculum)%SubjectIdx(idx)
-                    if (isRoleSysAd .or. isRoleOfficial) then
+                    if (is_admin_of_college(targetCollege) .or. isRoleOfficial) then
                         write(device,AFORMAT) begintr//begintd, &
                             trim(make_href(fnEditSubject, Subject(n)%Name, A1=Subject(n)%Name, A2=College(targetCollege)%Code))
                     else
@@ -2091,6 +2106,91 @@ contains
         write(device,AFORMAT) endtable//horizontal
 
     end subroutine curriculum_display
+
+
+    subroutine display_fees(device, mesg)
+        integer, intent(in) :: device
+        character(len=*), intent (in) :: mesg
+
+        integer :: idx
+
+        call html_comment('display_fees()')
+
+        targetDepartment = DeptIdxUser
+        targetCollege = CollegeIdxUser
+
+        call html_write_header(device, 'Update school fees', mesg)
+
+        call make_form_start(device, fnEditFees)
+
+        write(device,AFORMAT) '<table border="0" width="100%">', &
+            begintr//thalignright//'Amount'//endth//tdnbspendtd//thalignleft//'Description'//endth//endtr
+        do idx=1,MAX_ALL_FEES
+            write(device,AFORMAT) &
+                begintr//tdalignright// &
+                       '<input align="right" name="amount_'//trim(itoa(idx))//'" size="6" value="'// &
+                        trim(ftoa(FeeAmount(idx),1))//'">'// &
+                    endtd//tdnbspendtd// &
+                    begintd// &
+                       '<input name="desc_'//trim(itoa(idx))//'" size="60" value="'//trim(FeeDescription(idx))//'">'// &
+                    endtd// &
+                endtr
+        end do
+
+        write(device,AFORMAT) endtable, linebreak, &
+            nbsp//'<input name="action" type="submit" value="Update">'//endform//horizontal
+
+    end subroutine display_fees
+
+
+    subroutine school_fees(device)
+        integer, intent(in) :: device
+        character(len=MAX_LEN_TEACHER_CODE) :: tAction
+        character (len=MAX_LEN_PERSON_NAME) :: tDesc
+        logical :: changes
+        integer :: idx, ierr1, ierr2
+        real :: tAmount
+
+        call html_comment('school_fees()')
+
+        ! check for requested action
+        call cgi_get_named_string(QUERY_STRING, 'action', tAction, ierr1)
+
+        if (ierr1/=0 .or. tAction==SPACE) then ! no action; display existing info
+
+        else if (.not. isRoleOfficial) then ! action is Update
+
+
+            ! collect changes to COLLEGES.XML
+            changes = .false.
+            do idx=1,MAX_ALL_FEES
+                call cgi_get_named_float(QUERY_STRING, 'amount_'//trim(itoa(idx)), tAmount, ierr1)
+                call cgi_get_named_string(QUERY_STRING, 'desc_'//trim(itoa(idx)), tDesc, ierr2)
+                if ( tAmount==0.0 .or. len_trim(tDesc)==0 ) then
+                    tDesc = SPACE
+                    tAmount = 0.0
+                end if
+                if ( (FeeAmount(idx) /= tAmount) .or. (FeeDescription(idx) /= tDesc) ) then
+                    FeeAmount(idx) = tAmount
+                    FeeDescription(idx) = tDesc
+                    changes = .true.
+                end if
+            end do
+
+            if (changes) call xml_write_university(trim(pathToYear)//'UNIVERSITY.XML')
+
+        end if
+
+        if (len_trim(tAction)>0 .and. isRoleOfficial) then
+            tDesc = 'Edit school fees failed. '//sorryMessage
+        else
+            tDesc = SPACE
+        end if
+
+        call display_fees(device, tDesc)
+
+
+    end subroutine school_fees
 
 
 end module EditUNIVERSITY

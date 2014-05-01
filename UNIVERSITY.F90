@@ -40,7 +40,7 @@ module UNIVERSITY
     ! year that University records usable by HEEDS are available
     integer :: baseYear = 2000
 
-    character (len=20) :: UniversityCode = 'DEMO'
+    character (len=20) :: UniversityCode = 'DEMO', UniversityCodeNoMirror
 
     character (len=80) :: &
         UniversityName = 'Long Name of Univesity', &
@@ -64,6 +64,14 @@ module UNIVERSITY
         !
         TheRegistrar = 'Fname MI LName', &
         titleTheRegistrar = 'University Registrar'
+
+!===========================================================
+! declarations for school fees
+!===========================================================
+
+    integer, parameter :: MAX_ALL_FEES = 30 ! Max no. of fees
+    character (len=MAX_LEN_PERSON_NAME) :: FeeDescription(MAX_ALL_FEES) = SPACE
+    real :: FeeAmount(MAX_ALL_FEES) = 0.0
 
 !===========================================================
 ! declarations for colleges
@@ -115,7 +123,7 @@ module UNIVERSITY
 
     type :: TYPE_ROOM
         character (len=MAX_LEN_ROOM_CODE) :: Code
-        integer :: DeptIdx, Cluster, MaxCapacity
+        integer :: DeptIdx, Cluster, MaxCapacity, EnergyFee
     end type TYPE_ROOM
 
     type (TYPE_ROOM), dimension(0:MAX_ALL_ROOMS) :: Room
@@ -209,11 +217,11 @@ module UNIVERSITY
 !===========================================================
 
     integer, parameter :: MAX_LEN_TEXT_YEAR = 7
-    character (len=MAX_LEN_TEXT_YEAR), dimension(0:19) :: txtYear = (/ &
-        'ERROR  ', 'FIRST  ', 'SECOND ', 'THIRD  ', 'FOURTH ', 'FIFTH  ', 'SIXTH  ', &
-        'SEVENTH', 'HIDDEN ', 'OTHER  ', &
-        '-------', 'First  ', 'Second ', 'Third  ', 'Fourth ', 'Fifth  ', 'Sixth  ', &
-        'Seventh', 'Hidden ', 'Other  ' /)
+    character (len=MAX_LEN_TEXT_YEAR), dimension(-1:20) :: txtYear = (/  &
+        'DEFAULT', &
+        'ERROR  ', 'FIRST  ', 'SECOND ', 'THIRD  ', 'FOURTH ', 'FIFTH  ', 'SIXTH  ', 'SEVENTH', 'HIDDEN ', 'OTHER  ', &
+        'default', &
+        'error  ', '1st    ', '2nd    ', '3rd    ', '4th    ', '5th    ', '6th    ', '7th    ', 'hidden ', 'other  ' /)
     integer, parameter :: NotOfficiallyEnrolled = 8
 
      ! academic terms
@@ -388,7 +396,6 @@ module UNIVERSITY
         character(len=MAX_LEN_PERSON_NAME)  :: Name
         character(len=MAX_LEN_PASSWD_VAR)   :: Password ! Encrypted password
         character(len=MAX_LEN_TEACHER_CODE) :: Adviser
-        character(len=1) :: Gender
         integer(8) :: OnlineStatus   ! 0=logged out, 1+=clock tick of last activity
         integer :: CurriculumIdx
         integer :: Classification
@@ -407,7 +414,7 @@ module UNIVERSITY
     integer, parameter :: StdNoChars = 2 ! no. of characters in StdNo to use for directory name
 
     type :: TYPE_STUDENT_INFO
-        character(len=MAX_LEN_STUDENT_CODE) :: StdNo, BirthDate, EntryDate, GraduationDate
+        character(len=MAX_LEN_STUDENT_CODE) :: BirthDate, EntryDate, GraduationDate
         character(len=MAX_LEN_PERSON_NAME)  :: Name, AdmissionData, Scholarship
         character(len=2*MAX_LEN_PERSON_NAME)  :: BirthPlace, HomeAddress
         character(len=3*MAX_LEN_PERSON_NAME)  :: LastAttended, TranscriptRemark
@@ -740,17 +747,17 @@ contains
 ! routines for rooms
 !===========================================================
 
-    subroutine initialize_room (wrkRoom, tCode, iDept, iCluster, iCapacity)
+    subroutine initialize_room (wrkRoom, tCode, iDept, iCluster, iCapacity, iEnergyFee)
 
         type(TYPE_ROOM), intent (out) :: wrkRoom
         character(len=*), intent (in), optional :: tCode
-        integer, intent (in), optional :: iDept, iCluster, iCapacity
+        integer, intent (in), optional :: iDept, iCluster, iCapacity, iEnergyFee
 
         if (present(tCode)) then
-            wrkRoom = TYPE_ROOM(tCode, iDept, iCluster, iCapacity)
+            wrkRoom = TYPE_ROOM(tCode, iDept, iCluster, iCapacity, iEnergyFee)
 
         else
-            wrkRoom = TYPE_ROOM(SPACE, NumDepartments, 0, 0)
+            wrkRoom = TYPE_ROOM(SPACE, NumDepartments, 0, 0, 0)
         end if
 
 
@@ -975,7 +982,8 @@ contains
             end if
 #else
             idx = Student(std)%CurriculumIdx
-            flagIsUp = is_dean_of_college(Curriculum(idx)%CollegeIdx, higherUp)
+            flagIsUp = is_dean_of_college(Curriculum(idx)%CollegeIdx, higherUp) .or. &
+                (isRoleDean .and. idx==NumCurricula)
 #endif
         end if
         is_adviser_of_student = flagIsUp
@@ -2034,21 +2042,19 @@ contains
 
     subroutine initialize_student(S)
         type (TYPE_STUDENT) :: S
+
         S = TYPE_STUDENT ( &
             '####-#####', &  ! std no
-            '(Name)', & ! name
-            SPACE, & ! Password
-            SPACE, & ! Adviser
-            SPACE, & ! Gender
-            0, & ! status
-            0, -1) ! CurriculumIdx, Classification
+            'LASTNAME, FIRSTNAME MI', & ! name
+            SPACE, &  ! Password
+            SPACE, &  ! Adviser
+            0, 0, -1) ! Online status, CurriculumIdx, Classification
 
     end subroutine initialize_student
 
 
     subroutine initialize_student_info()
 
-        StudentInfo%StdNo = SPACE
         StudentInfo%Name = SPACE
         StudentInfo%BirthDate = SPACE
         StudentInfo%EntryDate = SPACE
@@ -2182,18 +2188,10 @@ contains
         type (TYPE_STUDENT) :: wrkStudent
 
         call initialize_student_info()
-        StudentInfo%StdNo = wrkStudent%StdNo
         StudentInfo%Name = wrkStudent%Name
-        StudentInfo%Gender = wrkStudent%Gender
         StudentInfo%CurriculumIdx = wrkStudent%CurriculumIdx
         StudentInfo%Adviser = wrkStudent%Adviser
-        !StudentInfo%CountryIdx = wrkStudent%CountryIdx
         StudentInfo%Classification = wrkStudent%Classification
-        !StudentInfo%BirthDate = wrkStudent%BirthDate
-        !StudentInfo%EntryDate = wrkStudent%EntryDate
-        !StudentInfo%BirthPlace = wrkStudent%BirthPlace
-        !StudentInfo%HomeAddress = wrkStudent%HomeAddress
-        !StudentInfo%LastAttended = wrkStudent%LastAttended
 
     end subroutine student_copy_to_info
 
@@ -2202,7 +2200,6 @@ contains
 
         type (TYPE_STUDENT), intent(in out) :: wrkStudent
 
-        wrkStudent%StdNo = StudentInfo%StdNo
         wrkStudent%Name = StudentInfo%Name
         wrkStudent%CurriculumIdx = StudentInfo%CurriculumIdx
         wrkStudent%Adviser = StudentInfo%Adviser

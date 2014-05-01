@@ -42,7 +42,8 @@ module HTML
         fnGenerateStudentPassword =  4, & ! generate new password for student
         fnChangeStudentPassword   =  5, & ! change password for student
         fnLogout                  =  6, & ! logout user
-        fnToggleEditGrade         =  7, & ! toggle enable edit grade
+        !
+        fnLoginByNonEditors       =  8, & ! toggle login permission for non-editor roles
         fnStop                    =  9, & ! terminate program
         fnEditSignatories         = 10, & ! edit signatories
         fnRecentStudentActivity   = 11, & ! recent student activity
@@ -71,6 +72,7 @@ module HTML
         fnEditMOTD                = 34, & ! edit message of the day
         fnSwitchTerm              = 35, & ! set term of school year
         fnSwitchPeriod            = 36, & ! set period of term
+        fnEditFees                = 37, & ! edit school fees
         !
         fnAdvisersByTeacher       = 40, & ! change adviser, list by teacher
         fnAdvisersByCurriculum    = 41, & ! change adviser, list by curriculum
@@ -177,8 +179,8 @@ contains
             case (fnLogout                )
                     fnDescription = 'logout'
 
-            case (fnToggleEditGrade)
-                    fnDescription = 'toggle enable edit grade'
+            case (fnLoginByNonEditors)
+                    fnDescription = 'toggle login permission for non-editor roles'
 
             case (fnGenerateTeacherPassword   )
                     fnDescription = 'generate new password for teacher'
@@ -245,6 +247,9 @@ contains
 
             case (fnEditEquivalencies)
                     fnDescription = 'edit equivalence rules'
+
+            case (fnEditFees)
+                    fnDescription = 'edit school fees'
 
             case (fnEditRoom                )
                     fnDescription = 'edit room parameters'
@@ -672,16 +677,16 @@ contains
         tPassword = GUEST
 
         write(device,AFORMAT) &
-            '<html><head><title>'//trim(UniversityCode)//SPACE//PROGNAME//'</title></head><body>'
+            '<html><head><title>'//trim(UniversityCodeNoMirror)//SPACE//PROGNAME//'</title></head><body>'
 
         if (len_trim(mesg)>0) then ! Stop/Exit page
-            write(device,aformat) '<h2>'//trim(UniversityCode)//SPACE//PROGNAME//'</h2>', &
+            write(device,aformat) '<h2>'//trim(UniversityCodeNoMirror)//SPACE//PROGNAME//'</h2>', &
                 red//trim(mesg)//black
             if (REQUEST==fnStop)  &
                 write(device,AFORMAT)linebreak//'Go to <a href="http://'//IP_ADDR//'">'//PROGNAME//' Index</a>'
         else ! Login page
             write(device,AFORMAT) &
-                '<h2>Welcome to '//trim(UniversityCode)//SPACE//PROGNAME//' !</h2>'//horizontal, &
+                '<h2>Welcome to '//trim(UniversityCodeNoMirror)//SPACE//PROGNAME//' !</h2>'//horizontal, &
                 '<table border="0" width="100%">'//begintr, &
                 '<td valign="top" width="25%">'
             call make_form_start(device, fnLogin)
@@ -694,11 +699,18 @@ contains
                 nbsp//beginitalic//beginsmall//'(or, go back to <a href="http://'//IP_ADDR//'">'//PROGNAME// &
                 ' Index</a>)'//endsmall//enditalic//endform
             if (len_trim(loginCheckMessage)>0) write(device,AFORMAT) &
-                linebreak//red//trim(loginCheckMessage)//black//linebreak
+                linebreak//red//beginitalic//trim(loginCheckMessage)//enditalic//black//linebreak
             write(device,AFORMAT) endtd//begintd
-            if ( len_trim(MOTD)>0 ) then
+
+            if (isReadOnly) then
+                write(device,AFORMAT) red//beginbold//'IMPORTANT !'//endbold//nbsp//black, &
+                    'You will be logged in to a mirror of '//trim(UniversityCodeNoMirror)//SPACE//PROGNAME//DOT, &
+                    'Information here is updated every '//itoa(maxRefreshTime/60)//' minutes.', &
+                    black//endbold//linebreak//linebreak
+            else if ( len_trim(MOTD)>0 ) then
                 write(device,AFORMAT) red//beginbold//'IMPORTANT !'//endbold//nbsp//black//trim(MOTD)//linebreak//linebreak
             end if
+
             write(device,AFORMAT) &
                 beginbold//'Forgot your Username and/or Password?'//endbold, &
                 beginitalic//' Visit your Dean or the Registrar; bring University-issued ID.'//enditalic, &
@@ -707,7 +719,6 @@ contains
                 beginitem//'Change your initial password. Do not forget to logout.'//enditem, &
                 beginitem//'Do not use the browser ''Back'' button unless '// &
                 ' there are no hyperlinks or ''Submit'' buttons on the displayed page.'//enditem, &
-                beginitem//'HEEDS is best viewed using the Mozilla Firefox browser.'//enditem, &
                 endtd//endtr//endtable//horizontal
             call html_copyright(device)
 
@@ -1076,13 +1087,13 @@ contains
         end if
 
         ! page title, start of body
-        write(device,AFORMAT) '<html><head><title>'//trim(UniversityCode)//SPACE//PROGNAME//VERSION// &
+        write(device,AFORMAT) '<html><head><title>'//trim(UniversityCodeNoMirror)//SPACE//PROGNAME//VERSION// &
             '</title></head><body><a name="TOP"></a>'
 
         ! banner line 1: user context & shortcuts
         write(device,AFORMAT) &
             '<table border="0" width="100%" cellpadding="0" cellspacing="0">', &
-            begintr//'<td width="50%"><h2>'//trim(UniversityCode)//SPACE//trim(PROGNAME)// &
+            begintr//'<td width="50%"><h2>'//trim(UniversityCodeNoMirror)//SPACE//trim(PROGNAME)// &
             trim(description)//'</h2>'
         if (present(errmsg)) then
             if (errmsg/=SPACE) write(device,AFORMAT) red//beginitalic//trim(errmsg)//enditalic//black
@@ -1267,6 +1278,14 @@ contains
         write(device,AFORMAT) endtd//endtr, &
             endtable//horizontal
 
+        if (isReadOnly) then
+            write(device,AFORMAT) beginbold//red, &
+                'You are logged in to the '//trim(UniversityCodeNoMirror)//SPACE//PROGNAME//' mirror. ', &
+                'Information here was updated '//itoa(secsLastRefresh/60)//' minute(s) ago; the next update is approximately ', &
+                itoa(max(secsNextRefresh,1))//' seconds(s) from now if links are being clicked.', &
+                black//endbold//horizontal
+        end if
+
         ! start of body
         if (len_trim(header)>0) write(device,AFORMAT) '<h3>'//trim(header)// &
             nbsp//trim(termDescription)//'</h3>'
@@ -1378,16 +1397,16 @@ contains
 
         integer, intent(in) :: device
         integer, intent(in) :: coll
-        integer :: blk, tdx, rdx, ldx, cdx, dept, n_curr, n_count, numAreas
+
+        integer :: blk, tdx, sdx, rdx, ldx, cdx, idxCurr, dept, n, n_curr, n_count, numAreas, idxCurr0
         character (len=MAX_LEN_COLLEGE_CODE) :: tCollege
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
-        !character (len=4) :: tYear
-        !character (len=1) :: ch
+        character(len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
         character (len=80) :: description, typeNeedsAnalysis
         logical :: hasRooms, hasTeachers, hasStudents, hasSubjects, hasBlocks, someCheckboxes
 
         integer :: CollegeCount(0:MAX_ALL_COLLEGES), ProgramCount(0:MAX_ALL_CURRICULA), CurriculumCount(0:MAX_ALL_CURRICULA)
-        integer :: sdx, n, idxCurr
+        integer :: ClassificationCount(0:MAX_ALL_CURRICULA,-1:9), cRank(0:MAX_ALL_CURRICULA)
 
         call html_comment('html_college_info()')
 
@@ -1400,10 +1419,13 @@ contains
         ! no. of students
         ProgramCount= 0 ! in a degree program
         CurriculumCount= 0 ! in a specific curriculum
+        ClassificationCount= 0 ! per year level in a specific curriculum
         CollegeCount = 0 ! per unit
         do sdx=1,NumStudents+NumAdditionalStudents
             ldx = Student(sdx)%CurriculumIdx
+            tdx = Student(sdx)%Classification
             CurriculumCount(ldx) = CurriculumCount(ldx)+1
+            ClassificationCount(ldx,tdx) = ClassificationCount(ldx,tdx)+1
             cdx = CurrProgNum(ldx)
             n = Curriculum(ldx)%CollegeIdx
             ProgramCount(cdx) = ProgramCount(cdx)+1
@@ -1447,148 +1469,6 @@ contains
 
         if (coll==NumColleges .and. (isRoleSysAd .or. isRoleOfficial)) then
 
-!            call make_form_start(device, fnSwitchPeriod)
-!            write(device,AFORMAT) beginitem//beginbold//'Select'//endbold//' Period to enable '//beginbold//'Role'//endbold//' do '// &
-!                beginbold//beginitalic//'Action'//enditalic//endbold//' for  '//beginbold//nbsp// &
-!                Red//trim(txtSemester(cTm1+6))//' (previous)'//trim(termQualifier(cTm1+6))//black//nbsp// &
-!                Lime//trim(txtSemester(currentTerm+6))//' (current)'//trim(termQualifier(currentTerm+6))//black//nbsp// &
-!                Fuchsia//trim(txtSemester(nextTerm+6))//' (next)'//trim(termQualifier(nextTerm+6))//black//endbold//DOT, &
-!                linebreak//'A '//beginbold//'Dean'//endbold//' can do the actions of Adviser, Chair, or Teacher.'
-!
-!            write(device,AFORMAT) &
-!                '<table>', &
-!                begintr// &
-!                    tdnbspendtd// &
-!                    begintd//'|'//endtd, &
-!                    beginth//'Adviser'//endth, &
-!                    begintd//'|'//endtd, &
-!                    beginth//'Adviser'//endth, &
-!                    begintd//'|'//endtd, &
-!                    beginth//'Teacher'//endth, &
-!                    begintd//'|'//endtd, &
-!                    beginth//'Chair'//nbsp//endth, &
-!                    begintd//'|'//endtd, &
-!                    beginth//'Teacher'//endth, &
-!                    begintd//'|'//endtd, &
-!                endtr
-!
-!            write(device,AFORMAT) &
-!                begintr// &
-!                    begintd//'Period'//endtd, &
-!                    '<td>|'//linebreak//'|</td>', &
-!                    '<th>'//beginitalic//'Advice'//linebreak//'students'//enditalic//'</th>', &
-!                    '<td>|'//linebreak//'|</td>', &
-!                    '<th colspan="3">'//beginitalic//'Edit'//linebreak//'classlists'//enditalic//'</th>', &
-!                    '<td>|'//linebreak//'|</td>', &
-!                    '<th>'//beginitalic//'Edit'//linebreak//'schedules'//enditalic//'</th>', &
-!                    '<td>|'//linebreak//'|</td>', &
-!                    '<th>'//beginitalic//'Enter'//linebreak//'grades'//enditalic//'</th>', &
-!                    '<td>|'//linebreak//'|</td>', &
-!                endtr
-!            if (isPeriodOne) then
-!                write(device,AFORMAT) &
-!                    begintr//begintd//'<input type="radio" checked="yes" name="A1" value="Classlists">1 - Registration'//endtd
-!            else
-!                write(device,AFORMAT) &
-!                    begintr//begintd//'<input type="radio" name="A1" value="Classlists">1 - Registration'//endtd
-!            end if
-!            write(device,AFORMAT) &
-!                    begintd//'|'//endtd, &
-!                    '<td bgcolor="#00FF00">'//nbsp//endtd, &
-!                    begintd//'|'//endtd, &
-!                    '<td bgcolor="#00FF00">'//nbsp//endtd, &
-!                    begintd//'|'//endtd, &
-!                    '<td bgcolor="#00FF00">'//nbsp//endtd, &
-!                    begintd//'|'//endtd, &
-!                    '<td bgcolor="#00FF00">'//nbsp//endtd, &
-!                    begintd//'|'//endtd, &
-!                    '<td bgcolor="#FF0000">'//nbsp//endtd, &
-!                    begintd//'|'//endtd, &
-!                endtr
-!
-!            if (isPeriodTwo) then
-!                write(device,AFORMAT) &
-!                    begintr//begintd//'<input type="radio" checked="yes" name="A1" value="Advising">2 - Advising'//endtd
-!            else
-!                write(device,AFORMAT) &
-!                    begintr//begintd//'<input type="radio" name="A1" value="Advising">2 - Advising'//endtd
-!            end if
-!            write(device,AFORMAT) &
-!                    begintd//'|'//endtd, &
-!                    '<td bgcolor="#FF00FF">'//nbsp//endtd, &
-!                    begintd//'|'//endtd, &
-!                    tdnbspendtd, &
-!                    begintd//'|'//endtd, &
-!                    tdnbspendtd, &
-!                    begintd//'|'//endtd, &
-!                    '<td bgcolor="#FF00FF">'//nbsp//endtd, &
-!                    begintd//'|'//endtd, &
-!                    tdnbspendtd, &
-!                    begintd//'|'//endtd, &
-!                endtr
-!
-!            if (isPeriodThree) then
-!                write(device,AFORMAT) &
-!                    begintr//begintd//'<input type="radio" checked="yes" name="A1" value="Gradesheets">3 - Grading'//endtd
-!            else
-!                write(device,AFORMAT) &
-!                    begintr//begintd//'<input type="radio" name="A1" value="Gradesheets">3 - Grading'//endtd
-!            end if
-!            write(device,AFORMAT) &
-!                    begintd//'|'//endtd, &
-!                    '<td bgcolor="#FF00FF">'//nbsp//endtd, &
-!                    begintd//'|'//endtd, &
-!                    tdnbspendtd, &
-!                    begintd//'|'//endtd, &
-!                    tdnbspendtd, &
-!                    begintd//'|'//endtd, &
-!                    '<td bgcolor="#FF00FF">'//nbsp//endtd, &
-!                    begintd//'|'//endtd, &
-!                    '<td bgcolor="#00FF00">'//nbsp//endtd, &
-!                    begintd//'|'//endtd, &
-!                endtr
-!
-!            if (isPeriodFour) then
-!                write(device,AFORMAT) begintr// &
-!                    begintd//'<input type="radio" checked="yes" name="A1" value="Preregistration">4 - Preregistration'//endtd
-!            else
-!                write(device,AFORMAT) &
-!                    begintr//begintd//'<input type="radio" name="A1" value="Preregistration">4 - Preregistration'//endtd
-!            end if
-!            write(device,AFORMAT) &
-!                    begintd//'|'//endtd, &
-!                    '<td align="center" colspan="9">'//beginbold//'Registrar''s Office '//beginitalic//'ONLY'//enditalic//endbold//endtd, &
-!                    begintd//'|'//endtd, &
-!                endtr
-!
-!            write(device,AFORMAT) &
-!                endtable, &
-!                '<input type="submit" name="action" value="Submit"> '// &
-!                red//'then wait at least 30 seconds for files to load.'//black// &
-!                endform//enditem
-!
-!            if (isPeriodOne .or. isPeriodTwo .or. isPeriodThree .or. isPeriodFour) then
-!                write(device,AFORMAT) trim(make_href(fnSwitchPeriod, 'Reset', A1='Reset', &
-!                    pre=beginitem//beginbold, post=endbold//' Period to disallow above '//beginbold//beginitalic//'Actions'//enditalic//endbold//'. '// &
-!                    'Grades will still be available.'//enditem))
-!            end if
-!
-!            write(device,AFORMAT) trim(make_href(fnSwitchTerm, 'Advance', A1=itoa(nextTerm), &
-!                pre=beginitem//'The  '//beginbold//Lime//'current'//black//endbold//' term is '// &
-!                trim(txtSemester(currentTerm+6))//trim(termQualifier(currentTerm+6))//'  '//beginbold, &
-!                post=endbold//' to '//nbsp//Fuchsia//trim(txtSemester(nextTerm+6))//' (next)'// &
-!                trim(termQualifier(nextTerm+6))//black//DOT//enditem) )
-!
-!            if (isEnabledEditGrade) then
-!                write(device,AFORMAT) trim(make_href(fnToggleEditGrade, 'DISABLE', &
-!                    pre=beginitem//'Editing of grades is '//red//'enabled'//black//'.  '//beginbold, &
-!                    post=endbold//' it. In any case, edits will be overwritten when checklists are regenerated.'//enditem))
-!            else
-!                write(device,AFORMAT) trim(make_href(fnToggleEditGrade, 'ENABLE', &
-!                    pre=beginitem//'Editing of grades is '//green//'disabled'//black//'.  '//beginbold, &
-!                    post=endbold//' it, for advising purposes only; edits will be overwritten when checklists are regenerated.'//enditem))
-!            end if
-
             write(device,AFORMAT) beginitem//'The '//beginbold//Lime//'current'//black//endbold//' term is  '//beginbold// &
                     trim(txtSemester(currentTerm+3))//trim(termQualifier(currentTerm+3))//endbold//','
             if (isPeriodOne) then
@@ -1606,6 +1486,7 @@ contains
                     post=endbold//' period for '//nbsp//Fuchsia//trim(txtSemester(nextTerm+3))//' (next)'// &
                     trim(termQualifier(nextTerm+3))//black//DOT) )
             end if
+
             write(device,AFORMAT) &
                 trim(make_href(fnFileDownload, 'Backup', A1='BACKUP.XML', pre=nbsp//beginbold, post=endbold//' data.')), &
                 trim(make_href(fnStop, 'Stop', pre=nbsp//beginbold, post=endbold//SPACE//PROGNAME//DOT//enditem))
@@ -1613,25 +1494,35 @@ contains
             write(device,AFORMAT) beginitem//beginbold//'Online users'//endbold//' are:', &
                 trim(make_href(fnOnlineStudents, 'students', pre=nbsp, post=COMMA)), &
                 trim(make_href(fnOnlineTeachers, 'teachers', pre=nbsp, post=DOT)), &
-                trim(make_href(fnResetPasswords, 'Reset', pre=nbsp//beginbold, &
-                post=endbold//SPACE//red//'ALL'//black//' passwords.')), &
-                beginbold//'Download'//endbold//' : right-click on link, then "Save Link As..." ', &
+                beginbold//'Download'//endbold//' passwords : right-click on link, then "Save Link As..." ', &
                 trim(make_href(fnFileDownload, 'PASSWORDS-TEACHERS.CSV', A1='PASSWORDS-TEACHERS.CSV', post=nbsp)), &
                 trim(make_href(fnFileDownload, 'PASSWORDS-STUDENTS.CSV', A1='PASSWORDS-STUDENTS.CSV', post=enditem))
+                !trim(make_href(fnResetPasswords, 'passwords', pre=nbsp//beginbold//'Reset '//red//'ALL'//black// &
+                !    endbold//nbsp, post=DOT)), &
+
+            if (.not. isReadOnly) then
+                write(device,AFORMAT) beginitem//'Student, Official, and Guest roles are '//nbsp
+                if (isAllowedNonEditors) then
+                    write(device,AFORMAT) green//'allowed'//black//' to log in.', &
+                        trim(make_href(fnLoginByNonEditors, 'Disallow', pre=nbsp//beginbold, post=endbold//DOT//enditem))
+                else
+                    write(device,AFORMAT) red//'not allowed'//black//' to log in. ', &
+                        trim(make_href(fnLoginByNonEditors, 'Allow', pre=nbsp//beginbold, post=endbold//DOT//enditem))
+                end if
+            end if
 
             write(device,AFORMAT) beginitem, &
                 trim(make_href(fnEditSignatories, 'signatories', pre='Edit the'//nbsp//beginbold, post=endbold// &
                     ' in various forms.')), &
                 trim(make_href(fnEditMOTD, 'message of the day', pre=nbsp//'Edit the '//beginbold, post=endbold//DOT)), &
                 trim(make_href(fnEditEquivalencies, 'equivalence rules', pre=nbsp//'Edit the '//beginbold, post=endbold//DOT)), &
+                trim(make_href(fnEditFees, 'school fees', pre=nbsp//'Edit the '//beginbold, post=endbold//DOT)), &
                 enditem
 
             call make_form_start(device, fnStudentAdd)
             write(device,AFORMAT) &
-                beginitem//'<table border="0" width="100%" cellpadding="0" cellspacing="0">', &
-                begintr//begintd//beginbold//'Add student number'//endbold//' <input name="A1" value=""> '//nbsp// &
-                '<input type="submit" name="action" value="Add">'// &
-                endform//endtd//endtr//endtable//enditem//horizontal
+                beginbold//'Add student number'//endbold//' <input name="A1" value=""> '//nbsp// &
+                '<input type="submit" name="action" value="Add">'//endform!//horizontal
 
         end if
 
@@ -1717,10 +1608,8 @@ contains
 
             if (trim(USERNAME)/=trim(GUEST)) then
                 call make_form_start(device, fnFindTeacher)
-                write(device,AFORMAT) beginitem//'<table border="0" cellpadding="0" cellspacing="0">', &
-                    begintr//begintd//beginbold//'Find teachers'//endbold//' with <input name="A1" value=""> in name. ', &
-                    '<input type="submit" name="action" value="Search">'//endform// &
-                    endtd//endtr//endtable//enditem
+                write(device,AFORMAT) beginbold//'Find teachers'//endbold//' with <input name="A1" value=""> in name. ', &
+                    '<input type="submit" name="action" value="Search">'//endform
             end if
         end if
 
@@ -1730,13 +1619,20 @@ contains
 
             call html_comment('student links()')
 
-            if (.not. (isRoleStudent .or. isRoleGuest) ) then
-                call make_form_start(device, fnFindStudent)
-                write(device,AFORMAT) beginitem//'<table border="0" cellpadding="0" cellspacing="0">', &
-                    begintr//begintd//beginbold//'Find students'//endbold//' with <input name="A1" value="">', &
-                    ' in name or number. <input type="submit" name="action" value="Search">', &
-                    endform//endtd//endtr//endtable//enditem
-            end if
+            ! rank curriculum codes by length
+            cRank = 0
+            do idxCurr=1,NumCurricula
+                cRank(idxCurr) = idxCurr
+            end do
+            do ldx=1,NumCurricula-1
+                do cdx = ldx+1,NumCurricula
+                    if ( len_trim(Curriculum(cRank(cdx))%Code) >= len_trim(Curriculum(cRank(ldx))%Code) ) then
+                        tdx = cRank(ldx)
+                        cRank(ldx) = cRank(cdx)
+                        cRank(cdx) = tdx
+                    end if
+                end do
+            end do
 
             write(device,AFORMAT) beginitem//beginbold//'Student '//endbold// &
                 trim(make_href(fnStudentsDistribution, 'distribution', A1=tCollege))// &
@@ -1752,29 +1648,49 @@ contains
                 write(device,AFORMAT) '<ul>'
                 ! curriculum-level statistics
                 done = .false.
-                do idxCurr=1,NumCurricula
+                do idxCurr0=1,NumCurricula
+                    idxCurr = cRank(idxCurr0)
                     if (Curriculum(idxCurr)%CollegeIdx /= coll) cycle
                     if (done(idxCurr)) cycle ! done
 
-                    cdx = CurrProgNum(idxCurr)  ! generic program
+                    cdx = CurrProgNum(idxCurr)  ! the generic program code
                     if (ProgramCount(cdx)==0) cycle
 
-                    write(device,AFORMAT) &
-                        beginitem//beginbold//trim(CurrProgCode(idxCurr))//endbold//' ('//trim(itoa(ProgramCount(cdx)))//') : '
-
-                    do ldx=1,NumCurricula ! specific curriculum
-                        if (CurrProgNum(ldx) /= cdx) cycle
-                        if (done(ldx)) cycle
-                        if (CurriculumCount(ldx) > 0) then
-                            write(device,AFORMAT) trim(make_href(fnAdvisersByCurriculum, Curriculum(ldx)%Code, &
-                                A1=Curriculum(ldx)%Code, pre=nbsp, post='('//trim(itoa(CurriculumCount(ldx)))//')'))
+                    tCurriculum = Curriculum(idxCurr)%Code
+                    n = 0
+                    n_count = 0
+                    do tdx=2,len_trim(tCurriculum)
+                        if (tCurriculum(tdx:tdx)==DASH) then
+                            n_count = n_count+1
+                            n = tdx-1
                         end if
+                    end do
+                    if (n>0) tCurriculum(n+1:) = SPACE ! delete characters from the last '-'
+
+                    ClassificationCount(0,:) = 0
+                    do ldx=1,NumCurricula ! specific curriculum
+                        if (CurrProgNum(ldx) /= cdx) cycle ! not the program under consideration
+                        if (done(ldx)) cycle ! already included
+                        if ( tCurriculum(:n)/=Curriculum(ldx)%Code(:n) ) cycle  ! not the same specialization
+                        ClassificationCount(0,:) = ClassificationCount(0,:) + ClassificationCount(ldx,:)
                         done(ldx) = .true. ! signal done
                     end do
+                    if (sum(ClassificationCount(0,:))==0) cycle
+
+                    write(device,AFORMAT) &
+                        beginitem//beginbold//trim(tCurriculum)//endbold// &
+                        ' ('//trim(itoa(sum(ClassificationCount(0,:))))//') :'
+                    do tdx=-1,9
+                        if (ClassificationCount(0,tdx)==0) cycle
+                        write(device,AFORMAT) trim(make_href(fnAdvisersByCurriculum, txtYear(tdx+11), &
+                            A1=tCurriculum, A4=itoa(tdx), pre=nbsp, &
+                            post='('//trim(itoa(ClassificationCount(0,tdx)))//')'))
+                    end do
+
                     if (is_dean_of_college(coll, orHigherUp) ) then
                         write(device,AFORMAT) &
-                            trim(make_href(fnSummaryWAG, 'Grade Averages', A1=CurrProgCode(idxCurr), A2='CUMULATIVE', &
-                            pre=' : '//beginbold, post=endbold))
+                            trim(make_href(fnSummaryWAG, 'averages', A1=CurrProgCode(idxCurr), A2='CUMULATIVE', &
+                            pre=' : '//beginbold//'Grade'//endbold//nbsp))
                     end if
 
                     write(device,AFORMAT) enditem
@@ -1782,8 +1698,13 @@ contains
                 end do
                 write(device,AFORMAT) '</ul>'
 
+                call make_form_start(device, fnFindStudent)
+                write(device,AFORMAT) beginbold//'Find students'//endbold//' with <input name="A1" value="">', &
+                    ' in name or number. <input type="submit" name="action" value="Search">'//endform
+
             end if
-            write(device,AFORMAT) enditem
+
+            write(device,AFORMAT) enditem!//horizontal
 
         end if
 
@@ -1813,7 +1734,7 @@ contains
                     else
                         typeNeedsAnalysis = beginbold//'Needs Analysis (deterministic)'//endbold//' for'
                     end if
-                    if ((isRoleSysAd .or. isRoleOfficial)) then
+                    if ((isRoleSysAd .or. isRoleOfficial) .and. (.not. isReadOnly) ) then
                         if (coll==NumColleges) then
                             description = ' for ALL colleges'
                         else
@@ -1858,9 +1779,7 @@ contains
                     if (len_trim(description)>0) then
 
                         call make_form_start(device, fnStudentPriority, A1=tCollege, A9=tdx)
-
-                        write(device,AFORMAT) beginitem//'<table border="0" cellpadding="0" cellspacing="0">', &
-                            begintr//begintd//beginbold//trim(description)//endbold//' <select name="A2">', &
+                        write(device,AFORMAT) beginbold//trim(description)//endbold//' <select name="A2">', &
                             '<option value="20"> with NSTP 11/12 track mismatch', &
                             '<option value="10"> with no subjects remaining', &
                             '<option value="2"> with 27 units or less remaining', &
@@ -1869,13 +1788,12 @@ contains
                             '<option value="5"> who failed (50-75%] of units last sem', &
                             '<option value="4"> who failed (0-50%] of units last sem', &
                             '<option value="3"> who did not fail any subject (or on LOA) last term'
-
                         write(device,AFORMAT) '</select>'//nbsp, &
                             '<input type="submit" name="action" value="Submit">', &
-                            endform//endtd//endtr//endtable//enditem
+                            endform
                     end if
 
-                    if (isRoleSysAd .and. isPeriodFour) then
+                    if (isRoleSysAd .and. isPeriodFour .and. (.not. isReadOnly)) then
 
                         tCollege = College(coll)%Code
                         ! preenlist/delist all students in college
@@ -1885,21 +1803,18 @@ contains
                         else
                             description = beginbold//trim(tCollege)//endbold
                         end if
-                        write(device,AFORMAT) beginitem//'<table border="0" cellpadding="0" cellspacing="0">', &
-                            begintr//begintd//'<input type="submit" name="action" value="Preenlist ALL"> '//trim(description)// &
-                            ' students'//red// &
+                        write(device,AFORMAT) '<input type="submit" name="action" value="Preenlist ALL"> '// &
+                            trim(description)//' students'//red// &
                             ' - click once only, may take a while; use browser''s "Back" button in case of timeout. '//black// &
                             nbsp//nbsp//nbsp// &
                             '<input type="submit" name="action" value="Delist ALL"> '//trim(description)//' students.', &
-                            endform//endtd//endtr//endtable//enditem
+                            endform
 
                         ! preenlist/delist selected students in college
                         if (coll/=NumColleges) then
                             call make_form_start(device, fnTimetabling, A1=tCollege, A9=tdx)
-                            write(device,AFORMAT) beginitem//'<table border="0" cellpadding="0" cellspacing="0">', &
-                                begintr//begintd//'Or, check curricula below and click button to '//beginbold// &
+                            write(device,AFORMAT) 'Or, check curricula below and click button to '//beginbold// &
                                 'Preenlist/Delist SELECTED'//endbold//' students.'
-
                             ! per curriculum
                             done = .false.
                             do idxCurr=1,NumCurricula
@@ -1936,9 +1851,7 @@ contains
                             write(device,AFORMAT) linebreak//nbsp//nbsp, &
                                 '<input type="submit" name="action" value="Preenlist SELECTED"> '// &
                                 nbsp//nbsp//nbsp//nbsp//nbsp//nbsp// &
-                                '<input type="submit" name="action" value="Delist SELECTED">'//endform, &
-                                endtd//endtr//endtable//enditem
-
+                                '<input type="submit" name="action" value="Delist SELECTED">', endform
                         end if
 
                     end if
@@ -1964,7 +1877,8 @@ contains
             end if
 
             ! allow students to enlist?
-            if (isPeriodOne .and. tdx==currentTerm .and. (isRoleSysAd .or. isRoleOfficial) .and. CollegeCount(coll)>0) then
+            if (isPeriodOne .and. tdx==currentTerm .and. (isRoleSysAd .or. isRoleOfficial) .and. &
+                CollegeCount(coll)>0 .and. (.not. isReadOnly) ) then
                 if ( College(coll)%AllowEnlistmentByStudents(tdx) ) then
                     write(device,AFORMAT) beginitem//'Students are  '//beginbold//red//'allowed'//black//endbold// &
                         ' to self-enlist. ', &
@@ -2368,7 +2282,8 @@ contains
                 '<td width="10%" align="right">% univ'//endtd//endtr
             write(device,AFORMAT) &
                 begintr//'<td width="10%">.'//endtd// &
-                '<td width="60%" align="right">'//beginbold//'Total no. of students in '//UniversityCode//endbold//endtd// &
+                '<td width="60%" align="right">'//beginbold//'Total no. of students in '//trim(UniversityCodeNoMirror)// &
+                    endbold//endtd// &
                 '<td width="10%" align="right"> '//beginbold//trim(itoa(NumStudents+NumAdditionalStudents))//endbold//endtd// &
                 '<td width="10%" align="right">.'//endtd//'<td width="10%" align="right">'//beginbold//'100'//endbold//endtd// &
                 endtr
@@ -2430,7 +2345,8 @@ contains
                 '<td width="10%" align="right">% univ'//endtd//endtr
             write(device,AFORMAT) &
                 begintr//'<td width="10%">.'//endtd// &
-                '<td width="60%" align="right">'//beginbold//'Total no. of students in '//UniversityCode//endbold//endtd// &
+                '<td width="60%" align="right">'//beginbold//'Total no. of students in '//trim(UniversityCodeNoMirror)// &
+                    endbold//endtd// &
                 '<td width="10%" align="right"> '//beginbold//trim(itoa(NumStudents+NumAdditionalStudents))//endbold//endtd// &
                 '<td width="10%" align="right">.'//endtd//'<td width="10%" align="right">.'//endtd// &
                 endtr

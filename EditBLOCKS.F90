@@ -211,32 +211,53 @@ contains
                 updateBLOCKS = .true.
 
             case (fnBlockDeleteAlsoClasses)
-                mesg = ' : Deleted block '//trim(Block(targetBlock)%BlockID)//' and sections (if any)'
-                ! delete sections
+                ! check if students are enlisted
+                pos = 0
                 do fdx=1,Block(targetBlock)%NumClasses
                     sect = Block(targetBlock)%Section(fdx)
-                    if (sect>0) then
-                        crse = Block(targetBlock)%Subject(fdx)
-                        if (is_lecture_lab_subject(crse)) then ! count how many lab sections
-                            pos = index(Section(sect)%ClassId, DASH)
-                            tClassId = Section(sect)%ClassId(:pos)
-                            tLen1 = 0
-                            do jdx=1,NumSections
-                                if (Section(jdx)%ClassId(:pos)==tClassId(:pos)) tLen1 = tLen1+1
-                            end do
-                            if (tLen1==1) then ! just this lab section; delete lecture section also
-                                tClassId = Section(sect)%ClassId(:pos-1)
-                                lect = index_to_section(tClassId, NumSections, Section)
-                                call initialize_section(Section(Lect))
-                            end if
-                        end if
-                        call initialize_section(Section(sect))
-                        updateCLASSES = .true.
+                    if (sect==0) cycle
+                    do jdx=1,NumStudents+NumAdditionalStudents
+                        do crse=1,Enlistment(Term,jdx)%lenSubject
+                            if (Enlistment(Term,jdx)%Section(crse)==sect) pos = pos+1
+                        end do
+                    end do
+                    if (pos>0) then
+                        mesg = ' : Cannot delete block '//trim(Block(targetBlock)%BlockID)// &
+                            ' because students are enlisted in '//Section(sect)%ClassId
+                        exit
                     end if
                 end do
-                ! delete block
-                call initialize_block(Block(targetBlock))
-                updateBLOCKS = .true.
+
+                if (pos==0) then
+
+                    mesg = ' : Deleted block '//trim(Block(targetBlock)%BlockID)//' and sections (if any)'
+                    ! delete sections
+                    do fdx=1,Block(targetBlock)%NumClasses
+                        sect = Block(targetBlock)%Section(fdx)
+                        if (sect>0) then
+                            crse = Block(targetBlock)%Subject(fdx)
+                            if (is_lecture_lab_subject(crse)) then ! count how many lab sections
+                                pos = index(Section(sect)%ClassId, DASH)
+                                tClassId = Section(sect)%ClassId(:pos)
+                                tLen1 = 0
+                                do jdx=1,NumSections
+                                    if (Section(jdx)%ClassId(:pos)==tClassId(:pos)) tLen1 = tLen1+1
+                                end do
+                                if (tLen1==1) then ! just this lab section; delete lecture section also
+                                    tClassId = Section(sect)%ClassId(:pos-1)
+                                    lect = index_to_section(tClassId, NumSections, Section)
+                                    call initialize_section(Section(Lect))
+                                end if
+                            end if
+                            call initialize_section(Section(sect))
+                            updateCLASSES = .true.
+                        end if
+                    end do
+                    ! delete block
+                    call initialize_block(Block(targetBlock))
+                    updateBLOCKS = .true.
+
+                end if
 
             case (fnBlockEditName)
                 call cgi_get_named_string(QUERY_STRING, 'BlockID', newBlock, ierr)
@@ -344,7 +365,12 @@ contains
         end if
 
         if (fn==fnBlockDeleteAlsoClasses .or. fn==fnBlockDeleteNotClasses) then
-            call html_college_links(device, targetCollege, mesg(3:))
+            if (updateBLOCKS) then
+                call html_college_links(device, targetCollege, mesg(3:))
+            else
+                blk = targetBlock
+                call block_schedule(device, Term, NumSections, Section, NumBlocks, Block, blk, mesg(3:))
+            end if
         else
             blk = targetBlock
             call block_schedule(device, Term, NumSections, Section, NumBlocks, Block, blk, mesg(3:))
@@ -390,7 +416,7 @@ contains
             begintr//begintd//'Year level:'//endtd//begintd//'<select name="A2">', &
             '<option value="ALL"> All years'
         do ldx=1,7
-            write(device,AFORMAT) '<option value="'//trim(txtYear(ldx))//'"> '//trim(txtYear(ldx+10))//' Year'
+            write(device,AFORMAT) '<option value="'//trim(txtYear(ldx))//'"> '//trim(txtYear(ldx+11))//' Year'
         end do
         write(device,AFORMAT) '</select>'//nbsp//txtSemester(Term+3)//termQualifier(Term+3)//endtd//endtr, &
             begintr//begintd//'Number of blocks:'//endtd//begintd, &
@@ -801,7 +827,8 @@ contains
         allowed_to_edit = isRoleSysAd .or. isRoleOfficial .or. &
             (is_chair_of_department(targetDepartment, orHigherUp) .and. &
              ( (thisTerm==currentTerm .and. isPeriodOne) .or. &
-               (thisTerm==nextTerm .and. (.not. isPeriodOne)) ) )
+               thisTerm==nextTerm ) )
+               !(thisTerm==nextTerm .and. (.not. isPeriodOne)) ) )
 
 
         call html_comment('targetBlock='//trim(Block(targetBlock)%BlockID)//'@'//itoa(targetBlock))

@@ -40,8 +40,6 @@ program SERVER
     use EditCHECKLIST
     use EditENLISTMENT
 
-    use TIMETABLING
-
     implicit none
 
     ! interface to FastCGI routines in C
@@ -71,9 +69,10 @@ program SERVER
 
     end interface
 
-
     ! static initializations
     call initializations()
+
+    ! run as webserver
     call run_webserver()
 
 contains
@@ -92,7 +91,7 @@ contains
         ! read basic data for university
         call xml_read_basic_data(pathToYear)
 
-        sorryMessage = trim(UniversityCode)//' officials and their friends '// &
+        sorryMessage = trim(UniversityCodeNoMirror)//' officials and their friends '// &
             ' have a "read-only" permission at this time. '// &
             ' Please see the '//trim(titleTheRegistrar)//' if you wish to change some data.'
 
@@ -127,6 +126,10 @@ contains
             ! timestamp of request
             CALL SYSTEM_CLOCK(tick, count_rate, count_max)
             call date_and_time (date=currentDate, time=currentTime)
+            secsLastRefresh = (tick-tickLastRefresh)/count_rate
+
+            ! next refresh time for mirror
+            secsNextRefresh = max(maxRefreshTime - secsLastRefresh, 0)
 
             ! date changed ?
             if (currentDate/=previousDate) then
@@ -234,12 +237,25 @@ contains
             ! automatically logout users idle who have been idle for 30 minutes (1800 seconds)
             do iTmp=1,NumStudents+NumAdditionalStudents
                 if (Student(iTmp)%OnlineStatus==0) cycle
-                if ( (tick-Student(iTmp)%OnlineStatus)/count_rate>=maxIdleTime) Student(iTmp)%OnlineStatus = 0
+                if ( (tick-Student(iTmp)%OnlineStatus)/count_rate>=maxIdleTime ) Student(iTmp)%OnlineStatus = 0
             end do
             do iTmp=1,NumTeachers+NumAdditionalTeachers
                 if (Teacher(iTmp)%OnlineStatus==0) cycle
                 if ( (tick-Teacher(iTmp)%OnlineStatus)/count_rate>=maxIdleTime ) Teacher(iTmp)%OnlineStatus = 0
             end do
+
+            ! reload data?
+            if (isReadOnly .and. secsNextRefresh==0 ) then
+
+                ! re-load  basic data for university
+                call initialize_basic_data ()
+                call xml_read_basic_data(pathToYear)
+                ! tickLastRefresh is set in xml_read_basic_data()
+
+                ! read additional data if ACTION was specified
+                call switch_to_period(trim(ACTION))
+
+            end if
 
         end do ! while (FCGI_Accept() >= 0)
 
@@ -368,14 +384,17 @@ contains
         do while (.true.)
             read(unitNo, AFORMAT, iostat=iStat) cipher
             if (iStat < 0) exit ! no more lines
+!#if defined no_password_check
+!            if (cipher(1:5)=='DBG::') then
+!                if (isRoleSysAd) then
+!                    cipher = '<pre>'//trim(cipher)//'</pre>'
+!                else
+!                    cycle
+!                end if
+!            end if
+!#else
             if (cipher(1:5)=='DBG::') cycle
-            !if (cipher(1:5)=='DBG::') then
-            !    if (isRoleSysAd) then
-            !        cipher = '<pre>'//trim(cipher)//'</pre>'
-            !    else
-            !        cycle
-            !    end if
-            !end if
+!#endif
             iStat = FCGI_puts (trim(cipher)//NUL) ! FCGI_puts expects NULL terminated strings
         end do
 
@@ -450,6 +469,16 @@ contains
             case (fnLogin)
                 call html_college_links(device, CollegeIdxUser, mesg=loginCheckMessage)
 
+            case (fnLoginByNonEditors)
+                if (isRoleOfficial) then
+                    call html_college_links(device, CollegeIdxUser, &
+                        mesg='"Toggle login permission for non-editors roles" failed. '//sorryMessage)
+                else
+                    isAllowedNonEditors = .not. isAllowedNonEditors
+                    call html_college_links(device, CollegeIdxUser, &
+                        mesg='Toggled login permission for non-editor roles.')
+                end if
+
             case (fnChangeTeacherPassword)
                 call change_current_teacher_password(device)
 
@@ -491,16 +520,6 @@ contains
             case (fnEditSignatories)
                 call edit_signatories(device)
 
-            case (fnToggleEditGrade)
-                if (isRoleSysAd) then
-                    isEnabledEditGrade = .not. isEnabledEditGrade
-                    call html_college_links(device, CollegeIdxUser, mesg='Toggled "Enable/Disable edit grade"')
-                else
-                    REQUEST = fnLogout
-                    Teacher(requestingTeacher)%OnlineStatus = 0
-                    call html_landing_page(device, SPACE)
-                end if
-
             case (fnRecentStudentActivity)
                 call recent_student_activity(device)
 
@@ -515,6 +534,9 @@ contains
 
             case (fnEditMOTD)
                 call message_of_the_day(device)
+
+            case (fnEditFees)
+                call school_fees(device)
 
             ! college info
             case (fnCollegeLinks)
@@ -913,6 +935,17 @@ contains
         ! stop by Registrar Role?
         if (REQUEST==fnStop) return
 
+        ! disallow non-editors?
+        if (.not. isAllowedNonEditors .and. &
+            (isRoleGuest .or. isRoleOfficial .or. &
+             (isRoleStudent .and. .not. College(CollegeIdxUser)%AllowEnlistmentByStudents(currentTerm)) ) ) then
+            REQUEST = fnLogout
+            loginCheckMessage = &
+                ' Please go back to '//PROGNAME//' Index and select the ''mirror'' for '// &
+                trim(UniversityCodeNoMirror)//DOT
+            return
+        end if
+
         if (REQUEST/=fnLogin) then ! not logging in
             ! previously logged out?  force user to login
             if (requestingTeacher>0) then ! teacher
@@ -927,7 +960,7 @@ contains
         ! Always allow Guest account
         if (trim(USERNAME)==GUEST) then ! Guest
             loginCheckMessage = &
-                ' You are logged in as Guest. Visit the '//trim(UniversityCode)//SPACE// &
+                ' You are logged in as Guest. Visit the '//trim(UniversityCodeNoMirror)//SPACE// &
                 ' Registrar for your own Username and Password.'
             return
         end if
@@ -1042,7 +1075,7 @@ contains
 
             case ('BACKUP.XML')
 
-                fileName = trim(XMLfile)//DASH//trim(UniversityCode)//DASH//currentDate//DASH//currentTime(:6)
+                fileName = trim(XMLfile)//DASH//trim(UniversityCodeNoMirror)//DASH//currentDate//DASH//currentTime(:6)
                 open(unit=unitXML, file=trim(WEBROOT)//fileName)
                 write(unitXML,AFORMAT) XML_DOC
 
@@ -1102,7 +1135,7 @@ contains
 
             case ('STUDENT-INFO.CSV')
 
-                fileName = 'STUDENT-INFO-'//trim(UniversityCode)//'.CSV'
+                fileName = 'STUDENT-INFO-'//trim(UniversityCodeNoMirror)//'.CSV'
                 open(unit=unitETC, file=trim(WEBROOT)//fileName)
                 call write_student_info_csv (unitETC)
                 close(unitETC)
@@ -1242,18 +1275,6 @@ contains
         prevCurrentTerm = currentTerm
         call cgi_get_named_integer(QUERY_STRING, 'A1', currentTerm, iTmp)
 
-!        ! return to previous academic year?
-!        if (prevCurrentTerm==1 .and. currentTerm==3) then
-!            currentYear = currentYear-1
-!            ! create directories for year before
-!            nextYearDir = trim(itoa(currentYear-1))//DIRSEP
-!            call make_directory( trim(dirDATA)//nextYearDir)
-!            call make_directory( trim(dirBACKUP)//nextYearDir)
-!            do iTmp=1,3
-!                call make_directory( trim(dirDATA)//nextYearDir//trim(txtSemester(iTmp))//DIRSEP )
-!                call make_directory( trim(dirBACKUP)//nextYearDir//trim(txtSemester(iTmp))//DIRSEP )
-!            end do
-!
         ! proceed to next academic year?
         if (prevCurrentTerm==3 .and. currentTerm==1) then
             currentYear = currentYear+1
@@ -1341,7 +1362,7 @@ contains
 
         write(device,AFORMAT) &
             '#', &
-            '#  Student info for '//UniversityCode, &
+            '#  Student info for '//UniversityCodeNoMirror, &
             '#', &
             '# Generated by '//PROGNAME//VERSION//' on '//currentDate(1:4)// &
                         FSLASH//currentDate(5:6)//FSLASH//currentDate(7:8), &
@@ -1369,7 +1390,7 @@ contains
             line = COMMA//'"'//trim(itoa(StudentInfo%CountryIdx))//'"'//line
             line = COMMA//'"'//trim(Student(std)%Adviser)//'"'//line
             line = COMMA//'"'//trim(Curriculum(Student(std)%CurriculumIdx)%Code)//'"'//line
-            line = COMMA//'"'//trim(Student(std)%Gender)//'"'//line
+            line = COMMA//'"'//trim(StudentInfo%Gender)//'"'//line
             line = COMMA//'"'//trim(Student(std)%Name)//'"'//line
             line = '"'//trim(Student(std)%StdNo)//'"'//line
 
@@ -1399,9 +1420,6 @@ contains
                 permitted = .false.
 
             case (fnFileDownload)
-                permitted = .false.
-
-            case (fnToggleEditGrade)
                 permitted = .false.
 
             case (fnStudentAdd)

@@ -1347,7 +1347,7 @@ contains
         okToAdd = is_admin_of_college(targetCollege) .or. &
             ( is_chair_of_department(targetDepartment,orHigherUp) .and. &
               ( (thisTerm==currentTerm .and. isPeriodOne) .or. &
-                (thisTerm==nextTerm .and. (.not. isPeriodOne)) ) )
+                thisTerm==nextTerm ) ) ! (thisTerm==nextTerm .and. (.not. isPeriodOne)) ) )
 
         do idx=1,nopen
             cdx = tArray(nsections+idx)
@@ -1378,7 +1378,7 @@ contains
             end if
 
             write(device,AFORMAT) '('//trim(text_term_offered_separated(Subject(cdx)%TermOffered))//')'
-            if (fn/=fnTeacherClasses .and. (isRoleSysAd .or. isRoleOfficial)) then
+            if (fn/=fnTeacherClasses .and. (is_admin_of_college(targetCollege) .or. isRoleOfficial)) then
                 write(device,AFORMAT) trim(make_href(fnEditSubject, 'Edit', A1=Subject(cdx)%Name, A9=thisTerm, &
                     pre=nbsp//beginsmall//'[ ', post=' ]'//endsmall))
             end if
@@ -1667,7 +1667,7 @@ contains
             okToAdd = is_admin_of_college(targetCollege) .or. &
                 ( is_chair_of_department(targetDepartment,orHigherUp) .and. &
                   ( (term==currentTerm .and. isPeriodOne) .or. &
-                    (term==nextTerm .and. (.not. isPeriodOne)) ) )
+                    term==nextTerm ) ) ! (term==nextTerm .and. (.not. isPeriodOne)) ) )
 
             if (nclosed>0 .and. okToAdd) then
                 call make_form_start(device, fnScheduleOfferSubject, A2=Department(targetDepartment)%Code, A9=term)

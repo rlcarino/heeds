@@ -698,7 +698,7 @@ contains
             allowed_to_edit, beginbold//'Enlisted subjects'//endbold//nbsp//trim(make_href(fnPrintableSchedule, 'Printable', &
             A1=tStdNo, A9=thisTerm, pre=beginsmall//'(', post=')'//endsmall)) )
 
-        if (tLen1>0 .and. allowed_to_edit) then
+        if (tLen1>0 .and. allowed_to_edit .and. (.not. isRoleStudent) ) then
 
             ! lock or unlock
             call make_form_start(device, fnChangeMatriculation, A1=tStdNo, A9=thisTerm)
@@ -711,7 +711,9 @@ contains
             ! student not enrolling
             write(device,AFORMAT) nbsp//nbsp//nbsp//nbsp, &
                 '<input type="submit" name="A2" value="DELIST Student"> (not enrolling)'//endform
+        end if
 
+        if (tLen1>0) then
             call timetable_display(device, Section, TimeTable)
         end if
 
@@ -827,232 +829,6 @@ contains
         write(device,AFORMAT) horizontal
 
     end subroutine enlistment_edit
-
-
-!    subroutine enlistment_fees(device, std, NumSections, Section, heading)
-!        integer, intent(in) :: device, std
-!        integer, intent (in) :: NumSections
-!        type (TYPE_SECTION), intent(in) :: Section(0:)
-!        character (len=*), intent(in), optional :: heading
-!        integer :: idx, sect, crse
-!        real :: mult, totalUnits, totalA, totalB, totalC, totalD, totalE, totalGraduate, totalLabFee
-!
-!        ! Tuition fees by bracket
-!        real, parameter :: &
-!        TuitionA              = 1500.0, &
-!        TuitionB              = 1000.0, &
-!        TuitionC              =  600.0, &
-!        TuitionD              =  300.0, &
-!        TuitionE              =    0.0, &
-!        TuitionGraduate       = 1000.0, &
-!        NSTPA                 = 2250.0, &
-!        NSTPB                 = 1500.0, &
-!        NSTPC                 =  900.0, &
-!        NSTPD                 =  450.0, &
-!        NSTPE                 =    0.0, &
-!        MiscellaneousA        = 2000.0, &
-!        MiscellaneousB        = 2000.0, &
-!        MiscellaneousC        = 2000.0, &
-!        MiscellaneousD        =    0.0, &
-!        MiscellaneousE        =    0.0, &
-!        MiscellaneousGraduate = 1065.0, &
-!        StudentFund           =   45.5, &
-!        EntranceFee           =   30.0, &
-!        DepositFee            =  100.0, &
-!        IDFee                 =  130.0, &
-!        EducationDevelopment  =    0.0
-!
-!        if (present(heading)) write(device,AFORMAT) heading
-!
-!        write(device,AFORMAT) '<table border="0" width="100%">'//begintr, &
-!        thalignleft//'Subject'//endth// &
-!        thalignleft//'Section'//endth// &
-!        thalignright//'Units'//endth//&
-!        thalignright//'Bracket A'//endth//&
-!        thalignright//'Bracket B'//endth// &
-!        thalignright//'Bracket C'//endth//&
-!        thalignright//'Bracket D'//endth// &
-!        thalignright//'Bracket E'//endth// &
-!        thalignright//'Graduate'//endth// &
-!        thalignright//'Lab/Other'//endth//endtr
-!
-!        totalUnits = 0.0
-!        totalA = 0.0
-!        totalB = 0.0
-!        totalC = 0.0
-!        totalD = 0.0
-!        totalE = 0.0
-!        totalGraduate = 0.0
-!        totalLabFee = 0.0
-!        do idx=1,Preenlisted(std)%lenSubject ! loop over all entries in Preenlisted() for student
-!            sect = Preenlisted(std)%Section(idx)
-!            if (sect==0) cycle ! not enlisted
-!            crse = Preenlisted(std)%Subject(idx)
-!            mult = Subject(crse)%Units
-!            totalUnits = totalUnits + mult
-!            write(device,AFORMAT) begintr//begintd//trim(Subject(crse)%Name)//endtd// & !  subject
-!            begintd//trim(Section(sect)%Code)//endtd ! code
-!
-!            ! NSTP ?
-!            if (index(Subject(crse)%Name, 'CWTS') + index(Subject(crse)%Name, 'LTS')>0) then
-!                write(device,'(a,f9.1,a)') &
-!                tdnbspendtd// & ! units
-!                tdalignright, NSTPA, endtd, & ! NSTP A
-!                tdalignright, NSTPB, endtd, & ! NSTP B
-!                tdalignright, NSTPC, endtd, & ! NSTP C
-!                tdalignright, NSTPD, endtd, & ! NSTP D
-!                tdalignright, NSTPE, endtd, & ! NSTP E
-!                tdnbspendtd ! NSTP Graduate
-!                totalA = totalA + NSTPA
-!                totalB = totalB + NSTPB
-!                totalC = totalC + NSTPC
-!                totalD = totalD + NSTPD
-!                totalE = totalE + NSTPE
-!            else ! lecture class of a lect-lab/recit subject, lecture-only, lab-only
-!                ! compute tuition here
-!                write(device,'(a,f9.1,a)') &
-!                tdalignright, mult, endtd, & ! units
-!                tdalignright, TuitionA*mult, endtd, & ! Tuition A
-!                tdalignright, TuitionB*mult, endtd, & ! Tuition B
-!                tdalignright, TuitionC*mult, endtd, & ! Tuition C
-!                tdalignright, TuitionD*mult, endtd, & ! Tuition D
-!                tdalignright, TuitionE*mult, endtd, & ! Tuition E
-!                tdalignright, TuitionGraduate*mult, endtd ! Tuition Graduate
-!                totalA = totalA + TuitionA*mult
-!                totalB = totalB + TuitionB*mult
-!                totalC = totalC + TuitionC*mult
-!                totalD = totalD + TuitionD*mult
-!                totalE = totalE + TuitionE*mult
-!                totalGraduate = totalGraduate + TuitionGraduate*mult
-!            end if
-!            if (Subject(crse)%LabFee>0.0) then ! subject has additional fee
-!                write(device,'(a,f9.1,a)') &
-!                tdalignright, Subject(crse)%LabFee, endtd//endtr
-!                totalLabFee = totalLabFee + Subject(crse)%LabFee
-!            else
-!                write(device,AFORMAT) tdnbspendtd//endtr
-!            end if
-!        end do
-!
-!        ! sub totals
-!        write(device,AFORMAT) &
-!        begintr//'<td colspan="10">'//horizontal//endtd//endtr, &
-!        begintr//'<td colspan="2" align="right">Tuition Subtotal'//endtd
-!        write(device,'(a,f9.1,a)') &
-!        tdalignright, totalUnits, endtd, & ! units
-!        tdalignright, totalA, endtd, & ! Total A
-!        tdalignright, totalB, endtd, & ! Total B
-!        tdalignright, totalC, endtd, & ! Total C
-!        tdalignright, totalD, endtd, & ! Total D
-!        tdalignright, totalE, endtd, & ! Total E
-!        tdalignright, totalGraduate, endtd, & ! Total Graduate
-!        tdalignright, totalLabFee, endtd//endtr, & ! Total Lab
-!        begintr//'<td colspan="10">'//horizontal//endtd//endtr
-!
-!        ! miscellaneous
-!        write(device,AFORMAT) begintr//'<td colspan="2" align="right">Miscellaneous'//endtd//tdnbspendtd
-!        write(device,'(a,f9.1,a)') &
-!        tdalignright, MiscellaneousA, endtd, & ! Misc A
-!        tdalignright, MiscellaneousB, endtd, & ! Misc B
-!        tdalignright, MiscellaneousC, endtd, & ! Misc C
-!        tdalignright, MiscellaneousD, endtd, & ! Misc D
-!        tdalignright, MiscellaneousE, endtd, & ! Misc E
-!        tdalignright, MiscellaneousGraduate, endtd, & ! Misc Graduate
-!        tdnbspendtd//endtr ! Lab
-!        totalA = totalA + MiscellaneousA
-!        totalB = totalB + MiscellaneousB
-!        totalC = totalC + MiscellaneousC
-!        totalD = totalD + MiscellaneousD
-!        totalE = totalE + MiscellaneousE
-!        totalGraduate = totalGraduate + MiscellaneousGraduate
-!        ! StudentFund
-!        write(device,AFORMAT) begintr//'<td colspan="2" align="right">Student Fund'//endtd//tdnbspendtd
-!        write(device,'(a,f9.1,a)') &
-!        tdalignright, StudentFund, endtd, & ! A
-!        tdalignright, StudentFund, endtd, & ! B
-!        tdalignright, StudentFund, endtd, & ! C
-!        tdalignright, StudentFund, endtd, & ! D
-!        tdalignright, StudentFund, endtd, & ! E
-!        tdalignright, StudentFund, endtd, & ! Graduate
-!        tdnbspendtd//endtr ! Lab
-!        totalA = totalA + StudentFund
-!        totalB = totalB + StudentFund
-!        totalC = totalC + StudentFund
-!        totalD = totalD + StudentFund
-!        totalE = totalE + StudentFund
-!        totalGraduate = totalGraduate + StudentFund
-!        ! EntranceFee
-!        write(device,AFORMAT) begintr//'<td colspan="2" align="right">Entrance Fee'//endtd//tdnbspendtd
-!        write(device,'(a,f9.1,a)') &
-!        tdalignright, EntranceFee, endtd, & ! A
-!        tdalignright, EntranceFee, endtd, & ! B
-!        tdalignright, EntranceFee, endtd, & ! C
-!        tdalignright, EntranceFee, endtd, & ! D
-!        tdalignright, EntranceFee, endtd, & ! E
-!        tdalignright, EntranceFee, endtd, & ! Graduate
-!        tdnbspendtd//endtr ! Lab
-!        totalA = totalA + EntranceFee
-!        totalB = totalB + EntranceFee
-!        totalC = totalC + EntranceFee
-!        totalD = totalD + EntranceFee
-!        totalE = totalE + EntranceFee
-!        totalGraduate = totalGraduate + EntranceFee
-!        ! DepositFee
-!        write(device,AFORMAT) begintr//'<td colspan="2" align="right">Deposit'//endtd//tdnbspendtd
-!        write(device,'(a,f9.1,a)') &
-!        tdalignright, DepositFee, endtd, & ! A
-!        tdalignright, DepositFee, endtd, & ! B
-!        tdalignright, DepositFee, endtd, & ! C
-!        tdalignright, DepositFee, endtd, & ! D
-!        tdalignright, DepositFee, endtd, & ! E
-!        tdalignright, DepositFee, endtd, & ! Graduate
-!        tdnbspendtd//endtr ! Lab
-!        totalA = totalA + DepositFee
-!        totalB = totalB + DepositFee
-!        totalC = totalC + DepositFee
-!        totalD = totalD + DepositFee
-!        totalE = totalE + DepositFee
-!        totalGraduate = totalGraduate + DepositFee
-!        ! IDFee
-!        write(device,AFORMAT) begintr//'<td colspan="2" align="right">ID Fee'//endtd//tdnbspendtd
-!        write(device,'(a,f9.1,a)') &
-!        tdalignright, IDFee, endtd, & ! A
-!        tdalignright, IDFee, endtd, & ! B
-!        tdalignright, IDFee, endtd, & ! C
-!        tdalignright, IDFee, endtd, & ! D
-!        tdalignright, IDFee, endtd, & ! E
-!        tdalignright, IDFee, endtd, & ! Graduate
-!        tdnbspendtd//endtr ! Lab
-!        totalA = totalA + IDFee
-!        totalB = totalB + IDFee
-!        totalC = totalC + IDFee
-!        totalD = totalD + IDFee
-!        totalE = totalE + IDFee
-!        totalGraduate = totalGraduate + IDFee
-!
-!        ! EducationDevelopment
-!        write(device,AFORMAT) begintr//'<td colspan="2" align="right">Education Development'//endtd//tdnbspendtd
-!        write(device,'(a,f9.1,a)') &
-!        '<td colspan="6">'//nbsp//endtd//tdalignright, EducationDevelopment, endtd//endtr ! Lab
-!        totalLabFee = totalLabFee+ EducationDevelopment
-!
-!        ! totals
-!        write(device,AFORMAT) &
-!        begintr//'<td colspan="10">'//horizontal//endtd//endtr, &
-!        begintr//'<th colspan="3" align="right">TOTAL'//endth
-!        write(device,'(a,f9.1,a)') &
-!        thalignright, totalA, endth, & ! Total A
-!        thalignright, totalB, endth, & ! Total B
-!        thalignright, totalC, endth, & ! Total C
-!        thalignright, totalD, endth, & ! Total D
-!        thalignright, totalE, endth, & ! Total E
-!        thalignright, totalGraduate, endth, & ! Total Graduate
-!        thalignright, totalLabFee, endth//endtr ! Total Lab
-!
-!        write(device,AFORMAT) endtable
-!
-!
-!    end subroutine enlistment_fees
 
 
     subroutine enlistment_printable  (device, NumSections, Section, eList)
@@ -1180,12 +956,16 @@ contains
     subroutine enlistment_class_schedule(device, std, Section, lenSL, SectionList)
         integer, intent(in) :: device, std, lenSL, SectionList(3*lenSL+3)
         type (TYPE_SECTION), intent(in) :: Section(0:)
-        integer :: crse, idx, mdx, sect, previous, conflict
+        integer :: crse, idx, mdx, rdx, rdx1, sect, previous, conflict
         real :: totalUnits, classUnits, totalHours, classHours, totalTuition, classTuition, totalLabFee, classLabFee
+        real :: EnergyFee, totalEnergyFee, totalFiduciaryFee, totalOtherFee
 
         write(device,AFORMAT) beginbold//trim(Student(std)%StdNo)//SPACE//trim(Student(std)%Name)// &
             linebreak//text_curriculum_info(Student(std)%CurriculumIdx)//linebreak//linebreak//'Enlisted subjects for '// &
-            trim(termDescription)//endbold//horizontal
+            trim(termDescription)//endbold, &
+            linebreak//beginitalic// &
+            'Subject fees are assessed for laboratories and NSTP/ROTC.', &
+            enditalic//horizontal
 
         if (lenSL < 3) then
             write(device,AFORMAT) linebreak//'Not enlisted in any class?'//linebreak
@@ -1196,6 +976,17 @@ contains
         totalHours = 0.0
         totalTuition = 0.0
         totalLabFee = 0.0
+        totalEnergyFee = 0.0
+
+        totalFiduciaryFee = 0.0
+        totalOtherFee = 0.0
+        do idx=1,MAX_ALL_FEES
+            if (index(FeeDescription(idx), 'FIDUCIARY') > 0) then
+                totalFiduciaryFee = totalFiduciaryFee + FeeAmount(idx)
+            else if (index(FeeDescription(idx), 'OTHER') > 0) then
+                totalOtherFee = totalOtherFee + FeeAmount(idx)
+            end if
+        end do
 
         write(device,AFORMAT) '<table border="0" width="100%">'//begintr, &
             thalignleft//'Subject'//endth// &
@@ -1203,7 +994,7 @@ contains
             thalignleft//'Units'//endth// &
             thalignleft//'Hours'//endth// &
             thalignleft//'Tuition'//endth// &
-            thalignleft//'Lab Fee'//endth// &
+            thalignleft//'Subject fee'//endth// &
             thalignleft//'Time'//endth// &
             thalignleft//'Day'//endth//&
             thalignleft//'Room'//endth//endtr
@@ -1223,18 +1014,18 @@ contains
                         classUnits = Subject(crse)%Units
                         classHours = Subject(crse)%LectHours
                         classTuition = Subject(crse)%Tuition
-                        classLabFee = 0.0 
+                        classLabFee = 0.0
                     else ! lab of lecture-lab
                         classUnits = 0.0
                         classHours = Subject(crse)%LabHours
-                        classTuition = 0.0 
+                        classTuition = 0.0
                         classLabFee = Subject(crse)%LabFee
                     end if
                 else if (Subject(crse)%LectHours>0.0) then ! lecture-only
                     classUnits = Subject(crse)%Units
                     classHours = Subject(crse)%LectHours
                     classTuition = Subject(crse)%Tuition
-                    classLabFee = 0.0
+                    classLabFee = Subject(crse)%LabFee
                 else if (Subject(crse)%LabHours>0.0) then ! lab-only
                     classUnits = Subject(crse)%Units
                     classHours = Subject(crse)%LabHours
@@ -1281,23 +1072,33 @@ contains
                 !-------------------------------------------------
 
                 if (is_regular_schedule(sect, Section)) then
+                    rdx = Section(sect)%RoomIdx(1)
+                    EnergyFee = Room(rdx)%EnergyFee
                     write(device,AFORMAT) &
                         begintd//trim(text_time_period(Section(sect)%bTimeIdx(1), Section(sect)%eTimeIdx(1)))//endtd// &
                         begintd//trim(text_days_of_section(Section(sect)))//endtd// &
-                        begintd//trim(Room(Section(sect)%RoomIdx(1))%Code)//endtd//endtr
+                        begintd//trim(Room(rdx)%Code)//endtd//endtr
                 else
                     mdx = 1
+                    rdx = Section(sect)%RoomIdx(mdx)
+                    EnergyFee = Room(rdx)%EnergyFee
                     write(device,AFORMAT) &
                         begintd//trim(text_time_period(Section(sect)%bTimeIdx(mdx), Section(sect)%eTimeIdx(mdx)))//endtd// &
                         begintd//trim(txtDay(Section(sect)%DayIdx(mdx)))//endtd// &
-                        begintd//trim(Room(Section(sect)%RoomIdx(mdx))%Code)//endtd//endtr
+                        begintd//trim(Room(rdx)%Code)//endtd//endtr
                     do mdx=2,Section(sect)%NMeets
+                        rdx1 = Section(sect)%RoomIdx(mdx)
+                        if (EnergyFee < Room(rdx1)%EnergyFee) then
+                            rdx = rdx1
+                            EnergyFee = Room(rdx)%EnergyFee
+                        end if
                         write(device,AFORMAT) begintr//'<td colspan="6">'//nbsp//endtd// &
                             begintd//trim(text_time_period(Section(sect)%bTimeIdx(mdx), Section(sect)%eTimeIdx(mdx)))//endtd// &
                             begintd//trim(txtDay(Section(sect)%DayIdx(mdx)))//endtd// &
-                            begintd//trim(Room(Section(sect)%RoomIdx(mdx))%Code)//endtd//endtr
+                            begintd//trim(Room(rdx1)%Code)//endtd//endtr
                     end do
                 end if
+                totalEnergyFee = totalEnergyFee + EnergyFee
                 if (conflict>0) write(device,AFORMAT) &
                     begintr//'<td align="center" colspan="9">'//red//'CONFLICT between '//trim(Section(sect)%ClassId)//' and '// &
                     trim(Section(conflict)%ClassId)//black//endtd//endtr
@@ -1308,10 +1109,83 @@ contains
         write(device,AFORMAT) begintr//'<td colspan="9">'//horizontal//endtd//endtr, &
             begintr//tdnbspendtd//begintd//beginbold//'Totals'//endbold//' : '//endtd// & ! code
             begintd//trim(ftoa(totalUnits,1))//endtd//begintd//trim(ftoa(totalHours,2))//endtd// & ! hours
-            begintd//trim(ftoa(totalTuition,2))//endtd//begintd//trim(ftoa(totalLabFee,2))//endtd// & ! fees
+            begintd//beginbold//trim(ftoa(totalTuition,2))//endbold//endtd// &
+            begintd//beginbold//trim(ftoa(totalLabFee,2))//endbold//endtd// & ! fees
             tdnbspendtd// tdnbspendtd// tdnbspendtd//endtr, &
-            endtable
+            endtable, horizontal, linebreak
 
+        write(device,AFORMAT) beginbold//'An estimate of the total additional fee is '// &
+                trim(ftoa(totalEnergyFee+totalFiduciaryFee+totalOtherFee,2))//DOT, &
+                ' The Finance office in '// trim(UniversityCodeNoMirror)//' makes the final assessment.'// &
+                endbold//linebreak, &
+            beginitalic//' The list of fees below may be incomplete, and some fees may be inapplicable. '//enditalic, &
+            linebreak, '<table border="0" width="30%">'
+
+        if (totalEnergyFee>0.0) then
+            write(device,AFORMAT) begintr//'<td colspan="2"><br><b>ENERGY fee</b>'//endtd//endtr
+            previous = 0
+            do idx=1,lenSL,3
+                sect=SectionList(idx)
+                crse = Section(sect)%SubjectIdx
+
+                !new section ?
+                if (sect/=previous) then ! include subject, section, units/blockname, seats/hours, time, day
+                    previous = sect
+                    if (is_regular_schedule(sect, Section)) then
+                        rdx = Section(sect)%RoomIdx(1)
+                        EnergyFee = Room(rdx)%EnergyFee
+                    else
+                        rdx = Section(sect)%RoomIdx(1)
+                        EnergyFee = Room(rdx)%EnergyFee
+                        do mdx=2,Section(sect)%NMeets
+                            rdx1 = Section(sect)%RoomIdx(mdx)
+                            if (EnergyFee < Room(rdx1)%EnergyFee) then
+                                rdx = rdx1
+                                EnergyFee = Room(rdx)%EnergyFee
+                            end if
+                        end do
+                    end if
+                    if (EnergyFee>0.0) write(device,AFORMAT) begintr// &
+                        begintd//nbsp//nbsp//trim(Subject(crse)%Name)//SPACE//trim(Section(sect)%Code)//' @ '// &
+                            trim(Room(rdx)%Code)//endtd// &
+                        tdalignright//trim(ftoa(EnergyFee,1))//endtd//endtr
+                end if
+
+            end do
+            write(device,AFORMAT) begintr// &
+                begintd//beginbold//'Subtotal'//endbold//endtd// &
+                tdalignright//beginbold//trim(ftoa(totalEnergyFee,1))//endbold//endtd//endtr
+        end if
+
+        if (totalFiduciaryFee>0.0) then
+            write(device,AFORMAT) begintr//'<td colspan="2"><br><b>FIDUCIARY fees</b>'//endtd//endtr
+            do idx=1,MAX_ALL_FEES
+                if (index(FeeDescription(idx), 'FIDUCIARY:')==1 .and. FeeAmount(idx)>0.0) then
+                    write(device,AFORMAT) begintr// &
+                        begintd//nbsp//nbsp//trim(FeeDescription(idx)(11:))//endtd// &
+                        tdalignright//trim(ftoa(FeeAmount(idx),1))//endtd//endtr
+                end if
+            end do
+            write(device,AFORMAT) begintr// &
+                begintd//beginbold//'Subtotal'//endbold//endtd// &
+                tdalignright//beginbold//trim(ftoa(totalFiduciaryFee,1))//endbold//endtd//endtr
+        end if
+
+        if (totalOtherFee>0.0) then
+            write(device,AFORMAT) begintr//'<td colspan="2"><br><b>OTHER fees</b>'//endtd//endtr
+            do idx=1,MAX_ALL_FEES
+                if (index(FeeDescription(idx), 'OTHER:')==1 .and. FeeAmount(idx)>0.0) then
+                    write(device,AFORMAT) begintr// &
+                        begintd//nbsp//nbsp//trim(FeeDescription(idx)(7:))//endtd// &
+                        tdalignright//trim(ftoa(FeeAmount(idx),1))//endtd//endtr
+                end if
+            end do
+            write(device,AFORMAT) begintr// &
+                begintd//beginbold//'Subtotal'//endbold//endtd// &
+                tdalignright//beginbold//trim(ftoa(totalOtherFee,1))//endbold//endtd//endtr
+        end if
+
+        write(device,AFORMAT) endtable
 
     end subroutine enlistment_class_schedule
 
@@ -1340,29 +1214,6 @@ contains
         targetCollege = Department(targetDepartment)%CollegeIdx
 
         call collect_students_in_section (targetSection, NumSections, Section, eList, n_count, tArray)
-!        ! collect students
-!        n_count = 0
-!        do tdx=1,NumStudents+NumAdditionalStudents
-!            std = StdRank(tdx)
-!            do ncol=1,eList(std)%lenSubject
-!                sect = eList(std)%Section(ncol)
-!                if (sect==0) cycle
-!                if (targetSection == sect) then
-!                    n_count = n_count+1
-!                    tArray(n_count) = std
-!                    exit
-!                elseif (eList(std)%Subject(ncol)==crse .and. is_lecture_lab_subject(crse)) then
-!                    ldx = index(Section(sect)%ClassId,DASH)
-!                    if (ldx>0) then ! student is accommodated in a lab section
-!                        if (trim(tClassId)==Section(sect)%ClassId(:ldx-1)) then ! lab of lecture
-!                            n_count = n_count+1
-!                            tArray(n_count) = std
-!                            exit
-!                        end if
-!                    end if
-!                end if
-!            end do
-!        end do
 
         ncol = n_count
         if (is_lecture_lab_subject(crse)) then
@@ -1433,7 +1284,7 @@ contains
         tArray(ncol+3) = 0
 
         write(device,AFORMAT) &
-            '<html><head><title>'//trim(UniversityCode)//SPACE//PROGNAME//VERSION// &
+            '<html><head><title>'//trim(UniversityCodeNoMirror)//SPACE//PROGNAME//VERSION// &
             '</title></head><body>', '<table border="0" width="100%">', &
             begintr//tdaligncenter//'Republic of the Philippines'//endtd//endtr, &
             begintr//tdaligncenter//beginbold//trim(UniversityName)//endbold//endtd//endtr, &
@@ -1612,7 +1463,7 @@ contains
         tArray(ncol+3) = 0
 
         write(device,AFORMAT) &
-            '<html><head><title>'//trim(UniversityCode)//SPACE//PROGNAME//VERSION// &
+            '<html><head><title>'//trim(UniversityCodeNoMirror)//SPACE//PROGNAME//VERSION// &
             '</title></head><body>', '<table border="0" width="100%">', &
             begintr//tdaligncenter//'Republic of the Philippines'//endtd//endtr, &
             begintr//tdaligncenter//beginbold//trim(UniversityName)//endbold//endtd//endtr, &
@@ -2104,6 +1955,213 @@ contains
         write(device,AFORMAT) horizontal
 
     end subroutine  enlistment_no_classes
+
+
+    subroutine preenlist_or_delist(device, thisTerm, NumSections, Section, Offering, &
+        NumBlocks, Block, Enlistment, inclStudent )
+
+        integer, intent (in) :: device, thisTerm, NumSections, NumBlocks
+        type (TYPE_SECTION), intent(in out) :: Section(0:)
+        type (TYPE_OFFERED_SUBJECTS), intent(in out), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS) :: Offering
+        type (TYPE_BLOCK), intent(in) :: Block(0:)
+        type (TYPE_PRE_ENLISTMENT), intent(in out) :: Enlistment(0:)
+        integer, intent (in out) :: inclStudent(0:)
+
+        integer :: std, ldx, ierr
+        character (len=MAX_LEN_COLLEGE_CODE) :: tCollege
+        character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
+        character(len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
+        character(len=2*MAX_LEN_CURRICULUM_CODE) :: search_string, tAction
+
+        call cgi_get_named_string(QUERY_STRING, 'A1', tDepartment, ierr)
+        targetDepartment = index_to_dept(tDepartment)
+        targetCollege = Department(targetDepartment)%CollegeIdx
+        tCollege = College(targetCollege)%Code
+
+        call cgi_get_named_string(QUERY_STRING, 'action', tAction, ierr)
+
+        call html_comment( tAction//tCollege )
+        call html_write_header(device, tCollege//'- '//College(targetCollege)%Name)
+
+        write(device,AFORMAT) '<pre>', trim(tAction)//SPACE//trim(tCollege)//' students for '// &
+            txtSemester(thisTerm+3)//termQualifier(thisTerm+3)
+
+        ! mark students to be includes
+        inclStudent = 0
+        select case(trim(tAction))
+
+            case ('Preenlist ALL', 'Delist ALL')
+
+                if (targetCollege==NumColleges) then ! all students
+                    inclStudent(1:NumStudents+NumAdditionalStudents) = 1
+                else
+                    do std = 1,NumStudents+NumAdditionalStudents
+                        if (Curriculum(Student(std)%CurriculumIdx)%CollegeIdx/=targetCollege) cycle
+                        inclStudent(std) = 1
+                    end do
+                end if
+
+            case ('Preenlist SELECTED', 'Delist SELECTED')
+
+                done = .true.
+                do ldx=1,NumCurricula ! specific curriculum
+                    if (targetCollege/=Curriculum(ldx)%CollegeIdx) cycle
+                    search_string = 'CHECKED:'//Curriculum(ldx)%Code
+                    call cgi_get_named_string(QUERY_STRING, trim(search_string), tCurriculum, ierr)
+                    if (ierr==-1) cycle ! not found
+                    done(ldx) = .false.
+                    write(device,AFORMAT) trim(search_string)//' - '//tCurriculum
+                end do
+                do std = 1,NumStudents+NumAdditionalStudents
+                    ! skip student not in selected surricula
+                    if ( done(Student(std)%CurriculumIdx) ) cycle
+                    inclStudent(std) = 1
+                end do
+
+        end select
+        write(device,*) '# Students selected = '//itoa(sum(inclStudent))
+
+        ! perform action
+        select case(trim(tAction))
+
+            case ('Delist ALL', 'Delist SELECTED')
+
+                do std = 1,NumStudents+NumAdditionalStudents
+                    if (inclStudent(std)==0) cycle
+                    Enlistment(std)%Section(:) = 0
+                    Enlistment(std)%Grade(:) = 0
+                end do
+
+            case ('Preenlist ALL', 'Preenlist SELECTED')
+!                call generate_timetables(device, thisTerm, NumSections, Section, &
+!                    wrkOffering, Enlistment, inclStudent )
+                call add_to_blocks(device, thisTerm, NumSections, Section, &
+                    NumBlocks, Block, Enlistment, inclStudent )
+
+        end select
+
+        write(device,AFORMAT) '</pre>', horizontal
+
+    end subroutine preenlist_or_delist
+
+
+    subroutine add_to_blocks(device, thisTerm, NumSections, Section, NumBlocks, Block, Enlistment, inclStudent )
+
+        integer, intent (in) :: device, thisTerm, NumSections, NumBlocks
+        type (TYPE_SECTION), intent(in out) :: Section(0:)
+        type (TYPE_BLOCK), intent(in) :: Block(0:)
+        type (TYPE_PRE_ENLISTMENT), intent(in out) :: Enlistment(0:)
+        integer, intent (in out) :: inclStudent(0:)
+        type (TYPE_PRE_ENLISTMENT) :: wrk
+
+        ! match blocks to students of the same curriculum; all subjects in block must be advised subjects
+        ! of a student
+        integer :: std, blk, crse, sect, n_matches, bdx, fdx, n_assigned, in_block
+        character(len=MAX_LEN_SUBJECT_CODE) :: tSubjectA, tSubjectB
+        logical :: matched
+
+        ! count remaining slots per section
+        Section(1:NumSections)%RemSlots = Section(1:NumSections)%Slots
+        do std=1,NumStudents+NumAdditionalStudents
+            do fdx=1,Enlistment(std)%lenSubject
+                sect = Enlistment(std)%Section(fdx)
+                if (sect > 0) then
+                    if (Section(sect)%Slots > 0) Section(sect)%RemSlots = Section(sect)%RemSlots-1
+                end if
+            end do
+        end do
+
+        n_assigned = 0
+        do std=1,NumStudents+NumAdditionalStudents
+            if (inclStudent(std)==0) cycle ! student not selected
+            if ( sum(Enlistment(std)%Section(:))>0 ) then
+                write(device,*) 'Previously enlisted: '//trim(text_student_curriculum(std))
+                cycle ! student already enlisted in some sections
+            end if
+            wrk = Enlistment(std)
+            do blk=1,NumBlocks
+                if (Block(blk)%CurriculumIdx/=Student(std)%CurriculumIdx) cycle ! curriculum mismatch
+                in_block = 0 ! how many subjects in block matched
+                n_matches = 0 ! how many subjects in block matched by advised subjects
+                do bdx=1,Block(blk)%NumClasses
+                    crse = Block(blk)%Subject(bdx)
+                    sect = Block(blk)%Section(bdx)
+                    if (sect==0) cycle
+                    in_block = in_block+1
+                    tSubjectB = Subject(crse)%Name
+                    matched = .false.
+                    do fdx=1,Enlistment(std)%lenSubject
+                        if (crse==Enlistment(std)%Subject(fdx) .and. Section(sect)%RemSlots>0) then
+                            wrk%Section(fdx) = sect
+                            wrk%Grade(fdx) = gdxREGD
+                            matched = .true.
+                            exit ! subject matching
+                        end if
+                    end do
+                    if (matched) then
+                        n_matches = n_matches+1
+                        cycle
+                    else
+                        ! try PE
+                        matched = .false.
+                        if (tSubjectB(1:3)=='PE ') then
+                            do fdx=1,Enlistment(std)%lenSubject
+                                tSubjectA = Subject(Enlistment(std)%Subject(fdx))%Name
+                                if (tSubjectA(1:3)==tSubjectB(1:3) .and. Section(sect)%RemSlots>0) then
+                                    wrk%Subject(fdx) = crse
+                                    wrk%Section(fdx) = sect
+                                    wrk%Grade(fdx) = gdxREGD
+                                    matched = .true.
+                                    exit ! subject matching
+                                end if
+                            end do
+                            if (matched) then
+                                n_matches = n_matches+1
+                                cycle
+                            end if
+                        end if
+                        ! try NSTP
+                        matched = .false.
+                        if (tSubjectB(1:5)=='NSTP ') then
+                            do fdx=1,Enlistment(std)%lenSubject
+                                tSubjectA = Subject(Enlistment(std)%Subject(fdx))%Name
+                                if (tSubjectA(1:5)==tSubjectB(1:5) .and. Section(sect)%RemSlots>0) then
+                                    wrk%Subject(fdx) = crse
+                                    wrk%Section(fdx) = sect
+                                    wrk%Grade(fdx) = gdxREGD
+                                    matched = .true.
+                                    exit ! subject matching
+                                end if
+                            end do
+                            if (matched) then
+                                n_matches = n_matches+1
+                                cycle
+                            end if
+                        end if
+                    end if
+                end do
+                !write(device,*) Block(blk)%BlockID//': matched subjects= ', n_matches
+                if (n_matches/=in_block) cycle
+                ! all subjects in block matched, and seats are available in all classes
+                do bdx=1,Block(blk)%NumClasses
+                    crse = Block(blk)%Subject(bdx)
+                    sect = Block(blk)%Section(bdx)
+                    do fdx=1,wrk%lenSubject
+                        if (crse/=wrk%Subject(fdx)) cycle
+                        Section(sect)%RemSlots = Section(sect)%RemSlots-1
+                        exit ! subject matching
+                    end do
+                end do
+                Enlistment(std) = wrk
+                n_assigned = n_assigned+1
+                write(device,*) n_assigned, trim(text_student_curriculum(std))//' assigned to '//Block(blk)%BlockID
+                exit ! block search
+            end do
+
+        end do
+        write(device,*) 'Blocks not found for '//itoa(sum(inclStudent)-n_assigned)
+
+    end subroutine add_to_blocks
 
 
 end module EditENLISTMENT

@@ -53,11 +53,15 @@ module UTILITIES
     character(len= 6), parameter :: mvCmd = 'mv -f '
     character(len= 1), parameter :: DIRSEP = '/'
 
-    ! HEEDS@PLDT Cloud
+    character(len=16), parameter :: WEBROOT = '/home/HEEDS/web/'
     character(len= 7), parameter :: PROTOCOL = 'http://'
+
+#if defined no_password_check
     !character(len= 9), parameter :: IP_ADDR = 'localhost'
-    character(len=14), parameter :: IP_ADDR = '112.206.226.26' ! the IP address xxx.xxx.xxx.xxx
-    character(len=18), parameter :: WEBROOT = '/home/HEEDS/web/'
+    character(len=13), parameter :: IP_ADDR = '192.168.1.197'
+#else
+    character(len=14), parameter :: IP_ADDR = '112.206.226.26' ! CSU server in PLDT Cloud
+#endif
 
 #else
     ! file separator; delete, directory, mkdir commands
@@ -65,9 +69,10 @@ module UTILITIES
     character(len= 6), parameter :: mkdirCmd = 'mkdir '
     character(len= 8), parameter :: mvCmd = 'move /y '
     character(len= 1), parameter :: DIRSEP = '\'
+
+    character(len=13), parameter :: WEBROOT = 'C:\HEEDS\web\'
     character(len= 7), parameter :: PROTOCOL = 'http://'
     character(len= 9), parameter :: IP_ADDR = 'localhost'
-    character(len=13), parameter :: WEBROOT = 'C:\HEEDS\web\'
 #endif
 
 
@@ -97,12 +102,16 @@ module UTILITIES
 ! times
 !===========================================================
 
+    integer :: maxIdleTime = 1800 ! seconds before auto-logout
+    integer :: maxRefreshTime = 1800 ! seconds before auto-refresh
+
     character(len=10) :: currentTime ! current time - HHMMSS.LLL
     character(len= 8) :: currentDate, previousDate ! current, previous dates - YYYYMMDD
     character(len=18) :: startDateTime ! program start date & time
     integer(8) :: tick, count_rate, count_max ! system clock
-    integer, parameter :: maxIdleTime = 1800 ! seconds before auto-logout
-
+    integer(8) :: tickLastRefresh ! clock-tick when last refreshed
+    integer :: secsNextRefresh, secsLastRefresh ! estimated time in seconds before next refresh, after last refresh
+    logical :: isReadOnly = .false., isAllowedNonEditors = .true.
 
 !===========================================================
 ! file paths
@@ -281,7 +290,6 @@ module UTILITIES
     character (len=255) :: sorryMessage
     character (len=15) :: ACTION
     logical :: &
-        isEnabledEditGrade = .false., &
         isEnabledGuest = .true., &
         isProbabilistic = .false., &
         isPeriodOne = .false., &
@@ -909,7 +917,7 @@ contains
         integer :: eof
 
         ! open & look for rootName in file
-        open (unit=device, file=fileName, status='old', iostat=errNo)
+        open(unit=device, file=fileName, status='old', iostat=errNo)
         if (errNo/=0) return
         do
             read(device, AFORMAT, iostat=eof) xmlLine
@@ -1173,7 +1181,7 @@ contains
             call cgi_url_decode(tmpIN, tmpOUT) ! decode
             rvalue = trim(tmpOUT)
         end if
-        call html_comment('cgi_get_named_string() : '//lname//'='//trim(rvalue)//', ierr='//itoa(ierr))
+        !call html_comment('cgi_get_named_string() : '//lname//'='//trim(rvalue)//', ierr='//itoa(ierr))
 
     end subroutine cgi_get_named_string
 

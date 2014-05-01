@@ -1008,7 +1008,8 @@ contains
         Slack = 0
         do idx=1,CheckList%NSubjects
             gdx = CLExt(idx)%Grade
-            if (gdx==0 .or. is_grade_failing(gdx) .or. (isPeriodOne .and. gdx==gdxREGD) ) EarlyTime(idx) = 1
+            !if (gdx==0 .or. is_grade_failing(gdx) .or. (isPeriodOne .and. gdx==gdxREGD) ) EarlyTime(idx) = 1
+            if (gdx==0 .or. is_grade_failing(gdx)) EarlyTime(idx) = 1
         end do
         Latest = 0
         do ! loop while an EarlyTime() changed
@@ -1396,7 +1397,8 @@ contains
         !r = 0.0
         do idx=1,CheckList%NSubjects
             gdx = CLExt(idx)%Grade
-            if ( gdx==0 .or. is_grade_failing(gdx) .or. (gdx==gdxREGD .and. isPeriodOne) ) then ! no grade or failed
+            !if ( gdx==0 .or. is_grade_failing(gdx) .or. (gdx==gdxREGD .and. isPeriodOne) ) then ! no grade or failed
+            if ( gdx==0 .or. is_grade_failing(gdx) ) then ! no grade or failed
                 if (CLExt(idx)%OKPreq .and. CheckList%SubjectIdx(idx) > 0) then ! named subject, not passed, prereq is satisfied
 
                     FlagIsUp = .true. ! by default, add to list of subjects with satisfied prereqs

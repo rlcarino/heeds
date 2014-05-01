@@ -683,7 +683,7 @@ contains
         allowed_to_edit = is_admin_of_college(targetCollege) .or. &
             ( is_chair_of_department(targetDepartment,orHigherUp) .and. &
               ( (thisTerm==currentTerm .and. isPeriodOne) .or. &
-                (thisTerm==nextTerm .and. (.not. isPeriodOne)) ) )
+                thisTerm==nextTerm ) ) ! (thisTerm==nextTerm .and. (.not. isPeriodOne)) ) )
 
         ! check if there are other arguments
         call cgi_get_named_string(QUERY_STRING, 'A2', tAction, ierr)
@@ -960,7 +960,7 @@ contains
         targetCollege = Department(targetDepartment)%CollegeIdx
 
         write(device,AFORMAT) &
-            '<html><head><title>'//trim(UniversityCode)//SPACE//PROGNAME//VERSION// &
+            '<html><head><title>'//trim(UniversityCodeNoMirror)//SPACE//PROGNAME//VERSION// &
             '</title></head><body>', '<table border="0" width="100%">', &
             begintr//tdaligncenter//'Republic of the Philippines'//endtd//endtr, &
             begintr//tdaligncenter//beginbold//trim(UniversityName)//endbold//endtd//endtr, &
