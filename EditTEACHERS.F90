@@ -39,7 +39,7 @@ contains
 
     subroutine teacher_edit(device)
         integer, intent(in) :: device
-        character(len=MAX_LEN_TEACHER_CODE) :: tTeacher, tAction
+        character(len=MAX_LEN_USERNAME) :: tTeacher, tAction
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
         integer :: ierr, tdx, i, j
         character (len=255) :: header, remark, tmpRHS
@@ -91,7 +91,7 @@ contains
         else if (isRoleOfficial) then
 
             header = 'Edit info for teacher '//tTeacher
-            remark = 'Edit teacher "'//trim(tTeacher)//'" failed. '//sorryMessage
+            remark = 'Edit teacher "'//trim(tTeacher)//'" failed. '//sorryMessageOfficial
             call teacher_info(device, wrk, header, remark, tAction, tdx)
 
         else ! action is Add or Update; collect changes
@@ -268,9 +268,9 @@ contains
         integer, intent (in) :: device
         integer :: fac, nsect(3), sdx, tdx, term
         integer :: n_meetings, meetings(MAX_SECTION_MEETINGS)
-        character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
+        character(len=MAX_LEN_USERNAME) :: tTeacher
         character (len=127) :: mesg
-        integer, dimension(60,6) :: TimeTable
+        integer, dimension(60,7) :: TimeTable
         integer :: tYear, tTerm
 
         call html_comment('teacher_delete()')
@@ -285,7 +285,7 @@ contains
 
         if (isRoleOfficial) then
             call html_college_links(device, CollegeIdxUser, mesg='Teacher "'//trim(tTeacher)// &
-                '" not deleted. '//sorryMessage)
+                '" not deleted. '//sorryMessageOfficial)
             return
         end if
 
@@ -337,7 +337,7 @@ contains
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
         character(len=MAX_LEN_COLLEGE_CODE) :: tCollege
         character (len=127) :: mesg, stats
-        integer, dimension(60,6) :: TimeTable
+        integer, dimension(60,7) :: TimeTable
         character(len=1) :: ch
         real :: totalLect(3), lectHours, totalLab(3), labHours, totalUnits(3), meetingUnits
         integer :: tYear, tTerm
@@ -421,7 +421,7 @@ contains
         if (nfacs == 0) then
             write(device,AFORMAT) '<table border="0">', &
                 begintr//begintd//JUSTNONE//endtd//tdalignright
-            if ( (isRoleSysAd .or. isRoleOfficial .or. isRoleStaff) .and. fn/=fnOnlineTeachers) then
+            if (.not. isRectify .and. (isRoleSysAd .or. isRoleOfficial .or. isRoleStaff) .and. fn/=fnOnlineTeachers) then
                 write(device,AFORMAT) trim(make_href(fnEditTeacher, 'Add teacher', &
                     A1='Guest', pre=beginsmall//'('//nbsp, post=' )'//endsmall))
             end if
@@ -441,7 +441,8 @@ contains
             write(device,AFORMAT) '<table border="0">', begintr//begintd// &
                 beginitalic//'(Numbers per term are: No. of classes / Lect hrs / Lab hrs)'//enditalic, &
                 endtd//tdalignright
-            if ((isRoleSysAd .or. isRoleOfficial .or. isRoleStaff) .and. fn/=fnOnlineTeachers) then
+            if (.not. isRectify .and. &
+                (isRoleSysAd .or. isRoleOfficial .or. isRoleStaff) .and. fn/=fnOnlineTeachers) then
                 write(device,AFORMAT) trim(make_href(fnEditTeacher, 'Add teacher', &
                     A1='Guest', pre=beginsmall//'('//nbsp, post=' )'//endsmall))
             end if
@@ -510,12 +511,18 @@ contains
                 end do
 
                 write(device,AFORMAT) tdaligncenter//trim(mesg)//endtd//begintd//beginsmall
-                if ( is_dean_of_college(Department(Teacher(fac)%DeptIdx)%CollegeIdx, orHigherUp) ) then
+                if (.not. isRectify .and. is_dean_of_college(Department(Teacher(fac)%DeptIdx)%CollegeIdx, orHigherUp) ) then
                     write(device,AFORMAT) &
                         trim(make_href(fnEditTeacher, 'Info', A1=QUERY_put, pre=nbsp)), &
                         trim(make_href(fnRecentTeacherActivity, 'Log', A1=QUERY_put, pre=nbsp))
                     if (Teacher(fac)%NumAdvisees>0) write(device,AFORMAT) &
                         trim(make_href(fnAdvisersByTeacher, 'Advisees', A1=QUERY_put, pre=nbsp))
+                    if (Teacher(fac)%Role==BENEFACTOR) write(device,AFORMAT) &
+                        trim(make_href(fnListBeneficiaries, 'Beneficiaries', A1=QUERY_put, pre=nbsp))
+                    if (isRoleSysAd) then
+                        write(device,AFORMAT) &
+                            trim(make_href(fnSwitchUser, 'Login', A1=QUERY_put, pre=nbsp, newtab='"0"'))
+                    end if
                 end if
                 write(device,AFORMAT) endsmall//endtd//endtr
             end do
@@ -536,7 +543,7 @@ contains
         !character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
         character(len=MAX_LEN_COLLEGE_CODE) :: tCollege
         character (len=127) :: mesg
-        integer, dimension(60,6) :: TimeTable
+        integer, dimension(60,7) :: TimeTable
         !character(len=1) :: ch
         real :: totalLect, lectHours, totalLab, labHours, totalUnits, meetingUnits
 
@@ -632,7 +639,7 @@ contains
                 write(device,AFORMAT) '<tr bgcolor="'//bgcolor(mod(tdx,2))//'">'// &
                     begintd//trim(itoa(tdx))//'. '//trim(Teacher(fac)%Name)// &
                     ' ('//trim(Teacher(fac)%Specialization)//')'
-                if ( is_dean_of_college(Department(Teacher(fac)%DeptIdx)%CollegeIdx, orHigherUp) ) then
+                if (.not. isRectify .and. is_dean_of_college(Department(Teacher(fac)%DeptIdx)%CollegeIdx, orHigherUp) ) then
                     write(device,AFORMAT) trim(make_href(fnEditTeacher, 'Edit', &
                         A1=QUERY_put, pre=nbsp//beginsmall, post=endsmall))
                 end if
@@ -661,9 +668,9 @@ contains
         type (TYPE_SECTION), intent(in out) :: Section(0:)
         integer :: mdx, sdx, tLen1, tLen2, ierr, sect, LoadFromDept
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
-        character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
+        character(len=MAX_LEN_USERNAME) :: tTeacher
         character(len=MAX_LEN_CLASS_ID) :: tAction, tClassId
-        integer, dimension(60,6) :: TimeTable
+        integer, dimension(60,7) :: TimeTable
         logical :: conflicted, assigned, allowed_to_edit
         character(len=255) :: mesg
 
@@ -708,7 +715,7 @@ contains
             end if
 
             if (isRoleOfficial) then
-                mesg = '"'//trim(tAction)//SPACE//trim(tClassId)//'" failed. '//sorryMessage
+                mesg = '"'//trim(tAction)//SPACE//trim(tClassId)//'" failed. '//sorryMessageOfficial
             end if
         end if
 
@@ -793,7 +800,7 @@ contains
         integer, intent(in) :: device, tdx
         type (TYPE_TEACHER), intent(in) :: wrk
         character (len=*), intent(in)  :: header, remark, tAction
-        character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
+        character(len=MAX_LEN_USERNAME) :: tTeacher
         character (len=MAX_LEN_PASSWD_VAR) :: Password
         integer :: i, j, k
 
@@ -809,7 +816,7 @@ contains
         call make_form_start(device, fnEditTeacher, tTeacher)
 
         write(device,AFORMAT) '<table border="0" width="100%">', &
-            begintr//begintd//'Username '//endtd//begintd//'<input name="Login" size="'//trim(itoa(MAX_LEN_TEACHER_CODE))// &
+            begintr//begintd//'Username '//endtd//begintd//'<input name="Login" size="'//trim(itoa(MAX_LEN_USERNAME))// &
             '" value="'//trim(tTeacher)//'">'//endtd//endtr, &
             begintr//begintd//'Teacher name '//endtd//begintd//'<input name="Name" size="'//trim(itoa(MAX_LEN_PERSON_NAME))// &
             '" value="'//trim(wrk%Name)//'">'//endtd//endtr
@@ -891,10 +898,10 @@ contains
             end do
             write(device,AFORMAT) '</select>'//endtd//endtr
 
-            if (.not. isRoleOfficial) then
+            if (isRoleSysAd) then
                 write(device,AFORMAT) begintr//begintd//'Password'//endtd//begintd//trim(Password)//  &
                     trim(make_href(fnGenerateTeacherPassword, 'Reset password', &
-                        A1=tTeacher, pre=beginsmall, post=endsmall)), &
+                        A1=tTeacher, pre=nbsp//nbsp//beginsmall, post=endsmall)), &
                     endtd//endtr
             end if
         else
@@ -911,7 +918,7 @@ contains
         if ( is_admin_of_college(targetCollege) ) then
             call make_form_start(device, fnDeleteTeacher, tTeacher)
             write(device,AFORMAT) '<table border="0" cellpadding="0" cellspacing="0">', &
-                begintr//begintd//beginbold//'Delete teacher'//endbold//tTeacher// &
+                begintr//begintd//beginbold//'Delete teacher '//endbold//tTeacher// &
                 '<input type="submit" name="action" value="Delete">'//endform// &
                 endtd//endtr//endtable//horizontal
         end if
@@ -931,9 +938,9 @@ contains
         type (TYPE_SECTION), intent(in out) :: Section(0:)
         type (TYPE_BLOCK), intent(in) :: Block(0:)
         integer :: tLen1, ierr
-        character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
+        character(len=MAX_LEN_USERNAME) :: tTeacher
         character(len=MAX_LEN_PERSON_NAME) :: tName
-        integer, dimension(60,6) :: TimeTable
+        integer, dimension(60,7) :: TimeTable
         logical :: conflicted
 
         call html_comment('teacher_schedule_printable()')
@@ -1297,10 +1304,9 @@ contains
 
     subroutine recent_teacher_activity(device)
         integer, intent(in) :: device
-        character(len=MAX_LEN_TEACHER_CODE) :: tTeacher, tRole
-        integer :: ldx, iTmp !, nDays, sYear, sMonth, sDay, eYear, eMonth, eDay
-        character (len=MAX_LEN_FILE_PATH) :: logFile
-        logical :: logExists
+        character(len=MAX_LEN_USERNAME) :: tTeacher, tRole
+        integer :: ldx, iTmp, ierr, sarray(13)
+        character (len=MAX_LEN_FILE_PATH) :: wrkDir, logFile
 
         ! which teacher ?
         call cgi_get_named_string(QUERY_STRING, 'A1', tTeacher, iTmp)
@@ -1311,19 +1317,58 @@ contains
         ldx = Department(iTmp)%CollegeIdx
         tRole = Teacher(targetTeacher)%Role
 
-        call html_comment('recent_teacher_activity()')
+        call cgi_get_named_string(QUERY_STRING, 'A2', tRole, iTmp)
+        call cgi_get_named_string(QUERY_STRING, 'A3', logFile, iTmp)
 
-        call html_write_header(device, 'Recent activity of '//trim(Teacher(targetTeacher)%Name), SPACE)
+        call html_comment('recent_teacher_activity('//tTeacher//')')
 
-        logFile = trim(dirLOG)// &
-            trim(College(ldx)%Code)//DIRSEP// &
-            trim(tTeacher)//'.log'
-        inquire(file=logFile, exist=logExists)
-        if (logExists) then
+        call html_write_header(device, 'Activity log of '//trim(Teacher(targetTeacher)%Name), SPACE)
+
+        if (len_trim(logFile)>0) then
+            write(device,AFORMAT) trim(tRole)//' activity'
             call copy_to_unit(logFile, device)
-        else
-            write(device,AFORMAT) BRNONEHR
+            write(device,AFORMAT) linebreak//horizontal
         end if
+
+        call getcwd(wrkDir)
+        !call html_comment('cwd='//wrkDir)
+
+        ! make a list of logs for teacher
+        logFile = trim(dirLOG)//trim(College(ldx)%Code)//DIRSEP//trim(tTeacher)//'-*.log'
+        call html_comment(dirCmd//trim(logFile)//' > '//trim(wrkDir)//DIRSEP//'logfiles')
+
+        call system(dirCmd//trim(logFile)//' > '//trim(wrkDir)//DIRSEP//'logfiles', ierr)
+        ierr = stat(trim(wrkDir)//DIRSEP//'logfiles', sarray)
+
+        ! any mailboxes ?
+        if (ierr .eq. 0 .and. sarray(8) .gt. 0) then
+
+            write(device,AFORMAT) 'Select a date of activity: '
+
+            open(unit=unitETC, file=trim(wrkDir)//DIRSEP//'logfiles', &
+                status='unknown', form='formatted', iostat=ierr)
+            !write(*,*) 'open mailBox: ', ierr
+
+            ! loop through log files
+            do while (ierr==0)
+
+                read(unitETC,AFORMAT,iostat=ierr) logFile
+                if (ierr .lt. 0) then ! no more mailboxes
+                    close(unitETC)
+                    exit
+                end if
+
+                ldx = len_trim(logFile)
+                ! *-YYYYMMDD.log
+                !  2109876543210
+                tRole = logFile(ldx-11:ldx-4)
+                write(device,AFORMAT) trim(make_href(fnRecentTeacherActivity, tRole, &
+                    A1=tTeacher, A2=tRole, A3=trim(logFile), pre=nbsp))
+
+            end do
+
+        end if
+        write(device,AFORMAT) linebreak//horizontal
 
     end subroutine recent_teacher_activity
 

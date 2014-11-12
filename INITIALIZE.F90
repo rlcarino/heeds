@@ -68,12 +68,12 @@ contains
         fileEXE = fileEXE(iTmp+1:)
 
         ! the version
-        iTmp = index(fileEXE, '-R')
+        iTmp = index(fileEXE, '-')
         VERSION = SPACE//fileEXE(iTmp+1:)
 
-        ! arguments are: UNIV [YEAR TERM ACTION]
+        ! arguments are: UNIV YEAR TERM ACTION PATH
         numArgs = iargc()
-        if (numArgs<1) call usage('Error: command arguments are UNIV [YEAR TERM ACTION]')
+        if (numArgs<1) call usage('Error: command arguments are UNIV YEAR TERM ACTION PATH')
 
         ! WEBROOT - 'root' for nginx
         inquire(file=WEBROOT, exist=pathExists)
@@ -121,7 +121,13 @@ contains
             UniversityCodeNoMirror = UniversityCode(:iTmp-1)
         else
             isReadOnly = .false.
-            UniversityCodeNoMirror = UniversityCode
+            iTmp = index(UniversityCode, '-rectify')
+            if (iTmp > 0) then
+                isRectify = .true.
+                UniversityCodeNoMirror = UniversityCode(:iTmp-1)
+            else
+                UniversityCodeNoMirror = UniversityCode
+            end if
         end if
         isAllowedNonEditors = .true.
 
@@ -295,6 +301,9 @@ contains
             end do
             close(unitETC)
         end if
+
+        ! emergency message 
+        EMERGENCY = SPACE
 
         ! disable Guest?
         if (.not. isEnabledGuest) then

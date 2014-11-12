@@ -50,10 +50,7 @@ contains
         character(len=MAX_LEN_CLASS_ID) :: tClassId, tAction
         character (len=MAX_LEN_TEXT_GRADE) :: tGrade
         character(len=255) :: header, mesg
-#if defined REGIST
-#else
         integer :: specialGrade(4) = (/ gdxREGD, gdxNFE, gdxINC, gdxDRP /)
-#endif
 
         call html_comment('enlistment_grades()')
 
@@ -150,7 +147,7 @@ contains
         else if (n_changes==-1) then
             call xml_write_classes(pathToTerm, NumSections, Section, 0)
         else if (len_trim(tAction)>0 .and. isRoleOfficial) then
-            mesg = '"'//trim(tAction)//'" failed. '//sorryMessage
+            mesg = '"'//trim(tAction)//'" failed. '//sorryMessageOfficial
         end if
 
         if (is_lecture_lab_subject(crse)) then
@@ -297,7 +294,7 @@ contains
         character(len=MAX_LEN_CLASS_ID) :: tClassId, tAction
         integer :: loc, fdx, crse, sect, ierr, otherSect, tLen1, curriculumFilter
         logical :: isEnlisted, isDirty
-        integer, dimension(60,6) :: TimeTable
+        integer, dimension(60,7) :: TimeTable
         logical :: conflicted
         character(len=255) :: statusMesg
 
@@ -442,7 +439,7 @@ contains
         end if
 
         if (len_trim(tAction)>0 .and. isRoleOfficial) then
-            statusMesg = ' : "'//trim(tAction)//'" failed. '//sorryMessage
+            statusMesg = ' : "'//trim(tAction)//'" failed. '//sorryMessageOfficial
         end if
 
         call class_list (device, thisTerm, NumSections, Section, eList, idx=sect, &
@@ -467,23 +464,41 @@ contains
         character(len=3*MAX_LEN_SUBJECT_CODE) :: tAction
         character(len=MAX_LEN_SUBJECT_CODE) :: tSubject
         integer :: bdx, blk, fdx, mdx, crse, lect, sect, ierr, tLen1, tLen2, pos, n_opts, idx_opt
-        integer :: n_changes
-        integer, dimension(60,6) :: TimeTable
-        logical :: conflicted, matched
+        integer :: n_changes, nPassedPE, nAdvisedPE, nEnlistedPE, collegeOfStudent
+        integer, dimension(60,7) :: TimeTable
+        logical :: conflicted, matched, addPE
         character(len=255) :: mesg
-        logical :: isDirtyFORM5, allowed_to_edit
-
+        logical :: isDirtyFORM5, selfEnlistPE, selfEnlistALL, allowed_to_edit
         type (TYPE_PRE_ENLISTMENT) :: Advice
 
         ! which student?
         call cgi_get_named_string(QUERY_STRING, 'A1', tStdNo, ierr)
         targetStudent = index_to_student(tStdNo)
         targetCurriculum = Student(targetStudent)%CurriculumIdx
-        idx_opt = Curriculum(targetCurriculum)%CollegeIdx
-        allowed_to_edit = is_admin_of_college(idx_opt)  .or. (isPeriodOne .and. &
-            ( is_adviser_of_student(targetStudent, orHigherUp) .or. &
-              ( trim(USERNAME)==tStdNo .and. thisTerm==currentTerm .and. &
-                College(idx_opt)%AllowEnlistmentByStudents(thisTerm) ) ) )
+        collegeOfStudent = Curriculum(targetCurriculum)%CollegeIdx
+
+        if (is_admin_of_college(collegeOfStudent)) then
+            allowed_to_edit = eList(targetStudent)%Status<SCHEDULE_IS_LOCKED
+        end if
+
+        selfEnlistPE = trim(USERNAME)==tStdNo .and. College(collegeOfStudent)%AllowEnlistmentInPE(thisTerm)
+        selfEnlistALL = trim(USERNAME)==tStdNo .and. College(collegeOfStudent)%AllowEnlistmentInALL(thisTerm)
+        if (trim(USERNAME)==tStdNo) then
+            allowed_to_edit = &
+                isPeriodOne .and. thisTerm==currentTerm .and. &
+                (selfEnlistAll .or. selfEnlistPE) .and. eList(targetStudent)%Status<SCHEDULE_IS_LOCKED
+        end if
+
+        if (is_adviser_of_student(targetStudent)) then
+            allowed_to_edit = &
+                (isPeriodOne .and. thisTerm==currentTerm .and. eList(targetStudent)%Status<SCHEDULE_IS_LOCKED) &
+                .or. (.not. isPeriodOne .and. thisTerm==nextTerm )
+        end if
+
+        !allowed_to_edit = is_admin_of_college(Curriculum(Student(targetStudent)%CurriculumIdx)%CollegeIdx) .or. &
+        !        ( (selfEnlistAll .or. selfEnlistPE) .and. eList(targetStudent)%Status<SCHEDULE_IS_CONFIRMED ) .or. &
+        !        ( is_adviser_of_student(targetStudent, orHigherUp) .and. eList(targetStudent)%Status<SCHEDULE_IS_LOCKED) ) .or. &
+        !    (.not. isPeriodOne .and. thisTerm==nextTerm .and. is_adviser_of_student(targetStudent, orHigherUp) )
 
         call recalculate_available_seats(Section,eList)
         isDirtyFORM5 = .false.
@@ -492,99 +507,167 @@ contains
         mesg = SPACE
         call cgi_get_named_string(QUERY_STRING, 'A2', tAction, ierr)
 
-        !select case (trim(tAction))
-
         if (trim(tAction)=='Add' .and. .not. isRoleOfficial) then
 
-                call cgi_get_named_string(QUERY_STRING, 'A3', tClassId, ierr)
-                sect = index_to_section(tClassId, NumSections, Section)
-                if (sect>0) then ! target of action is indexed by sect
-                    if (Section(sect)%RemSlots>0) then
-                        crse = Section(sect)%SubjectIdx
-                        do fdx=1,eList(targetStudent)%lenSubject
-                            if (eList(targetStudent)%Subject(fdx)==crse) then
-                                eList(targetStudent)%Section(fdx) = sect
-                                eList(targetStudent)%Grade(fdx) = gdxREGD
-                                Section(sect)%RemSlots = Section(sect)%RemSlots - 1
-                                exit
-                            end if
-                        end do
+            call cgi_get_named_string(QUERY_STRING, 'A3', tClassId, ierr)
+            sect = index_to_section(tClassId, NumSections, Section)
+            if (sect>0) then ! target of action is indexed by sect
+                if (selfEnlistPE .and. tClassId(1:3)/='PE ') then
+                    mesg = 'Cannot add '//trim(tClassId)//': only PE can be added/deleted at this time.'
+                else if (Section(sect)%RemSlots>0) then
+                    crse = Section(sect)%SubjectIdx
+                    pos = 0
+                    do fdx=1,eList(targetStudent)%lenSubject
+                        if (eList(targetStudent)%Subject(fdx)==crse) then
+                            eList(targetStudent)%Section(fdx) = sect
+                            eList(targetStudent)%Grade(fdx) = gdxREGD
+                            Section(sect)%RemSlots = Section(sect)%RemSlots - 1
+                            pos = fdx
+                            exit
+                        end if
+                    end do
+                    if (pos==0) then ! add
+                        if (tClassId(1:3)=='PE ') then ! shift down
+                            do fdx=eList(targetStudent)%lenSubject,1,-1
+                                eList(targetStudent)%Subject(fdx+1) = eList(targetStudent)%Subject(fdx)
+                                eList(targetStudent)%Section(fdx+1) = eList(targetStudent)%Section(fdx)
+                                eList(targetStudent)%Grade(fdx+1) = eList(targetStudent)%Grade(fdx)
+                            end do
+                            ! add PE at the beginning
+                            eList(targetStudent)%Subject(1) = crse
+                            eList(targetStudent)%Section(1) = sect
+                            eList(targetStudent)%Grade(1) = gdxREGD
+                            eList(targetStudent)%lenSubject =  eList(targetStudent)%lenSubject + 1
+                            eList(targetStudent)%NPriority = eList(targetStudent)%NPriority + 1
+                            Section(sect)%RemSlots = Section(sect)%RemSlots - 1
+                            mesg = 'Added '//tClassId
+                            isDirtyFORM5 = .true.
+                        else
+                            mesg = 'NOT added: previously deleted '//tClassId
+                        end if
+                    else
                         mesg = 'Added '//tClassId
                         isDirtyFORM5 = .true.
-                    else
-                        mesg = 'NOT added, already full: '//tClassId
                     end if
+                else
+                    mesg = 'NOT added, already full: '//tClassId
                 end if
+            end if
 
         end if
 
         if (trim(tAction)=='Block' .and. .not. isRoleOfficial) then
 
-                call cgi_get_named_string(QUERY_STRING, 'A3', tBlock, ierr)
-                blk = index_to_block(tBlock, NumBlocks, Block)
-                if (blk>0) then ! target block found
+            call cgi_get_named_string(QUERY_STRING, 'A3', tBlock, ierr)
+            blk = index_to_block(tBlock, NumBlocks, Block)
+            if (blk>0) then ! target block found
 
-                    do bdx=1,Block(blk)%NumClasses
-                        crse = Block(blk)%Subject(bdx)
-                        sect = Block(blk)%Section(bdx)
-                        if (sect==0) then ! section not specified in block
-                            mesg = 'NOT added (no section): '//trim(Subject(crse)%Name)//'; '//mesg
-                            cycle
-                        end if
-                        tClassId = Section(sect)%ClassId
-                        matched = .false.
-                        do fdx=1,eList(targetStudent)%lenSubject
-                            if (crse/=eList(targetStudent)%Subject(fdx)) cycle
-                            matched = .true.
-                            exit
-                        end do
-                        if (matched) then ! indexed by bdx/fdx
-
-                            if (Section(sect)%RemSlots>0) then
-                                do fdx=1,eList(targetStudent)%lenSubject
-                                    if (eList(targetStudent)%Subject(fdx)/=crse) cycle
-                                    eList(targetStudent)%Section(fdx) = sect
-                                    eList(targetStudent)%Grade(fdx) = gdxREGD
-                                    Section(sect)%RemSlots = Section(sect)%RemSlots - 1
-                                    exit
-                                end do
-                                mesg = 'Added '//trim(tClassId)//'; '//mesg
-                                isDirtyFORM5 = .true.
-                            else
-                                mesg = 'NOT added '//trim(tClassId)//' (full); '//mesg
-                            end if
-
-                        else
-                            mesg = 'NOT advised '//trim(Subject(crse)%Name)//'; '//mesg
-                        end if
-
+                do bdx=1,Block(blk)%NumClasses
+                    crse = Block(blk)%Subject(bdx)
+                    sect = Block(blk)%Section(bdx)
+                    if (sect==0) then ! section not specified in block
+                        mesg = 'NOT added (no section): '//trim(Subject(crse)%Name)//'; '//mesg
+                        cycle
+                    end if
+                    tClassId = Section(sect)%ClassId
+                    matched = .false.
+                    do fdx=1,eList(targetStudent)%lenSubject
+                        if (crse/=eList(targetStudent)%Subject(fdx)) cycle
+                        matched = .true.
+                        exit
                     end do
+                    if (matched) then ! indexed by bdx/fdx
 
-                else
-                    mesg = 'Block "'//trim(tBlock)//'" not found'
-                end if
+                        if (Section(sect)%RemSlots>0) then
+                            do fdx=1,eList(targetStudent)%lenSubject
+                                if (eList(targetStudent)%Subject(fdx)/=crse) cycle
+                                eList(targetStudent)%Section(fdx) = sect
+                                eList(targetStudent)%Grade(fdx) = gdxREGD
+                                Section(sect)%RemSlots = Section(sect)%RemSlots - 1
+                                exit
+                            end do
+                            mesg = 'Added '//trim(tClassId)//'; '//mesg
+                            isDirtyFORM5 = .true.
+                        else
+                            mesg = 'NOT added '//trim(tClassId)//' (full); '//mesg
+                        end if
+
+                    else
+                        mesg = 'NOT advised '//trim(Subject(crse)%Name)//'; '//mesg
+                    end if
+
+                end do
+
+            else
+                mesg = 'Block "'//trim(tBlock)//'" not found'
+            end if
 
         end if
 
         if (trim(tAction)=='Del' .and. .not. isRoleOfficial) then
 
-                call cgi_get_named_string(QUERY_STRING, 'A3', tClassId, ierr)
-                sect = index_to_section(tClassId, NumSections, Section)
-                if (sect>0) then ! target of action is indexed by sect
+            call cgi_get_named_string(QUERY_STRING, 'A3', tClassId, ierr)
+            sect = index_to_section(tClassId, NumSections, Section)
+            if (selfEnlistPE .and. tClassId(1:3)/='PE ') then
+                mesg = 'Cannot delete '//trim(tClassId)//': only PE can be added/deleted at this time.'
+            else if (sect>0) then ! target of action is indexed by sect
+                if (tClassId(1:3)=='PE ') then ! delete subject and section
+                    ! find & clear location of target PE
+                    pos = 0
                     do fdx=1,eList(targetStudent)%lenSubject
                         if (sect==eList(targetStudent)%Section(fdx)) then
                             eList(targetStudent)%Section(fdx) = 0
                             eList(targetStudent)%Grade(fdx) = 0
                             Section(sect)%RemSlots = Section(sect)%RemSlots + 1
+                            pos = fdx
                             exit
                         end if
                     end do
-                    mesg = 'Deleted '//tClassId
-                    isDirtyFORM5 = .true.
-                end if
+                    ! still there, or already deleted by someone else?
+                    if (pos/=0) then ! shift
+                        do fdx=pos,eList(targetStudent)%lenSubject-1
+                            eList(targetStudent)%Subject(fdx) = eList(targetStudent)%Subject(fdx+1)
+                            eList(targetStudent)%Section(fdx) = eList(targetStudent)%Section(fdx+1)
+                            eList(targetStudent)%Grade(fdx) = eList(targetStudent)%Grade(fdx+1)
+                        end do
+                        ! clear last location
+                        eList(targetStudent)%Subject(eList(targetStudent)%lenSubject) = 0
+                        eList(targetStudent)%Section(eList(targetStudent)%lenSubject) = 0
+                        eList(targetStudent)%Grade(eList(targetStudent)%lenSubject) = 0
+                        ! reduce
+                        eList(targetStudent)%lenSubject = eList(targetStudent)%lenSubject-1
+                        if (pos<=eList(targetStudent)%NPriority) then
+                            eList(targetStudent)%NPriority = eList(targetStudent)%NPriority-1
+                        end if
+                        mesg = 'Deleted '//tClassId
+                        isDirtyFORM5 = .true.
+                    else
+                        mesg = 'No longer enlisted in '//tClassId
+                    end if
 
+                else ! delete section only
+                    matched = .false.
+                    do fdx=1,eList(targetStudent)%lenSubject
+                        if (sect==eList(targetStudent)%Section(fdx)) then
+                            eList(targetStudent)%Section(fdx) = 0
+                            eList(targetStudent)%Grade(fdx) = 0
+                            Section(sect)%RemSlots = Section(sect)%RemSlots + 1
+                            matched = .true.
+                            exit
+                        end if
+                    end do
+                    ! already deleted by someone else?
+                    if (matched) then
+                        mesg = 'Deleted '//tClassId
+                        isDirtyFORM5 = .true.
+                    else
+                        mesg = 'No longer enlisted in '//tClassId
+                    end if
+                end if
+            end if
 
         end if
+
 
         if (trim(tAction)=='Switch' .and. .not. isRoleOfficial) then
 
@@ -623,52 +706,59 @@ contains
                 end do
                 ! update eList()
                 eList(targetStudent) = Advice
+                eList(targetStudent)%Status = SUBJECTS_ARE_ADVISED
                 isDirtyFORM5 = .true.
+
+        end if
+
+        if (trim(tAction)=='CONFIRM Schedule' .and. .not. isRoleOfficial) then
+
+            eList(targetStudent)%Status = SCHEDULE_IS_CONFIRMED; ! status below SCHEDULE_IS_LOCKED
+            mesg = 'CONFIRMED the schedule for '//txtSemester(thisTerm+3)//termQualifier(thisTerm+3)
+            isDirtyFORM5 = .true.
 
         end if
 
         if (trim(tAction)=='LOCK Schedule' .and. .not. isRoleOfficial) then
 
-                ! keep only enlisted subjects
-                mdx = 0
-                do fdx=1,eList(targetStudent)%lenSubject
-                    if (eList(targetStudent)%Section(fdx)==0) cycle
-                    mdx = mdx + 1
-                    eList(targetStudent)%Subject(mdx) = eList(targetStudent)%Subject(fdx)
-                    eList(targetStudent)%Section(mdx) = eList(targetStudent)%Section(fdx)
-                    eList(targetStudent)%Grade(mdx) = eList(targetStudent)%Grade(fdx)
-                    eList(targetStudent)%Contrib(mdx) = eList(targetStudent)%Contrib(fdx)
-                end do
-                eList(targetStudent)%lenSubject = mdx
-                eList(targetStudent)%NPriority = mdx
-                eList(targetStudent)%NAlternates = 0
-                eList(targetStudent)%NCurrent = 0
-                eList(targetStudent)%Status = eList(targetStudent)%Status + 2;
-                mesg = 'Locked the schedule; unlock it to allow changes.'
-                isDirtyFORM5 = .true.
+            ! keep only enlisted subjects
+            mdx = 0
+            do fdx=1,eList(targetStudent)%lenSubject
+                if (eList(targetStudent)%Section(fdx)==0) cycle
+                mdx = mdx + 1
+                eList(targetStudent)%Subject(mdx) = eList(targetStudent)%Subject(fdx)
+                eList(targetStudent)%Section(mdx) = eList(targetStudent)%Section(fdx)
+                eList(targetStudent)%Grade(mdx) = eList(targetStudent)%Grade(fdx)
+                eList(targetStudent)%Contrib(mdx) = eList(targetStudent)%Contrib(fdx)
+            end do
+            eList(targetStudent)%lenSubject = mdx
+            eList(targetStudent)%NPriority = mdx
+            eList(targetStudent)%NAlternates = 0
+            eList(targetStudent)%NCurrent = 0
+            eList(targetStudent)%Status = SCHEDULE_IS_LOCKED;
+            mesg = 'LOCKED schedule for '//txtSemester(thisTerm+3)//termQualifier(thisTerm+3)
+            isDirtyFORM5 = .true.
 
         end if
 
         if (trim(tAction)=='UNLOCK Schedule' .and. .not. isRoleOfficial) then
 
-                eList(targetStudent)%Status = eList(targetStudent)%Status - 2;
-                mesg = 'Unlocked the schedule; lock it to disallow changes.'
-                isDirtyFORM5 = .true.
+            eList(targetStudent)%Status = SCHEDULE_IS_CONFIRMED; ! status below SCHEDULE_IS_LOCKED
+            mesg = 'UNLOCKED schedule for '//txtSemester(thisTerm+3)//termQualifier(thisTerm+3)
+            isDirtyFORM5 = .true.
 
         end if
 
         if (trim(tAction)=='DELIST Student' .and. .not. isRoleOfficial) then
 
-                call initialize_pre_enlistment(eList(targetStudent))
-                mesg = 'Delisted student from classes in '//txtSemester(thisTerm+3)//termQualifier(thisTerm+3)
-                call log_student_record_change(targetStudent, 'Not enrolled: Removed subjects for '// &
-                    trim(txtSemester(thisTerm+3)//termQualifier(thisTerm+3)) )
-                isDirtyFORM5 = .true.
+            call initialize_pre_enlistment(eList(targetStudent))
+            mesg = 'Delisted student from classes in '//txtSemester(thisTerm+3)//termQualifier(thisTerm+3)
+            isDirtyFORM5 = .true.
 
         end if
 
         if (len_trim(tAction)>0 .and. isRoleOfficial) then
-            mesg = '"'//trim(tAction)//'" failed. '//sorryMessage
+            mesg = '"'//trim(tAction)//'" failed. '//sorryMessageOfficial
         end if
 
         if (isDirtyFORM5) then
@@ -677,44 +767,145 @@ contains
             call log_student_record_change(targetStudent, mesg )
         end if
 
-        !if (trim(tAction)=='DELIST Student' .and. .not. isRoleOfficial) then
-        !    call html_college_info(device, Curriculum(Student(targetStudent)%CurriculumIdx)%CollegeIdx)
-        !    return
-        !end if
-
         call html_write_header(device, trim(Student(targetStudent)%StdNo)//SPACE//trim(Student(targetStudent)%Name)//linebreak// &
             trim(text_curriculum_info(Student(targetStudent)%CurriculumIdx))//linebreak//linebreak//'Schedule of Classes ', mesg)
 
         ! collect classes for student
         call timetable_meetings_of_student(NumSections, Section, targetStudent, eList, 0, tLen1, tArray, TimeTable, &
             conflicted)
-        !!
-        !call enlistment_fees(device, targetStudent, NumSections, Section, linebreak//beginbold//'Estimated fees'//endbold)
-        !write(device,AFORMAT) horizontal
-
-        allowed_to_edit = allowed_to_edit .and. eList(targetStudent)%Status<2
 
         call list_sections_to_edit(device, thisTerm, Section, tLen1, tArray, fnChangeMatriculation, tStdNo, 'Del', &
             allowed_to_edit, beginbold//'Enlisted subjects'//endbold//nbsp//trim(make_href(fnPrintableSchedule, 'Printable', &
             A1=tStdNo, A9=thisTerm, pre=beginsmall//'(', post=')'//endsmall)) )
 
-        if (tLen1>0 .and. allowed_to_edit .and. (.not. isRoleStudent) ) then
+        ! print timetable and exit if last term
+        if (thisTerm/=currentTerm) then
+            call timetable_display(device, Section, TimeTable)
+            write(device,AFORMAT) horizontal
+            return
+        end if
 
-            ! lock or unlock
+        select case (eList(targetStudent)%Status)
+
+            case (0) ! enlistment status NONE
+                if (tLen1>0) then
+                    eList(targetStudent)%Status = SECTIONS_ARE_SELECTED
+                elseif (eList(targetStudent)%lenSubject>0) then
+                    eList(targetStudent)%Status = SUBJECTS_ARE_ADVISED
+                end if
+
+            case (SUBJECTS_ARE_ADVISED)
+                if (eList(targetStudent)%lenSubject==0) then ! no advised subjects
+                    eList(targetStudent)%Status = 0
+                elseif (tLen1>0) then ! some enlisted
+                    eList(targetStudent)%Status = SECTIONS_ARE_SELECTED
+                end if
+
+            case (SECTIONS_ARE_SELECTED, SCHEDULE_IS_CONFIRMED, SCHEDULE_IS_LOCKED)
+                if (eList(targetStudent)%lenSubject==0) then ! no advised subject
+                    eList(targetStudent)%Status = 0
+                elseif (tLen1==0) then ! none enlisted
+                    eList(targetStudent)%Status = SUBJECTS_ARE_ADVISED
+                end if
+
+        end select
+
+        select case (eList(targetStudent)%Status)
+            case (0)
+                mesg = 'Enlistment status is not set.'
+            case (SUBJECTS_ARE_ADVISED)
+                mesg = 'Subjects finalized by adviser.'
+            case (SECTIONS_ARE_SELECTED)
+                mesg = 'Student is enlisted into sections. '// &
+                    'Adviser can change subjects or sections. '// &
+                    'If self-enlistment is enabled, student can add feasible subjects with available sections.'
+            case (SCHEDULE_IS_CONFIRMED)
+                mesg = 'Schedule is confirmed by student but not locked by Registrar. '// &
+                    'Adviser can change subjects or sections. '// &
+                    'If self-enlistment is enabled, student can add feasible subjects with available sections.'
+            case (SCHEDULE_IS_LOCKED)
+                mesg = 'Schedule is locked and assessment form printed. See the Registrar to unlock.'
+        end select
+        if (tLen1==0) mesg = 'Pre-enlist student into feasible subjects with available sections below, or '// &
+            'click Checklist to change subjects.'
+
+        if (trim(USERNAME)==tStdNo) then ! student view
+            if (tLen1==0) mesg = 'If self-enlistment is enabled, build your own schedule using the Add or Del links. '// &
+                'See your adviser if a subject you need is not in the feasible list, or if you cannot enlist in any subject.'
+            select case (eList(targetStudent)%Status)
+                case (SECTIONS_ARE_SELECTED)
+                    if (tLen1>0) then
+                        call make_form_start(device, fnChangeMatriculation, A1=tStdNo, A9=thisTerm)
+                        write(device,AFORMAT) '<input type="submit" name="A2" value="CONFIRM Schedule"> ', &
+                            'to signify that the Registrar can lock the schedule and print the assessment form. '//linebreak, &
+                            beginitalic//'After confirmation, while the schedule is not locked, your adviser '// &
+                            'can modify the schedule; and, if self-enlistment is enabled, you can also modify the schedule.'// &
+                            enditalic, &
+                            endform
+                    else
+                        write(device,AFORMAT) beginitalic//trim(mesg)//enditalic//linebreak
+                    end if
+                case default
+                    write(device,AFORMAT) beginitalic//trim(mesg)//enditalic//linebreak
+            end select
+
+        elseif (is_adviser_of_student(targetStudent)) then
+            write(device,AFORMAT) beginitalic//trim(mesg)//enditalic//linebreak
+
+        elseif (is_admin_of_college(collegeOfStudent)) then ! Registrar/staff view
             call make_form_start(device, fnChangeMatriculation, A1=tStdNo, A9=thisTerm)
-            if (eList(targetStudent)%Status<2) then ! enable Lock CLASSES
-                write(device,AFORMAT) '<input type="submit" name="A2" value="LOCK Schedule">'
+            if (tLen1==0) then
+                write(device,AFORMAT) beginitalic//trim(mesg)//enditalic//linebreak
             else
-                write(device,AFORMAT) '<input type="submit" name="A2" value="UNLOCK Schedule">'
+                select case (eList(targetStudent)%Status)
+                    case (SECTIONS_ARE_SELECTED)
+                        write(device,AFORMAT) '<input type="submit" name="A2" value="CONFIRM Schedule"> '// &
+                            '(as requested by student)'//nbsp//nbsp//nbsp
+                    case (SCHEDULE_IS_CONFIRMED)
+                        write(device,AFORMAT) '<input type="submit" name="A2" value="LOCK Schedule">'//nbsp//nbsp//nbsp
+                    case (SCHEDULE_IS_LOCKED)
+                        write(device,AFORMAT) '<input type="submit" name="A2" value="UNLOCK Schedule">'//nbsp//nbsp//nbsp
+                    case default
+                        write(device,AFORMAT) beginitalic//trim(mesg)//enditalic//linebreak
+                end select
             end if
-
             ! student not enrolling
-            write(device,AFORMAT) nbsp//nbsp//nbsp//nbsp, &
+            write(device,AFORMAT)  &
                 '<input type="submit" name="A2" value="DELIST Student"> (not enrolling)'//endform
         end if
 
+        addPE = .false.
         if (tLen1>0) then
             call timetable_display(device, Section, TimeTable)
+
+            ! PE needed?
+            ! read checklist
+            call read_student_records (targetStudent)
+
+            nPassedPE = 0 ! how many passed PE
+            do fdx=1,lenTCG
+                if (TCG(fdx)%Code/=3 .or. TCG(fdx)%Used .or. TCG(fdx)%ErrorCode>1) cycle
+                if (Subject(TCG(fdx)%Subject)%Name(1:3)/='PE ') cycle
+                if ( is_grade_passing(TCG(fdx)%Grade) .or. is_grade_passing(TCG(fdx)%ReExam) ) nPassedPE = nPassedPE + 1
+            end do
+
+            nAdvisedPE = 0 ! how many advised but not enlisted
+            nEnlistedPE = 0 ! how many enlisted
+            do fdx=1,eList(targetStudent)%lenSubject
+                tSubject = Subject(eList(targetStudent)%Subject(fdx))%Name
+                if (tSubject(1:3)/='PE ') cycle ! not PE
+                if (eList(targetStudent)%Section(fdx)==0) then
+                    nAdvisedPE = nAdvisedPE + 1 ! advised/not enlisted
+                else
+                    nEnlistedPE = nEnlistedPE + 1 ! enlisted
+                end if
+            end do
+            call html_comment('Passed PE = '//trim(itoa(nPassedPE)), 'Advised PE = '//trim(itoa(nAdvisedPE)), &
+                'Enlisted PE = '//trim(itoa(nEnlistedPE)) )
+
+            !addPE = (nPassedPE + nEnlistedPE + nAdvisedPE < 4) .and. (nEnlistedPE + nAdvisedPE <= 2) .and. &
+            addPE = (nPassedPE + nEnlistedPE < 4) .and. (nEnlistedPE <= 2) .and. &
+                allowed_to_edit
         end if
 
         ! make list of available sections for alternate subjects that fit the schedule of student
@@ -724,24 +915,73 @@ contains
             tLen2 = tLen2 + 1
         end do
 
-        if ( tLen2>0 .and. allowed_to_edit) then
+        if ( (tLen2>0 .or. addPE) .and. allowed_to_edit) then
             mdx = 0
             write(device,AFORMAT) linebreak//beginbold//'Other feasible subjects'//endbold//':'
+            if (addPE) then
+                write(device,AFORMAT) linebreak//trim(itoa(mdx))//'). <a href="#PE">PE</a> - Physical Education'
+            end if
             do fdx=1,eList(targetStudent)%lenSubject
                 if (eList(targetStudent)%Section(fdx)==0) then
-                    mdx = mdx+1
                     tSubject = Subject(eList(targetStudent)%Subject(fdx))%Name
+                    if (addPE .and. tSubject(1:3)=='PE ') cycle ! add below
+                    mdx = mdx+1
                     write(device,AFORMAT) linebreak//trim(itoa(mdx))//'). <a href="#'// &
-                    trim(tSubject)//'">'//trim(tSubject)//'</a> - '// &
-                    trim(Subject(eList(targetStudent)%Subject(fdx))%Title)
+                        trim(tSubject)//'">'//trim(tSubject)//'</a> - '// &
+                        trim(Subject(eList(targetStudent)%Subject(fdx))%Title)
                 end if
             end do
             write(device,AFORMAT) linebreak
 
+            if (addPE) then
+
+                tSubject = 'PE'
+                n_opts = 0
+                do sect=1,NumSections
+                    if (Section(sect)%ClassID(1:3)/='PE ') cycle ! not the right subject
+                    if (is_conflict_timetable_with_section(Section, sect, TimeTable)) cycle ! in conflict
+                    ! place options at end of Section() array
+                    idx_opt = NumSections + n_opts + 1
+                    Section(idx_opt) = Section(sect)
+                    n_opts = n_opts + 1
+                end do !  sect=1,NumSections
+
+                call timetable_undesirability(n_opts, NumSections, Section, TimeTable)
+
+                ! available sections that fit schedule - can be added
+                tLen2 = 0
+                do sect=1,n_opts
+                    idx_opt = UndesirabilityRank(sect)
+                    if (Section(NumSections+idx_opt)%RemSlots<=0) cycle ! section not available
+                    !write(*,*) sect, idx_opt, Section(NumSections+idx_opt)%ClassId, -Undesirability(idx_opt)
+                    do mdx=1,Section(NumSections+idx_opt)%NMeets
+                        tArray(tLen1+tLen2+1) = NumSections+idx_opt
+                        tArray(tLen1+tLen2+2) = mdx
+                        tArray(tLen1+tLen2+3) = -Undesirability(idx_opt)
+                        tLen2 = tLen2+3
+                    end do !  mdx=1,Section(sect)%NMeets
+                end do
+                if (tLen2>0) then ! there are sections that can be added
+                    ! end of list markers
+                    tArray(tLen1+tLen2+1) = 0
+                    tArray(tLen1+tLen2+2) = 0
+                    tArray(tLen1+tLen2+3) = 0
+                    call list_sections_to_edit(device, thisTerm, Section, tLen2, tArray(tLen1+1), &
+                        fnChangeMatriculation, tStdNo, 'Add', allowed_to_edit, &
+                        '<a name="'//trim(tSubject)//'"></a>'//linebreak//horizontal// &
+                        green//beginbold//'AVAILABLE sections'//black//' in '//trim(tSubject)// &
+                        ' that fit existing schedule, sorted by undesirability.'//endbold)
+
+                end if
+
+            end if
+
+            ! non-PE
             do fdx=1,eList(targetStudent)%lenSubject
                 if (eList(targetStudent)%Section(fdx)/=0) cycle ! already enlisted
                 crse = eList(targetStudent)%Subject(fdx) ! index to subject
                 tSubject = Subject(crse)%Name
+                if (addPE .and. tSubject(1:3)=='PE ') cycle
                 !write(*,*) 'Alternate subject - '//tSubject
                 n_opts = 0
 
@@ -818,8 +1058,9 @@ contains
                     call list_sections_to_edit(device, thisTerm, Section, tLen2, tArray(tLen1+1), &
                         fnChangeMatriculation, tStdNo, 'Add', allowed_to_edit, &
                         '<a name="'//trim(tSubject)//'"></a>'//linebreak//horizontal// &
-                        green//beginbold//'AVAILABLE sections'//black//' in '//trim(tSubject)// &
-                        ' that fit existing schedule, sorted by undesirability.'//endbold)
+                        green//beginbold//'AVAILABLE sections'//black//' in "'//trim(tSubject)// &
+                        ' - '//trim(Subject(crse)%Title)// &
+                        '" that fit existing schedule, sorted by undesirability.'//endbold, .true.)
 
                 end if
 
@@ -838,7 +1079,7 @@ contains
         type (TYPE_PRE_ENLISTMENT), intent(in) :: eList(0:)
         character(len=MAX_LEN_STUDENT_CODE) :: tStdNo
         integer ::  ierr, tLen1
-        integer, dimension(60,6) :: TimeTable
+        integer, dimension(60,7) :: TimeTable
         logical :: conflicted
 
         ! which student?
@@ -933,7 +1174,9 @@ contains
                     begintr//tdnbspendtd//tdnbspendtd//begintd ! new row with first 2 columns empty
                 end if
             end do
-            if ( (is_adviser_of_student(targetStudent, orHigherUp) .and. isPeriodOne) .or. &
+            if ( (is_adviser_of_student(targetStudent, orHigherUp) .and. &
+                  (isPeriodOne .and. thisTerm==currentTerm) .or. &
+                  (.not. isPeriodOne .and. thisTerm==nextTerm) ) .or. &
                   is_admin_of_college(targetCollege) ) &
                 write(device,AFORMAT) trim(make_href(fnChangeMatriculation, 'Enlist', A1=tStdNo, A2='Block', &
                     A3=Block(blk)%BlockID, A9=thisTerm, pre=nbsp, post=endtd//endtr ))
@@ -964,7 +1207,7 @@ contains
             linebreak//text_curriculum_info(Student(std)%CurriculumIdx)//linebreak//linebreak//'Enlisted subjects for '// &
             trim(termDescription)//endbold, &
             linebreak//beginitalic// &
-            'Subject fees are assessed for laboratories and NSTP/ROTC.', &
+            'Subject fees may be assessed for laboratories and NSTP/ROTC.', &
             enditalic//horizontal
 
         if (lenSL < 3) then
@@ -1119,8 +1362,25 @@ contains
                 ' The Finance office in '// trim(UniversityCodeNoMirror)//' makes the final assessment.'// &
                 endbold//linebreak, &
             beginitalic//' The list of fees below may be incomplete, and some fees may be inapplicable. '//enditalic, &
-            linebreak, '<table border="0" width="30%">'
+            linebreak, '<table border="0" width="80%">'
 
+        write(device,AFORMAT) '<tr valign="top">'//begintd, '<table border="0" width="100%">'
+        if (totalFiduciaryFee>0.0) then
+            write(device,AFORMAT) begintr//'<td colspan="2"><br><b>FIDUCIARY fees</b>'//endtd//endtr
+            do idx=1,MAX_ALL_FEES
+                if (index(FeeDescription(idx), 'FIDUCIARY:')==1 .and. FeeAmount(idx)>0.0) then
+                    write(device,AFORMAT) begintr// &
+                        begintd//nbsp//nbsp//trim(FeeDescription(idx)(11:))//endtd// &
+                        tdalignright//trim(ftoa(FeeAmount(idx),1))//endtd//endtr
+                end if
+            end do
+            write(device,AFORMAT) begintr// &
+                begintd//beginbold//'Subtotal'//endbold//endtd// &
+                tdalignright//beginbold//trim(ftoa(totalFiduciaryFee,1))//endbold//endtd//endtr
+        end if
+        write(device,AFORMAT) endtable//endtd//tdnbspendtd//tdnbspendtd//tdnbspendtd//tdnbspendtd//tdnbspendtd//tdnbspendtd
+
+        write(device,AFORMAT) begintd, '<table border="0" width="100%">'
         if (totalEnergyFee>0.0) then
             write(device,AFORMAT) begintr//'<td colspan="2"><br><b>ENERGY fee</b>'//endtd//endtr
             previous = 0
@@ -1154,21 +1414,8 @@ contains
             end do
             write(device,AFORMAT) begintr// &
                 begintd//beginbold//'Subtotal'//endbold//endtd// &
-                tdalignright//beginbold//trim(ftoa(totalEnergyFee,1))//endbold//endtd//endtr
-        end if
-
-        if (totalFiduciaryFee>0.0) then
-            write(device,AFORMAT) begintr//'<td colspan="2"><br><b>FIDUCIARY fees</b>'//endtd//endtr
-            do idx=1,MAX_ALL_FEES
-                if (index(FeeDescription(idx), 'FIDUCIARY:')==1 .and. FeeAmount(idx)>0.0) then
-                    write(device,AFORMAT) begintr// &
-                        begintd//nbsp//nbsp//trim(FeeDescription(idx)(11:))//endtd// &
-                        tdalignright//trim(ftoa(FeeAmount(idx),1))//endtd//endtr
-                end if
-            end do
-            write(device,AFORMAT) begintr// &
-                begintd//beginbold//'Subtotal'//endbold//endtd// &
-                tdalignright//beginbold//trim(ftoa(totalFiduciaryFee,1))//endbold//endtd//endtr
+                tdalignright//beginbold//trim(ftoa(totalEnergyFee,1))//endbold//endtd//endtr, &
+                begintr//tdnbspendtd//tdnbspendtd//endtr
         end if
 
         if (totalOtherFee>0.0) then
@@ -1184,8 +1431,7 @@ contains
                 begintd//beginbold//'Subtotal'//endbold//endtd// &
                 tdalignright//beginbold//trim(ftoa(totalOtherFee,1))//endbold//endtd//endtr
         end if
-
-        write(device,AFORMAT) endtable
+        write(device,AFORMAT) endtable, endtd//endtr//endtable
 
     end subroutine enlistment_class_schedule
 
@@ -1213,7 +1459,8 @@ contains
 #endif
         targetCollege = Department(targetDepartment)%CollegeIdx
 
-        call collect_students_in_section (targetSection, NumSections, Section, eList, n_count, tArray)
+        call collect_students_in_section (targetSection, & ! NumSections,
+            Section, eList, n_count, tArray)
 
         ncol = n_count
         if (is_lecture_lab_subject(crse)) then
@@ -1352,7 +1599,7 @@ contains
         type (TYPE_PRE_ENLISTMENT), intent(in) :: eList(0:)
 
         integer :: ldx, gdx, n_count, tdx, std, errNo, sect, ncol, crse, pos, otherSect, step
-        character(len=MAX_LEN_CLASS_ID) :: tClassId, otherClass
+        character(len=MAX_LEN_CLASS_ID) :: tClassId, otherClass, tGrade
         character(len=255) :: header
 
         call html_comment('printable_gradesheet()')
@@ -1505,20 +1752,29 @@ contains
                 pos = 2*tdx - 1
                 std = tArray(pos)
                 gdx = tArray(pos+1)
-
+                if (gdx==gdxREGD) then
+                    tGrade = 'No grade'
+                else
+                    tGrade = txtGrade(pGrade(gdx))
+                end if
                 write(device,AFORMAT) begintr// &
                     begintd//trim(itoa(tdx))//DOT//endtd// &
                     begintd//trim(Student(std)%StdNo)//endtd// &
-                    tdaligncenter//trim(txtGrade(pGrade(gdx)))//endtd// &
+                    tdaligncenter//trim(tGrade)//endtd// &
                     begintd//trim(Student(std)%Name)//endtd
                 if (step+tdx<=n_count) then ! pos<=n_count) then
                     pos = 2*(step+tdx) - 1
                     std = tArray(pos)
                     gdx = tArray(pos+1)
+	                if (gdx==gdxREGD) then
+	                    tGrade = 'No grade'
+	                else
+	                    tGrade = txtGrade(pGrade(gdx))
+	                end if
                     write(device,AFORMAT) &
                         begintd//trim(itoa(step+tdx))//DOT//endtd// &
                         begintd//trim(Student(std)%StdNo)//endtd// &
-                        tdaligncenter//trim(txtGrade(pGrade(gdx)))//endtd// &
+                        tdaligncenter//trim(tGrade)//endtd// &
                         begintd//trim(Student(std)%Name)//endtd
                 else
                     write(device,AFORMAT) '<td colspan="4">---- '//beginitalic//'Nothing follows'//enditalic//' ----'//endtd//endtr
@@ -1928,12 +2184,33 @@ contains
     subroutine  enlistment_no_classes(device, eList)
         integer, intent (in) :: device
         type (TYPE_PRE_ENLISTMENT), intent (in) :: eList(0:)
-        character(len=MAX_LEN_COLLEGE_CODE) :: tCollege
-        integer :: ierr, i, m, n, std
+        character(len=MAX_LEN_COLLEGE_CODE) :: tCollege, tAction, tAge
+        character(len=3) :: StdNumYear
+        integer :: ierr, i, k, m, n, std
+        integer :: ldx, tdx, fac, skip, first, last
+        character(len=MAX_LEN_STUDENT_CODE) :: tStdNo
+        character :: ch
+        logical :: hideStudents, findOlder, hideAll
+        integer, parameter :: toSkip = 50
 
         ! which college ?
         call cgi_get_named_string(QUERY_STRING, 'A1', tCollege, ierr)
         targetCollege = index_to_college(tCollege)
+        StdNumYear = trim(itoa(mod(currentYear,1000)))//DASH
+
+        ! which students ?
+        call cgi_get_named_string(QUERY_STRING, 'A2', tAge, ierr)
+        findOlder = trim(tAge)=='Older'
+
+        call cgi_get_named_string(QUERY_STRING, 'action', tAction, ierr)
+        hideStudents = trim(tAction)=='Hide'
+        hideAll = trim(tAction)=='Hide ALL'
+
+        ch = SPACE
+        if (hideStudents .or. hideAll) then ! get letter
+            call cgi_get_named_string(QUERY_STRING, 'A3', tAction, ierr)
+            ch = tAction(1:1)
+        end if
 
         n = 0
         tArray = 0
@@ -1944,30 +2221,121 @@ contains
             end if
             m = sum(eList(std)%Section(:))
             if (m>0) cycle ! has at least one class
+            if (findOlder) then ! looking for older students
+                if (Student(std)%StdNo(1:3)==StdNumYear) cycle ! student is new; skip
+            else ! looking for new students
+                if (Student(std)%StdNo(1:3)/=StdNumYear) cycle ! student is not new
+            end if
+
+            if (hideStudents .and. Student(std)%Name(1:1)==ch) then
+                call cgi_get_named_string(QUERY_STRING, trim(Student(std)%StdNo), tAction, ierr)
+                if (ierr==0) Student(std)%Classification = NotOfficiallyEnrolled ! student was checked
+            end if
+
+            if (hideAll .and. Student(std)%Name(1:1)==ch) then
+                Student(std)%Classification = NotOfficiallyEnrolled ! student has selected letter as start of name
+            end if
+
+            if (Student(std)%Classification>=NotOfficiallyEnrolled) cycle ! already hidden
 
             n = n + 1
             tArray(n) = std
 
         end do
 
-        call html_write_header(device, trim(tCollege)//' students not enrolled in any class')
-        call html_student_list (device, n, tArray, .true.)
-        write(device,AFORMAT) horizontal
+        call html_write_header(device, SPACE, SPACE)
+
+        if (n == 0) then
+            write(device,AFORMAT) '<h3>'//trim(tAge)//' students of '//trim(tCollege)// &
+                ' not enrolled in any class</h3>', BRNONE, horizontal
+        else
+
+            do i=iachar('A'), iachar('Z')
+
+                ! how many for this letter?
+                ch = achar(i)
+                m = 0
+                do tdx=1,n
+                    std = tArray(tdx)
+                    if (Student(std)%Name(1:1)==ch) then ! add to end of list
+                        m = m+1
+                        tArray(n+m) = std
+                    end if
+                end do
+                if (m==0) cycle
+
+                if ( m>toSkip ) then
+                    skip = toSkip
+                else
+                    skip = m
+                end if
+
+                do k=1, m, skip
+                    first = k
+                    last = min(first+skip-1, m)
+
+                    call make_form_start(device, fnStudentsNotEnrolled, A1=tCollege, A2=tAge, A3=ch)
+
+                    write(device,AFORMAT) linebreak, '<h3>'//trim(tAge)//' "'//ch//'" students of '//trim(tCollege)// &
+                        ' not enrolled in any class</h3>', &
+                        '<table border="0" width="75%">', &
+                        begintr//thalignleft//'Hide'//endth//thalignleft//'STDNO'//endth, &
+                        thalignleft//'NAME OF STUDENT'//endth//thalignleft//'PROGRAM'//endth//endtr
+
+                    do tdx=first,last
+
+                        std = tArray(n+tdx)
+                        if (Student(std)%Name(1:1)/=ch) cycle
+
+                        tStdNo = Student(std)%StdNo
+                        fac = index_to_teacher(Student(std)%Adviser)
+                        ldx = Student(std)%CurriculumIdx
+
+                        write(device,AFORMAT) '<tr bgcolor="'//bgcolor(mod(tdx,2))//'">'//begintd// &
+                            '<input type="checkbox" name="'//trim(tStdNo)//'" checked="yes">', &
+                            endtd//begintd//tStdNo//endtd, &
+                            begintd//trim(Student(std)%Name)//endtd, &
+                            begintd//trim(Curriculum(ldx)%Code)//endtd
+
+                        if ( (is_adviser_of_student(std,orHigherUp) .or. is_benefactor_of_student(std)) .and. &
+                            .not. isRectify ) then
+
+                            write(device,AFORMAT) begintd//beginsmall
+                            if (.not. isRoleBenefactor) then
+                                write(device,AFORMAT) &
+                                    trim(make_href(fnStudentEdit, 'Info', A1=tStdNo, pre=nbsp)), &
+                                    trim(make_href(fnRecentStudentActivity, 'Log', A1=tStdNo, pre=nbsp)), &
+                                    trim(make_href(fnTeacherClasses, 'Adviser', A1=Teacher(fac)%TeacherId))
+                            end if
+                            write(device,AFORMAT) &
+                                trim(make_href(fnStudentGrades, 'Grades', A1=tStdNo, pre=nbsp)), &
+                                trim(make_href(fnEditCheckList, 'Checklist', A1=tStdNo, pre=nbsp))
+
+                            write(device,AFORMAT) endsmall//endtd
+                        end if
+                        write(device,AFORMAT) endtr
+                    end do
+                    write(device,AFORMAT) &
+                        endtable//linebreak//'<input type="submit" name="action" value="Hide"> ', &
+                        ' the selected '//trim(tAge)//' "'//ch//'" '//' students immediately above, or '//nbsp//nbsp// &
+                        '<input type="submit" name="action" value="Hide ALL"> '//trim(tAge)//' "'//ch//'" '// &
+                        ' students above and/or below.', &
+                        endform
+
+                end do
+                write(device,AFORMAT) horizontal
+
+            end do
+
+        end if
 
     end subroutine  enlistment_no_classes
 
 
-    subroutine preenlist_or_delist(device, thisTerm, NumSections, Section, Offering, &
-        NumBlocks, Block, Enlistment, inclStudent )
+    subroutine confirm_preenlist_or_delist(device, thisTerm)
+        integer, intent (in) :: device, thisTerm
+        integer :: ierr, ldx
 
-        integer, intent (in) :: device, thisTerm, NumSections, NumBlocks
-        type (TYPE_SECTION), intent(in out) :: Section(0:)
-        type (TYPE_OFFERED_SUBJECTS), intent(in out), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS) :: Offering
-        type (TYPE_BLOCK), intent(in) :: Block(0:)
-        type (TYPE_PRE_ENLISTMENT), intent(in out) :: Enlistment(0:)
-        integer, intent (in out) :: inclStudent(0:)
-
-        integer :: std, ldx, ierr
         character (len=MAX_LEN_COLLEGE_CODE) :: tCollege
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
         character(len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
@@ -1980,8 +2348,84 @@ contains
 
         call cgi_get_named_string(QUERY_STRING, 'action', tAction, ierr)
 
-        call html_comment( tAction//tCollege )
+        call html_comment('confirm_preenlist_or_delist('//tAction//tCollege//')')
+
+        call html_write_header(device, tAction//tCollege//' students')
+
+        call make_form_start(device, fnTimetabling, A1=tCollege, A9=thisTerm)
+        write(device,AFORMAT) '<input type="hidden" name="action" value="'//trim(tAction)//'">'
+
+        select case(trim(tAction))
+
+            case ('Preenlist ALL', 'Delist ALL')
+
+            case ('Preenlist SELECTED', 'Delist SELECTED')
+
+                do ldx=1,NumCurricula ! specific curriculum
+                    search_string = 'CHECKED:'//Curriculum(ldx)%Code
+                    call cgi_get_named_string(QUERY_STRING, trim(search_string), tCurriculum, ierr)
+                    if (ierr==-1) cycle ! not found
+                    if (len_trim(tCurriculum)==0) cycle
+                    write(device,AFORMAT) '<input type="hidden" name="'//trim(search_string)//'" value="on">'
+                end do
+
+        end select
+
+        write(device,AFORMAT) &
+            'This operation will modify unlocked class schedules of students in '//tCollege// &
+            ' for the specified term. Are you sure?', linebreak, linebreak, &
+            nbsp//nbsp//nbsp//nbsp//'<input type="submit" name="confirm" value="Cancel">', &
+            nbsp//nbsp//nbsp//nbsp//'<input type="submit" name="confirm" value="Continue">', &
+            red//' - click once only, may take a while; use browser''s "Back" button in case of timeout'// &
+            black//endform, &
+            horizontal
+
+    end subroutine confirm_preenlist_or_delist
+
+
+    subroutine preenlist_or_delist(device, thisTerm, NumSections, Section, & ! Offering, &
+        NumBlocks, Block, Enlistment, inclStudent, mesg )
+
+        integer, intent (in) :: device, thisTerm, NumSections, NumBlocks
+        type (TYPE_SECTION), intent(in out) :: Section(0:)
+        ! type (TYPE_OFFERED_SUBJECTS), intent(in out), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS) :: Offering
+        type (TYPE_BLOCK), intent(in) :: Block(0:)
+        type (TYPE_PRE_ENLISTMENT), intent(in out) :: Enlistment(0:)
+        integer, intent (in out) :: inclStudent(0:)
+        character(len=*), intent (out) :: mesg
+
+        integer :: std, ldx, ierr
+        character (len=MAX_LEN_COLLEGE_CODE) :: tCollege
+        character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
+        character(len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
+        character(len=2*MAX_LEN_CURRICULUM_CODE) :: search_string, tAction, tConfirm
+
+        call cgi_get_named_string(QUERY_STRING, 'A1', tDepartment, ierr)
+        targetDepartment = index_to_dept(tDepartment)
+        targetCollege = Department(targetDepartment)%CollegeIdx
+        tCollege = College(targetCollege)%Code
+
+        call cgi_get_named_string(QUERY_STRING, 'action', tAction, ierr)
+
+        call cgi_get_named_string(QUERY_STRING, 'confirm', tConfirm, ierr)
+
+        call html_comment( tConfirm//tAction//tCollege )
+
+        mesg = tCollege//'- '//College(targetCollege)%Name//trim(tAction)//' - operation canceled.'
+        if (trim(tConfirm)/='Continue') then
+            return
+        end if
+
+        if (isRoleOfficial) then
+            mesg = trim(mesg)//SPACE//sorryMessageOfficial
+            return
+        end if
+
+        mesg = SPACE
         call html_write_header(device, tCollege//'- '//College(targetCollege)%Name)
+
+        ! make backup
+        call xml_backup(trim(pathToYear)//'BACKUP.XML'//DASH//currentDate//DASH//currentTime(:6))
 
         write(device,AFORMAT) '<pre>', trim(tAction)//SPACE//trim(tCollege)//' students for '// &
             txtSemester(thisTerm+3)//termQualifier(thisTerm+3)
@@ -1993,9 +2437,13 @@ contains
             case ('Preenlist ALL', 'Delist ALL')
 
                 if (targetCollege==NumColleges) then ! all students
-                    inclStudent(1:NumStudents+NumAdditionalStudents) = 1
+                    do std = 1,NumStudents+NumAdditionalStudents
+                        if (Enlistment(std)%Status==SCHEDULE_IS_LOCKED) cycle ! locked
+                        inclStudent(std) = 1
+                    end do
                 else
                     do std = 1,NumStudents+NumAdditionalStudents
+                        if (Enlistment(std)%Status==SCHEDULE_IS_LOCKED) cycle ! locked
                         if (Curriculum(Student(std)%CurriculumIdx)%CollegeIdx/=targetCollege) cycle
                         inclStudent(std) = 1
                     end do
@@ -2013,7 +2461,8 @@ contains
                     write(device,AFORMAT) trim(search_string)//' - '//tCurriculum
                 end do
                 do std = 1,NumStudents+NumAdditionalStudents
-                    ! skip student not in selected surricula
+                    if (Enlistment(std)%Status==SCHEDULE_IS_LOCKED) cycle ! locked
+                    ! skip student not in selected curricula
                     if ( done(Student(std)%CurriculumIdx) ) cycle
                     inclStudent(std) = 1
                 end do
@@ -2030,24 +2479,25 @@ contains
                     if (inclStudent(std)==0) cycle
                     Enlistment(std)%Section(:) = 0
                     Enlistment(std)%Grade(:) = 0
+                    Enlistment(std)%Status = SUBJECTS_ARE_ADVISED
                 end do
 
             case ('Preenlist ALL', 'Preenlist SELECTED')
 !                call generate_timetables(device, thisTerm, NumSections, Section, &
 !                    wrkOffering, Enlistment, inclStudent )
-                call add_to_blocks(device, thisTerm, NumSections, Section, &
+                call add_to_blocks(device, NumSections, Section, &
                     NumBlocks, Block, Enlistment, inclStudent )
 
         end select
 
-        write(device,AFORMAT) '</pre>', horizontal
+        write(device,AFORMAT) 'Done!', '</pre>', horizontal
 
     end subroutine preenlist_or_delist
 
 
-    subroutine add_to_blocks(device, thisTerm, NumSections, Section, NumBlocks, Block, Enlistment, inclStudent )
+    subroutine add_to_blocks(device, NumSections, Section, NumBlocks, Block, Enlistment, inclStudent )
 
-        integer, intent (in) :: device, thisTerm, NumSections, NumBlocks
+        integer, intent (in) :: device, NumSections, NumBlocks
         type (TYPE_SECTION), intent(in out) :: Section(0:)
         type (TYPE_BLOCK), intent(in) :: Block(0:)
         type (TYPE_PRE_ENLISTMENT), intent(in out) :: Enlistment(0:)
@@ -2153,6 +2603,7 @@ contains
                     end do
                 end do
                 Enlistment(std) = wrk
+                Enlistment(std)%Status = SECTIONS_ARE_SELECTED
                 n_assigned = n_assigned+1
                 write(device,*) n_assigned, trim(text_student_curriculum(std))//' assigned to '//Block(blk)%BlockID
                 exit ! block search

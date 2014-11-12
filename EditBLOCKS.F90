@@ -67,7 +67,7 @@ contains
         if (isRoleOfficial) then
             blk = targetBlock
             call block_schedule(device, Term, NumSections, Section, NumBlocks, Block, blk, &
-                'Block operation failed. '//sorryMessage)
+                'Block operation failed. '//sorryMessageOfficial)
             return
         end if
 
@@ -511,7 +511,7 @@ contains
 #endif
 
         if (isRoleOfficial) then
-            call html_college_links(device, targetCollege, '"Add block" failed. '//trim(sorryMessage))
+            call html_college_links(device, targetCollege, '"Add block" failed. '//trim(sorryMessageOfficial))
             return
         end if
 
@@ -660,7 +660,7 @@ contains
         type (TYPE_BLOCK), intent(in) :: Block(0:)
         integer, intent(in) :: block_index, to_skip
         integer, intent (out) :: len_list, list(:)
-        integer, dimension(60,6), intent (out) :: TimeTable
+        integer, dimension(60,7), intent (out) :: TimeTable
         logical, intent(out) :: conflicted
         integer :: i, j, conflict_loc, sdx, sect, crse, lect
         integer :: meetings(MAX_SECTION_MEETINGS)
@@ -729,7 +729,7 @@ contains
         integer :: ierr, blk, ldx, tLen1, nblks
         character(len=MAX_LEN_COLLEGE_CODE) :: tCollege
         character (len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
-        integer, dimension(60,6) :: TimeTable
+        integer, dimension(60,7) :: TimeTable
         logical :: conflicted
 
         ! which program ?
@@ -807,7 +807,7 @@ contains
         character(len=MAX_LEN_SUBJECT_CODE) :: tSubject, input_name2
         character(len=MAX_LEN_CLASS_ID) :: tClassId
         character(len=MAX_LEN_BLOCK_CODE) :: tBlock, newBlock
-        integer, dimension(60,6) :: TimeTable
+        integer, dimension(60,7) :: TimeTable
         logical :: conflicted, allowed_to_edit
         character (len=1) :: ch
 
@@ -1086,7 +1086,7 @@ contains
 
         integer :: ierr, blk, tLen1, n_count
         character(len=MAX_LEN_COLLEGE_CODE) :: tCollege
-        integer, dimension(60,6) :: TimeTable
+        integer, dimension(60,7) :: TimeTable
         logical :: conflicted
 
         ! which college?

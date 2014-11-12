@@ -48,13 +48,12 @@ contains
 ! routines for University-level data
 !===========================================================
 
-
     subroutine xml_read_university(pathToFile, errNo)
 
         character(len=*), intent(in) :: pathToFile
         integer, intent (out) :: errNo
 
-        integer :: nFees, loc
+        integer :: nFees, loc, nSchols
 
         ! open file, return on any error
         call xml_read_file(unitXML, XML_ROOT_UNIVERSITY, pathToFile, errNo)
@@ -62,6 +61,7 @@ contains
 
         ! examine the file line by line
         nFees = 0
+        nSchols = 0
         do
             read(unitXML, AFORMAT, iostat=eof) line
             if (eof<0) exit
@@ -110,6 +110,12 @@ contains
                      nFees = nFees + 1
                      FeeAmount(nFees) = atof(value(1:loc-1))
                      FeeDescription(nFees) = trim(value(loc+1:))
+
+                case ('SCHOLARSHIP')
+                     loc = index(value, COMMA)
+                     nSchols = nSchols + 1
+                     ScholarshipCode(nSchols) = value(1:loc-1)
+                     ScholarshipDescription(nSchols) = value(loc+1:)
 
                 case default ! do nothing
 
@@ -171,7 +177,14 @@ contains
                 trim(FeeDescription(idx)))
         end do
 
+        do idx=1,MAX_ALL_SCHOLARSHIPS
+            if (len_trim(ScholarshipCode(idx))==0) cycle
+            call xml_write_character(unitXML, indent0, 'SCHOLARSHIP', trim(ScholarshipCode(idx))//COMMA// &
+                trim(ScholarshipDescription(idx)))
+        end do
+
         write(unitXML,AFORMAT) '</'//XML_ROOT_UNIVERSITY//'>'
+        isDirtyXML = .true.
 
     end subroutine xml_university
 
@@ -297,6 +310,7 @@ contains
         end do
 
         write(unitXML,AFORMAT) '</'//XML_ROOT_COLLEGES//'>'
+        isDirtyXML = .true.
 
     end subroutine xml_colleges
 
@@ -424,6 +438,7 @@ contains
         end do
 
         write(unitXML,AFORMAT) '</'//XML_ROOT_DEPARTMENTS//'>'
+        isDirtyXML = .true.
 
     end subroutine xml_departments
 
@@ -554,6 +569,7 @@ contains
         end do
 
         write(unitXML,AFORMAT) '</'//XML_ROOT_ROOMS//'>'
+        isDirtyXML = .true.
 
     end subroutine xml_rooms
 
@@ -763,6 +779,7 @@ contains
         end do
 
         write(unitXML,AFORMAT) '</'//XML_ROOT_TEACHERS//'>'
+        isDirtyXML = .true.
 
     end subroutine xml_teachers
 
@@ -1118,6 +1135,7 @@ contains
         end do
 
         write(unitXML,AFORMAT) '</'//XML_ROOT_SUBJECTS//'>'
+        isDirtyXML = .true.
 
     end subroutine xml_subjects
 
@@ -1244,7 +1262,7 @@ contains
                     end if
                     do k = 1, nLoad
                         i = tmpCurriculum%SubjectIdx(k)
-                        if (.not. is_prerequisite_satisfiable_in_curriculum(i,NumCurricula)) then
+                        if (.not. is_prerequisite_satisfiable_in_curriculum(i,tmpCurriculum)) then
                             token = Subject(i)%Name
                             call rank_to_year_term (tmpCurriculum%SubjectTerm(k), year, term)
                             strYear = txtYear(year)
@@ -1396,6 +1414,7 @@ contains
         end do
 
         write(unitXML,AFORMAT) '</'//XML_ROOT_CURRICULA//'>'
+        isDirtyXML = .true.
 
     end subroutine xml_curricula
 
@@ -1548,6 +1567,7 @@ contains
         end do
 
         write(unitXML,AFORMAT) '</'//XML_ROOT_EQUIVALENCIES//'>'
+        isDirtyXML = .true.
 
     end subroutine xml_equivalencies
 
@@ -1642,6 +1662,7 @@ contains
         end do
 
         write(unitXML,AFORMAT) '</'//XML_ROOT_INTAKE//'>'
+        isDirtyXML = .true.
 
     end subroutine xml_intake
 
@@ -1695,7 +1716,7 @@ contains
         character(len=MAX_LEN_XML_LINE) :: value
         character(len=MAX_LEN_XML_TAG) :: tag
         type(TYPE_SECTION) :: wrkSection
-        integer :: btime, dayidx(6), etime, ndays, iidx, pDASH
+        integer :: btime, dayidx(7), etime, ndays, iidx, pDASH
         integer :: subj, rmidx, tidx
         character (len = 1) :: ch
         character (len=5) :: strBTime, strETime
@@ -1703,7 +1724,7 @@ contains
         character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
         character (len=MAX_LEN_CLASS_ID) :: token
         character (len=MAX_LEN_ROOM_CODE) :: tRoom
-        character (len=MAX_LEN_TEACHER_CODE) :: tTeacher
+        character (len=MAX_LEN_USERNAME) :: tTeacher
         logical :: flag
 
         ! open file, return on any error
@@ -1795,11 +1816,15 @@ contains
                             else if (ch=='F') then
                                 iidx = 5
                             else if (ch=='S') then
-                                iidx = 6
+                                if (value(i+1:i+1)=='a' .or. value(i+1:i+1)=='A') then
+                                    iidx = 6
+                                else
+                                    iidx = 7
+                                end if
                             end if
                             if (iidx>0) then
                                 ndays = ndays+1
-                                if (ndays>6) then
+                                if (ndays>7) then
                                     call log_comment('Too many days: '//trim(value))
                                     ndays = 1 ! force to be TBA
                                     dayidx = 0
@@ -1991,6 +2016,7 @@ contains
         end do
 
         write(unitXML,AFORMAT) '</'//XML_ROOT_SECTIONS//trim(txtSemester(iTerm))//'>'
+        isDirtyXML = .true.
 
     end subroutine xml_classes
 
@@ -2132,6 +2158,7 @@ contains
 
                 case ('Section')
                     tSection = adjustl(value)
+                    if (len_trim(tSection)==0) cycle ! no section code
                     idxSect = index_to_section(tSection, NumSections, Section)
                     if (idxSect==0) cycle ! section does not exist
 
@@ -2276,6 +2303,7 @@ contains
         end do
 
         write(unitXML,AFORMAT) '</'//XML_ROOT_BLOCKS//trim(txtSemester(iTerm))//'>'
+        isDirtyXML = .true.
 
     end subroutine xml_blocks
 
@@ -2431,6 +2459,9 @@ contains
                 case ('Adviser')
                     wrkStudent%Adviser = adjustl(value)
 
+                case ('Scholarship')
+                    wrkStudent%Scholarship = adjustl(value)
+
                 case ('Curriculum')
                     tCurriculum = adjustl(value)
                     idxCurr = index_to_curriculum(tCurriculum)
@@ -2462,6 +2493,7 @@ contains
         call log_comment (itoa(numEntries)//' students from '//fileName)
 
     end subroutine xml_read_students
+
 
 
     subroutine xml_write_students(path, iCurr)
@@ -2562,9 +2594,13 @@ contains
             if (len_trim(Student(std)%Adviser)/=0) &
                 call xml_write_character(unitXML, indent1, 'Adviser', Student(std)%Adviser)
 
+            if (len_trim(Student(std)%Scholarship)/=0) &
+                call xml_write_character(unitXML, indent1, 'Scholarship', Student(std)%Scholarship)
+
             call xml_write_character(unitXML, indent0, '/Student')
         end do
         write(unitXML,AFORMAT) '</'//XML_ROOT_STUDENTS//'>'
+        isDirtyXML = .true.
 
     end subroutine xml_students
 
@@ -2654,7 +2690,7 @@ contains
         character (len=MAX_LEN_CLASS_ID) :: tClass
         character (len=MAX_LEN_STUDENT_CODE) :: tStdNo
         character (len = MAX_LEN_TEXT_GRADE) :: tGrade
-        integer :: cdx, idx, sdx, std,gdx, pos, i
+        integer :: cdx, idx, sdx, std,gdx, pos, i, nGraded
 
         numEntries = 0
         ! open file, return on any error
@@ -2675,6 +2711,7 @@ contains
 
                 case ('Student') ! initialize temporary college data
                     call initialize_pre_enlistment (wrk)
+                    nGraded = 0
 
                 case ('StdNo')
                     tStdNo = adjustl(value)
@@ -2805,6 +2842,7 @@ contains
                     wrk%Subject(pos) = Section(sdx)%SubjectIdx
                     wrk%Grade(pos) = gdx
                     wrk%Contrib(pos) = 1.0
+                    nGraded = nGraded+1
 
                 case ('/Student')
                     if (wrk%NPriority+wrk%NAlternates+wrk%NCurrent /= wrk%lenSubject) then
@@ -2813,6 +2851,30 @@ contains
                         wrk%NCurrent = 0
                     end if
                     if (std/=0) then
+                        select case (wrk%Status)
+
+                            case (0) ! enlistment status NONE
+                                if (nGraded>0) then
+                                    wrk%Status = SECTIONS_ARE_SELECTED
+                                elseif (wrk%lenSubject>0) then
+                                    wrk%Status = SUBJECTS_ARE_ADVISED
+                                end if
+
+                            case (SUBJECTS_ARE_ADVISED)
+                                if (wrk%lenSubject==0) then ! no advised subjects
+                                    wrk%Status = 0
+                                elseif (nGraded>0) then ! some enlisted
+                                    wrk%Status = SECTIONS_ARE_SELECTED
+                                end if
+
+                            case (SECTIONS_ARE_SELECTED, SCHEDULE_IS_CONFIRMED, SCHEDULE_IS_LOCKED)
+                                if (wrk%lenSubject==0) then ! no advised subject
+                                    wrk%Status = 0
+                                elseif (nGraded==0) then ! none enlisted
+                                    wrk%Status = SUBJECTS_ARE_ADVISED
+                                end if
+
+                        end select
                         eList(std) = wrk
                         numEntries = numEntries+1
                     else
@@ -2984,6 +3046,7 @@ contains
         end do
 
         write(unitXML,AFORMAT) '</'//XML_ROOT_ENLISTMENT//trim(txtSemester(iTerm))//'>'
+        isDirtyXML = .true.
 
     end subroutine xml_pre_enlistment
 
@@ -3146,6 +3209,7 @@ contains
 
         ! close file
         write(unitXML,AFORMAT) '</'//XML_ROOT_WAIVERS//trim(txtSemester(iTerm))//'>'
+        isDirtyXML = .true.
 
     end subroutine xml_waivers
 
@@ -3309,6 +3373,25 @@ contains
 
         end if
 
+        ! add BENEFACTORS not in TEACHERS.XML
+        do iTmp=1,MAX_ALL_SCHOLARSHIPS
+
+            if (len_trim(ScholarshipCode(iTmp))==0) cycle
+            jTmp = index_to_teacher(ScholarshipCode(iTmp))
+            if (jTmp>0) cycle ! already in file
+
+            NumTeachers = NumTeachers+1
+            call check_array_bound (NumTeachers, MAX_ALL_TEACHERS, 'MAX_ALL_TEACHERS')
+            Teacher(NumTeachers)%TeacherID = ScholarshipCode(iTmp)
+            Teacher(NumTeachers)%DeptIdx = NumDepartments
+            Teacher(NumTeachers)%Role = BENEFACTOR
+            Teacher(NumTeachers)%Name = ScholarshipDescription(iTmp)
+            Teacher(NumTeachers)%MaxLoad = 0
+            Teacher(NumTeachers)%Specialization = 'Benefactor'
+            call set_password(Teacher(NumTeachers)%Password)
+
+        end do
+
         call sort_teachers()
         call sort_alphabetical_teachers()
 
@@ -3328,6 +3411,7 @@ contains
 
         ! remember clock tick when data is retrieved
         CALL SYSTEM_CLOCK(tickLastRefresh, count_rate, count_max)
+        tickLastBackup = tickLastRefresh
 
     end subroutine xml_read_basic_data
 
@@ -3360,6 +3444,54 @@ contains
         end do
 
     end subroutine xml_write_data
+
+
+    subroutine xml_backup(fileName)
+        character (len=*), intent (in) :: fileName
+
+        integer :: i, j, k
+
+        tickLastBackup = tick
+        if (.not. isDirtyXML) return
+
+        open(unit=unitXML, file=trim(fileName), form='formatted', status='new')
+        write(unitXML,AFORMAT) XML_DOC
+
+        call xml_university(unitXML)
+        call xml_colleges(unitXML)
+        call xml_departments(unitXML)
+        call xml_subjects(unitXML)
+        call xml_curricula(unitXML)
+        call xml_equivalencies(unitXML)
+        call xml_rooms(unitXML)
+        call xml_teachers(unitXML)
+        call xml_students(unitXML, 0)
+
+        do k=termBegin,termEnd
+            call qualify_term (k, i, j)
+
+            call xml_classes(unitXML, NumSections(j), Section(j,0:), 0, j)
+            call xml_blocks(unitXML, NumBlocks(j), Block(j,0:), Section(j,0:), 0, j)
+            call xml_pre_enlistment(unitXML, Enlistment(j,0:), Section(j,0:), 0, j)
+
+        end do
+        if (NumWaiverRecords>0) then
+            call qualify_term (nextTerm, i, j)
+            call xml_waivers(unitXML, Section(j,0:), j)
+        end if
+
+        close(unitXML)
+        call log_comment('Backup on '//currentDate//DASH//currentTime//' to '//trim(fileName))
+
+        ! reset 'dirty' flag
+        isDirtyXML = .false.
+
+#if defined GLNX
+        call system('gzip '//trim(fileName), k)
+        call log_comment(itoa(k)//' returned by: gzip '//trim(fileName))
+#endif
+
+    end subroutine xml_backup
 
 
 end module XMLIO

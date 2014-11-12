@@ -48,6 +48,7 @@ module UTILITIES
 !===========================================================
 #if defined GLNX
     ! file separator; delete, directory, mkdir commands
+    character(len= 8), parameter :: dirCmd = 'ls -1tr '
     character(len= 6), parameter :: delCmd = 'rm -f '
     character(len= 9), parameter :: mkdirCmd = 'mkdir -p '
     character(len= 6), parameter :: mvCmd = 'mv -f '
@@ -65,6 +66,7 @@ module UTILITIES
 
 #else
     ! file separator; delete, directory, mkdir commands
+    character(len=17), parameter :: dirCmd = 'dir /b /o:d /t:c '
     character(len= 7), parameter :: delCmd = 'del /q '
     character(len= 6), parameter :: mkdirCmd = 'mkdir '
     character(len= 8), parameter :: mvCmd = 'move /y '
@@ -102,16 +104,18 @@ module UTILITIES
 ! times
 !===========================================================
 
+    logical :: isDirtyXML = .false.
     integer :: maxIdleTime = 1800 ! seconds before auto-logout
     integer :: maxRefreshTime = 1800 ! seconds before auto-refresh
+    integer :: maxBackupTime = 1800 ! seconds before auto-backup
 
     character(len=10) :: currentTime ! current time - HHMMSS.LLL
     character(len= 8) :: currentDate, previousDate ! current, previous dates - YYYYMMDD
     character(len=18) :: startDateTime ! program start date & time
     integer(8) :: tick, count_rate, count_max ! system clock
-    integer(8) :: tickLastRefresh ! clock-tick when last refreshed
+    integer(8) :: tickLastRefresh, tickLastBackup ! clock-tick when last refreshed, last auto-backup
     integer :: secsNextRefresh, secsLastRefresh ! estimated time in seconds before next refresh, after last refresh
-    logical :: isReadOnly = .false., isAllowedNonEditors = .true.
+    logical :: isReadOnly = .false., isAllowedNonEditors = .true., isRectify = .false.
 
 !===========================================================
 ! file paths
@@ -150,7 +154,7 @@ module UTILITIES
     ! constants
     character(len= 1), parameter :: &
         SPACE = ' ', COMMA = ',', DASH ='-', FSLASH = '/', BSLASH = '\', PRIME = '''', DOT = '.'
-    character(len= 1), parameter :: NUL = achar(0)
+    character(len= 1), parameter :: NUL = achar(0), LF = achar(10), CR = achar(13)
     character(len= 2), parameter :: CRLF = achar(10)//achar(13)
     character(len= 3), parameter :: AFORMAT = '(a)'
     character(len= 8), parameter :: ZFORMAT = '(16z0.2)'
@@ -264,9 +268,9 @@ module UTILITIES
     character(len= 4), parameter :: beginitem = '<li>'
     character(len= 5), parameter :: enditem = '</li>'
 
-    character(len= 8), parameter :: JUSTNONE = '( None )'
-    character(len=12), parameter :: BRNONE = linebreak//'( None )'
-    character(len=16), parameter :: BRNONEHR = linebreak//'( None )'//horizontal
+    character(len=16), parameter :: JUSTNONE = linebreak//'( None )'//linebreak
+    character(len=20), parameter :: BRNONE = JUSTNONE//linebreak
+    character(len=24), parameter :: BRNONEHR = BRNONE//horizontal
 
     character(len=20), parameter :: selected(0:1) = (/ '                    ', ' selected="selected"' /)
     character(len=14), parameter :: checked(0:1) = (/ '              ', ' checked="yes"' /)
@@ -284,10 +288,10 @@ module UTILITIES
     character (len=16)                   :: REMOTE_ADDR
 
     ! the QUERY, encryption key, cipher text
-    character (len=MAX_LEN_QUERY_STRING) :: QUERY_STRING, queryEncryptionKey, cipher, MOTD
+    character (len=MAX_LEN_QUERY_STRING) :: QUERY_STRING, queryEncryptionKey, cipher, MOTD, wrkCipher, EMERGENCY
 
     ! functionality
-    character (len=255) :: sorryMessage
+    character (len=255) :: sorryMessageOfficial, sorryMessageStudent
     character (len=15) :: ACTION
     logical :: &
         isEnabledGuest = .true., &
@@ -302,6 +306,16 @@ module UTILITIES
     character(len=MAX_CGI_INT_LEN), private :: cgi_int
     character(len=MAX_CGI_FLT_LEN), private :: cgi_flt
 
+
+    ! Users
+    integer, parameter :: MAX_LEN_USERNAME=20 ! length of login name
+    character (len=MAX_LEN_USERNAME) :: USERNAME
+
+    ! the requested function
+    integer :: REQUEST
+
+    ! login check message, user role
+    character(len=MAX_LEN_FILE_PATH) :: loginCheckMessage
 
 contains
 
@@ -528,6 +542,21 @@ contains
         text = text(lenText+1:) ! move to front
 
     end subroutine decrypt
+
+
+    function calculate_check_sum(encryptedText)
+        character(len=*), intent (in) :: encryptedText
+        integer :: calculate_check_sum
+        integer :: checkSum, kStart, lenCipher
+
+        lenCipher = len_trim(encryptedText)
+        checkSum = 0
+        do kStart=1,lenCipher
+            checkSum = checkSum + kStart*ichar(encryptedText(kStart:kStart))
+        end do
+        calculate_check_sum = checkSum
+
+    end function calculate_check_sum
 
 
     subroutine set_password(Password, forcedPassword)
@@ -905,6 +934,26 @@ contains
 
 
 
+    subroutine copy_to_unit(logFile, device)
+        integer, intent(in) :: device
+        character (len=MAX_LEN_FILE_PATH), intent(in) :: logFile
+        integer :: iTmp
+
+        call html_comment('copy_to_unit('//trim(logFile)//')')
+
+        write(device,AFORMAT) '<pre>'
+        open(unit=unitETC, file=logFile, status='old')
+        do
+            read(unitETC, AFORMAT, iostat=iTmp) wrkCipher
+            if (iTmp<0) exit
+            write(device,AFORMAT) trim(wrkCipher)
+        end do
+        close(unitETC)
+        write(device,AFORMAT) '</pre>'//horizontal
+
+    end subroutine copy_to_unit
+
+
 !===========================================================
 ! XML-related routines
 !===========================================================
@@ -1030,6 +1079,148 @@ contains
 !===========================================================
 ! CGI-routines
 !===========================================================
+
+    function make_href(fn, label, pre, post, A1, A2, A3, A4, A5, A9, anchor, newtab)
+    ! build HTML href, like:
+    !   pre<a href="CGI_PATH?F=fn&A1=A1&...A5=A5 #anchor target=newtab">label</a>post
+
+        integer, intent (in) :: fn
+        integer, intent (in), optional :: A9
+        character(len=*), intent (in) :: label
+        character(len=*), intent (in), optional :: A1, A2, A3, A4, A5
+        character(len=*), intent (in), optional :: pre, post, anchor, newtab
+
+        character(len=MAX_LEN_QUERY_STRING) :: make_href
+        character(len=MAX_CGI_WRK_LEN) :: cgi_wrk
+        integer :: kStart, checkSum
+
+        ! term provided ?
+        if (present(A9)) then
+            kStart = A9
+        else ! force to be currentTerm
+            kStart = currentTerm
+        end if
+
+        ! the function, user name and target term
+        wrkCipher = 'F='//trim(itoa(fn))//'&N='//trim(USERNAME)//'&A9='//itoa(kStart)
+
+        ! the arguments to the function
+        if (present(A1)) then
+            call cgi_url_encode(A1,cgi_wrk)
+            wrkCipher = trim(wrkCipher)//'&A1='//cgi_wrk
+        end if
+        if (present(A2)) then
+            call cgi_url_encode(A2,cgi_wrk)
+            wrkCipher = trim(wrkCipher)//'&A2='//cgi_wrk
+        end if
+        if (present(A3)) then
+            call cgi_url_encode(A3,cgi_wrk)
+            wrkCipher = trim(wrkCipher)//'&A3='//cgi_wrk
+        end if
+        if (present(A4)) then
+            call cgi_url_encode(A4,cgi_wrk)
+            wrkCipher = trim(wrkCipher)//'&A4='//cgi_wrk
+        end if
+        if (present(A5)) then
+            call cgi_url_encode(A5,cgi_wrk)
+            wrkCipher = trim(wrkCipher)//'&A5='//cgi_wrk
+        end if
+
+        ! calculate checksum
+        checkSum = calculate_check_sum(wrkCipher)
+        ! encrypt
+!#if defined no_password_check
+!#else
+        call random_number(harvest)
+        kStart = MAX_LEN_QUERY_STRING/2 + int(harvest*MAX_LEN_QUERY_STRING/2)
+        call encrypt(queryEncryptionKey(:kStart), wrkCipher)
+        wrkCipher = trim(wrkCipher)//itoa(kStart)
+!#endif
+        ! the target
+        if (present(newtab)) then
+            wrkCipher = '<a target='//newtab//' href="'//trim(CGI_PATH)//'?r='//trim(itoa(len_trim(wrkCipher)))// &
+                '&s='//trim(itoa(checkSum))//'&q='//trim(wrkCipher)
+        else
+            wrkCipher = '<a href="'//trim(CGI_PATH)//'?r='//trim(itoa(len_trim(wrkCipher)))// &
+                '&s='//trim(itoa(checkSum))//'&q='//trim(wrkCipher)
+        end if
+
+        ! preamble (text before href)
+        if (present(pre)) wrkCipher = pre//wrkCipher
+
+        ! the anchor
+        if (present(anchor)) wrkCipher = trim(wrkCipher)//'#'//anchor
+
+        ! end href & the label
+        wrkCipher = trim(wrkCipher)//'">'//trim(label)//'</a>'
+
+        ! the text after the href
+        if (present(post)) wrkCipher = trim(wrkCipher)//post
+
+        make_href = wrkCipher
+
+    end function make_href
+
+
+    subroutine make_form_start(device, fn, A1, A2, A3, A4, A5, A9)
+
+        integer, intent (in) :: device, fn
+        integer, intent (in), optional :: A9
+        character(len=*), intent (in), optional :: A1, A2, A3, A4, A5
+
+        character(len=MAX_CGI_WRK_LEN) :: cgi_wrk
+        integer :: kStart, checkSum
+
+        ! term provided ?
+        if (present(A9)) then
+            kStart = A9
+        else ! force to be currentTerm
+            kStart = currentTerm
+        end if
+
+        ! the function, user name and target term
+        wrkCipher = 'F='//trim(itoa(fn))//'&N='//trim(USERNAME)//'&A9='//itoa(kStart)
+
+        ! the arguments to the function
+        if (present(A1)) then
+            call cgi_url_encode(A1,cgi_wrk)
+            wrkCipher = trim(wrkCipher)//'&A1='//cgi_wrk
+        end if
+        if (present(A2)) then
+            call cgi_url_encode(A2,cgi_wrk)
+            wrkCipher = trim(wrkCipher)//'&A2='//cgi_wrk
+        end if
+        if (present(A3)) then
+            call cgi_url_encode(A3,cgi_wrk)
+            wrkCipher = trim(wrkCipher)//'&A3='//cgi_wrk
+        end if
+        if (present(A4)) then
+            call cgi_url_encode(A4,cgi_wrk)
+            wrkCipher = trim(wrkCipher)//'&A4='//cgi_wrk
+        end if
+        if (present(A5)) then
+            call cgi_url_encode(A5,cgi_wrk)
+            wrkCipher = trim(wrkCipher)//'&A5='//cgi_wrk
+        end if
+
+        ! calculate checksum
+        checkSum = calculate_check_sum(wrkCipher)
+        ! encrypt
+!#if defined no_password_check
+!#else
+        call random_number(harvest)
+        kStart = MAX_LEN_QUERY_STRING/2 + int(harvest*MAX_LEN_QUERY_STRING/2)
+        call encrypt(queryEncryptionKey(:kStart), wrkCipher)
+        wrkCipher = trim(wrkCipher)//itoa(kStart)
+!#endif
+        write(device,AFORMAT) &
+          '<form name="input" method="post" action="'//trim(CGI_PATH)//'">', &
+          '<input type="hidden" name="s" value="'//trim(itoa(checkSum))//'">', &
+          '<input type="hidden" name="q" value="'//trim(wrkCipher)//'">', &
+          '<input type="hidden" name="r" value="'//trim(itoa(len_trim(wrkCipher)))//'">'
+
+    end subroutine make_form_start
+
 
     subroutine cgi_url_encode(str_in, str_out)
     ! encode special/reserved characters in str_in using hex representation
@@ -1181,7 +1372,7 @@ contains
             call cgi_url_decode(tmpIN, tmpOUT) ! decode
             rvalue = trim(tmpOUT)
         end if
-        !call html_comment('cgi_get_named_string() : '//lname//'='//trim(rvalue)//', ierr='//itoa(ierr))
+        call html_comment('cgi_get_named_string() : '//lname//'='//trim(rvalue)//', ierr='//itoa(ierr))
 
     end subroutine cgi_get_named_string
 

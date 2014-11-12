@@ -30,15 +30,217 @@
 
 module EditSTUDENT
 
-    use ADVISING
+    use HTML
 
     implicit none
 
     character(len=MAX_LEN_STUDENT_CODE), private :: tStdNo
     character(len=MAX_LEN_SUBJECT_CODE), private :: tSubject
-    character (len=MAX_LEN_XML_LINE), private :: line
+    character(len=MAX_LEN_XML_LINE), private :: line
 
 contains
+
+
+#if defined no_terms
+
+#include "ADVISING-UNSTRUCTURED.F90"
+
+#else
+
+#include "ADVISING-STRUCTURED.F90"
+
+#endif
+
+
+    subroutine get_scholastic_three_terms (givenYear, givenTerm, UnitsPaid, UnitsDropped, UnitsPassed, Standing)
+        integer :: Standing, givenYear, givenTerm
+        integer :: gdx, cdx, i
+        real :: HoursPaid, HoursDropped, HoursPassed, HoursREGD, tHours
+        real :: pctFailed, UnitsPaid, UnitsDropped, UnitsPassed, tUnits, performanceUnits, UnitsREGD
+
+        ! count units registered, passed
+        UnitsPaid = 0.0
+        UnitsREGD = 0.0
+        UnitsDropped = 0.0
+        UnitsPassed = 0.0
+        HoursPaid = 0.0
+        HoursDropped = 0.0
+        HoursPassed = 0.0
+        HoursREGD = 0.0
+        do i=1,lenTCG
+
+            ! Record(i,:) 1=type,2=year,3=term,4=subject,5=grade
+            if (TCG(i)%Code/=3) cycle ! not FINALGRADE
+
+            if (TCG(i)%Year/=givenYear .or. &
+                TCG(i)%Term/=givenTerm) cycle
+
+            cdx = TCG(i)%Subject
+            gdx = TCG(i)%Grade
+            if (gdx>0 .and. cdx>0) then
+                tUnits = Subject(cdx)%Units
+                tHours = Subject(cdx)%LectHours+Subject(cdx)%LabHours
+                UnitsPaid = UnitsPaid + tUnits
+                HoursPaid = HoursPaid + tHours
+                if (gdx==gdxREGD) then
+                    if (isProbabilistic) then ! currently registered
+                        UnitsREGD = UnitsREGD + tUnits
+                        HoursREGD = HoursREGD + tHours
+                    else ! assume passed
+                        UnitsPassed = UnitsPassed + tUnits
+                        HoursPassed = HoursPassed + tHours
+                    end if
+                else if (gdx==gdxDRP .or. gdx==gdxLOA) then
+                    UnitsDropped = UnitsDropped + tUnits
+                    HoursDropped = HoursDropped + tHours
+                else if (is_grade_passing(gdx) ) then
+                    UnitsPassed = UnitsPassed + tUnits
+                    HoursPassed = HoursPassed + tHours
+                else if (is_grade_passing(TCG(i)%ReExam) ) then
+                    UnitsPassed = UnitsPassed + tUnits
+                    HoursPassed = HoursPassed + tHours
+                end if
+            end if
+
+        end do
+
+        Standing = 0
+        if (HoursPaid==0.0) then ! did not register; on LOA?
+            Standing = 8
+        else if (HoursPaid==HoursDropped) then ! started LOA
+            Standing = 7
+        else if (HoursPaid==HoursREGD) then ! grades not yet available
+            Standing = 8
+        else ! student received some grades; calculate standing
+            if (UnitsPaid==0.0) then ! only zero-unit subjects were enrolled; use hours
+                performanceUnits = HoursPaid - HoursDropped
+                pctFailed = (100.0*(performanceUnits-HoursPassed))/max(1.0, performanceUnits)
+            else ! non-zero unit subjects were enrolled
+                performanceUnits = UnitsPaid - UnitsDropped
+                pctFailed = (100.0*(performanceUnits-UnitsPassed))/max(1.0, performanceUnits)
+            end if
+            ! compute status
+            if (HoursPassed==0.0) then
+                Standing = 6 ! PERMANENTLY DISQUALIFIED
+            else if (pctFailed>75.0) then
+                Standing = 5 ! DISMISSED
+            else if (pctFailed>50.0) then
+                Standing = 4 ! PROBATION
+            else if (pctFailed>25.0) then
+                Standing = 3 ! WARNING
+            !else  if (pctFailed>0.0) then
+            !        Standing = 2 ! failed<=25%
+            else
+                Standing = 1 ! no failures
+            end if
+        end if
+
+    end subroutine get_scholastic_three_terms
+
+
+    subroutine advise_student (std, thisTerm, UseClasses, Offering, WaiverCOI, Advice, MissingPOCW, NRemaining, advising_comment)
+
+        integer, intent (in) :: std, thisTerm
+        logical, intent (in) :: UseClasses
+        type (TYPE_OFFERED_SUBJECTS), intent(in), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS) :: Offering
+        type (TYPE_WAIVER), intent (in)  :: WaiverCOI
+        type (TYPE_PRE_ENLISTMENT), intent (out)  :: Advice
+        integer, intent (out) :: MissingPOCW, NRemaining
+        character(len=*), intent (in out) :: advising_comment
+
+        integer :: idxCURR, idxCOLL, idx, tdx
+        integer :: Group, NPriority, NAlternates, NCurrent, StdClassification, StdTerm, StdYear, Standing
+        real :: AllowedLoad, UnitsEarned, UnitsPaid, UnitsDropped, UnitsPassed, WaiverUnits
+
+        call read_student_records (std)
+
+        call initialize_pre_enlistment(Advice)
+
+        idxCURR = Student(std)%CurriculumIdx
+        idxCOLL = Curriculum(idxCURR)%CollegeIdx
+        WaiverUnits = 0
+        do idx=1,WaiverCOI%lenSubject
+            WaiverUnits = WaiverUnits + Subject(WaiverCOI%Subject(idx))%Units
+        end do
+
+        CheckList = Curriculum(idxCURR)
+        CLExt = TYPE_CHECKLIST_EXTENSION (0, 0, 0, 0, 0, 0, 0.0, .false., .false., .false., .false., &
+            SPACE, SPACE, SPACE, SPACE, SPACE, SPACE, SPACE)
+        advising_comment = SPACE
+
+        if (Curriculum(idxCURR)%NSubjects==0) then ! no subjects specified in curriculum
+
+            ! get subjects from WaiverCOI
+            Advice%AllowedLoad = WaiverUnits
+            Advice%StdPriority = 0
+            Advice%NPriority = WaiverCOI%lenSubject
+            Advice%NAlternates = 0
+            Advice%NCurrent = 0
+            Advice%lenSubject = Advice%NPriority
+            do idx=1,Advice%NPriority
+                Advice%Subject(idx) = WaiverCOI%Subject(idx)
+                Advice%Section(idx) = WaiverCOI%Section(idx)
+                Advice%Contrib(idx) = 1.0
+            end do
+            MissingPOCW = 0
+            NRemaining = 0
+            return
+        end if
+
+        call get_scholastic_three_terms (cTm1Year, cTm1, UnitsPaid, UnitsDropped, UnitsPassed, Standing)
+
+        call checklist_analyze (std, thisTerm, UseClasses, Offering, WaiverCOI, Standing, &
+            UnitsEarned, StdClassification, StdTerm, StdYear, MissingPOCW, &
+            AllowedLoad, Group, NPriority, NAlternates, NCurrent, NRemaining, advising_comment)
+
+        if (NPriority==0) then ! no priority subjects?
+            NAlternates = 0
+            NCurrent = 0
+        else if (AllowedLoad==0) then ! 0-unit subjects left?
+            NPriority = 0
+            NAlternates = 0
+            NCurrent = 0
+        end if
+
+        if (len_trim(advising_comment)>0) Advice%errNSTP = 1
+        Advice%UnitsEarned = UnitsEarned
+        Advice%StdClassification = StdClassification
+        Advice%StdYear = StdYear
+        Advice%AllowedLoad = AllowedLoad
+        Advice%StdPriority = Group
+        Advice%NPriority = NPriority
+        Advice%NAlternates = NAlternates
+        Advice%NCurrent = NCurrent
+        Advice%lenSubject = NPriority + NAlternates + NCurrent
+
+        ! recommended subjects
+        do idx=1,Advice%lenSubject
+            tdx = CLExt(idx)%PriorityRank
+            Advice%Subject(idx) = CheckList%SubjectIdx(tdx)
+            Advice%Contrib(idx) = CLExt(tdx)%Contrib
+        end do
+
+        ! update from waiver-coi
+#if defined REGIST
+        if (WaiverUnits>0) then
+            ! get subjects from WaiverCOI
+            Advice%AllowedLoad = WaiverUnits
+            Advice%StdPriority = 0
+            Advice%NPriority = WaiverCOI%lenSubject
+            Advice%NAlternates = 0
+            Advice%NCurrent = 0
+            do idx=1,Advice%NPriority
+                Advice%Subject(idx) = WaiverCOI%Subject(idx)
+                Advice%Section(idx) = WaiverCOI%Section(idx)
+                Advice%Contrib(idx) = 1.0
+            end do
+            MissingPOCW = 0
+            NRemaining = 0
+        end if
+#endif
+
+        return
+    end subroutine advise_student
 
 
     subroutine change_current_student_password(device)
@@ -159,6 +361,19 @@ contains
             return
         end if
 
+        do std=1,len_trim(tStdNo)
+            if (tStdNo(std:std)<='9' .and. tStdNo(std:std)>='0') cycle
+            if (tStdNo(std:std)==DASH) cycle
+            if (tStdNo(std:std)<='Z' .and. tStdNo(std:std)>='A') cycle
+            ierr = ierr+1
+        end do
+        if (ierr/=0) then
+            call html_college_links(device, CollegeIdxUser, 'Add student: '//trim(itoa(ierr))// &
+                ' illegal character(s) in student number "'//trim(tStdNo)//'"?')
+            return
+        end if
+
+
         ! already in RAM?
         std = index_to_student(tStdNo)
         if (std==0) then
@@ -176,6 +391,7 @@ contains
             end if
 
             std = NumStudents+NumAdditionalStudents
+            StdRank(std) = std
             call initialize_student(Student(std))
             Student(std)%StdNo = tStdNo
             Student(std)%CurriculumIdx = NumCurricula
@@ -233,7 +449,7 @@ contains
         if (ierr==0) then ! previously entered
             call student_copy_from_info(Student(targetStudent))
         else ! initialize info file
-            call xml_student_info(std, Student(targetStudent))
+            call xml_student_info(targetStudent, Student(targetStudent))
         end if
 
         idxCURR = Student(targetStudent)%CurriculumIdx
@@ -394,7 +610,7 @@ contains
         end if
 
         if (trim(tAction)/='Edit' .and. isRoleOfficial) then
-            comment = '"'//trim(tAction)//SPACE//trim(tStdno)//'" failed. '//sorryMessage
+            comment = '"'//trim(tAction)//SPACE//trim(tStdno)//'" failed. '//sorryMessageOfficial
         end if
 
         if (isDirty) then
@@ -513,9 +729,23 @@ contains
             begintr//begintd//'Previous school:'//endtd//begintd// &
             '<input name="LastAttended" size="40" value="'//trim(wrkStudent%LastAttended)//'">'//endtd//endtr
 
+!        write(device,AFORMAT) &
+!            begintr//begintd//'Scholarship:'//endtd//begintd// &
+!            '<input name="Scholarship" size="40" value="'//trim(wrkStudent%Scholarship)//'">'//endtd//endtr
         write(device,AFORMAT) &
-            begintr//begintd//'Scholarship:'//endtd//begintd// &
-            '<input name="Scholarship" size="40" value="'//trim(wrkStudent%Scholarship)//'">'//endtd//endtr
+            begintr//begintd//'Scholarship:'//endtd//begintd//'<select name="Scholarship">'
+        write(device,AFORMAT) '<option value=""> (Select scholarship)'
+        do l=1,MAX_ALL_SCHOLARSHIPS
+            if (len_trim(ScholarshipCode(l))==0) cycle
+            if (ScholarshipCode(l)==wrkStudent%Scholarship) then
+                j = 1
+            else
+                j = 0
+            end if
+            write(device,AFORMAT) '<option '//trim(selected(j))//' value="'//trim(ScholarshipCode(l))//'"> '// &
+                trim(ScholarshipCode(l))
+        end do
+        write(device,AFORMAT) '</select>'//endtd//endtr
 
         write(device,AFORMAT) &
             begintr//begintd//'Date of entry:'//endtd//begintd// &
@@ -825,7 +1055,7 @@ contains
         end if
 
         if (len_trim(tAction)>0 .and. isRoleOfficial) then
-            line = '"'//trim(tAction)//'" failed. '//sorryMessage
+            line = '"'//trim(tAction)//'" failed. '//sorryMessageOfficial
         end if
 
         ! reload ?
@@ -1019,7 +1249,11 @@ contains
                 up = tUnits*fGrade(grd)
                 if (up/=0.0) then
                     down = tUnits
-                    line = trim(line)//tdaligncenter//trim(ftoa(tUnits,1))//endtd
+                    if ( is_grade_passing(grd) ) then
+                        line = trim(line)//tdaligncenter//trim(ftoa(tUnits,1))//endtd
+                    else
+                        line = trim(line)//tdnbspendtd
+                    end if
                 else
                     down = 0.0
                     line = trim(line)//tdnbspendtd
@@ -1325,9 +1559,9 @@ contains
         integer, intent (in) :: device
 
         integer :: n_count, tdx, std, ierr, nSteps, first, last, idx, classification
-        character(len=MAX_LEN_TEACHER_CODE) :: tTeacher, newAdviser
+        character(len=MAX_LEN_USERNAME) :: tTeacher, newAdviser
         character(len=MAX_LEN_STUDENT_CODE) :: tStdNo
-        character(len=MAX_LEN_TEACHER_CODE+MAX_LEN_STUDENT_CODE) :: tAction
+        character(len=MAX_LEN_USERNAME+MAX_LEN_STUDENT_CODE) :: tAction
         logical :: changeAdvisers
         character(len=MAX_LEN_XML_LINE) :: mesg
 
@@ -1396,7 +1630,7 @@ contains
         end if
 
         if (changeAdvisers .and. isRoleOfficial) then
-            mesg = sorryMessage
+            mesg = sorryMessageOfficial
         end if
 
         call change_adviser_form(device, n_count, nSteps, tArray(1:n_count), &
@@ -1411,9 +1645,9 @@ contains
 
         integer :: n_count, tdx, std, ierr, nSteps, first, last, idx, classification, lenCode
         character(len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
-        character(len=MAX_LEN_TEACHER_CODE) :: newAdviser
+        character(len=MAX_LEN_USERNAME) :: newAdviser
         character(len=MAX_LEN_STUDENT_CODE) :: tStdNo
-        character(len=MAX_LEN_TEACHER_CODE+MAX_LEN_STUDENT_CODE) :: tAction
+        character(len=MAX_LEN_USERNAME+MAX_LEN_STUDENT_CODE) :: tAction
         logical :: changeAdvisers
         character(len=MAX_LEN_XML_LINE) :: mesg
 
@@ -1484,7 +1718,7 @@ contains
         end if
 
         if (changeAdvisers .and. isRoleOfficial) then
-            mesg = sorryMessage
+            mesg = sorryMessageOfficial
         end if
 
         call change_adviser_form(device, n_count, nSteps, tArray(1:n_count), &
@@ -1494,18 +1728,20 @@ contains
     end subroutine student_advisers_by_curriculum
 
 
-    subroutine links_to_students (device, fn, thisTerm, NumSections, Section, eList)
+    subroutine links_to_students (device, fn, thisTerm, NumSections, Section, eList, Scholarship)
 
         integer, intent (in) :: device, fn
         integer, intent (in), optional :: thisTerm, NumSections
         type (TYPE_SECTION), intent(in), optional :: Section(0:)
         type (TYPE_PRE_ENLISTMENT), intent(in), optional :: eList(0:)
+        character(len=*), intent (in), optional :: Scholarship
 
-        integer :: ldx, n_count, tdx, std, ierr, ncol, Term
-        integer, dimension(60,6) :: TimeTable
+        integer :: ldx, n_count, tdx, std, ierr, ncol, Term, iStat
+        integer, dimension(60,7) :: TimeTable
         logical :: flagIsUp
         character(len=MAX_LEN_COLLEGE_CODE) :: tCollege
         character(len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
+        character(len=MAX_LEN_USERNAME) :: tTeacher
         character(len=127) :: header
 
         call html_comment('links_to_students()')
@@ -1555,6 +1791,23 @@ contains
                 end do
                 header = 'Online students'
 
+            case (fnListBeneficiaries)
+                ! which teacher
+                if (present(Scholarship)) then
+                    tTeacher = Scholarship
+                    call html_comment('links_to_students( ..., Scholarship='//Scholarship//')')
+                else
+                    call cgi_get_named_string(QUERY_STRING, 'A1', tTeacher, ierr)
+                    call html_comment('links_to_students( ..., Teacher='//tTeacher//')')
+                end if
+                do tdx=1,NumStudents+NumAdditionalStudents
+                    std = StdRank(tdx)
+                    if (Student(std)%Scholarship/=tTeacher) cycle
+                    n_count = n_count+1
+                    tArray(n_count) = std
+                end do
+                header = trim(tTeacher)//' Scholarship Beneficiaries'
+
             case (fnStudentsByCurriculum)
                 ! which Curriculum ?
                 call cgi_get_named_string(QUERY_STRING, 'A1', tCurriculum, ierr)
@@ -1584,6 +1837,25 @@ contains
                 end do
                 header = trim(tCollege)//' students with schedule conflicts, '
 
+            case (fnListUnlocked)
+
+                ! which college
+                call cgi_get_named_string(QUERY_STRING, 'A1', tCollege, ierr)
+                targetCollege = index_to_college(tCollege)
+                ! which classification
+                call cgi_get_named_integer(QUERY_STRING, 'A2', ncol, ierr)
+                ! which status
+                call cgi_get_named_integer(QUERY_STRING, 'A3', iStat, ierr)
+                do tdx=1,NumStudents+NumAdditionalStudents
+                    std = StdRank(tdx)
+                    if (Curriculum(Student(std)%CurriculumIdx)%CollegeIdx /= targetCollege) cycle
+                    if (Student(std)%Classification /= ncol) cycle
+                    if (eList(std)%Status /= iStat) cycle
+                    n_count = n_count + 1
+                    tArray(n_count) = std
+                end do
+                header = trim(tCollege)//' students with classification "'//trim(txtYear(ncol+11))// &
+                    '" and enlistment status "'//trim(txtEnlistmentStatus(iStat))//'", '
 
             case (fnStudentPriority)
 
@@ -1668,8 +1940,12 @@ contains
 
                     case default
                         header = ' (criterion not specified)'
+
                 end select
                 header = trim(tCurriculum)//header
+
+            case default
+                header = ' (incorrect function number to list students)'
 
         end select
 
@@ -1797,6 +2073,11 @@ contains
                             if (nClasses(Term)+nAdvised(Term)>0) write(device,AFORMAT) &
                                 trim(make_href(fnStudentClasses, txtSemester(Term+6), A1=tStdNo, A9=Term, pre=nbsp))
                         end do
+                    end if
+
+                    if (isRoleSysAd) then
+                        write(device,AFORMAT) &
+                            trim(make_href(fnSwitchUser, 'Login', A1=tStdNo, pre=nbsp, newtab='"0"'))
                     end if
 
                 end if
@@ -2189,6 +2470,8 @@ contains
             nParts = nParts + 1
             ptrPart(nParts) = nLines
 
+            call html_comment(itoa(nParts)//itoa(nLines)//trLine(nLines))
+
             do tdx=1,lenTCG
 
                 if (TCG(tdx)%Code/=2 .or. .not. is_grade_passing(TCG(tdx)%Grade)) cycle
@@ -2216,6 +2499,8 @@ contains
                 nLines = nLines + 1
                 trLine(nLines) = line
 
+                call html_comment(itoa(nParts)//itoa(nLines)//trLine(nLines))
+
                 TCG(tdx)%Used = .true.
 
             end do
@@ -2235,6 +2520,8 @@ contains
                     tdnbspendtd//tdnbspendtd
                 nParts = nParts + 1
                 ptrPart(nParts) = nLines
+
+                call html_comment(itoa(nParts)//itoa(nLines)//trLine(nLines))
 
                 prevtaken = TCG(tdx)%Taken
             end if
@@ -2276,12 +2563,15 @@ contains
             nLines = nLines + 1
             trLine(nLines) = line
 
+            call html_comment(itoa(nParts)//itoa(nLines)//trLine(nLines))
+
         end do
 
         ! ptr to next (non-existent) part
         ptrPart(nParts+1) = nLines+1
 
-        nPages = nLines/51 + 1
+        !nPages = nLines/51 + 1
+        nPages = 0
         pageNo = 1
         ptrPage(pageNo) = 1
         do tdx=1,nParts
@@ -2289,6 +2579,7 @@ contains
             pageNo = pageNo+1
             ptrPage(pageNo) = ptrPart(tdx)
         end do
+        nPages = pageNo
         ptrPage(pageNo+1) = ptrPart(nParts+1)
 
         write(device,AFORMAT) '<html><head>', &

@@ -287,7 +287,7 @@
 
         character (len=MAX_LEN_PERSON_NAME) :: tTeacher
         character (len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
-        character (len=MAX_LEN_TEACHER_CODE)   :: teacherId
+        character (len=MAX_LEN_USERNAME)   :: teacherId
         integer :: i, j, k
         character (len=1) :: ch
         type(TYPE_TEACHER) :: wrkTeacher
@@ -915,7 +915,7 @@
                         Curriculum(NumCurricula)%SubjectTerm(j) = idxTerm
                         !if (is_offered(i,mod(term,3)) ) then
                         if ( is_offered(i,term) ) then
-                            if (.not. is_prerequisite_satisfiable_in_curriculum(i,NumCurricula)) then
+                            if (.not. is_prerequisite_satisfiable_in_curriculum(i,Curriculum(NumCurricula))) then
                                 ! errNo = 126 ! subject prerequisite cannot be satisfied in this curriculum
                                 call log_comment (trim(Curriculum(NumCurricula)%Code)//', '// &
                                 trim(strYear)//' year, '//trim(strTerm)//' term, '//trim(token)// &
@@ -1049,6 +1049,7 @@
                 open(unit=unitRAW,file=fileName,status='old', iostat=ierr)
                 if (ierr==0) then
                     write(*,*) 'Retrieving grades from '//trim(fileName)
+                    call log_comment('Retrieving grades from '//fileName)
 
                     ! initialize student data
                     call initialize_student(Student(0))
@@ -1106,8 +1107,8 @@
                             call upper_case(tSubject)
                             cdx = index_to_subject(tSubject)
                             if (cdx<=0) then
-                                !call log_comment (trim(Student(NumStudents)%Name)//' - "'//trim(tSubject)// &
-                                !    '" not in catalog')
+                                call log_comment (trim(Student(NumStudents)%Name)//' - "'//trim(tSubject)// &
+                                    '" not in catalog')
                                 !cycle
                                 write(*,*) trim(Student(NumStudents)%Name)//' - "'//trim(tSubject)//'" not in catalog'
                                 NumAdditionalSubjects = NumAdditionalSubjects+1
@@ -1207,8 +1208,7 @@
 
                     end do
                     close(unitRAW)
-                    write(*,*) NumStudents, ' students in '//trim(fileName)
-                    call write_transcripts(idxYear, idxTerm)
+                    call xml_write_transcripts(idxYear, idxTerm)
 
                     ! create "equivalent" ENLISTMENT.XML
                     fileName = trim(dirDATA)//dirYEAR//DIRSEP//trim(txtSemester(idxTerm))//DIRSEP
@@ -1223,6 +1223,7 @@
                 open(unit=unitRAW,file=fileName,status='old', iostat=ierr)
                 if (ierr==0) then
                     write(*,*) 'Retrieving grades from '//trim(fileName)
+                    call log_comment('Retrieving grades from '//fileName)
 
                     ! initialize student data
                     call initialize_student(Student(0))
@@ -1371,8 +1372,7 @@
 
                     end do
                     close(unitRAW)
-                    write(*,*) NumStudents, ' students in '//trim(fileName)
-                    call write_transcripts(idxYear, idxTerm)
+                    call xml_write_transcripts(idxYear, idxTerm)
 
                 end if
 
@@ -1382,6 +1382,7 @@
                 open(unit=unitRAW,file=fileName,status='old', iostat=ierr)
                 if (ierr==0) then
                     write(*,*) 'Retrieving grades from '//trim(fileName)
+                    call log_comment('Retrieving grades from '//fileName)
 
                     ! initialize student data
                     call initialize_student(Student(0))
@@ -1538,8 +1539,7 @@
 
                     end do
                     close(unitRAW)
-                    write(*,*) NumStudents, ' students in '//trim(fileName)
-                    call write_transcripts(idxYear, idxTerm)
+                    call xml_write_transcripts(idxYear, idxTerm)
 
                 end if
 
@@ -1549,6 +1549,7 @@
                 open(unit=unitRAW,file=fileName,status='old', iostat=ierr)
                 if (ierr==0) then
                     write(*,*) 'Retrieving grades from '//trim(fileName)
+                    call log_comment('Retrieving grades from '//fileName)
 
                     ! initialize student data
                     call initialize_student(Student(0))
@@ -1627,13 +1628,15 @@
                     close(unitRAW)
                     write(*,*) NumStudents, ' students in '//trim(fileName)
 
-                    call write_transcripts(idxYear, idxTerm)
+                    call xml_write_transcripts(idxYear, idxTerm)
 
                 end if
 
                 if (NumStudents==0) then
                     write(*,*) 'Grade file not found in '// &
                         trim(dirDATA)//dirYEAR//DIRSEP//trim(txtSemester(idxTerm))//DIRSEP
+                    call log_comment('Grade file not found in '// &
+                        trim(dirDATA)//dirYEAR//DIRSEP//trim(txtSemester(idxTerm))//DIRSEP)
                     cycle
                 end if
 
@@ -1647,60 +1650,6 @@
         call terminate(trim(fileEXE)//SPACE//ACTION//' completed normally.')
 
     end subroutine generate_checklists
-
-
-    subroutine write_transcripts(idxYear, idxTerm)
-
-        integer, intent (in) :: idxYear, idxTerm
-
-        integer :: idx, std
-
-        ! create student directories
-        call make_student_directories()
-        do std=1,NumStudents
-
-            ! generate file name
-            idx = year_prefix(Student(std))
-            fileName = trim(dirTRANSCRIPTS)//trim(Student(std)%StdNo(1:idx))//DIRSEP// &
-                trim(Student(std)%StdNo)//'.XML'
-
-            inquire(file=trim(fileName), exist=pathExists)
-            if (.not. pathExists) then
-                open(unit=unitXML, file=trim(fileName), status='new')
-
-                write(unitXML,AFORMAT) XML_DOC, &
-                    '<'//XML_ROOT_STUDENT_RECORD//'>', &
-                    '    <comment>', &
-                    '        Generated by '//PROGNAME//VERSION//' on '//currentDate(1:4)// &
-                    FSLASH//currentDate(5:6)//FSLASH//currentDate(7:8), &
-                    '        StdNo - Student number', &
-                    '        Name - Student name', &
-                    '        Grade - YEAR,TERM,SUBJECT,GRADE', &
-                    '    </comment>'
-
-                call xml_write_character(unitXML, indent0, 'StdNo', Student(std)%StdNo)
-                call xml_write_character(unitXML, indent0, 'Name', Student(std)%Name)
-
-            else
-                open(unit=unitXML, file=trim(fileName), status='old', position='append')
-                backspace(unitXML)
-            end if
-
-            do idx=1,Enlistment(idxTerm,std)%lenSubject
-                call xml_write_character(unitXML, indent0, txtGradeType(1), &
-                    trim(itoa(idxYear))//COMMA// &
-                    trim(txtSemester(idxTerm))//COMMA// &
-                    trim(Subject(Enlistment(idxTerm,std)%Subject(idx))%Name)//COMMA// &
-                    txtGrade(pGrade(Enlistment(idxTerm,std)%Grade(idx))) )
-            end do
-
-            write(unitXML,AFORMAT) '</'//XML_ROOT_STUDENT_RECORD//'>'
-            close(unitXML)
-
-            if (mod(std,1000)==0) write(*,*) std,  '/', NumStudents, ' done...'
-        end do
-
-    end subroutine write_transcripts
 
 
     subroutine read_students_from_enlistment(idxYear, idxTerm)

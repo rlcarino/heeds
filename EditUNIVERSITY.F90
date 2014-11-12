@@ -134,7 +134,7 @@ contains
 
     subroutine edit_signatories(device)
         integer, intent(in) :: device
-        character(len=MAX_LEN_TEACHER_CODE) :: tAction
+        character(len=MAX_LEN_USERNAME) :: tAction
         character (len=255) :: tInput
         logical :: changes
         integer :: iColl, ierr
@@ -183,7 +183,7 @@ contains
             if (tInput /= titleTheRegistrar) then
                 titleTheRegistrar = tInput
                 changes = .true.
-                sorryMessage = trim(UniversityCodeNoMirror)//' officials and their friends '// &
+                sorryMessageOfficial = trim(UniversityCodeNoMirror)//' officials and their friends '// &
                     ' have a "read-only" permission at this time. '// &
                     ' Please see the '//trim(titleTheRegistrar)//' if you wish to change some data.'
             end if
@@ -281,7 +281,7 @@ contains
         end if
 
         if (len_trim(tAction)>0 .and. isRoleOfficial) then
-            tInput = 'Edit signatories failed. '//sorryMessage
+            tInput = 'Edit signatories failed. '//sorryMessageOfficial
         else
             tInput = SPACE
         end if
@@ -292,10 +292,74 @@ contains
     end subroutine edit_signatories
 
 
+    subroutine edit_timers(device)
+        integer, intent(in) :: device
+        character(len=MAX_LEN_USERNAME) :: tAction
+        character (len=255) :: mesg
+        integer :: ierr, tTime
+
+        call html_comment('edit_timers()')
+
+        targetDepartment = DeptIdxUser
+        targetCollege = CollegeIdxUser
+
+        ! check for requested action
+        call cgi_get_named_string(QUERY_STRING, 'action', tAction, ierr)
+        mesg = SPACE
+
+        if (ierr/=0 .or. tAction==SPACE) then ! no action; display existing info
+        else ! action is Update; collect changes, if any
+            call cgi_get_named_integer(QUERY_STRING, 'maxIdleTime', tTime, ierr)
+            if (ierr/=0) tTime = maxIdleTime
+            if (tTime /= maxIdleTime) then
+                maxIdleTime = tTime
+                mesg = ' : Max idle time='//trim(itoa(tTime))//mesg
+            end if
+            call cgi_get_named_integer(QUERY_STRING, 'maxBackupTime', tTime, ierr)
+            if (ierr/=0) tTime = maxBackupTime
+            if (tTime /= maxBackupTime) then
+                maxBackupTime = tTime
+                mesg = ' : Max backup time='//trim(itoa(tTime))//mesg
+            end if
+            call cgi_get_named_integer(QUERY_STRING, 'maxRefreshTime', tTime, ierr)
+            if (ierr/=0) tTime = maxRefreshTime
+            if (tTime /= maxRefreshTime) then
+                maxRefreshTime = tTime
+                mesg = ' : Max refresh time='//trim(itoa(tTime))//mesg
+            end if
+
+        end if
+        if (len_trim(mesg)>0) mesg = 'Changes'//mesg
+
+        ! display existing timers
+        call html_write_header(device, 'Edit timers', mesg)
+        call make_form_start(device, fnTimers)
+
+        write(device,AFORMAT) '<table border="0" width="50%">', &
+            begintr//thalignright//'Description'//endth//tdnbspendtd//thalignleft//'Value'//endth//endtr, &
+            begintr//tdalignright//beginitalic//'No. of seconds for auto-logout of an idle user'//enditalic// &
+                     endtd//tdnbspendtd// &
+                     begintd//'<input name="maxIdleTime" value="'//trim(itoa(maxIdleTime))//'">'//endtd// &
+            endtr, &
+            begintr//tdalignright//beginitalic//'No. of seconds for auto-backup of data'//enditalic// &
+                     endtd//tdnbspendtd// &
+                     begintd//'<input name="maxBackupTime" value="'//trim(itoa(maxBackupTime))//'">'//endtd// &
+            endtr, &
+            begintr//tdalignright//beginitalic//'No. of seconds for auto-refresh of data in mirror'//enditalic// &
+                     endtd//tdnbspendtd// &
+                     begintd//'<input name="maxRefreshTime" value="'//trim(itoa(maxRefreshTime))//'">'//endtd// &
+            endtr
+
+        write(device,AFORMAT) endtable, linebreak, &
+            nbsp//'<input name="action" type="submit" value="Update">'//endform//linebreak, horizontal
+
+    end subroutine edit_timers
+
+
 
     subroutine message_of_the_day(device)
         integer, intent(in) :: device
-        character(len=MAX_LEN_TEACHER_CODE) :: tAction
+        character(len=MAX_LEN_USERNAME) :: tAction
         integer :: ierr
 
         call html_comment('message_of_the_day()')
@@ -327,7 +391,7 @@ contains
             if (ierr==0) then
                 MOTD = cipher
                 if (isRoleOfficial) then
-                    call html_college_links(device, CollegeIdxUser, mesg='"Message of the day" not changed. '//sorryMessage)
+                    call html_college_links(device, CollegeIdxUser, mesg='"Message of the day" not changed. '//sorryMessageOfficial)
                 else
                     call html_college_links(device, CollegeIdxUser, mesg='Message of the day is: '//trim(MOTD))
                     if (.not. isReadOnly) then
@@ -340,8 +404,52 @@ contains
 
         end if
 
-
     end subroutine message_of_the_day
+
+
+    subroutine emergency_message (device)
+        integer, intent(in) :: device
+        character(len=MAX_LEN_USERNAME) :: tAction
+        integer :: ierr
+
+        call html_comment('emergency_message ()')
+
+        targetDepartment = DeptIdxUser
+        targetCollege = CollegeIdxUser
+
+        ! check for requested action
+        call cgi_get_named_string(QUERY_STRING, 'action', tAction, ierr)
+
+        if (ierr/=0 .or. tAction==SPACE) then ! no action; display existing info
+
+            call html_write_header(device, 'Edit the emergency message', SPACE)
+            call make_form_start(device, fnEditEMERGENCY)
+            write(device,AFORMAT) &
+                beginitalic, &
+                'Note: Type one continuous line of text. Intersperse &lt;br&gt; for line breaks', &
+                enditalic, &
+                linebreak, &
+                '<textarea cols="80" rows="5" name="EMERGENCY">'//trim(EMERGENCY)//'</textarea>', &
+                linebreak, &
+                linebreak, &
+                nbsp//'<input name="action" type="submit" value="Update">', &
+                endform//horizontal
+
+        else ! action is Update
+
+            call cgi_get_named_string(QUERY_STRING, 'EMERGENCY', cipher, ierr)
+            if (ierr==0) then
+                EMERGENCY = cipher
+                if (isRoleOfficial) then
+                    call html_college_links(device, CollegeIdxUser, mesg='"Emergency message" not changed. '//sorryMessageOfficial)
+                else
+                    call html_college_links(device, CollegeIdxUser, mesg='Emergency message: '//trim(EMERGENCY))
+                end if
+            end if
+
+        end if
+
+    end subroutine emergency_message 
 
 
     subroutine room_edit(device)
@@ -385,7 +493,7 @@ contains
         else if (isRoleOfficial) then
 
             mesg = 'Edit info for room '//tRoom
-            remark = 'Update room "'//trim(tRoom)//'" failed. '//sorryMessage
+            remark = 'Update room "'//trim(tRoom)//'" failed. '//sorryMessageOfficial
             call room_info(device, wrk, mesg, remark, tAction)
 
         else ! action is Add or Update; collect changes
@@ -492,7 +600,7 @@ contains
         integer :: rdx, n_count, nsect(3), sdx, tdx, term, ierr
         integer :: n_meetings, meetings(MAX_SECTION_MEETINGS)
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
-        integer, dimension(60,6) :: TimeTable
+        integer, dimension(60,7) :: TimeTable
         character (len=127) :: mesg
         integer :: tYear, tTerm
 
@@ -520,7 +628,7 @@ contains
         if (n_count == 0) then
             write(device,AFORMAT) '<table border="0">', &
                 begintr//begintd//JUSTNONE//endtd//tdalignright
-            if (is_admin_of_college(targetCollege)) then
+            if (.not. isRectify .and. is_admin_of_college(targetCollege)) then
                 write(device,AFORMAT) trim(make_href(fnEditRoom, 'Add room', &
                     A1='TBA', pre=beginsmall//'('//nbsp, post=' )'//endsmall ))
             end if
@@ -537,7 +645,7 @@ contains
                 end do
             end do
 
-            if (is_admin_of_college(targetCollege) )then
+            if (.not. isRectify .and. is_admin_of_college(targetCollege) )then
                 write(device,AFORMAT) trim(make_href(fnEditRoom, 'Add room', &
                     A1='TBA', pre=beginsmall//'('//nbsp, post=' )'//endsmall ))//linebreak
             end if
@@ -582,7 +690,8 @@ contains
 
                 QUERY_put = Room(rdx)%Code
                 write(device,AFORMAT) begintr//begintd//trim(Room(rdx)%Code)
-                if ( is_dean_of_college(targetCollege, orHigherUp)  .or. is_admin_of_college(targetCollege) ) then
+                if (.not. isRectify .and. &
+                        is_dean_of_college(targetCollege, orHigherUp)  .or. is_admin_of_college(targetCollege) ) then
                     write(device,AFORMAT) trim(make_href(fnEditRoom, 'Edit', &
                         A1=QUERY_put, pre=nbsp//beginsmall, post=endsmall))
                 end if
@@ -614,7 +723,7 @@ contains
         integer :: rdx, n_count, nsect, sdx, tdx, ierr
         integer :: n_meetings, meetings(MAX_SECTION_MEETINGS)
         character(len=MAX_LEN_COLLEGE_CODE) :: tCollege
-        integer, dimension(60,6) :: TimeTable
+        integer, dimension(60,7) :: TimeTable
         character (len=127) :: mesg
 
         ! collect rooms
@@ -693,7 +802,8 @@ contains
                 end do
                 QUERY_put = Room(rdx)%Code
                 write(device,AFORMAT) begintr//begintd//trim(Room(rdx)%Code)
-                if ( is_dean_of_college(targetCollege, orHigherUp) .or. is_admin_of_college(targetCollege) ) then
+                if (.not. isRectify .and. &
+                        (is_dean_of_college(targetCollege, orHigherUp) .or. is_admin_of_college(targetCollege) ) ) then
                     write(device,AFORMAT) trim(make_href(fnEditRoom, 'Edit', &
                         A1=QUERY_put, pre=nbsp//beginsmall, post=endsmall))
                 end if
@@ -724,7 +834,7 @@ contains
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
         character(len=MAX_LEN_ROOM_CODE) :: tRoom
         character(len=MAX_LEN_CLASS_ID) :: tAction, tClassId
-        integer, dimension(60,6) :: TimeTable
+        integer, dimension(60,7) :: TimeTable
         logical :: conflicted, assigned, allowed_to_edit
         character(len=127) :: mesg
 
@@ -765,7 +875,7 @@ contains
             end if
 
             if (isRoleOfficial) then
-                mesg = '"'//trim(tAction)//SPACE//trim(tClassId)//'" failed. '//sorryMessage
+                mesg = '"'//trim(tAction)//SPACE//trim(tClassId)//'" failed. '//sorryMessageOfficial
             end if
 
         end if
@@ -1130,7 +1240,7 @@ contains
         end if ! (trim(tAction)=='Update' .and. .not.
 
         if (len_trim(tAction)>0 .and. isRoleOfficial) then
-            remark = '  Update "'//trim(tSubject)//'" failed. '//sorryMessage
+            remark = '  Update "'//trim(tSubject)//'" failed. '//sorryMessageOfficial
         end if
 
 
@@ -1407,7 +1517,7 @@ contains
 
         if (len_trim(tAction)>0 .and. isRoleOfficial) then
 
-            remark = '  Update "'//trim(Curriculum(targetCurriculum)%Code)//'" not enabled. '//sorryMessage
+            remark = '  Update "'//trim(Curriculum(targetCurriculum)%Code)//'" not enabled. '//sorryMessageOfficial
 
         else
 
@@ -1626,6 +1736,11 @@ contains
 
                             else
 
+                                ! update students whose curriculum index is NumCurricula
+                                do k=1,NumStudents+NumAdditionalStudents
+                                    if (Student(k)%CurriculumIdx == NumCurricula) Student(k)%CurriculumIdx = NumCurricula+1
+                                end do
+
                                 ! add new curriculum
                                 Curriculum(NumCurricula+1) = Curriculum(NumCurricula)
                                 Curriculum(NumCurricula) = wrk
@@ -1769,7 +1884,7 @@ contains
         remark = SPACE
 
         if (isRoleOfficial) then
-            remark = '  Edit equivalence rule not enabled. '//sorryMessage
+            remark = '  Edit equivalence rule not enabled. '//sorryMessageOfficial
 
         else
 
@@ -1927,7 +2042,7 @@ contains
 
         if (isRoleOfficial) then
 
-            mesg = 'Activate/deactivate curriculum not enabled. '//sorryMessage
+            mesg = 'Activate/deactivate curriculum not enabled. '//sorryMessageOfficial
 
         else
 
@@ -2145,7 +2260,7 @@ contains
 
     subroutine school_fees(device)
         integer, intent(in) :: device
-        character(len=MAX_LEN_TEACHER_CODE) :: tAction
+        character(len=MAX_LEN_USERNAME) :: tAction
         character (len=MAX_LEN_PERSON_NAME) :: tDesc
         logical :: changes
         integer :: idx, ierr1, ierr2
@@ -2182,7 +2297,7 @@ contains
         end if
 
         if (len_trim(tAction)>0 .and. isRoleOfficial) then
-            tDesc = 'Edit school fees failed. '//sorryMessage
+            tDesc = 'Edit school fees failed. '//sorryMessageOfficial
         else
             tDesc = SPACE
         end if
@@ -2191,6 +2306,97 @@ contains
 
 
     end subroutine school_fees
+
+
+    subroutine display_scholarships(device, mesg)
+        integer, intent(in) :: device
+        character(len=*), intent (in) :: mesg
+
+        integer :: idx, jdx
+
+        call html_comment('display_scholarships()')
+
+        targetDepartment = DeptIdxUser
+        targetCollege = CollegeIdxUser
+
+        call html_write_header(device, 'Update scholarships info', mesg)
+
+        do jdx=1,MAX_ALL_SCHOLARSHIPS,20
+
+            call make_form_start(device, fnEditScholarships)
+
+            write(device,AFORMAT) linebreak, '<table border="0" width="100%">', &
+                begintr//thalignright//'Code'//endth//tdnbspendtd//thalignleft//'Description'//endth//endtr
+
+            do idx=jdx,min(jdx+19,MAX_ALL_SCHOLARSHIPS)
+                write(device,AFORMAT) &
+                    begintr//tdalignright// &
+                           '<input align="right" name="code_'//trim(itoa(idx))//'" size="6" value="'// &
+                            trim(ScholarshipCode(idx))//'">'// &
+                        endtd//tdnbspendtd// &
+                        begintd// &
+                           '<input name="desc_'//trim(itoa(idx))//'" size="60" value="'// &
+                            trim(ScholarshipDescription(idx))//'">'// &
+                        endtd// &
+                    endtr
+            end do
+
+            write(device,AFORMAT) endtable, linebreak, &
+                nbsp//'<input name="action" type="submit" value="Update">'//endform//linebreak
+
+        end do
+        write(device,AFORMAT) horizontal
+
+    end subroutine display_scholarships
+
+
+    subroutine scholarships_list(device)
+        integer, intent(in) :: device
+        character(len=MAX_LEN_USERNAME) :: tAction, tCode
+        character (len=MAX_LEN_COLLEGE_NAME) :: tDesc
+        logical :: changes
+        integer :: idx, ierr1, ierr2
+
+        call html_comment('scholarships_list()')
+
+        ! check for requested action
+        call cgi_get_named_string(QUERY_STRING, 'action', tAction, ierr1)
+
+        if (ierr1/=0 .or. tAction==SPACE) then ! no action; display existing info
+
+        else if (.not. isRoleOfficial) then ! action is Update
+
+            ! collect changes to COLLEGES.XML
+            changes = .false.
+            do idx=1,MAX_ALL_SCHOLARSHIPS
+                call cgi_get_named_string(QUERY_STRING, 'code_'//trim(itoa(idx)), tCode, ierr1)
+                call cgi_get_named_string(QUERY_STRING, 'desc_'//trim(itoa(idx)), tDesc, ierr2)
+                if (ierr1/=0 .or. ierr2/=0) cycle
+
+                if ( len_trim(tCode)==0 .or. len_trim(tDesc)==0 ) then
+                    tDesc = SPACE
+                    tCode = SPACE
+                end if
+                if ( (ScholarshipCode(idx) /= tCode) .or. (ScholarshipDescription(idx) /= tDesc) ) then
+                    ScholarshipCode(idx) = tCode
+                    ScholarshipDescription(idx) = tDesc
+                    changes = .true.
+                end if
+            end do
+
+            if (changes) call xml_write_university(trim(pathToYear)//'UNIVERSITY.XML')
+
+        end if
+
+        if (len_trim(tAction)>0 .and. isRoleOfficial) then
+            tDesc = 'Edit scholarships list failed. '//sorryMessageOfficial
+        else
+            tDesc = SPACE
+        end if
+
+        call display_scholarships(device, tDesc)
+
+    end subroutine scholarships_list
 
 
 end module EditUNIVERSITY

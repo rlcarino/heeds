@@ -102,7 +102,7 @@ contains
 
         if (isRoleOfficial) then
             ScheduleCount(thisTerm,targetDepartment) = ScheduleCount(thisTerm,targetDepartment) - 1
-            mesg = '"Open a section in '//trim(tSubject)//'" failed. '//sorryMessage
+            mesg = '"Open a section in '//trim(tSubject)//'" failed. '//sorryMessageOfficial
 
         else
 
@@ -175,7 +175,7 @@ contains
         tSection = get_next_lab_section(sect, NumSections, Section)
 
         if (isRoleOfficial) then
-            mesg = '"Open new section '//trim(Subject(crse)%Name)//SPACE//trim(tSection)//'" failed. '//sorryMessage
+            mesg = '"Open new section '//trim(Subject(crse)%Name)//SPACE//trim(tSection)//'" failed. '//sorryMessageOfficial
 
         else
 
@@ -244,7 +244,7 @@ contains
 
         else if (isRoleOfficial) then
 
-            mesg = '"Delete section '//trim(tClassId)//'" failed. '//sorryMessage
+            mesg = '"Delete section '//trim(tClassId)//'" failed. '//sorryMessageOfficial
 
         else
 
@@ -295,10 +295,22 @@ contains
         character (len=80) :: header
 
         call html_comment('section_validate_inputs()')
-
-        call cgi_get_named_string(QUERY_STRING, 'A1', tClassId, sect)
-        sect = index_to_section(tClassId, NumSections, Section)
         errMesg = SPACE
+
+        call cgi_get_named_string(QUERY_STRING, 'A1', tClassId, ierr)
+        sect = index_to_section(tClassId, NumSections, Section)
+
+        ! check if section was deleted previously
+        if (ierr/=0 .or. sect==0) then ! not found
+            targetCollege = CollegeIdxUser
+            targetDepartment = DeptIdxUser
+            termDescription = SPACE
+            header = College(targetCollege)%Code//'- '//College(targetCollege)%Name
+            errMesg = '"Edit '//trim(tClassId)//'" failed because it was previously deleted.'
+            call html_write_header(device, header, errMesg)
+            call html_college_info(device, targetCollege)
+            return
+        end if
 
         dept = Section(sect)%DeptIdx
         targetDepartment = dept
@@ -323,38 +335,16 @@ contains
 
                 case ('Confirm') ! Accept previously validated edits
                     if (isROleOfficial) then
-                        errMesg = '"Edit '//trim(tClassId)//'" failed. '//sorryMessage
+                        errMesg = '"Edit '//trim(tClassId)//'" failed. '//sorryMessageOfficial
                     else
-!                        ! who are the students in the class?
-!                        call collect_students_in_section (sect, NumSections, Section, eList, count_in_class, tArray)
-!                        call html_comment(itoa(count_in_class)//'students in '//tClassId)
-!
-!                        ! how many with messed schedules
-!                        do idx=1,count_in_class
-!                            std = tArray(idx)
-!                            call timetable_meetings_of_student(NumSections, Section, std, eList, sect, & ! skip target section
-!                                tLen1, tArray(count_in_class+1:), TimeTable, conflicted)
-!                            !if (conflicted) cycle ! there's prior conflict
-!                            if (is_conflict_timetable_with_struct_section(wrk, 1, wrk%NMeets, TimeTable)) then
-!                                count_affected = count_affected + 1
-!                                tArray(count_affected) = std ! move to beginning of list
-!                                call html_comment(text_student_curriculum(std))
-!                                errMesg = ' : '//trim(Student(std)%StdNo)//errMesg
-!                            end if
-!                        end do
-!                        if (count_affected==0) then ! no problems
-                            header = 'Finished editing '//trim(tClassId)
-                            Section(sect) = wrk
-                            call xml_write_classes(pathToTerm, NumSections, Section, 0)
-                            call offerings_summarize(NumSections, Section, Offering)
-                            call count_sections_by_dept(thisTerm, NumSections, Section)
-                            call section_list_classes (device, thisTerm, NumSections, Section, NumBlocks, Block, eList,  &
-                                fnScheduleByArea, dept, tClassId, header)
-                            return
-!                        else
-!                            errMesg = 'Changes not valid - will result in schedule conflicts for'//errMesg
-!                            action_index = 1
-!                        end if
+                        header = 'Finished editing '//trim(tClassId)
+                        Section(sect) = wrk
+                        call xml_write_classes(pathToTerm, NumSections, Section, 0)
+                        call offerings_summarize(NumSections, Section, Offering)
+                        call count_sections_by_dept(thisTerm, NumSections, Section)
+                        call section_list_classes (device, thisTerm, NumSections, Section, NumBlocks, Block, eList,  &
+                            fnScheduleByArea, dept, tClassId, header)
+                        return
                     end if
 
                 case ('Find rooms')
@@ -412,7 +402,7 @@ contains
             trim(Section(sect)%Code)//nbsp//nbsp//beginitalic//'change to '//enditalic, &
             nbsp//'<input size="'//trim(itoa(tLen))//'" name="code" value="'//trim(tSection%Code)//'">', &
             nbsp//nbsp//nbsp//nbsp//nbsp//nbsp, &
-            beginbold//'NO. OF STUDENTS'//endbold//trim(itoa(Section(sect)%Slots))// &
+            beginbold//'NO. OF STUDENTS'//endbold//nbsp//nbsp//trim(itoa(Section(sect)%Slots))// &
             nbsp//nbsp//beginitalic//'change to '//enditalic, &
             nbsp//'<input size="3" name="slots" value="'//trim(itoa(tSection%Slots))//'">'
         if (thisTerm/=3) write(device,AFORMAT) linebreak, & ! not summer
@@ -437,7 +427,7 @@ contains
                 write(device,AFORMAT) begintr//'<td align="center">(Add)'//endtd
             end if
             write(device,AFORMAT) begintd//'<select name="day'//trim(itoa(idx_meet))//'">'
-            do idx=0,6
+            do idx=0,7
                 if (idx/=DayIdx) then
                     idx_select = 0
                 else
@@ -520,7 +510,7 @@ contains
         type (TYPE_SECTION), intent(out) :: tSection
         integer :: cgi_err, crse, idx, idx_meet, jdx
         character (len=3*MAX_LEN_ROOM_CODE) :: tRoom
-        character(len=3*MAX_LEN_TEACHER_CODE) :: tLogin
+        character(len=3*MAX_LEN_USERNAME) :: tLogin
         character(len=3*MAX_LEN_SECTION_CODE) :: tCode
 
         call html_comment('section_build_from_query()')
@@ -575,7 +565,7 @@ contains
         integer, intent (in) :: device, thisTerm, action_index, section_index, teacher_dept, room_dept
         type (TYPE_SECTION), intent(in) :: wrk
         integer :: ierr, crse, ddx, idx, jdx, mdx, rdx, sdx, tdx, idx_meet, idx_select, tLen, idxWrk
-        integer, dimension(60,6) :: TimeTable
+        integer, dimension(60,7) :: TimeTable
         logical :: conflict_teacher, conflict_room, flagIsUp, conflict_student
         integer :: count_in_class, count_affected
 
@@ -675,7 +665,8 @@ contains
         end do
 
         ! who are the students in the class?
-        call collect_students_in_section (section_index, NumSections, Section, eList, count_in_class, tArray)
+        call collect_students_in_section (section_index, & ! NumSections,
+            Section, eList, count_in_class, tArray)
         call html_comment(itoa(count_in_class)//'students in '//wrk%ClassId)
 
         ! how many with messed schedules
@@ -933,19 +924,16 @@ contains
         type (TYPE_SECTION), intent (in) :: wrk
         integer, intent (in), optional :: given_teacher_dept
         integer :: i, j, ierr, idx, tdx, teacher_dept
-        integer, dimension(60,6) :: TimeTable
+        integer, dimension(60,7) :: TimeTable
         integer :: n_meetings, meetings(MAX_SECTION_MEETINGS)
         character :: ch
         integer :: ncol
         logical :: skip
 
-        !write(*,*) 'Owner of section=', wrk%DeptIdx
         if (present(given_teacher_dept)) then
             teacher_dept = given_teacher_dept
-                !write(*,*) 'Given teacher dept=', teacher_dept
         else
             teacher_dept = Subject(wrk%SubjectIdx)%DeptIdx
-                !write(*,*) 'Dept of subject=', teacher_dept
         end if
         ierr = -10
         call timetable_clear(TimeTable)
@@ -1011,7 +999,7 @@ contains
         type (TYPE_SECTION), intent (in) :: wrk
         integer, intent (in), optional :: given_room_dept
         integer :: i, j, ierr, rdx, room_dept
-        integer, dimension(60,6) :: TimeTable
+        integer, dimension(60,7) :: TimeTable
         integer :: n_meetings, meetings(MAX_SECTION_MEETINGS)
         character :: ch
         integer :: ncol
@@ -1101,9 +1089,9 @@ contains
         character (len=MAX_LEN_SUBJECT_CODE) :: tSubject, tSeats, searchString
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
         character(len=MAX_LEN_COLLEGE_CODE) :: tCollege
-        character(len=MAX_LEN_TEACHER_CODE) :: tTeacher
+        character(len=MAX_LEN_USERNAME) :: tTeacher
         logical :: isLecture, okToAdd, conflicted, showStudentList
-        integer, dimension(60,6) :: TimeTable
+        integer, dimension(60,7) :: TimeTable
 
         targetDepartment = DeptIdxUser
         targetCollege = CollegeIdxUser
@@ -1344,10 +1332,10 @@ contains
             thalignleft//'Teacher'//endth//&
             thalignleft//beginsmall//'Action'//endsmall//endth//endtr
 
-        okToAdd = is_admin_of_college(targetCollege) .or. &
+        okToAdd = .not. isRectify .and. ( is_admin_of_college(targetCollege) .or. &
             ( is_chair_of_department(targetDepartment,orHigherUp) .and. &
               ( (thisTerm==currentTerm .and. isPeriodOne) .or. &
-                thisTerm==nextTerm ) ) ! (thisTerm==nextTerm .and. (.not. isPeriodOne)) ) )
+                thisTerm==nextTerm ) ) )
 
         do idx=1,nopen
             cdx = tArray(nsections+idx)
@@ -1385,7 +1373,7 @@ contains
             write(device,AFORMAT) endtd//endtr, &
                 begintr//tdnbspendtd//'<td colspan="7">'//nbsp//'Pr. '//trim(text_prerequisite_of_subject(cdx,0))//endtd
 
-            if (fn/=fnTeacherClasses .and. okToAdd) then
+            if (fn/=fnTeacherClasses .and. okToAdd .and. .not. isRectify) then
                 write(device,AFORMAT) begintd//beginsmall, &
                     trim(make_href(fnScheduleOfferSubject, 'Add '//tDepartment, &
                     A1=QUERY_put, A2=Department(targetDepartment)%Code, A9=thisTerm, &
@@ -1416,8 +1404,7 @@ contains
                 ! section code, link to gradesheet entry form
                 showStudentList = is_admin_of_college(targetCollege) .or. &
                      ( is_teacher_of_class (Section(sdx), orHigherUp) .and. &
-                       ( ((isPeriodThree .or. isPeriodFour) .and. thisTerm==currentTerm) .or. &
-                         (isPeriodOne .and. thisTerm==cTm1) ) )
+                       ( ((isPeriodThree .or. isPeriodFour) .and. thisTerm==currentTerm) .or. thisTerm==cTm1 ) )
                 if ( showStudentList ) then
                     write(device,AFORMAT) trim(make_href(fnGradesheet, trim(Section(sdx)%Code), &
                         A1=QUERY_PUT, A9=thisTerm, pre=begintd, post=endtd ))
@@ -1507,7 +1494,7 @@ contains
 
                 end if
                 write(device,AFORMAT) begintd//beginsmall
-                if ( okToAdd ) then
+                if ( okToAdd .or. isRectify) then
                     write(device,AFORMAT) trim(make_href(fnScheduleEdit, ' Edit', A1=QUERY_put, &
                         A9=thisTerm ))
                     if (fn/=fnTeacherClasses) then
@@ -1669,7 +1656,7 @@ contains
                   ( (term==currentTerm .and. isPeriodOne) .or. &
                     term==nextTerm ) ) ! (term==nextTerm .and. (.not. isPeriodOne)) ) )
 
-            if (nclosed>0 .and. okToAdd) then
+            if (nclosed>0 .and. okToAdd .and. .not. isRectify) then
                 call make_form_start(device, fnScheduleOfferSubject, A2=Department(targetDepartment)%Code, A9=term)
                 write(device,AFORMAT) &
                     '<table border="0" width="100%">'//begintr//'<td colspan="'//trim(itoa(maxcol))//'" align="right">', &

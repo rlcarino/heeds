@@ -28,6 +28,7 @@
 #======================================================================
 
 # Makefile for HEEDS
+VERSION=R2014-11-07
 
 #
 # On Windows, the build-PC must have MinGW/MSYS installed, and the
@@ -46,26 +47,27 @@ RAWDATA=SIAS
 # directory for binary (BINPATH)
 #---------------------------------------------------------------
 
-#OS=GLNX
-#LIBPATH=-L/usr/lib -lfcgi
-#BINPATH=.
-
-OS=MSWIN
+OS=GLNX
 LIBPATH=-lfcgi -Wl,--rpath -Wl,/usr/local/lib
-BINPATH=/c/HEEDS/bin/$(OS)
+BINPATH=.
+
+#OS=MSWIN
+#LIBPATH=-lfcgi -Wl,--rpath -Wl,/usr/local/lib
+#BINPATH=/c/HEEDS/bin/$(OS)
 
 #---------------------------------------------------------------
 # debugging flags 
 #---------------------------------------------------------------
-DEBUG=-Dno_password_check 
+DEBUG=
+#-Dno_password_check 
+#-Dno_terms
 #-DDBsubst -DDBprereq -DDBcoreq -DDBconcpreq
-#-DBperformance -DBunits -DBsimplify -DBpriority
+#-DDBperformance -DDBunits -DDBsimplify -DDBpriority
 
 #---------------------------------------------------------------
 # Fortran compiler and flags
 #---------------------------------------------------------------
-FFLAGS=-Wunused -ffree-form 
-#-fbounds-check
+FFLAGS=-Wunused -ffree-form
 OPTIONS = -D$(OS) -D$(RAWDATA) $(DEBUG)
 FC = gfortran $(FFLAGS) $(OPTIONS)
 
@@ -75,57 +77,46 @@ FC = gfortran $(FFLAGS) $(OPTIONS)
 
 BASE = UTILITIES.o UNIVERSITY.o INITIALIZE.o XMLIO.o
 
-WEB = $(BASE) HTML.o ADVISING.o EditUNIVERSITY.o EditTEACHERS.o EditSECTIONS.o EditBLOCKS.o \
-	EditSTUDENT.o EditCHECKLIST.o EditENLISTMENT.o 
-#TIMETABLING.o
+WEB = $(BASE) HTML.o EditUNIVERSITY.o EditTEACHERS.o EditSECTIONS.o EditBLOCKS.o \
+	EditSTUDENT.o EditCHECKLIST.o EditENLISTMENT.o
 
 #---------------------------------------------------------------
 # targets
 #---------------------------------------------------------------
-#all:	INTERACTIVE 
+ 
 all:	BATCH INTERACTIVE 
 
 INTERACTIVE:	$(WEB) SERVER.o 
-	$(FC) $(WEB) SERVER.o  -o $(BINPATH)/HEEDS_SERVER $(LIBPATH)
+	$(FC) $(WEB) SERVER.o  -o $(BINPATH)/HEEDS_SERVER-$(VERSION) $(LIBPATH)
 
 BATCH:	$(BASE) STATIC.o
-	$(FC) $(BASE) STATIC.o  -o $(BINPATH)/HEEDS_STATIC $(LIBPATH)
+	$(FC) $(BASE) STATIC.o  -o $(BINPATH)/HEEDS_STATIC-$(VERSION) $(LIBPATH)
 
-STATIC.o:	$(BASE) Input$(RAWDATA).F90
+STATIC.o:	$(BASE)
 
-#UTILITIES.o:	Makefile
+UTILITIES.o:	Makefile
 
 UNIVERSITY.o:	UTILITIES.o
 
 INITIALIZE.o:	UNIVERSITY.o
 
-XMLIO.o:	UNIVERSITY.o XMLIO-OTHER.F90
+XMLIO.o:	UNIVERSITY.o XMLIO-OTHER.F90  Input$(RAWDATA).F90
 
 HTML.o:	$(BASE)
 
 EditUNIVERSITY.o:	HTML.o
 
-EditROOMS.o:	HTML.o
-
 EditTEACHERS.o:	HTML.o
-
-EditSUBJECTS.o:	HTML.o
-
-EditCURRICULA.o:	HTML.o
 
 EditSECTIONS.o:	HTML.o
 
 EditBLOCKS.o:	HTML.o
 
-ADVISING.o:	HTML.o
+EditSTUDENT.o:	HTML.o ADVISING-STRUCTURED.F90
 
-EditSTUDENT.o:	ADVISING.o
-
-EditCHECKLIST.o:	HTML.o
+EditCHECKLIST.o:	EditSTUDENT.o
 
 EditENLISTMENT.o:	HTML.o
-
-TIMETABLING.o:	HTML.o
 
 SERVER.o:	$(WEB)
 

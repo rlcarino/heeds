@@ -78,9 +78,11 @@ program STATIC
 
             ! read basic data for university
             call xml_read_basic_data(pathToYear)
+!
+!            call read_stud_profile()
+!            call read_stud_grade()
 
-            call read_stud_profile()
-            call read_stud_grade()
+            call import_custom_students_csv()
 
 
         case default
@@ -99,6 +101,7 @@ contains
 #include "InputSIAS.F90"
 
 #endif
+
 
     subroutine restore_from_backup()
 
@@ -664,7 +667,7 @@ contains
 
                     end do
                     close(unitRAW)
-!                    call write_transcripts(idxYear, idxTerm)
+                    call xml_write_transcripts(idxYear, idxTerm)
 
                     ! create "equivalent" ENLISTMENT.XML
                     fileName = trim(dirDATA)//dirYEAR//DIRSEP//trim(txtSemester(idxTerm))//DIRSEP
@@ -757,7 +760,7 @@ contains
 
                     close(unitRAW)
 
-                    call write_transcripts(idxYear, idxTerm)
+                    call xml_write_transcripts(idxYear, idxTerm)
 
                 end if
 
@@ -776,5 +779,78 @@ contains
         !call xml_write_subjects(trim(pathToYear)//'SUBJECTS.XML')
 
     end subroutine read_stud_grade
+
+
+    subroutine import_custom_students_csv()
+
+        type (TYPE_STUDENT) :: wrkStudent
+        character (len=MAX_LEN_CURRICULUM_CODE) :: StdCurriculum
+        character :: ch
+        integer :: idxCURR, i, j, indexLoc, numEntries, ier
+
+        numEntries = 0
+        fileName = trim(pathToYear)//'STUDENTS.CSV'
+        open(unit=unitRAW, file=fileName, status='old', iostat=ier)
+        if (ier/=0) return
+
+        call log_comment ('Retrieving list of students from '//fileName)
+        ! skip first line
+        read (unitRAW, AFORMAT, iostat = eof) line
+        do
+            read (unitRAW, AFORMAT, iostat = eof) line
+            if (eof < 0) exit
+            if (line(1:1) == '#' .or. line(1:3) == '   ') cycle
+            call index_to_delimiters('"', line, ndels, pos)
+            !no,code,name,crscd,year,f1,g1,u1,f2,g2,u2,f3,g3,u3,f4,g4,u4,units
+            !1,"266441","Abad, Aiza  L.","BSBA-HRDM",3,"BL 30","2.25","3","HRDM 50","2.5","3","HRDM 51","1.5","3","ELECT 1 (BSBA)","2.5","3",15.00
+            !1 2      3 4              5 6         7   8     9 1    1 1 1 1       1 1   1 1 1 2       2 2   2 2 2 2              2 2   2 3 3
+            !                                                  0    1 2 3 4       5 6   7 8 9 0       1 2   3 4 5 6              7 8   9 0 1
+            !0,"","","",0,"HRDM 52","2.0","3","","","","","","","","","",0.00
+            !1 23 45 67   8       9 1   1 1 1 11 11 11 22 22 22 22 22 33
+            !                       0   1 2 3 45 67 89 01 23 45 67 89 01
+            if (pos(3)-pos(2)>1) then ! new student
+
+                call initialize_student(wrkStudent)
+                wrkStudent%StdNo = adjustl(line(pos(2)+1:pos(3)-1))
+                j = year_prefix(wrkStudent)
+
+                StdCurriculum = line(pos(6)+1:pos(7)-1)//DASH//wrkStudent%StdNo(1:j)
+                if (StdCurriculum(1:3)=='AB-') StdCurriculum = 'AB'//StdCurriculum(4:)
+                idxCURR = index_to_curriculum(StdCurriculum)
+                if (idxCURR==0) then
+                    StdCurriculum = 'OTHER'
+                    idxCURR = index_to_curriculum(StdCurriculum)
+                elseif (idxCURR<=0) then
+                    idxCURR = -idxCURR
+                  !write (*,*) line(:pos(8))//'... using curriculum '// Curriculum(idxCURR)%Code
+                end if
+                wrkStudent%Name = SPACE
+                ! remove punctuation
+                j = 0
+                do i=pos(4)+1,pos(5)-1
+                    ch = line(i:i)
+                    if (index(SPECIAL,ch)>0) cycle
+                    j = j+1
+                    if (j>MAX_LEN_PERSON_NAME) cycle
+                    wrkStudent%Name(j:j) = ch
+                end do
+                call upper_case(wrkStudent%Name)
+                wrkStudent%CurriculumIdx = idxCURR
+                wrkStudent%Classification = atoi(line(pos(7)+2:pos(8)-2))
+
+                call update_student_info(wrkStudent, indexLoc)
+                if (indexLoc<0) numEntries = numEntries + 1
+
+            end if
+        end do
+        close(unitRAW)
+        call log_comment (itoa(numEntries)//' students added from '//fileName)
+
+        ! update students
+        if (NumStudents>0) call xml_write_students(trim(pathToYear), 0)
+
+
+    end subroutine import_custom_students_csv
+
 
 end program STATIC

@@ -36,26 +36,57 @@ module EditCHECKLIST
 
 contains
 
-    subroutine reset_demand_for_subjects(device, thisTerm, NumSections, Section, Offering, eList, path, mesg)
-        integer, intent (in) :: device, thisTerm, NumSections
-        type (TYPE_OFFERED_SUBJECTS), intent(in), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS) :: Offering
+    subroutine confirm_reset_demand_for_subjects(device, thisTerm)
+        integer, intent(in) :: device, thisTerm
+        integer :: ierr
+
+        character (len=MAX_LEN_COLLEGE_CODE) :: tCollege
+
+        call cgi_get_named_string(QUERY_STRING, 'A1', tCollege, ierr)
+        targetCollege = index_to_college(tCollege)
+
+        call html_comment('confirm_reset_demand_for_subjects('//tCollege//')')
+
+        call html_write_header(device, 'Reset the demand for subjects in '//tCollege)
+
+        call make_form_start(device, fnResetDemandForSubjects, A1=tCollege, A9=thisTerm)
+        write(device,AFORMAT) &
+            'This operation will reset the advised and enlisted subjects of students in '//tCollege// &
+            ' for the specified term. Are you sure?', linebreak, linebreak, &
+            nbsp//nbsp//nbsp//nbsp//'<input type="submit" name="action" value="Cancel">', &
+            nbsp//nbsp//nbsp//nbsp//'<input type="submit" name="action" value="Continue">'//endform, &
+            horizontal
+
+    end subroutine confirm_reset_demand_for_subjects
+
+
+    subroutine reset_demand_for_subjects(Section, eList, path, mesg)
         type (TYPE_SECTION), intent(in) :: Section(0:)
         type (TYPE_PRE_ENLISTMENT), intent (in out) :: eList(0:)
         character(len=*), intent(in) :: path
         character(len=*), intent(out) :: mesg
 
         integer :: std
-        character (len=MAX_LEN_COLLEGE_CODE) :: tCollege
+        character (len=MAX_LEN_COLLEGE_CODE) :: tCollege, tAction
 
         call cgi_get_named_string(QUERY_STRING, 'A1', tCollege, std)
         targetCollege = index_to_college(tCollege)
 
-        call html_comment('reset_demand_for_subjects('//tCollege//')')
+        call cgi_get_named_string(QUERY_STRING, 'action', tAction, std)
 
-        if (isRoleOfficial) then
-            mesg = 'Needs Analysis not reset. '//sorryMessage
+        call html_comment(tAction//' reset_demand_for_subjects('//tCollege//')')
+
+        if (trim(tAction)/='Continue') then
+            mesg = 'Needs Analysis not reset. Operation cancelled.'
             return
         end if
+
+        if (isRoleOfficial) then
+            mesg = 'Needs Analysis not reset. '//sorryMessageOfficial
+            return
+        end if
+
+        call xml_backup(trim(pathToYear)//'BACKUP.XML'//DASH//currentDate//DASH//currentTime(:6))
 
         do std = 1,NumStudents+NumAdditionalStudents
 
@@ -70,9 +101,35 @@ contains
 
         call xml_write_pre_enlistment(path, 'ENLISTMENT', eList, Section)
 
-        mesg = 'Needs Analysis cleared for '//tCollege
+        mesg = SPACE
 
     end subroutine reset_demand_for_subjects
+
+
+    subroutine confirm_needs_analysis(device, thisTerm)
+        integer, intent(in) :: device, thisTerm
+        integer :: ierr
+
+        character (len=MAX_LEN_COLLEGE_CODE) :: tCollege
+
+        call cgi_get_named_string(QUERY_STRING, 'A1', tCollege, ierr)
+        targetCollege = index_to_college(tCollege)
+
+        call html_comment('confirm_needs_analysis('//tCollege//')')
+
+        call html_write_header(device, 'Confirm update of needs analysis in '//tCollege)
+
+        call make_form_start(device, fnUpdateDemandForSubjects, A1=tCollege, A9=thisTerm)
+        write(device,AFORMAT) &
+            'This operation will modify unlocked advised subjects of students in '//tCollege// &
+            ' for the specified term. Are you sure?', linebreak, linebreak, &
+            nbsp//nbsp//nbsp//nbsp//'<input type="submit" name="action" value="Cancel">', &
+            nbsp//nbsp//nbsp//nbsp//'<input type="submit" name="action" value="Continue">', &
+            red//' - click once only, may take a while; use browser''s "Back" button in case of timeout'// &
+            black//endform, &
+            horizontal
+
+    end subroutine confirm_needs_analysis
 
 
     subroutine needs_analysis(thisTerm, UseClasses, Section, Offering, eList, path, mesg)
@@ -86,7 +143,7 @@ contains
         character(len=*), intent(out) :: mesg
 
         integer :: numEntries, std
-        character (len=MAX_LEN_COLLEGE_CODE) :: tCollege
+        character (len=MAX_LEN_COLLEGE_CODE) :: tCollege, tAction
         character(len=127) :: advising_comment
         integer :: MissingPOCW, NRemaining
         type (TYPE_PRE_ENLISTMENT) :: Advice
@@ -94,12 +151,21 @@ contains
         call cgi_get_named_string(QUERY_STRING, 'A1', tCollege, numEntries)
         targetCollege = index_to_college(tCollege)
 
-        call html_comment('needs_analysis('//tCollege//')')
+        call cgi_get_named_string(QUERY_STRING, 'action', tAction, std)
 
-        if (isRoleOfficial) then
-            mesg = 'Needs Analysis not updated. '//sorryMessage
+        call html_comment(tAction//' needs_analysis('//tCollege//')')
+
+        if (trim(tAction)/='Continue') then
+            mesg = 'Needs Analysis not updated. Operation cancelled.'
             return
         end if
+
+        if (isRoleOfficial) then
+            mesg = 'Needs Analysis not updated. '//sorryMessageOfficial
+            return
+        end if
+
+        call xml_backup(trim(pathToYear)//'BACKUP.XML'//DASH//currentDate//DASH//currentTime(:6))
 
         do std = 1,NumStudents+NumAdditionalStudents
 
@@ -114,7 +180,7 @@ contains
             end if
 
             ! exclude student if advice is locked
-            if (eList(std)%Status/=0) cycle
+            if (eList(std)%Status>=SUBJECTS_ARE_ADVISED) cycle
 
             numEntries = eList(std)%NPriority + eList(std)%NAlternates + eList(std)%NCurrent
 
@@ -124,312 +190,15 @@ contains
             NumEnlistment(thisTerm) = NumEnlistment(thisTerm) - numEntries + &
                 Advice%NPriority+Advice%NAlternates+Advice%NCurrent
             eList(std) = Advice
+            eList(std)%Status = 0
 
         end do
 
         call xml_write_pre_enlistment(path, 'ENLISTMENT', eList, Section)
 
-        mesg = 'Needs Analysis updated '
+        mesg = SPACE
 
     end subroutine needs_analysis
-
-
-    subroutine checklist_display  (device, std, thisTerm, Advice, MissingPOCW, NRemaining)
-        integer, intent (in) :: std, thisTerm, device, MissingPOCW, NRemaining
-        type (TYPE_PRE_ENLISTMENT), intent (in) :: Advice
-        integer :: idx, tdx, Year, Term, m, n, rank, idxCURR, k, l, Standing
-        integer, dimension(MAX_LEN_STUDENT_RECORD) :: p, q
-        real :: UnitsPaid, UnitsDropped, UnitsPassed, tUnits
-        character(len=6) :: tProb
-
-        call html_comment('checklist_display()')
-
-        idxCURR = Student(std)%CurriculumIdx
-
-        k = Curriculum(idxCURR)%NumTerms
-        tUnits = SpecifiedUnits(k)
-        write(device,AFORMAT) beginbold//'Units to earn classifications'//endbold, &
-            (': '//nbsp//trim(txtStanding(l))//'<'//trim(itoa(int(0.25*l*tUnits+0.5))), l=1,4)
-        write(device,AFORMAT) linebreak//beginbold//'Units to achieve YEAR'//endbold, &
-            (': '//nbsp//trim(txtYear(l))//'<'//trim(ftoa(SpecifiedUnits(3*l),1)), l=1,(k+2)/3)
-
-        write(device,AFORMAT) '<table border="0" width="100%">'
-        do tdx=1,CheckList%NumTerms,3
-            call rank_to_year_term(tdx, Year, Term)
-            write(device,AFORMAT) begintr//'<td colspan="5">'//linebreak//beginbold//trim(txtYear(Year))// &
-                ' Year, '//txtSemester(Term)//termQualifier(Term)//endbold//' ('//trim(ftoa(TermUnits(Term),1))// &
-                ' units)'//endtd// &
-                tdnbspendtd//'<td colspan="5">'//linebreak//beginbold//trim(txtYear(Year))// &
-                ' Year, '//txtSemester(Term+1)//termQualifier(Term+1)//endbold//' ('//trim(ftoa(TermUnits(Term+1),1))// &
-                ' units)'// &
-                endtd//endtr
-            m = 0
-            n = 0
-            p = 0
-            q = 0
-            do idx=1,CheckList%NSubjects
-                rank = CheckList%SubjectTerm(idx)
-                if (rank == tdx) then
-                    m = m+1
-                    p(m) = idx
-                else if (rank == tdx+1) then
-                    n = n+1
-                    q(n) = idx
-                end if
-            end do ! idx=1,CheckList%NSubjects
-            do idx=1,min(m,n)
-                write(device,AFORMAT) &
-                    begintr// &
-                    begintd//trim(CLExt(p(idx))%Disp_Subject)//endtd//&
-                    begintd//trim(CLExt(p(idx))%Disp_Comment)//endtd//&
-                    begintd//CLExt(p(idx))%Disp_Grade//endtd//&
-                    begintd//CLExt(p(idx))%Disp_Units//endtd//&
-                    begintd//CLExt(p(idx))%Disp_Remarks//endtd//&
-                    tdnbspendtd// &
-                    begintd//trim(CLExt(q(idx))%Disp_Subject)//endtd//&
-                    begintd//trim(CLExt(q(idx))%Disp_Comment)//endtd//&
-                    begintd//CLExt(q(idx))%Disp_Grade//endtd//&
-                    begintd//CLExt(q(idx))%Disp_Units//endtd// &
-                    begintd//CLExt(q(idx))%Disp_Remarks//endtd//&
-                    endtr
-            end do
-            if (m > n) then
-                do idx=n+1,m
-                    write(device,AFORMAT) &
-                        begintr// &
-                        begintd//trim(CLExt(p(idx))%Disp_Subject)//endtd//&
-                        begintd//trim(CLExt(p(idx))%Disp_Comment)//endtd//&
-                        begintd//CLExt(p(idx))%Disp_Grade//endtd//&
-                        begintd//CLExt(p(idx))%Disp_Units//endtd//&
-                        begintd//CLExt(p(idx))%Disp_Remarks//endtd//&
-                        '<td colspan="6">'//nbsp//endtd//&
-                        endtr
-                end do
-            end if
-            if (n > m) then
-                do idx=m+1,n
-                    write(device,AFORMAT) &
-                        begintr// &
-                        '<td colspan="6">'//nbsp//endtd// &
-                        begintd//trim(CLExt(q(idx))%Disp_Subject)//endtd//&
-                        begintd//trim(CLExt(q(idx))%Disp_Comment)//endtd//&
-                        begintd//CLExt(q(idx))%Disp_Grade//endtd//&
-                        begintd//CLExt(q(idx))%Disp_Units//endtd//&
-                        begintd//CLExt(q(idx))%Disp_Remarks//endtd//&
-                        endtr
-                end do
-            end if
-            ! summer
-            m = 0
-            p = 0
-            do idx=1,CheckList%NSubjects
-                rank = CheckList%SubjectTerm(idx)
-                if (rank == tdx+2) then
-                    m = m+1
-                    p(m) = idx
-                end if
-            end do ! idx=1,CheckList%NSubjects
-            if (m > 0) then
-                !write(device,AFORMAT) SPACE, SPACE//trim(txtYear(Year))//' Year, Summer'
-                write(device,AFORMAT) begintr//'<td colspan="5">'//linebreak//beginbold//trim(txtYear(Year))// &
-                    ' Year, '//txtSemester(Term+2)//termQualifier(Term+2)//endbold//' ('//trim(ftoa(TermUnits(tdx+2),1))// &
-                    ' units)'//endtd// &
-                    '<td colspan="6">'//nbsp//endtd//endtr
-                do idx=1,m
-                    write(device,AFORMAT) &
-                        begintr// &
-                        begintd//trim(CLExt(p(idx))%Disp_Subject)//endtd//&
-                        begintd//trim(CLExt(p(idx))%Disp_Comment)//endtd//&
-                        begintd//CLExt(p(idx))%Disp_Grade//endtd//&
-                        begintd//CLExt(p(idx))%Disp_Units//endtd//&
-                        begintd//CLExt(p(idx))%Disp_Remarks//endtd//&
-                        '<td colspan="6">'//nbsp//endtd//&
-                        endtr
-                end do
-            end if
-        end do
-        write(device,AFORMAT) endtable, &
-            linebreak//beginbold//'LEGENDS'//endbold//' for grades and remarks:'//nbsp//' * - specify subject or PE activity;'//&
-            nbsp//' # - failed;'//nbsp//' % - conditional;'//nbsp//' PASS - transfer/advance credit;', &
-            linebreak//nbsp//' REGD - registered, no grade;', &
-            nbsp//' PriN - Nth priority subject;'//nbsp//' AltK - Kth alternate subject'
-
-        call get_scholastic_three_terms (cTm3Year, cTm3, UnitsPaid, UnitsDropped, UnitsPassed, Standing)
-        write(device,AFORMAT) linebreak//linebreak//beginbold//'SUMMARY for '//text_term_school_year(cTm3+6,cTm3Year), &
-            endbold//': Units registered='//trim(ftoa(UnitsPaid,1)), &
-            ': '//nbsp//' Dropped='//trim(ftoa(UnitsDropped,1)), &
-            ': '//nbsp//' Earned='//trim(ftoa(UnitsPassed,1)), &
-            ': '//nbsp//' Scholastic standing='//trim(txtScholastic(Standing))
-
-        call get_scholastic_three_terms (cTm2Year, cTm2, UnitsPaid, UnitsDropped, UnitsPassed, Standing)
-        write(device,AFORMAT) linebreak//beginbold//'SUMMARY for '//text_term_school_year(cTm2+6,cTm2Year), &
-            endbold//': Units registered='//trim(ftoa(UnitsPaid,1)), &
-            ': '//nbsp//' Dropped='//trim(ftoa(UnitsDropped,1)), &
-            ': '//nbsp//' Earned='//trim(ftoa(UnitsPassed,1)), &
-            ': '//nbsp//' Scholastic standing='//trim(txtScholastic(Standing))
-
-        call get_scholastic_three_terms (cTm1Year, cTm1, UnitsPaid, UnitsDropped, UnitsPassed, Standing)
-        write(device,AFORMAT) linebreak//beginbold//'SUMMARY for '//text_term_school_year(cTm1+6,cTm1Year), &
-            endbold//': Units registered='//trim(ftoa(UnitsPaid,1)), &
-            ': '//nbsp//' Dropped='//trim(ftoa(UnitsDropped,1)), &
-            ': '//nbsp//' Earned='//trim(ftoa(UnitsPassed,1)), &
-            ': '//nbsp//' Scholastic standing='//trim(txtScholastic(Standing))
-
-        if (isProbabilistic) then
-
-            call get_scholastic_three_terms (currentYear, currentTerm, UnitsPaid, UnitsDropped, UnitsPassed, Standing)
-            write(device,AFORMAT) linebreak//beginbold//'SUMMARY for '// &
-                text_term_school_year(currentTerm+6,currentYear), &
-                endbold//': Units registered='//trim(ftoa(UnitsPaid,1)), &
-                ': '//nbsp//' Dropped='//trim(ftoa(UnitsDropped,1)), &
-                ': '//nbsp//' Earned='//trim(ftoa(UnitsPassed,1)), &
-                ': '//nbsp//' Scholastic standing='//trim(txtScholastic(Standing))
-        end if
-
-        if (MissingPOCW>0) then
-            write(device,AFORMAT) linebreak//linebreak//red//beginbold//'MISSING ELECTIVEs/entries in Plan of Study = '// &
-                trim(itoa(MissingPOCW))//endbold//black
-        end if
-
-        ! extra subjects
-        n = 0
-        q = 0
-        do idx=1,lenTCG
-            if (TCG(idx)%Code<2 .or. TCG(idx)%Used) cycle
-            if (TCG(idx)%Subject /= 0 .and. is_grade_passing(TCG(idx)%Grade)) then
-                n = n+1
-                q(n) = idx
-            end if
-        end do
-        if (n > 0) then
-            write(device,AFORMAT) linebreak//linebreak//beginbold//'EXTRA subjects'//endbold//' or unused units after substitutions'
-            do m=1,n
-                write(device,AFORMAT) ' : '//Subject(TCG(q(m))%Subject)%Name//DASH//txtGrade(pGrade(TCG(q(m))%Grade))
-            end do
-        end if
-
-        if (Advice%errNSTP/=0) write(device,AFORMAT) linebreak//linebreak//red//beginbold//'Check NSTP!'//endbold//black
-
-        if (isProbabilistic) then ! not enlistment period
-            write(device,AFORMAT) linebreak//linebreak//beginbold//'ASSUMPTION at the end of '// &
-                text_term_school_year(currentTerm+6,currentYear), &
-                endbold//': Units earned='//trim(ftoa(Advice%UnitsEarned,1))//FSLASH//trim(ftoa(tUnits,1)), &
-                ': '//nbsp//' Classification='//trim(txtStanding(Advice%StdClassification)), &
-                ': '//nbsp//' Year in curriculum='//trim(txtYear(Advice%StdYear))
-        end if
-
-        write(device,AFORMAT) linebreak//'<a name="FEASIBLE SUBJECTS"></a>'
-        call checklist_links(device)
-
-        select case (Advice%StdPriority)
-
-            case (10)
-                write(device,AFORMAT) linebreak//'PROGRAM COMPLETE?'
-
-            case (9)
-                write(device,AFORMAT) &
-                    linebreak//beginbold//'NO FEASIBLE SUBJECTS?'//endbold// &
-                        ' PREREQUISITES NOT SATISFIED or PLAN OF STUDY IS INCOMPLETE', &
-                    linebreak//'Some remaining subject are : <table border="0" width="100%">', &
-                    begintr//thalignleft//'Subject'//endth// &
-                    thaligncenter//'Credit'//endth// &
-                    thalignleft//'Title'//endth// &
-                    thalignleft//'Prereq'//endth//endtr
-                do l=1,NRemaining
-                    tdx = CLExt(l)%PriorityRank
-                    idx = CheckList%SubjectIdx(tdx)
-                    write(device,AFORMAT) &
-                        begintr//begintd//trim(Subject(idx)%Name)//endtd// &
-                        tdaligncenter//trim(ftoa(Subject(idx)%Units,1))//endtd// &
-                        begintd//trim(Subject(idx)%Title)//endtd// &
-                        begintd//trim(text_prerequisite_in_curriculum(idx))//endtd//endtr
-                end do
-                write(device,AFORMAT) endtable
-
-            case (8)
-                write(device,AFORMAT) linebreak//'CHECK RECORDS! SUBJECTS ARE FOR A NEW FRESHMAN?'
-
-            case (7)
-                write(device,AFORMAT) linebreak//'GRADUATE, DIPLOMA, NON-DEGREE or SPECIAL STUDENT?'
-
-            !case (6)
-            !  write(device,AFORMAT) SPACE, ' DISMISSED or PERMANENTLY DISQUALIFIED?'
-
-            case default
-
-                write(device,AFORMAT) beginbold//'FEASIBLE subjects for '// &
-                    txtSemester(thisTerm+3)//termQualifier(thisTerm+3), &
-                    endbold//' (ALLOWED load = '//trim(ftoa(Advice%AllowedLoad,1))//') '//linebreak// &
-                        '<table border="0" width="100%">'
-                if (Advice%NPriority>0) then
-                    write(device,AFORMAT) &
-                        begintr//thaligncenter//'Pri'//endth// &
-                        thalignleft//'Contrib'//endth// &
-                        thalignleft//'Subject'//endth// &
-                        thaligncenter//'Credit'//endth// &
-                        thalignleft//'Title'//endth//endtr
-                    do l=1,Advice%NPriority
-                        tdx = l
-                        idx = Advice%Subject(tdx)
-                        write(tProb, '(f6.4)') Advice%Contrib(tdx)
-                        write(device,AFORMAT) &
-                            begintr//tdaligncenter//trim(itoa(tdx))//endtd// &
-                            begintd//tProb//endtd// &
-                            begintd//trim(Subject(idx)%Name)//endtd// &
-                            tdaligncenter//trim(ftoa(Subject(idx)%Units,1))//endtd// &
-                            begintd//trim(Subject(idx)%Title)//endtd//endtr
-                    end do
-                end if
-
-                if (Advice%NAlternates>0) then
-                    write(device,AFORMAT) &
-                        begintr//thaligncenter//'Alt'//endth// &
-                        thalignleft//'Contrib'//endth// &
-                        thalignleft//'Subject'//endth// &
-                        thaligncenter//'Credit'//endth// &
-                        thalignleft//'Title'//endth//endtr
-                    do l=1,Advice%NAlternates
-                        tdx = Advice%NPriority+l
-                        idx = Advice%Subject(tdx)
-                        write(tProb, '(f6.4)') Advice%Contrib(tdx)
-                        write(device,AFORMAT) &
-                            begintr//tdaligncenter//trim(itoa(tdx))//endtd// &
-                            begintd//tProb//endtd// &
-                            begintd//trim(Subject(idx)%Name)//endtd// &
-                            tdaligncenter//trim(ftoa(Subject(idx)%Units,1))//endtd// &
-                            begintd//trim(Subject(idx)%Title)//endtd//endtr
-                    end do
-                end if
-
-                if (Advice%NCurrent>0) then
-                    write(device,AFORMAT) &
-                        begintr//thaligncenter//'Fail'//endth// &
-                        thalignleft//'Contrib'//endth// &
-                        thalignleft//'Subject'//endth// &
-                        thaligncenter//'Credit'//endth// &
-                        thalignleft//'Title'//endth//endtr
-                    do l=1,Advice%NCurrent
-                        tdx = Advice%NPriority+Advice%NAlternates+l
-                        idx = Advice%Subject(tdx)
-                        write(tProb, '(f6.4)') Advice%Contrib(tdx)
-                        write(device,AFORMAT) &
-                            begintr//tdaligncenter//trim(itoa(tdx))//endtd// &
-                            begintd//tProb//endtd// &
-                            begintd//trim(Subject(idx)%Name)//endtd// &
-                            tdaligncenter//trim(ftoa(Subject(idx)%Units,1))//endtd// &
-                            begintd//trim(Subject(idx)%Title)//endtd//endtr
-                    end do
-                end if
-                write(device,AFORMAT) endtable, linebreak, &
-                    beginitalic//'Note:'//enditalic, &
-                    beginbold//'Pri'//endbold//'='//beginitalic//'Priority'//enditalic//',', &
-                    beginbold//'Alt'//endbold//'='//beginitalic//'Alternate'//enditalic//',', &
-                    beginbold//'Fail'//endbold//'='//beginitalic//'"if failed"'//enditalic//',', &
-                    beginbold//'Contrib'//endbold//'='//beginitalic//'contribution to demand for subject'//enditalic//DOT
-
-        end select
-
-    end subroutine checklist_display
 
 
     subroutine checklist_edit (device, thisTerm, UseClasses, Section, Offering, eList, path)
@@ -596,6 +365,11 @@ contains
                     nsubs = 0
                     exit
                 else
+                    if (isRoleStudent .and. tSubject(1:3)/='PE ') then
+                        mesg = trim(tAction)//' : '//tSubject//'- students allowed to substitute PE only.'
+                        nsubs = 0
+                        exit
+                    end if
                     j = index_of_subject_in_curriculum(Curriculum(targetCurriculum), crse)
                     if (j>0) then ! a required subject
                         mesg = trim(tAction)//' : '//tSubject//'- substitute subject already in curriculum?'
@@ -620,6 +394,11 @@ contains
                     nreqs = 0
                     exit
                 else
+                    if (isRoleStudent .and. tSubject(1:4)/='PE 1') then
+                        mesg = trim(tAction)//' : '//tSubject//'- students allowed to substitute PE only.'
+                        nreqs = 0
+                        exit
+                    end if
                     j = index_of_subject_in_curriculum(Curriculum(targetCurriculum), crse)
                     if (j>0) then ! a required subject
                         ! check if already required in another substitution rule
@@ -688,20 +467,24 @@ contains
                 if (crse<=0) then ! not a named subject
                     mesg = trim(tAction)//' : subject not valid?'
                 else
-                    mesg = trim(tAction)//' : rule not found in checklist - '//tSubject
-                    ! check Reqd() for specified SUBSTITUTION
-                    idx = 0
-                    do k=1,lenTCG
-                        if (TCG(k)%Code/=1) cycle
-                        do i=1,TCG(k)%Reqd(0)
-                            if (TCG(k)%Reqd(i)==crse) then
-                                isDirtyPlan = .true.
-                                idx = k
-                                exit
-                            end if
+                    if (isRoleStudent .and. tSubject(1:3)/='PE ') then
+                        mesg = trim(tAction)//' : '//tSubject//'- students allowed to cancel PE substitutions only.'
+                    else
+                        mesg = trim(tAction)//' : rule not found in checklist - '//tSubject
+                        ! check Reqd() for specified SUBSTITUTION
+                        idx = 0
+                        do k=1,lenTCG
+                            if (TCG(k)%Code/=1) cycle
+                            do i=1,TCG(k)%Reqd(0)
+                                if (TCG(k)%Reqd(i)==crse) then
+                                    isDirtyPlan = .true.
+                                    idx = k
+                                    exit
+                                end if
+                            end do
+                            if (isDirtyPlan) exit
                         end do
-                        if (isDirtyPlan) exit
-                    end do
+                    end if
                     if (isDirtyPlan) then ! required subject found
                         ! shift substitutions down
                         do k=idx+1,lenTCG
@@ -801,7 +584,6 @@ contains
                         TCG(lenTCG)%Subst(0) = 1
                         TCG(lenTCG)%Subst(1) = crse_update
                         mesg = trim(mesg)//', '//trim(Subject(crse_update)%Name)
-                        mesg = trim(mesg)//', '//trim(Subject(crse_update)%Name)
 
                     end if
                     n_changes = n_changes + 1
@@ -849,6 +631,7 @@ contains
             call collect_advice(Advice, n_changes, mesg)
             NumEnlistment(thisTerm) = NumEnlistment(thisTerm)- eList(targetStudent)%lenSubject + Advice%lenSubject
             eList(targetStudent) = Advice
+            eList(targetStudent)%Status = SUBJECTS_ARE_ADVISED
             isDirtyPREDICTIONS = .true.
             mesg = trim(tAction)//' : '//trim(itoa(Advice%lenSubject))//' entries.'
 
@@ -861,6 +644,7 @@ contains
             if (n_changes>0) then
                 mesg = trim(tAction)//mesg
                 eList(targetStudent) = Advice
+                eList(targetStudent)%Status = SUBJECTS_ARE_ADVISED
                 isDirtyPREDICTIONS = .true.
             end if
 
@@ -884,6 +668,7 @@ contains
 
             mesg = 'Deleted all advised subjects.'
             eList(targetStudent) = Advice
+            eList(targetStudent)%Status = 0
             isDirtyPREDICTIONS = .true.
 
         end if
@@ -895,6 +680,7 @@ contains
             Advice%Status = 1 ! lock advice
             mesg = 'Locked advice.'
             eList(targetStudent) = Advice
+            eList(targetStudent)%Status = SUBJECTS_ARE_ADVISED
             isDirtyPREDICTIONS = .true.
 
         end if
@@ -905,13 +691,14 @@ contains
             Advice%Status = 0 ! unlock advice
             mesg = 'Unlocked advice.'
             eList(targetStudent) = Advice
+            eList(targetStudent)%Status = SUBJECTS_ARE_ADVISED
             isDirtyPREDICTIONS = .true.
 
         end if
 
 
         if (len_trim(tAction)>0 .and. isRoleOfficial) then
-            mesg = '"'//trim(tAction)//'" failed. '//sorryMessage
+            mesg = '"'//trim(tAction)//'" failed. '//sorryMessageOfficial
         end if
 
         if (isDirtyPlan) then
@@ -943,7 +730,7 @@ contains
         character(len=10) :: helpFile
         character(len=127) :: advising_comment
         type (TYPE_PRE_ENLISTMENT) :: Advice, prevAdvice
-        integer :: idxCurr, j, k, l, MissingPOCW, NRemaining, lenSubject, notSpecified ! , checklistout
+        integer :: idxCurr, j, k, l, MissingPOCW, NRemaining, lenSubject, notSpecified
 
         call html_comment('checklist_write_menu()')
 
@@ -953,7 +740,6 @@ contains
         do k=1,Curriculum(idxCurr)%NSubjects
             if (Curriculum(idxCurr)%SubjectIdx(k)<0) then
                 notSpecified = notSpecified + 1
-                exit
             end if
         end do
 
@@ -969,13 +755,6 @@ contains
             nbsp//' <a target="0" href="/'//helpFile//'.html">Help</a>'//endsmall, mesg)
 
         if ( is_adviser_of_student(targetStudent, orHigherUp) ) then
-
-            !if (isRoleStudent) then
-            !    write(device,AFORMAT) red//'Warning: '// &
-            !        'This is the student sandbox where you can investigate "What if ...?" scenarios '// &
-            !        'regarding subjects to be enlisted. However, any changes you make are not binding. '// &
-            !        'Visit your Adviser or the Registrar to make the actual changes.'//black//linebreak
-            !end if
 
             ! change curriculum form
             call make_form_start(device, fnEditCheckList, Student(targetStudent)%StdNo, A9=thisTerm)
@@ -1035,7 +814,7 @@ contains
                         COMMA//tProb//'">'
                 end do
 
-                if (eList(targetStudent)%Status==0) then ! allow changes
+                if (eList(targetStudent)%Status<SUBJECTS_ARE_ADVISED) then ! allow changes
                     write(device,AFORMAT) linebreak//beginbold//'Use FEASIBLE subjects '//endbold//nbsp, &
                         '<input type="submit" name="action" value="As ADVICE">'//endform
                 else
@@ -1043,6 +822,63 @@ contains
                 end if
 
             end if
+
+        else if (trim(USERNAME)==Student(targetStudent)%StdNo) then ! allow students to specify PE
+
+!----------------
+            write(device,AFORMAT) '<a name="Approved SUBSTITUTIONS"></a>'//horizontal
+
+            write(device,AFORMAT) linebreak, &
+                beginbold//'SUBSTITUTIONS for required PE'//endbold// &
+                    '. Credit will be earned for required PE if substitute is passed.'//linebreak// &
+                '<table border="0" width="50%">'
+            j = 0
+            PEsubst: do l=1,lenTCG
+                if (TCG(l)%Code/=1) cycle ! not plan of study
+                advising_comment = 'Required :'
+                do k=1,TCG(l)%Reqd(0)
+                    if (Subject(TCG(l)%Reqd(k))%Name(1:3)/='PE ') cycle PEsubst
+                    advising_comment = trim(advising_comment)//SPACE//Subject(TCG(l)%Reqd(k))%Name
+                    j = j+1
+                end do
+                write(device,AFORMAT) begintr//begintd//trim(advising_comment)//endtd
+                advising_comment = 'Substitute :'
+                do k=1,TCG(l)%Subst(0)
+                    advising_comment = trim(advising_comment)//SPACE//Subject(TCG(l)%Subst(k))%Name
+                end do
+                write(device,AFORMAT) begintd//trim(advising_comment)//endtd//endtr
+            end do PEsubst
+            if (j==0) write(device,AFORMAT) begintr//begintd//BRNONE//endtd//endtr
+            write(device,AFORMAT) endtable//linebreak
+
+            if (j>0) then
+                call make_form_start(device, fnEditCheckList, Student(targetStudent)%StdNo, A9=thisTerm)
+                write(device,AFORMAT) &
+                    beginbold//'Cancel SUBSTITUTION'//endbold//': Enter required PE.'//linebreak, &
+                    '<table border="0" width="33%">'//begintr// &
+                    begintd//'Required :'//endtd// &
+                    begintd//'<input type="text" size="15" name="subject" value="">'//endtd// &
+                    endtr//endtable//linebreak, &
+                    '<input type="submit" name="action" value="Cancel SUBSTITUTION">', &
+                    endform
+            end if
+
+            ! subject substitution
+            call make_form_start(device, fnEditCheckList, Student(targetStudent)%StdNo, A9=thisTerm)
+            write(device,AFORMAT) &
+                linebreak//beginbold//'Additional SUBSTITUTION'//endbold// &
+                ': Enter the required PE and substitute/desired PE activity.'//linebreak// &
+                '<table border="0" width="33%">'// &
+                begintr//begintd//'Required :'//endtd//begintd// &
+                    '<input type="text" size="15" name="req1" value="">'//endtd//endtr, &
+                begintr//begintd//'Substitute :'//endtd//begintd// &
+                    '<input type="text" size="15" name="sub1" value="">'//endtd//endtr, &
+                endtable//linebreak// &
+                '<input type="submit" name="action" value="Subject SUBSTITUTION">', &
+                endform//horizontal
+
+!----------------
+            return
 
         else ! un-authorized users do not see the remainder of the checklist
             write(device,AFORMAT) horizontal
@@ -1223,10 +1059,8 @@ contains
                 endform
         end if
 
-        if (notSpecified>0) then
-            call substitution_form(device,targetStudent) !, &
-                !Advice%UnitsEarned, Advice%StdClassification, Advice%StdYear, MissingPOCW, &
-                !Advice%AllowedLoad, Advice%StdPriority, Advice%NPriority, Advice%NAlternates, Advice%NCurrent, NRemaining)
+        if (notSpecified>0 .and. MissingPOCW>0) then
+            call substitution_form(device,targetStudent)
         end if
 
         !    ! additional subject
@@ -1313,103 +1147,6 @@ contains
 
     end subroutine checklist_write_menu
 
-
-    subroutine substitution_form(device, std) !, &
-        !UnitsEarned, StdClassification, StdYear, MissingPOCW, &
-        !AllowedLoad, StdPriority, NPriority, NAlternates, NCurrent, NRemaining)
-        integer, intent (in) :: std, device!, &
-            !StdClassification, StdYear, MissingPOCW, &
-            !StdPriority, NPriority, NAlternates, NCurrent, NRemaining
-        !real, intent (in) :: UnitsEarned, AllowedLoad
-        integer :: idx, tdx, Year, Term, m, n, rank
-        integer, dimension(MAX_LEN_STUDENT_RECORD) :: p, q
-
-        write(device,AFORMAT) '<a name="Update PLAN"></a>'
-        call checklist_links(device)
-
-        call make_form_start(device, fnEditCheckList, Student(std)%StdNo)
-        write(device,AFORMAT) beginbold//'PLAN OF STUDY update form'//endbold, &
-            linebreak//beginitalic//'Enter or modify contents of the edit boxes below, then click "Update PLAN"'//enditalic// &
-            '<table border="0" width="90%">'
-        do tdx=1,CheckList%NumTerms,3
-            call rank_to_year_term(tdx, Year, Term)
-            write(device,AFORMAT) begintr//'<td colspan="4">'//linebreak//beginbold//trim(txtYear(Year))// &
-                ' Year, '//txtSemester(Term)//termQualifier(Term)//endbold// &
-                ' ('//trim(ftoa(TermUnits(tdx),1))//' units)'//endtd// &
-                tdnbspendtd//'<td colspan="4">'//linebreak//beginbold//trim(txtYear(Year))// &
-                ' Year, '//txtSemester(Term+1)//termQualifier(Term+1)//endbold// &
-                ' ('//trim(ftoa(TermUnits(tdx+1),1))//' units)'//endtd//endtr
-
-            m = 0
-            n = 0
-            p = 0
-            q = 0
-            do idx=1,CheckList%NSubjects
-                rank = CheckList%SubjectTerm(idx)
-                if (rank == tdx) then
-                    m = m+1
-                    p(m) = idx
-                else if (rank == tdx+1) then
-                    n = n+1
-                    q(n) = idx
-                end if
-            end do ! idx=1,CheckList%NSubjects
-            do idx=1,min(m,n)
-                write(device,AFORMAT) begintr//begintd//trim(CLExt(p(idx))%Disp_Subject)//endtd//&
-                    begintd//trim(CLExt(p(idx))%Disp_Input_Elective)//endtd//&
-                    begintd//trim(CLExt(p(idx))%Disp_Grade)//endtd//&
-                    begintd//trim(CLExt(p(idx))%Disp_Units)//endtd//tdnbspendtd, &
-                    begintd//trim(CLExt(q(idx))%Disp_Subject)//endtd//&
-                    begintd//trim(CLExt(q(idx))%Disp_Input_Elective)//endtd//&
-                    begintd//trim(CLExt(q(idx))%Disp_Grade)//endtd//&
-                    begintd//trim(CLExt(q(idx))%Disp_Units)//endtd//endtr
-            end do
-            if (m > n) then
-                do idx=n+1,m
-                    write(device,AFORMAT) begintr//begintd//trim(CLExt(p(idx))%Disp_Subject)//endtd//&
-                        begintd//trim(CLExt(p(idx))%Disp_Input_Elective)//endtd//&
-                        begintd//trim(CLExt(p(idx))%Disp_Grade)//endtd//&
-                        begintd//trim(CLExt(p(idx))%Disp_Units)//endtd//&
-                        '<td colspan="5">'//nbsp//endtd//endtr
-                end do
-            end if
-            if (n > m) then
-                do idx=m+1,n
-                    write(device,AFORMAT) begintr//'<td colspan="5">'//nbsp//endtd// &
-                        begintd//trim(CLExt(q(idx))%Disp_Subject)//endtd//&
-                        begintd//trim(CLExt(q(idx))%Disp_Input_Elective)//endtd//&
-                        begintd//trim(CLExt(q(idx))%Disp_Grade)//endtd//&
-                        begintd//trim(CLExt(q(idx))%Disp_Units)//endtd//endtr
-                end do
-            end if
-            ! summer
-            m = 0
-            p = 0
-            do idx=1,CheckList%NSubjects
-                rank = CheckList%SubjectTerm(idx)
-                if (rank == tdx+2) then
-                    m = m+1
-                    p(m) = idx
-                end if
-            end do ! idx=1,CheckList%NSubjects
-            if (m > 0) then
-                write(device,AFORMAT) begintr//'<td colspan="4">'//linebreak//beginbold//trim(txtYear(Year))// &
-                    ' Year, '//txtSemester(Term+2)//termQualifier(Term+2)//endbold// &
-                    ' ('//trim(ftoa(TermUnits(tdx+2),1))//' units)'//endtd// &
-                    '<td colspan="5">'//nbsp//endtd//endtr
-                do idx=1,m
-                    write(device,AFORMAT) begintr//begintd//trim(CLExt(p(idx))%Disp_Subject)//endtd//&
-                        begintd//trim(CLExt(p(idx))%Disp_Input_Elective)//endtd//&
-                        begintd//trim(CLExt(p(idx))%Disp_Grade)//endtd//&
-                        begintd//trim(CLExt(p(idx))%Disp_Units)//endtd//&
-                        '<td colspan="5">'//nbsp//endtd//endtr
-                end do
-            end if
-        end do
-        write(device,AFORMAT) endtable, &
-            linebreak//'<input type="submit" name="action" value="Update PLAN">'//endform
-
-    end subroutine substitution_form
 
 
     subroutine demand_by_new_freshmen(device, Offering)
