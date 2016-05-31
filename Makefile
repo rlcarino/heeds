@@ -2,7 +2,7 @@
 #
 #    HEEDS (Higher Education Enrollment Decision Support) - A program
 #      to create enrollment scenarios for 'next term' in a university
-#    Copyright (C) 2012-2014 Ricolindo L. Carino
+#    Copyright (C) 2012-2015 Ricolindo L. Carino
 #
 #    This file is part of the HEEDS program.
 #
@@ -28,7 +28,7 @@
 #======================================================================
 
 # Makefile for HEEDS
-VERSION=R2014-11-07
+VERSION=Rdevel
 
 #
 # On Windows, the build-PC must have MinGW/MSYS installed, and the
@@ -36,31 +36,35 @@ VERSION=R2014-11-07
 #
 
 #---------------------------------------------------------------
-# raw data format (RAWDATA)
+# university code (UNIV)
 #---------------------------------------------------------------
-#RAWDATA=REGIST
-RAWDATA=SIAS
+UNIV=CSU
+#UNIV=UPLB
 
 #---------------------------------------------------------------
-# operating system (OS)
+# operating system (OS) 
+# default: OS=-DWindows_NT
+#---------------------------------------------------------------
+#OS=
+OS=-DGLNX
+
+#---------------------------------------------------------------
 # directory for library (LIBPATH)
+#---------------------------------------------------------------
+LIBPATH=-lfcgi -Wl,--rpath -Wl,/usr/local/lib
+
+#---------------------------------------------------------------
 # directory for binary (BINPATH)
 #---------------------------------------------------------------
-
-OS=GLNX
-LIBPATH=-lfcgi -Wl,--rpath -Wl,/usr/local/lib
-BINPATH=.
-
-#OS=MSWIN
-#LIBPATH=-lfcgi -Wl,--rpath -Wl,/usr/local/lib
-#BINPATH=/c/HEEDS/bin/$(OS)
+#BINPATH=/c/HEEDS/bin
+BINPATH=~/HEEDS/bin
+#BINPATH=.
 
 #---------------------------------------------------------------
 # debugging flags 
 #---------------------------------------------------------------
 DEBUG=
-#-Dno_password_check 
-#-Dno_terms
+#-DDBenlist
 #-DDBsubst -DDBprereq -DDBcoreq -DDBconcpreq
 #-DDBperformance -DDBunits -DDBsimplify -DDBpriority
 
@@ -68,8 +72,7 @@ DEBUG=
 # Fortran compiler and flags
 #---------------------------------------------------------------
 FFLAGS=-Wunused -ffree-form
-OPTIONS = -D$(OS) -D$(RAWDATA) $(DEBUG)
-FC = gfortran $(FFLAGS) $(OPTIONS)
+FC = gfortran $(FFLAGS) $(OS) $(DEBUG) -D$(UNIV) -I$(UNIV)
 
 #---------------------------------------------------------------
 # object files
@@ -78,7 +81,7 @@ FC = gfortran $(FFLAGS) $(OPTIONS)
 BASE = UTILITIES.o UNIVERSITY.o INITIALIZE.o XMLIO.o
 
 WEB = $(BASE) HTML.o EditUNIVERSITY.o EditTEACHERS.o EditSECTIONS.o EditBLOCKS.o \
-	EditSTUDENT.o EditCHECKLIST.o EditENLISTMENT.o
+	EditSTUDENT.o EditCHECKLIST.o EditENLISTMENT.o EditEVALUATION.o
 
 #---------------------------------------------------------------
 # targets
@@ -98,11 +101,11 @@ UTILITIES.o:	Makefile
 
 UNIVERSITY.o:	UTILITIES.o
 
-INITIALIZE.o:	UNIVERSITY.o
+XMLIO.o:	UNIVERSITY.o XMLIO-OTHER.F90  $(UNIV)/Input.F90
 
-XMLIO.o:	UNIVERSITY.o XMLIO-OTHER.F90  Input$(RAWDATA).F90
+INITIALIZE.o:	XMLIO.o
 
-HTML.o:	$(BASE)
+HTML.o:	$(BASE) $(UNIV)/Distributions.F90
 
 EditUNIVERSITY.o:	HTML.o
 
@@ -112,13 +115,15 @@ EditSECTIONS.o:	HTML.o
 
 EditBLOCKS.o:	HTML.o
 
-EditSTUDENT.o:	HTML.o ADVISING-STRUCTURED.F90
+EditSTUDENT.o:	HTML.o $(UNIV)/Advising.F90
 
 EditCHECKLIST.o:	EditSTUDENT.o
 
-EditENLISTMENT.o:	HTML.o
+EditENLISTMENT.o:	HTML.o $(UNIV)/Enlistment.F90
 
-SERVER.o:	$(WEB)
+EditEVALUATION.o:	HTML.o
+
+SERVER.o:	$(WEB) SERVER-OTHER.F90
 
 .F90.o:
 	$(FC) -c $<

@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012-2014 Ricolindo L. Carino
+!    Copyright (C) 2012-2015 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -37,7 +37,7 @@ module UTILITIES
 !===========================================================
 
     character(len= 5), parameter :: PROGNAME  = 'HEEDS'
-    character(len=44), parameter :: COPYRIGHT = 'Copyright (C) 2012-2014 Ricolindo L. Carino'
+    character(len=44), parameter :: COPYRIGHT = 'Copyright (C) 2012-2015 Ricolindo L. Carino'
     character(len=38), parameter :: EMAIL     = 'Ricolindo.Carino@AcademicForecasts.com'
     character(len=72), parameter :: CONTACT   = 'E-mail inquiries about '//PROGNAME//' to '//EMAIL//'.'
     character(len=32), parameter :: WEB       = 'http://code.google.com/p/heeds/'
@@ -49,32 +49,21 @@ module UTILITIES
 #if defined GLNX
     ! file separator; delete, directory, mkdir commands
     character(len= 8), parameter :: dirCmd = 'ls -1tr '
-    character(len= 6), parameter :: delCmd = 'rm -f '
-    character(len= 9), parameter :: mkdirCmd = 'mkdir -p '
+    character(len= 7), parameter :: delCmd = 'rm -rf '
     character(len= 6), parameter :: mvCmd = 'mv -f '
+    character(len= 6), parameter :: cpCmd = 'cp -f '
+    character(len= 9), parameter :: mkdirCmd = 'mkdir -p '
     character(len= 1), parameter :: DIRSEP = '/'
-
-    character(len=16), parameter :: WEBROOT = '/home/HEEDS/web/'
-    character(len= 7), parameter :: PROTOCOL = 'http://'
-
-#if defined no_password_check
-    !character(len= 9), parameter :: IP_ADDR = 'localhost'
-    character(len=13), parameter :: IP_ADDR = '192.168.1.197'
-#else
-    character(len=14), parameter :: IP_ADDR = '112.206.226.26' ! CSU server in PLDT Cloud
-#endif
 
 #else
     ! file separator; delete, directory, mkdir commands
     character(len=17), parameter :: dirCmd = 'dir /b /o:d /t:c '
     character(len= 7), parameter :: delCmd = 'del /q '
-    character(len= 6), parameter :: mkdirCmd = 'mkdir '
     character(len= 8), parameter :: mvCmd = 'move /y '
+    character(len= 8), parameter :: cpCmd = 'copy /y '
+    character(len= 6), parameter :: mkdirCmd = 'mkdir '
     character(len= 1), parameter :: DIRSEP = '\'
 
-    character(len=13), parameter :: WEBROOT = 'C:\HEEDS\web\'
-    character(len= 7), parameter :: PROTOCOL = 'http://'
-    character(len= 9), parameter :: IP_ADDR = 'localhost'
 #endif
 
 
@@ -82,40 +71,49 @@ module UTILITIES
 ! passwords
 !===========================================================
     real :: harvest    ! random number
+    character (len=34) :: allowedPasswordChars = 'A2B3D45F6G7H8J9bcdfghjkmnprstvwxyz'
     integer, parameter :: &  ! length of password variables
         MAX_LEN_PASSWD_VAR=32, &
         MIN_LEN_PASSWORD=8, &
         MAX_LEN_PASSWORD=12, &
         lenPasswordEncryptionKey = 16
     character(len=lenPasswordEncryptionKey) :: & ! replace for your Institution
-                          passwordEncryptionKey = 'w!thUr0wnr3pL@c3'
+        passwordEncryptionKey = 'w!thUr0wnr3pL@c3'
 
 
 !===========================================================
-! Academic Year, Term
+! University code; Academic Year & Term
 !===========================================================
 
+    character (len=20) :: UniversityCode = 'DEMO'
     integer :: currentYear=0 ! year of start of Academic Year
     integer :: currentTerm=0 ! current term 1=1st sem, 2=2nd sem; 3=summer
-    integer :: nextYear=0, nextTerm=0, termBegin=0, termEnd=0
     integer :: cTm1Year=0, cTm1=0, cTm2Year=0, cTm2=0, cTm3Year=0, cTm3=0
 
 !===========================================================
 ! times
 !===========================================================
 
-    logical :: isDirtyXML = .false.
-    integer :: maxIdleTime = 1800 ! seconds before auto-logout
+    integer :: maxIdleTime = 900 ! seconds before auto-logout
     integer :: maxRefreshTime = 1800 ! seconds before auto-refresh
     integer :: maxBackupTime = 1800 ! seconds before auto-backup
 
+    integer :: maxStudentsForNeedsAnalysis = 700 ! Max no. of students for Needs Analysis to avoid timeout
+
     character(len=10) :: currentTime ! current time - HHMMSS.LLL
     character(len= 8) :: currentDate, previousDate ! current, previous dates - YYYYMMDD
-    character(len=18) :: startDateTime ! program start date & time
+    character(len=15) :: startDateTime ! YYYYMMDD-HHMMSS
+    !character(len=8) :: startDateTime ! YYYYMMDD
     integer(8) :: tick, count_rate, count_max ! system clock
     integer(8) :: tickLastRefresh, tickLastBackup ! clock-tick when last refreshed, last auto-backup
     integer :: secsNextRefresh, secsLastRefresh ! estimated time in seconds before next refresh, after last refresh
-    logical :: isReadOnly = .false., isAllowedNonEditors = .true., isRectify = .false.
+
+!===========================================================
+! flags
+!===========================================================
+
+    logical :: isServer = .false., isReadOnly = .false., isMirror = .false.
+    logical :: isDirtyData = .false., isAllowedNonEditors = .true.
 
 !===========================================================
 ! file paths
@@ -124,12 +122,15 @@ module UTILITIES
     integer, parameter :: MAX_LEN_FILE_PATH = 256 ! Max length of file path+name
     integer, parameter :: &
         unitHTML = 999, &   ! file unit for HTML to webserver
-        unitUSER = 998, &   ! file unit for user activities
+        unitUSER = 998, &   ! file unit for user log of activities
         unitXML  = 997, &   ! file unit for XML input/output
         unitRAW  = 996, &   ! file unit for custom inputs
         unitLOG  = 995, &   ! file unit for log messages
-        unitREQ  = 994, &   ! file unit for requests
-        unitETC  = 993
+        unitREQ  = 994, &   ! file unit for requests by user
+        unitIP   = 993, &   ! file unit for requests by IP address
+        unitIDX  = 992, &
+        unitREM  = 991, &   ! file unit for concatenating evaluation remarks
+        unitETC  = 990      ! file unit for almost-atomic "open/read-or-write/close" operation
 
     ! data & output paths
     character (len=MAX_LEN_FILE_PATH) :: &
@@ -142,21 +143,28 @@ module UTILITIES
         dirSTUDENTINFO, & ! directory for individual student info
         dirADVANCECREDITS, & ! directory for advance/transfer credit records
         dirCOMPLETIONS, & ! directory for completion records
-        pathToYear, pathToNextYear, pathToTerm, &  ! path data files for the year, next year
+        dirUPLOADS, & ! directory for uploads
+        dirASSESSMENTS, & ! directory for assesment
+        dirDISCOUNTS, & ! directory for discounts
+        dirPAYMENTS, & ! directory for accounting transactions
         fileEXE, & ! name of executable
-        fileLOG, & ! name of log file
-        fileREQ, & ! name of file for requests
-        CGI_PATH ! URI
+        fileLOG, & ! name of log file diagnostic messages
+        fileIP, & ! name of log file for IP address
+        fileUSER, & ! name of log file for user
+        fileREQ, & ! name of file for all requests
+        pathToYear, pathToTerm  ! path data files
 
     ! position of last character in dirDATA (to simplify derivation of path to backup)
     integer :: lenDirDATA
 
     ! constants
     character(len= 1), parameter :: &
-        SPACE = ' ', COMMA = ',', DASH ='-', FSLASH = '/', BSLASH = '\', PRIME = '''', DOT = '.'
+        SPACE = ' ', COMMA = ',', DASH ='-', FSLASH = '/', BSLASH = '\', PRIME = '''', DOT = '.', LPAR = '(', RPAR = ')'
     character(len= 1), parameter :: NUL = achar(0), LF = achar(10), CR = achar(13)
     character(len= 2), parameter :: CRLF = achar(10)//achar(13)
     character(len= 3), parameter :: AFORMAT = '(a)'
+    character(len= 4), parameter :: dotXML = '.XML'
+    character(len= 5), parameter :: dotPART = '.PART'
     character(len= 8), parameter :: ZFORMAT = '(16z0.2)'
     character(len=10), parameter :: DECDIGITS = '0123456789'
     character(len=16), parameter :: HEXDIGITS = '0123456789ABCDEF'
@@ -177,48 +185,53 @@ module UTILITIES
     character(len=20), parameter :: Teal = '<font color=#008080>'
     character(len=20), parameter :: White = '<font color=#FFFFFF>'
     character(len=20), parameter :: Yellow = '<font color=#FFFF00>'
-    character(len= 7), parameter :: black = '</font>'
+    character(len=20), parameter :: Black = '<font color=#000000>'
+    character(len= 7), parameter :: e_color = '</font>'
 
 !===========================================================
 ! XML-related parameters
 !===========================================================
 
     ! maximum line size in an XML file
-    integer, parameter :: MAX_LEN_XML_LINE = 1000
+    integer, parameter :: MAX_LEN_XML_LINE = 2048
 
     ! maximum characters in a tag
     integer, parameter :: MAX_LEN_XML_TAG = 40
 
-    ! root names                                                 12345678901234567890
-    character(len=10), parameter :: XML_ROOT_UNIVERSITY     = 'UNIVERSITY'
-    character(len=16), parameter :: XML_ROOT_COLLEGES       = 'LIST_OF_COLLEGES'
-    character(len=19), parameter :: XML_ROOT_DEPARTMENTS    = 'LIST_OF_DEPARTMENTS'
-    character(len=16), parameter :: XML_ROOT_SUBJECTS       = 'LIST_OF_SUBJECTS'
-    character(len=13), parameter :: XML_ROOT_ROOMS          = 'LIST_OF_ROOMS'
-    character(len=16), parameter :: XML_ROOT_TEACHERS       = 'LIST_OF_TEACHERS'
-    character(len=17), parameter :: XML_ROOT_CURRICULA      = 'LIST_OF_CURRICULA'
-    character(len=21), parameter :: XML_ROOT_EQUIVALENCIES  = 'LIST_OF_EQUIVALENCIES'
-    character(len=16), parameter :: XML_ROOT_STUDENTS       = 'LIST_OF_STUDENTS'
-    character(len=12), parameter :: XML_ROOT_WAIVERS        = 'WAIVERS_COI_'
-    character(len=14), parameter :: XML_ROOT_STUDENT_RECORD = 'STUDENT_RECORD'
-    character(len=12), parameter :: XML_ROOT_STUDENT_INFO   = 'STUDENT_INFO'
-    character(len=15), parameter :: XML_ROOT_INTAKE         = 'FRESHMAN_INTAKE'
-    character(len=13), parameter :: XML_ROOT_SUBSTITUTIONS  = 'SUBSTITUTIONS'
-    character(len=11), parameter :: XML_ROOT_ENLISTMENT     = 'ENLISTMENT_'
-    character(len=15), parameter :: XML_ROOT_BLOCKS         = 'LIST_OF_BLOCKS_'
-    character(len=17), parameter :: XML_ROOT_SECTIONS       = 'LIST_OF_SECTIONS_'
-    ! root names                                               12345678901234567890
-    character(len=44), parameter :: XML_DOC = &
-        '<?xml version="1.0" encoding="ISO-8859-1" ?>'
+    ! root names                                           123456789012345678901234567890123456789012345678901234567890
+    character(len=42), parameter :: XML_DOC             = '?xml version="1.0" encoding="ISO-8859-1" ?'
+    character(len=36), parameter :: ROOT_PSGC           = 'PHILIPPINE_STANDARD_GEOGRAPHIC_CODES'
+    character(len=14), parameter :: ROOT_TONGUES        = 'MOTHER_TONGUES'
+    character(len=10), parameter :: ROOT_EVALUATION     = 'EVALUATION'
+    character(len=10), parameter :: ROOT_UNIVERSITY     = 'UNIVERSITY'
+    character(len=16), parameter :: ROOT_COLLEGES       = 'LIST_OF_COLLEGES'
+    character(len=19), parameter :: ROOT_DEPARTMENTS    = 'LIST_OF_DEPARTMENTS'
+    character(len=16), parameter :: ROOT_SUBJECTS       = 'LIST_OF_SUBJECTS'
+    character(len=13), parameter :: ROOT_ROOMS          = 'LIST_OF_ROOMS'
+    character(len=16), parameter :: ROOT_TEACHERS       = 'LIST_OF_TEACHERS'
+    character(len=17), parameter :: ROOT_CURRICULA      = 'LIST_OF_CURRICULA'
+    character(len=21), parameter :: ROOT_EQUIVALENCIES  = 'LIST_OF_EQUIVALENCIES'
+    character(len=16), parameter :: ROOT_STUDENTS       = 'LIST_OF_STUDENTS'
+    character(len=14), parameter :: ROOT_STUDENT_RECORD = 'STUDENT_RECORD'
+    character(len=12), parameter :: ROOT_STUDENT_INFO   = 'STUDENT_INFO'
+    character(len=13), parameter :: ROOT_SUBSTITUTIONS  = 'SUBSTITUTIONS'
+    character(len=11), parameter :: ROOT_ENLISTMENT     = 'ENLISTMENT_'
+    character(len=15), parameter :: ROOT_BLOCKS         = 'LIST_OF_BLOCKS_'
+    character(len=17), parameter :: ROOT_SECTIONS       = 'LIST_OF_SECTIONS_'
+    character(len=16), parameter :: ROOT_ACCOUNTS       = 'LIST_OF_ACCOUNTS'
+    character(len= 7), parameter :: COMMENT             = 'COMMENT'
+    ! root names                                           123456789012345678901234567890123456789012345678901234567890
 
     ! indentation
     integer, parameter :: INDENT_INCR = 4 ! no. SPACEs for next indent
-    integer             :: indent0 = INDENT_INCR, & ! indentation levels
-        indent1 = INDENT_INCR*2, &
-        indent2 = INDENT_INCR*3, &
-        indent3 = INDENT_INCR*4, &
-        indent4 = INDENT_INCR*5, &
-        indent5 = INDENT_INCR*6
+    integer :: & ! indentation levels
+        indent0 = 0, &
+        indent1 = INDENT_INCR,   &
+        indent2 = INDENT_INCR*2, &
+        indent3 = INDENT_INCR*3, &
+        indent4 = INDENT_INCR*4, &
+        indent5 = INDENT_INCR*5, &
+        indent6 = INDENT_INCR*6
     character(len=80)  :: indentation = SPACE
 
 
@@ -246,27 +259,30 @@ module UTILITIES
      /)
 
     ! some HTML tokens
-    character(len= 6), parameter :: nbsp='&nbsp;'
-    character(len=19), parameter :: tdaligncenter= '<td align="center">', thaligncenter= '<th align="center">'
-    character(len=18), parameter :: tdalignright= '<td align="right">', thalignright= '<th align="right">'
-    character(len=17), parameter :: thalignleft= '<th align="left">'
-    character(len= 4), parameter :: begintd= '<td>', beginth= '<th>', begintr= '<tr>'
-    character(len= 5), parameter :: endtd= '</td>', endth= '</th>', endtr= '</tr>'
-    character(len=15), parameter :: tdnbspendtd= '<td>&nbsp;</td>'
-    character(len= 8), parameter :: endtable = '</table>'
-    character(len= 7), parameter :: beginsmall = '<small>'
-    character(len= 8), parameter :: endsmall = '</small>'
-    character(len= 7), parameter :: endform = '</form>'
-    character(len= 3), parameter :: beginbold = '<b>'
-    character(len= 4), parameter :: endbold = '</b>'
-    character(len= 3), parameter :: underline = '<u>'
-    character(len= 4), parameter :: endunderline = '</u>'
-    character(len= 3), parameter :: beginitalic = '<i>'
-    character(len= 4), parameter :: enditalic = '</i>'
+    character(len=19), parameter :: b_tdac= '<td align="center">', b_thac= '<th align="center">'
+    character(len=18), parameter :: b_tdar= '<td align="right">', b_thar= '<th align="right">'
+    character(len=17), parameter :: b_thal= '<th align="left">'
+    character(len=15), parameter :: b_td_nbsp_e_td= '<td>&nbsp;</td>'
+    character(len= 8), parameter :: e_table = '</table>'
+    character(len= 7), parameter :: b_small = '<small>'
+    character(len= 8), parameter :: e_small = '</small>'
+    character(len= 7), parameter :: e_form = '</form>'
+    character(len= 3), parameter :: b_para = '<p>'
+    character(len= 4), parameter :: e_para = '</p>'
+    character(len= 3), parameter :: b_bold = '<b>'
+    character(len= 4), parameter :: e_bold = '</b>'
+    character(len= 3), parameter :: b_underline = '<u>'
+    character(len= 4), parameter :: e_underline = '</u>'
+    character(len= 3), parameter :: b_italic = '<i>'
+    character(len= 4), parameter :: e_italic = '</i>'
     character(len= 4), parameter :: horizontal = '<hr>'
     character(len= 4), parameter :: linebreak = '<br>'
-    character(len= 4), parameter :: beginitem = '<li>'
-    character(len= 5), parameter :: enditem = '</li>'
+    character(len= 4), parameter :: b_item = '<li>'
+    character(len= 5), parameter :: e_item = '</li>'
+    character(len= 4), parameter :: b_td= '<td>', b_th= '<th>', b_tr= '<tr>'
+    character(len= 5), parameter :: e_td= '</td>', e_th= '</th>', e_tr= '</tr>'
+    character(len= 6), parameter :: nbsp='&nbsp;'
+    character(len= 9), parameter :: e_select = '</select>'
 
     character(len=16), parameter :: JUSTNONE = linebreak//'( None )'//linebreak
     character(len=20), parameter :: BRNONE = JUSTNONE//linebreak
@@ -281,41 +297,71 @@ module UTILITIES
     integer, parameter :: MAX_CGI_INT_LEN = 10
     integer, parameter :: MAX_CGI_FLT_LEN = 12
 
+    character(len=20)  :: SERVER_PROTOCOL = SPACE
+    character (len=MAX_LEN_FILE_PATH) :: &
+        dirDOWNLOADS = SPACE, urlDOWNLOADS = SPACE, &  ! directory, URL for files to download
+        dirPICTURES = SPACE, urlPICTURES = SPACE, & ! directory, URL for pictures in transcripts
+        HEEDS_DIRECTORY = SPACE, SERVER_NAME = SPACE, DOCUMENT_ROOT = SPACE, CGI_PATH = SPACE ! path to university data, wwwdir, URI
+
     ! the script
-    character (len=MAX_LEN_FILE_PATH)    :: DOCUMENT_URI
+    character (len=MAX_LEN_FILE_PATH)    :: DOCUMENT_URI = SPACE, HTTP_USER_AGENT = SPACE
 
     ! the IP address xxx.xxx.xxx.xxx
-    character (len=16)                   :: REMOTE_ADDR
+    character (len=16)                   :: REMOTE_ADDR = SPACE
 
     ! the QUERY, encryption key, cipher text
-    character (len=MAX_LEN_QUERY_STRING) :: QUERY_STRING, queryEncryptionKey, cipher, MOTD, wrkCipher, EMERGENCY
+    character (len=MAX_LEN_QUERY_STRING) :: QUERY_STRING, queryEncryptionKey, cipher, MOTD, EMERGENCY, wrkCipher
 
     ! functionality
-    character (len=255) :: sorryMessageOfficial, sorryMessageStudent
+    character (len=255) :: sorryMessageOfficial, sorryMessageStudent, sorryMessageSchedules
     character (len=15) :: ACTION
-    logical :: &
-        isEnabledGuest = .true., &
-        isProbabilistic = .false., &
-        isPeriodOne = .false., &
-        isPeriodTwo = .false., &
-        isPeriodThree = .false., &
-        isPeriodFour = .false.
+    logical :: isEnabledGuest = .true.
+#if defined UPLB
+    logical :: isProbabilistic = .false.
+#endif
 
     ! local work areas
     character(len=MAX_CGI_WRK_LEN), private :: cgi_wrk
     character(len=MAX_CGI_INT_LEN), private :: cgi_int
     character(len=MAX_CGI_FLT_LEN), private :: cgi_flt
 
-
     ! Users
-    integer, parameter :: MAX_LEN_USERNAME=20 ! length of login name
+    integer, parameter :: MAX_LEN_USERNAME = 20 ! length of login name
+    integer, parameter :: MAX_LOGIN_ATTEMPTS = 5 ! max failed login attempts per day
     character (len=MAX_LEN_USERNAME) :: USERNAME
 
     ! the requested function
     integer :: REQUEST
 
     ! login check message, user role
-    character(len=MAX_LEN_FILE_PATH) :: loginCheckMessage
+    character(len=MAX_LEN_FILE_PATH) :: UserRequestCheckMessage
+
+    ! interface to FastCGI routines in C
+    interface
+
+        ! The function to accept a request from the webserver
+        function FCGI_Accept () bind(C, NAME='FCGI_Accept')
+            use ISO_C_BINDING
+            implicit none
+            integer(C_INT) :: FCGI_Accept
+        end function FCGI_Accept
+
+        ! The function to retrieve POSTed data
+        function FCGI_getchar () bind(C, NAME='FCGI_getchar')
+            use ISO_C_BINDING
+            implicit none
+            character(C_CHAR) :: FCGI_getchar
+        end function FCGI_getchar
+
+        ! The function to write back to the webserver
+        function FCGI_puts (s) bind(C, NAME='FCGI_puts')
+            use ISO_C_BINDING
+            implicit none
+            integer(C_INT) :: FCGI_puts
+            character(C_CHAR), dimension(*) :: s
+        end function FCGI_puts
+
+    end interface
 
 contains
 
@@ -327,35 +373,23 @@ contains
 
         character(len=*), intent(in), optional :: mesg
 
-        ! fileEXE is set in the main program
-        write(*,AFORMAT) trim(fileEXE)//' ('//VERSION//')'
-        if (present(mesg)) write(*,AFORMAT) trim(mesg)
-        if (index(fileEXE, '_SERVER')>0) then
-            write(*,AFORMAT) &
-                'Webserver usage: spawn-fcgi -a IP_ADDRESS -p PORT_NUM -f "'//trim(fileEXE)//' UNIV YEAR TERM ACTION"', &
-                '  IP_ADDRESS, PORT_NUM - as specified by fastcgi_pass in nginx configuration', &
-                '  UNIV - code for university', &
-                '  YEAR - chronological year when the current School Year started', &
-                '  TERM - current term: 1=1st Sem, 2=2nd Sem, S=summer', &
-                '  ACTION - Classlists, Advising, Gradesheets, Preregistration', &
-                SPACE
-        else
-            write(*,AFORMAT) &
-                'Usage: '//trim(fileEXE)//' UNIV YEAR TERM ACTION"', &
-                '  UNIV - code for university', &
-                '  YEAR - chronological year when the current School Year started', &
-                '  TERM - current term: 1=1st Sem, 2=2nd Sem, S=summer', &
-                '  ACTION - Restore, Checklists, Import', &
-                SPACE
-        end if
+        if (present(mesg)) write(*,AFORMAT) SPACE, trim(mesg)
+        write(*,AFORMAT) &
+            'USAGE: spawn-fcgi -a SERVER_NAME -p PORT_NUM -f "'//trim(fileEXE)//' UNIV YEAR TERM ACTION"', &
+            '  SERVER_NAME, PORT_NUM - as specified by fastcgi_pass in nginx configuration', &
+            '  UNIV - code for University', &
+            '  YEAR - chronological year when the School Year started', &
+            '  TERM - term of School Year for which plans are being made', &
+            '  ACTION - Import, Checklists, Restore, Special, Passwords, Server, Mirror ', &
+            SPACE
         stop
 
     end subroutine usage
 
 
 
-    subroutine check_array_bound(current, limit, msg, critical)
-        character (len=*), intent (in) :: msg
+    subroutine check_array_bound(current, limit, mesg, critical)
+        character (len=*), intent (in) :: mesg
         integer, intent (in) :: current, limit
         logical, optional, intent (out) :: critical
 
@@ -366,7 +400,7 @@ contains
             if (present(critical)) then
                 critical = flag
             else
-                call terminate('Aborting due to insufficient array size; increase '//trim(msg)// &
+                call terminate(current, 'Aborting due to insufficient array size; increase '//trim(mesg)// &
                     '. Limit is '//itoa(limit)//'; currently used is '//itoa(current) )
             end if
         else
@@ -377,15 +411,58 @@ contains
 
     end subroutine check_array_bound
 
+    subroutine open_for_write(device, filename, stat)
+        character (len=*), intent (in) :: filename
+        integer, intent (in) :: device
+        integer, intent (out) :: stat
+        integer :: loc
+
+        open(unit=device, file=filename, iostat=stat)
+        if (stat==0) return
+        loc = 0 ! get name of directory
+        do loc=len_trim(filename),1,-1
+            if (filename(loc:loc)==DIRSEP) exit
+        end do
+        call system (mkdirCmd//filename(:loc-1), stat)
+        if (stat==0) open(unit=device, file=filename, iostat=stat)
+
+    end subroutine open_for_write
 
 
-    subroutine log_comment(mesg1, mesg2, mesg3, mesg4, mesg5)
+    subroutine open_for_append(device, filename, stat, backtrack)
+        character (len=*), intent (in) :: filename
+        integer, intent (in) :: device
+        integer, intent (out) :: stat
+        logical, optional, intent (in) :: backtrack
+
+        logical :: fileExists
+
+        inquire(file=filename, exist=fileExists)
+        if (fileExists) then
+            open(unit=device, file=filename, position='append', iostat=stat)
+        else
+            call open_for_write(device, filename, stat)
+            if (present(backtrack)) backspace(device, iostat=stat)
+        end if
+
+    end subroutine open_for_append
+
+
+    subroutine log_comment(mesg1, mesg2, mesg3, mesg4, mesg5, out6)
         character (len=*), intent (in) :: mesg1
         character (len=*), intent (in), optional :: mesg2, mesg3, mesg4, mesg5
+        logical, intent (in), optional :: out6
 
-        logical :: logExists
+        logical :: logExists, stdout
 
-        fileLOG = trim(dirLOG)//currentDate//DASH//trim(fileEXE)//'-message.log'
+        if (present(out6)) then
+            stdout = out6
+        else
+            stdout = .false.
+        end if
+
+        fileLOG = trim(dirLOG)//currentDate//DIRSEP//currentTime(:6)//DASH//trim(ACTION)//'-message.log'
+        !fileLOG = trim(dirLOG)//currentDate//DIRSEP//startDateTime//'-message.log'
         inquire(file=trim(fileLOG), exist=logExists)
         if (.not. logExists) then
             open(unit=unitLOG, file=trim(fileLOG), status='new')
@@ -393,18 +470,24 @@ contains
             open(unit=unitLOG, file=trim(fileLOG), status='old', position='append')
         end if
         write(unitLOG,AFORMAT) trim(mesg1)
+        if (stdout) write(*,*) trim(mesg1)
         if (present(mesg2)) then
             write(unitLOG,AFORMAT) trim(mesg2)
+            if (stdout) write(*,*) trim(mesg2)
             if (present(mesg3)) then
                 write(unitLOG,AFORMAT) trim(mesg3)
+                if (stdout) write(*,*) trim(mesg3)
                 if (present(mesg4)) then
                     write(unitLOG,AFORMAT) trim(mesg4)
+                    if (stdout) write(*,*) trim(mesg4)
                     if (present(mesg5)) then
                         write(unitLOG,AFORMAT) trim(mesg5)
+                        if (stdout) write(*,*) trim(mesg5)
                     end if
                 end if
             end if
         end if
+        call flush(unitLOG)
         close(unitLOG)
 
     end subroutine log_comment
@@ -417,27 +500,31 @@ contains
         character (len=*), intent (in), optional :: mesg2, mesg3, mesg4, mesg5
 
         logical :: logExists
+        integer :: ierr
 
         inquire(file=fileName, exist=logExists)
         if (.not. logExists) then
-            open(unit=fileNo, file=fileName, status='new')
+            open(unit=fileNo, file=fileName, status='new', iostat=ierr, err=999)
         else
-            open(unit=fileNo, file=fileName, status='old', position='append')
+            open(unit=fileNo, file=fileName, status='old', position='append', iostat=ierr, err=999)
         end if
-        write(fileNo,AFORMAT) trim(mesg1)
+        write(fileNo,AFORMAT, iostat=ierr, err=998) trim(mesg1)
         if (present(mesg2)) then
-            write(fileNo,AFORMAT) trim(mesg2)
+            write(fileNo,AFORMAT, iostat=ierr, err=998) trim(mesg2)
             if (present(mesg3)) then
-                write(fileNo,AFORMAT) trim(mesg3)
+                write(fileNo,AFORMAT, iostat=ierr, err=998) trim(mesg3)
                 if (present(mesg4)) then
-                    write(fileNo,AFORMAT) trim(mesg4)
+                    write(fileNo,AFORMAT, iostat=ierr, err=998) trim(mesg4)
                     if (present(mesg5)) then
-                        write(fileNo,AFORMAT) trim(mesg5)
+                        write(fileNo,AFORMAT, iostat=ierr, err=998) trim(mesg5)
                     end if
                 end if
             end if
         end if
-        close(fileNo)
+        call flush(fileNo)
+        998 close(fileNo)
+        999 call terminate(ierr, 'log_request( unit='//trim(itoa(fileNo))// &
+            ', file='//trim(fileName)//', mesg='//trim(mesg1)//' )' )
 
     end subroutine log_request
 
@@ -459,20 +546,71 @@ contains
                 end if
             end if
         end if
-        flush(unitHTML)
+        call flush(unitHTML)
 
     end subroutine html_comment
 
 
-    subroutine terminate(msg)
+    subroutine terminate(IOerr, mesg)
+        integer, intent (in) :: IOerr
+        character(len=*), intent (in) :: mesg
 
-        character(len=*), intent (in) :: msg
+        select case (IOerr)
 
-        call log_comment(msg, 'Ends '//currentDate//DASH//currentTime )
-        write(*,*) msg
-        write(*,*) 'See '// trim(dirLOG)//trim(fileEXE)//DASH//currentDate//'.log for other messages.'
+            case (0) ! no error
+                return
 
+            case (-1) ! normal server termination
+
+                ! backspace the response file for additional "call html_comment()" before stop
+                if (isServer) backspace (unitHTML)
+
+            case default ! write-to-disk error
+
+                call system(cpCmd//trim(DOCUMENT_ROOT)//DIRSEP//'50x-write-to-disk-failed.html '// &
+                    trim(DOCUMENT_ROOT)//DIRSEP//'50x.html')
+
+                if (isServer) then ! diagnostic messages
+
+                    call html_home_page(unitHTML, mesg)
+
+!                    ! activity by USERNAME
+!                    if (len_trim(fileUSER)>0) then
+!                        write(unitHTML,AFORMAT) 'Last user: '//trim(fileUSER)
+!                        write(unitHTML,AFORMAT) '<pre>'
+!                        call copy_to_unit(fileUSER, unitHTML)
+!                        write(unitHTML,AFORMAT) '</pre>'//horizontal
+!                    end if
+
+!                    ! activity on IP
+!                        if (len_trim(fileIP)>0) then
+!                        write(unitHTML,AFORMAT) 'Last IP: '//trim(fileIP)
+!                        write(unitHTML,AFORMAT) '<pre>'
+!                        call copy_to_unit(fileIP, unitHTML)
+!                        write(unitHTML,AFORMAT) '</pre>'//horizontal
+!                    end if
+
+                    write(unitHTML,AFORMAT) '</body></html>'
+
+                    ! send page to server
+                    call FCGI_putfile(unitHTML)
+
+                    ! backspace the response file for additional "call html_comment()" before stop
+                    backspace (unitHTML)
+                end if
+
+        end select
+
+        call html_comment(mesg)
+        call flush(unitHTML)
+        close(unitHTML)
+
+        call log_comment(mesg, '-------', 'Ends '//currentDate//DASH//currentTime, '-------' )
+
+        write(*,*) mesg
+        write(*,*) 'See '// trim(fileLOG)//' for other messages.'
         stop
+
     end subroutine terminate
 
 
@@ -563,7 +701,6 @@ contains
         character (len=MAX_LEN_PASSWD_VAR), intent (in out) :: Password
         character (len=*), intent (in), optional :: forcedPassword
         integer :: i, j, lenP, lenS
-        character (len=34) :: choice = 'A2B3D45F6G7H8J9bcdfghjkmnprstvwxyz'
 
         if (present(forcedPassword)) then
             Password = forcedPassword
@@ -578,7 +715,7 @@ contains
             do i=1,lenP
                 call random_number(harvest)
                 j = 1 + int(harvest*33)
-                Password(i:i) = choice(j:j)
+                Password(i:i) = allowedPasswordChars(j:j)
             end do
         end if
         ! add salt
@@ -587,7 +724,7 @@ contains
         do i=1,lenS ! generate random salt
             call random_number(harvest)
             j = 1 + int(harvest*33)
-            Password(i:i) = choice(j:j)
+            Password(i:i) = allowedPasswordChars(j:j)
         end do
         ! add length to beginning+1
         Password(3:4) = itoa2bz(lenP)
@@ -605,29 +742,45 @@ contains
     subroutine blank_to_underscore (inString, outString)
         character(len=*), intent(in) :: inString
         character(len=*), intent(out) :: outString
+        outString = fn_blank_to_underscore(inString)
+    end subroutine blank_to_underscore
+
+
+    function fn_blank_to_underscore (inString)
+        character(len=*), intent(in) :: inString
+        character(len=MAX_LEN_FILE_PATH) :: fn_blank_to_underscore, outString
+
         integer :: i, l
         l = len_trim(inString)
         outString = inString
         do i=1,l
             if (outString(i:i)==SPACE) outString(i:i) = '_'
         end do
+        fn_blank_to_underscore = outString
 
-    end subroutine blank_to_underscore
-
+    end function fn_blank_to_underscore
 
 
     subroutine underscore_to_blank (inString, outString)
         character(len=*), intent(in) :: inString
         character(len=*), intent(out) :: outString
+        outString = fn_underscore_to_blank(inString)
+    end subroutine underscore_to_blank
+
+
+    function fn_underscore_to_blank (inString)
+        character(len=*), intent(in) :: inString
+        character(len=MAX_LEN_FILE_PATH) :: fn_underscore_to_blank, outString
+
         integer :: i, l
         l = len_trim(inString)
         outString = inString
         do i=1,l
             if (outString(i:i)=='_') outString(i:i) = SPACE
         end do
+        fn_underscore_to_blank = outString
 
-    end subroutine underscore_to_blank
-
+    end function fn_underscore_to_blank
 
 
     subroutine upper_case(string)
@@ -650,16 +803,56 @@ contains
     subroutine lower_case(string)
         ! change string to lower case
         character(len=*), intent (inout) :: string
-        integer :: i,length
+        integer :: i,length, code
         length=len_trim(string)
         do i=1,length
             if (string(i:i) .lt. 'A') cycle
-            if (string(i:i) .gt. 'Z') cycle
-            string(i:i) = char(ichar(string(i:i))+32)
+            code = ichar(string(i:i))
+            if (string(i:i) .le. 'Z' .or. code .gt. 191) then
+                string(i:i) = char(ichar(string(i:i))+32)
+            end if
         end do
 
     end subroutine lower_case
 
+
+
+    subroutine proper_case(string)
+        ! change string to proper case
+        character(len=*), intent (inout) :: string
+        integer :: i,length, code
+        length=len_trim(string)
+        do i=2,length
+            if (string(i:i) .lt. 'A') cycle
+            if (string(i-1:i-1) .eq. SPACE) cycle
+            if (string(i-1:i-1) .eq. LPAR) cycle
+            code = ichar(string(i:i))
+            if (string(i:i) .le. 'Z' .or. code .gt. 191) then
+                string(i:i) = char(ichar(string(i:i))+32)
+            end if
+        end do
+
+    end subroutine proper_case
+
+
+    function isAlphaNumeric(inString)
+        character(len=*), intent (in) :: inString
+        logical :: isAlphaNumeric, isOK
+        character :: ch
+        integer :: i
+
+        isOK = .true.
+        do i=1,len_trim(inString)
+            ch = inString(i:i)
+            if (ch .ge. 'A' .and. ch .le. 'Z') cycle
+            if (ch .ge. '0' .and. ch .le. '9') cycle
+            if (ch .eq. DASH) cycle
+            isOK = .false.
+            exit
+        end do
+        isAlphaNumeric = isOK
+
+    end function isAlphaNumeric
 
 
     function atoi(inString)
@@ -740,6 +933,26 @@ contains
     end function atof
 
 
+
+    function iptoint8(inString)
+        ! convert IP address to integer
+        integer*8 :: iptoint8, num
+        character (len=16), intent (in) :: inString
+        integer :: i, j, ll
+        character (len=16) :: string
+        num = 0
+        string = adjustl(inString)
+        ll = len_trim(string)
+        do i=1,ll
+            j = index(DECDIGITS, string(i:i))
+            if (j > 0) then
+                num = 10*num + j - 1
+            end if
+        end do
+        iptoint8 = num
+
+    end function iptoint8
+
   
     function itoa(num)
         ! convert num to string
@@ -762,16 +975,19 @@ contains
 
 
 
-    function ftoa(num, dadp)
+    function ftoa(tNum, dadp)
         ! convert positive num to string
 
         character (len=10) :: ftoa
-        real, intent (in) :: num
-        integer, intent (in), optional :: dadp ! digits after the decimal point
+        real, intent (in) :: tNum
+        integer, intent (in) :: dadp ! digits after the decimal point, optional
 
         character (len=10) :: str10
-        real :: frac
+        real :: frac, num
         integer :: i, j, k, l
+
+        ! round to dadp
+        num = tNum + sign(0.5/10**dadp,tNum)
 
         k = int(abs(num))
         frac = abs(num) - k
@@ -799,7 +1015,7 @@ contains
         character (len=10) :: itoabz
         integer, intent (in) :: num
         if (num == 0) then
-            itoabz = ' .'
+            itoabz = nbsp ! ' .'
         else
             itoabz = itoa(num)
         end if
@@ -859,6 +1075,26 @@ contains
     end function itoa3bz
 
 
+    function filename_from(token)
+        character (len=*), intent(in) :: token
+        character (len=MAX_LEN_FILE_PATH) :: filename_from, tmpStr
+        integer :: i
+        character :: ch
+
+        tmpStr = fn_blank_to_underscore(token)
+        call upper_case(tmpStr)
+        do i=1,len_trim(tmpStr)
+            ch = tmpStr(i:i)
+            if (ch .ge. 'A' .and. ch .le. 'Z') cycle
+            if (ch .ge. '0' .and. ch .le. '9') cycle
+            if (ch .eq. '_') cycle
+            tmpStr(i:i) = 'x'
+        end do
+        filename_from = tmpStr(1:i-1)
+
+    end function filename_from
+
+
 !===========================================================
 ! search delimiter in a string
 !===========================================================
@@ -900,7 +1136,7 @@ contains
         if (.not. pathExists) then
             call system (mkdirCmd//trim(dirName), ierr)
         else if (present(clean)) then
-            call system(delCmd//trim(dirName)//'*', ierr)
+            call system(delCmd//trim(dirName)//DIRSEP//'*', ierr)
         end if
 
     end subroutine make_directory
@@ -919,11 +1155,12 @@ contains
         call log_comment('move_to_backup('//trim(path)//')')
 
         call rename (fname, path, iStat)
-        if (iStat/=0) call log_comment('Status='//trim(itoa(iStat))//' in moving to '//trim(path) )
+        call terminate(iStat, 'Error in moving '//trim(fname)//' to '//path )
+
         ! compress backup
 #if defined GLNX
-        call system('gzip -r '//trim(path), iStat)
-        if (iStat/=0) call log_comment(itoa(iStat)//' returned by: gzip -r '//trim(path))
+        call system('gzip '//trim(path), iStat)
+        call terminate(iStat, 'Error in compressing '//path )
 !#else
 !        call system('"C:\Program Files\7-Zip\7z.exe" a -t7z '//trim(path)//'.7z '//trim(path), iStat)
 !        if (iStat/=0) call log_comment(itoa(iStat)//' returned by: '// &
@@ -934,22 +1171,22 @@ contains
 
 
 
-    subroutine copy_to_unit(logFile, device)
+    subroutine copy_to_unit(fileName, device)
         integer, intent(in) :: device
-        character (len=MAX_LEN_FILE_PATH), intent(in) :: logFile
+        character (len=*), intent(in) :: fileName
         integer :: iTmp
 
-        call html_comment('copy_to_unit('//trim(logFile)//')')
-
-        write(device,AFORMAT) '<pre>'
-        open(unit=unitETC, file=logFile, status='old')
+        call html_comment('copy_to_unit('//trim(fileName)//')')
+        wrkCipher = '(opening file)'
+        open(unit=unitRAW, file=fileName, status='old', iostat=iTmp, err=999)
         do
-            read(unitETC, AFORMAT, iostat=iTmp) wrkCipher
-            if (iTmp<0) exit
-            write(device,AFORMAT) trim(wrkCipher)
+            read(unitRAW, AFORMAT, iostat=iTmp, end=998, err=998) wrkCipher
+            write(device,AFORMAT, iostat=iTmp, err=999) trim(wrkCipher)
         end do
-        close(unitETC)
-        write(device,AFORMAT) '</pre>'//horizontal
+        998 iTmp = 0
+        close(unitRAW)
+        999 call terminate(iTmp, 'copy_to_unit( device='//trim(itoa(device))// &
+            ', code='//trim(itoa(iTmp))//', file='//trim(fileName)//', line='//trim(wrkCipher)//' )' )
 
     end subroutine copy_to_unit
 
@@ -963,18 +1200,20 @@ contains
         character (len=*), intent (in) :: fileName, rootName
         integer, intent (in out) :: errNo
         character(len=MAX_LEN_XML_LINE) :: xmlLine
-        integer :: eof
+        integer :: ierr
 
         ! open & look for rootName in file
-        open(unit=device, file=fileName, status='old', iostat=errNo)
-        if (errNo/=0) return
+        open(unit=device, file=fileName, status='old', iostat=ierr, err=999)
+        ierr = 1 ! assume not found
         do
-            read(device, AFORMAT, iostat=eof) xmlLine
-            if (eof<0) exit
+            read(device, AFORMAT, end=998, err=998) xmlLine
             if (index(xmlLine, '<'//rootName//'>')==0) cycle
-            errNo = 0
+            ierr = 0 ! found
             exit
         end do
+        998 if (ierr/=0) close(device)
+        999 errNo = ierr
+
 
     end subroutine xml_read_file
 
@@ -985,7 +1224,7 @@ contains
         character (len=*), intent (in) :: tag
         character (len=*), intent (in), optional :: value
         character(len=MAX_LEN_XML_LINE) :: xmlLine
-        integer :: idx ! position of ' & ' in value
+        integer :: idx, stat ! position of ' & ' in value
 
         if (present(value)) then ! convert ' & ' to ' and '
             xmlLine = value
@@ -994,11 +1233,14 @@ contains
                 xmlLine = xmlLine(:idx)//'and'//xmlLine(idx+2:)
                 idx = index(xmlLine, ' & ')
             end do
-            write(device, AFORMAT) indentation(:indent)// &
+            write(device, AFORMAT, iostat=stat, err=999) indentation(:indent)// &
                 '<'//trim(tag)//'>'//trim(xmlLine)//'</'//trim(tag)//'>'
         else
-            write(device, AFORMAT) indentation(:indent)//'<'//trim(tag)//'>'
+            write(device, AFORMAT, iostat=stat, err=999) indentation(:indent)//'<'//trim(tag)//'>'
         end if
+
+        999 call terminate(stat, 'xml_write_character( device='//trim(itoa(device))// &
+            ', indent='//trim(itoa(indent))//', tag='//trim(tag)//', value='//trim(value)//' )' )
 
     end subroutine xml_write_character
 
@@ -1040,6 +1282,7 @@ contains
         line = adjustl(line)
         tag = SPACE
         value = SPACE
+        errNo = 0
 
         ! get positions of < and >
         lenLine = len_trim(line)
@@ -1102,7 +1345,7 @@ contains
         end if
 
         ! the function, user name and target term
-        wrkCipher = 'F='//trim(itoa(fn))//'&N='//trim(USERNAME)//'&A9='//itoa(kStart)
+        wrkCipher = 'T='//currentTime//'&F='//trim(itoa(fn))//'&N='//trim(USERNAME)//'&A9='//itoa(kStart)
 
         ! the arguments to the function
         if (present(A1)) then
@@ -1128,14 +1371,13 @@ contains
 
         ! calculate checksum
         checkSum = calculate_check_sum(wrkCipher)
-        ! encrypt
-!#if defined no_password_check
-!#else
+
+        ! obfuscate
         call random_number(harvest)
         kStart = MAX_LEN_QUERY_STRING/2 + int(harvest*MAX_LEN_QUERY_STRING/2)
         call encrypt(queryEncryptionKey(:kStart), wrkCipher)
         wrkCipher = trim(wrkCipher)//itoa(kStart)
-!#endif
+
         ! the target
         if (present(newtab)) then
             wrkCipher = '<a target='//newtab//' href="'//trim(CGI_PATH)//'?r='//trim(itoa(len_trim(wrkCipher)))// &
@@ -1162,11 +1404,11 @@ contains
     end function make_href
 
 
-    subroutine make_form_start(device, fn, A1, A2, A3, A4, A5, A9)
+    subroutine make_form_start(device, fn, A1, A2, A3, A4, A5, A9, enctype)
 
         integer, intent (in) :: device, fn
         integer, intent (in), optional :: A9
-        character(len=*), intent (in), optional :: A1, A2, A3, A4, A5
+        character(len=*), intent (in), optional :: A1, A2, A3, A4, A5, enctype
 
         character(len=MAX_CGI_WRK_LEN) :: cgi_wrk
         integer :: kStart, checkSum
@@ -1179,7 +1421,7 @@ contains
         end if
 
         ! the function, user name and target term
-        wrkCipher = 'F='//trim(itoa(fn))//'&N='//trim(USERNAME)//'&A9='//itoa(kStart)
+        wrkCipher = 'T='//currentTime//'&F='//trim(itoa(fn))//'&N='//trim(USERNAME)//'&A9='//itoa(kStart)
 
         ! the arguments to the function
         if (present(A1)) then
@@ -1205,21 +1447,27 @@ contains
 
         ! calculate checksum
         checkSum = calculate_check_sum(wrkCipher)
-        ! encrypt
-!#if defined no_password_check
-!#else
+
+        ! obfuscate
         call random_number(harvest)
         kStart = MAX_LEN_QUERY_STRING/2 + int(harvest*MAX_LEN_QUERY_STRING/2)
         call encrypt(queryEncryptionKey(:kStart), wrkCipher)
         wrkCipher = trim(wrkCipher)//itoa(kStart)
-!#endif
+
+        if (present(enctype)) then
+            cgi_wrk = enctype
+        else
+            cgi_wrk = SPACE
+        end if
+
         write(device,AFORMAT) &
-          '<form name="input" method="post" action="'//trim(CGI_PATH)//'">', &
+          '<form name="input" method="post" action="'//trim(CGI_PATH)//'"'//trim(cgi_wrk)//'>', &
           '<input type="hidden" name="s" value="'//trim(itoa(checkSum))//'">', &
           '<input type="hidden" name="q" value="'//trim(wrkCipher)//'">', &
           '<input type="hidden" name="r" value="'//trim(itoa(len_trim(wrkCipher)))//'">'
 
     end subroutine make_form_start
+
 
 
     subroutine cgi_url_encode(str_in, str_out)
@@ -1308,7 +1556,9 @@ contains
 
         end do
 
-        !call html_comment('cgi_url_decode() = '//str_out)
+#if defined DBcgi
+        call html_comment('cgi_url_decode() = '//str_out)
+#endif
 
     end subroutine cgi_url_decode
 
@@ -1348,9 +1598,9 @@ contains
         if (j_end==0) j_end = len_trim(cgi_wrk) + 1 ! assume & at end of string
         string(i_start:) = cgi_wrk(j_end+1:) ! update string
         rvalue = cgi_wrk(:j_end-1)
-
-        !call html_comment('cgi_get_name_value() : '//lname//'='//trim(rvalue)//', ierr='//itoa(ierr))
-
+#if defined DBcgi
+        call html_comment('cgi_get_name_value() : '//lname//'='//trim(rvalue)//', ierr='//itoa(ierr))
+#endif
     end subroutine cgi_get_name_value
 
 
@@ -1372,8 +1622,9 @@ contains
             call cgi_url_decode(tmpIN, tmpOUT) ! decode
             rvalue = trim(tmpOUT)
         end if
+#if defined DBcgi
         call html_comment('cgi_get_named_string() : '//lname//'='//trim(rvalue)//', ierr='//itoa(ierr))
-
+#endif
     end subroutine cgi_get_named_string
 
 
@@ -1392,8 +1643,9 @@ contains
         else
             rvalue = atoi(cgi_int) ! convert
         end if
+#if defined DBcgi
         call html_comment('cgi_get_named_integer() : '//lname//'='//itoa(rvalue)//', ierr='//itoa(ierr))
-
+#endif
     end subroutine cgi_get_named_integer
 
 
@@ -1467,10 +1719,283 @@ contains
 
         tmp = cgi_wrk(:j_end-1)
         call cgi_url_decode(tmp, rvalue) ! decode
-
+#if defined DBcgi
         call html_comment('cgi_get_wild_name_value() : '//wild//lname//'= '//rvalue)
-
+#endif
     end subroutine cgi_get_wild_name_value
+
+
+    subroutine FCGI_getquery( unitNo )
+        ! Retrieve FastCGI environment variables DOCUMENT_URI and QUERY_STRING
+        ! Invoked after FCGI_Accept() has completed
+        ! Write debugging information to file unit number 'unitNo', which must already be open
+        ! Debugging information should be <!-- HTML remark -->
+
+        integer, intent(in)               :: unitNo
+
+        integer                           :: i, j, lenDivider
+        integer                           :: iLen, nRet, jLen!, kLen
+        character(len=7)                  :: cLen
+
+        character(len=MAX_LEN_FILE_PATH)  :: tName, divider !, httpVariable
+        logical :: boundaryReached !, isText
+
+        ! write to the beginning of file unitNo
+        rewind (unitNo)
+
+        call html_comment('FCGI_getquery()')
+
+        call get_environment_variable('HTTP_USER_AGENT', value=HTTP_USER_AGENT, length=iLen, status=i)
+        if (iLen==0) HTTP_USER_AGENT = 'test'
+        call html_comment('HTTP_USER_AGENT='//HTTP_USER_AGENT)
+
+!        call get_environment_variable('REMOTE_PORT', value=httpVariable, length=iLen, status=i)
+!        call html_comment('REMOTE_PORT='//trim(httpVariable)//SPACE//itoa(iLen)//itoa(i))
+!
+!        call get_environment_variable('REMOTE_IDENT', value=httpVariable, length=iLen, status=i)
+!        call html_comment('REMOTE_IDENT='//trim(httpVariable)//SPACE//itoa(iLen)//itoa(i))
+!
+!        call get_environment_variable('REMOTE_HOST', value=httpVariable, length=iLen, status=i)
+!        call html_comment('REMOTE_HOST='//trim(httpVariable)//SPACE//itoa(iLen)//itoa(i))
+!
+!        call get_environment_variable('REMOTE_USER', value=httpVariable, length=iLen, status=i)
+!        call html_comment('REMOTE_USER='//trim(httpVariable)//SPACE//itoa(iLen)//itoa(i))
+
+        ! the remote IP
+        call get_environment_variable('REMOTE_ADDR', value=REMOTE_ADDR, length=iLen, status=i)
+        if (iLen==0) REMOTE_ADDR = 'test'
+        call html_comment('REMOTE_ADDR='//REMOTE_ADDR//SPACE//itoa(iLen) )
+
+        ! the requested script ('/' if none)
+        call get_environment_variable('DOCUMENT_URI', value=DOCUMENT_URI)
+        iLen = len_trim(DOCUMENT_URI)
+        if ( iLen == 0 ) then
+            ! default is /
+            DOCUMENT_URI = '/'
+        endif
+#if defined DBcgi
+        call html_comment('DOCUMENT_URI='//DOCUMENT_URI(:iLen))
+#endif
+
+        ! for other environment variables, see <nginx directory>/conf/fastcgi_params
+        !call html_comment('KEY='//queryEncryptionKey)
+
+        ! QUERY_STRING (request method was GET) ?
+        call get_environment_variable( "QUERY_STRING", value=QUERY_STRING, length=iLen )
+        if ( iLen > 0 ) then
+            if (iLen>MAX_LEN_QUERY_STRING) QUERY_STRING = '(QUERY_STRING too long.)'
+            return
+        end if
+
+        ! request method was POST; get CONTENT_LENGTH
+        call get_environment_variable( "CONTENT_LENGTH", value=cLen, length=iLen )
+        if ( iLen==0 ) then ! nothing sent
+            QUERY_STRING = '(QUERY_STRING is empty.)'
+            return
+        end if
+
+        ! assume request was POST
+        call html_comment('CONTENT_LENGTH='//trim(cLen))
+        read( cLen, * ) iLen
+        QUERY_STRING = SPACE
+
+        ! get characters up to first CR (or last character) into work area
+        divider = SPACE
+        lenDivider = 0
+        wrkCipher = SPACE ! initialize work area
+        nRet = 0 ! characters retrieved
+        boundaryReached = .false.
+        call FCGI_getline (nRet, iLen, wrkCipher, jLen, MAX_LEN_QUERY_STRING)
+#if defined DBcgi
+        call html_comment('INITIAL DATA='//trim(wrkCipher))
+#endif
+
+        ! multipart/form-data ?
+        if (wrkCipher(1:5)=='-----') then
+            divider = wrkCipher
+            lenDivider = len_trim(divider)-2
+            boundaryReached = .true.
+        end if
+
+        if (.not. boundaryReached) then ! not multipart
+            QUERY_STRING = wrkCipher(:jLen)
+            return
+        end if
+
+        ! build QUERY_STRING and upload file from multipart/form-data
+        do while (nRet<iLen)
+
+            ! get characters up to next CR
+            call FCGI_getline (nRet, iLen, wrkCipher, jLen, MAX_LEN_QUERY_STRING)
+            boundaryReached = divider(:lenDivider)==wrkCipher(:lenDivider)
+            if (boundaryReached) then ! boundary reached
+#if defined DBcgi
+                call html_comment('#1 PARTIAL_QUERY_STRING='//trim(QUERY_STRING))
+#endif
+                cycle
+            end if
+
+           ! check for filename="..."
+            j = index(wrkCipher(:jLen), '; filename="')
+            if (j>0) then ! get filename= and name=
+                tName = wrkCipher(j+12:jLen-3)
+
+                wrkCipher(j:) = SPACE ! erase
+                jLen = j-1
+                j = index(wrkCipher(:jLen), '; name="')
+                QUERY_STRING = trim(QUERY_STRING)//'&'//wrkCipher(j+8:jLen-1)//'='//tName
+#if defined DBcgi
+                call html_comment(itoa(nRet)//itoa(jLen)//wrkCipher(j+8:jLen-1)//'='//tName)
+#endif
+                if (len_trim(tName)==0) exit ! no file selected
+
+                ! get content-type
+                call FCGI_getline (nRet, iLen, wrkCipher, jLen, MAX_LEN_QUERY_STRING)
+                do while (wrkCipher(jLen:jLen)<'a' .or. wrkCipher(jLen:jLen)>'z')
+                    jLen = jLen-1
+                end do
+                QUERY_STRING = trim(QUERY_STRING)//'&content='//wrkCipher(15:jLen)
+#if defined DBcgi
+                call html_comment(itoa(nRet)//itoa(jLen)//'content='//wrkCipher(15:jLen))
+#endif
+                !isText = index(wrkCipher(:jLen), 'text')>0
+
+                ! get empty line
+                call FCGI_getline (nRet, iLen, wrkCipher, jLen, MAX_LEN_QUERY_STRING)
+
+                ! write file contents
+                open(unit=unitETC, file=trim(dirUPLOADS)//tName, status='unknown')
+                rewind(unitETC)
+                boundaryReached = .false.
+                do while (.not. boundaryReached)
+
+                    ! fill buffer from POSTed data
+                    call FCGI_getline (nRet, iLen, wrkCipher, jLen, MAX_LEN_QUERY_STRING)
+                    boundaryReached = divider(:lenDivider)==wrkCipher(:lenDivider)
+
+                    if (boundaryReached) exit
+
+                    if (jLen/=2) then
+                        write(unitETC, AFORMAT, advance='no') wrkCipher(:jLen)
+#if defined DBcgi
+                        call html_comment('PARTIAL_CONTENT (long)='//wrkCipher(:jLen))
+#endif
+                    elseif (wrkCipher(:jLen)/=SPACE) then
+                        write(unitETC, AFORMAT, advance='no') wrkCipher(:jLen)
+#if defined DBcgi
+                        call html_comment('PARTIAL_CONTENT (short)='//wrkCipher(:jLen))
+#endif
+                    end if
+
+                end do
+                close(unitETC)
+
+            else ! Content-Disposition: form-data; name=value
+
+                ! get name=
+                j = index(wrkCipher(:jLen), '; name="')
+                tName = wrkCipher(j+8:jLen-3)
+
+                ! get empty line
+                call FCGI_getline (nRet, iLen, wrkCipher, jLen, MAX_LEN_QUERY_STRING)
+
+                ! get value
+                call FCGI_getline (nRet, iLen, wrkCipher, jLen, MAX_LEN_QUERY_STRING)
+                QUERY_STRING = trim(QUERY_STRING)//'&'//trim(tName)//'='//wrkCipher(:jLen-2)
+#if defined DBcgi
+                call html_comment('#2 PARTIAL_QUERY_STRING='//trim(QUERY_STRING))
+#endif
+            end if
+
+        end do
+        call html_comment('QUERY_STRING='//trim(QUERY_STRING))
+
+    end subroutine FCGI_getquery
+
+
+    subroutine FCGI_getline (current, maxChars, str, strLen, maxStrLen)
+
+        integer, intent (in out) :: current
+        integer, intent (in) :: maxChars, maxStrLen
+        character(len=*), intent (out) :: str
+        integer, intent (out) :: strLen
+
+        character :: ch
+
+        strLen = 0
+        do while (current<maxChars)
+            ch = FCGI_getchar()
+            current = current + 1
+            strLen = strLen+1
+            str(strLen:strLen) = ch
+            if (ch==LF) exit
+            if (strLen==maxStrLen) exit
+        end do
+#if defined DBcgi
+!        call html_comment('FCGI_getline(): '//trim(itoa(strlen))//' of '// &
+!            trim(itoa(maxStrLen))//', "'//trim(str)//'"')
+        call html_comment('FCGI_getline(): '//trim(itoa(current))//'/'//trim(itoa(strlen))//' - '//str(:strLen) )
+#endif
+
+    end subroutine FCGI_getline
+
+
+    subroutine FCGI_putfile ( unitNo )
+        ! Copy file 'unitNo' line by line to the webserver via FCGI_puts()
+        ! File must already exist, expected to contain the response to some query
+
+        integer, intent(in) :: unitNo
+        integer :: iStat
+
+        call html_comment('FCGI_putfile()')
+
+        ! flush any pending writes
+        flush(unitNo)
+
+        ! copy line by line to webserver
+        rewind(unitNo)
+        do while (.true.)
+            read(unitNo, AFORMAT, iostat=iStat) cipher
+            if (iStat < 0) exit ! no more lines
+            if (cipher(1:5)=='DBG::') cycle
+            iStat = FCGI_puts (trim(cipher)//NUL) ! FCGI_puts expects NULL terminated strings
+        end do
+
+    end subroutine FCGI_putfile
+
+
+    subroutine html_copyright(device)
+        integer, intent(in) :: device
+
+        write(device,AFORMAT) &
+            b_small//b_italic//PROGNAME//' (version '//VERSION//') '//nbsp//COPYRIGHT//linebreak, &
+            'This program comes with ABSOLUTELY NO WARRANTY; for details see the GNU GENERAL PUBLIC LICENSE Version 3 ', &
+            '(<a target="0" href="http://www.gnu.org/licenses/gpl-3.0.html">GPLv3</a>).'//linebreak, &
+            'This program is free software, and you are welcome to redistribute it under certain conditions; ', &
+            ' see the GPLv3 for details.'//linebreak, &
+            ' Support for program development was provided by: '// &
+            ' University of the Philippines Los Banos (1997-2001); '// &
+            ' BalikScientist Program of the Department of Science and Technology (2010); '// &
+            ' Isabela State University (2011); and '// &
+            ' Cagayan State University (2012, 2013). ', &
+            'The source code is available at <a target="0" href="'//WEB//'">'//WEB//'</a>'//linebreak, &
+            CONTACT//e_italic//e_small//horizontal
+
+    end subroutine html_copyright
+
+
+    subroutine html_home_page(device, mesg)
+        integer, intent(in) :: device
+        character(len=*), intent(in) :: mesg
+
+        call html_comment('html_home_page('//trim(mesg)//')')
+        write(device,AFORMAT) &
+            '<html><head><title>'//trim(UniversityCode)//SPACE//PROGNAME//'</title></head><body>', &
+            '<h1>'//trim(UniversityCode)//SPACE//PROGNAME//'</h1>', &
+            '<h3>'//red//trim(mesg)//e_color//'</h3>', &
+            b_small//b_italic//'<a href="'//trim(SERVER_PROTOCOL)//trim(SERVER_NAME)//'">Home</a>'//e_italic//e_small
+
+    end subroutine html_home_page
 
 
 end module UTILITIES

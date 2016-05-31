@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012-2014 Ricolindo L. Carino
+!    Copyright (C) 2012-2015 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -34,45 +34,253 @@ module XMLIO
 
     implicit none
 
+    character (len=MAX_LEN_FILE_PATH) :: &
+        dirCOLLEGES, &
+        dirDEPARTMENTS, &
+        dirSUBJECTS, &
+        dirCURRICULA, &
+        dirROOMS, &
+        dirTEACHERS, &
+        dirCLASSES(3), &
+        dirBLOCKS(3),  &
+        dirSTUDENTS, &
+        indexCLASSES(3), &
+        indexBLOCKS(3)
+
     ! private tokens
-    character (len=MAX_LEN_FILE_PATH), private :: fileName, dirPath
+    character (len=MAX_LEN_FILE_PATH), private :: fileName
     character (len=MAX_LEN_XML_LINE), private :: line, value
     character (len=MAX_LEN_XML_TAG), private :: tag
-    integer, private :: eof, ndels, pos(30)
+    integer, private :: ndels, pos(30)
 
 contains
 
 #include "XMLIO-OTHER.F90"
 
+    subroutine read_configuration(pathToFile, errNo)
+
+        character(len=*), intent(in) :: pathToFile
+        integer, intent (out) :: errNo
+        integer :: stat
+
+        ! defaults
+#if defined GLNX
+        call get_environment_variable("HOME", DOCUMENT_ROOT)
+        HEEDS_DIRECTORY = trim(DOCUMENT_ROOT)//DIRSEP//UniversityCode  ! /home/user/UNIVERSITY
+        DOCUMENT_ROOT = trim(DOCUMENT_ROOT)//DIRSEP//'web'  ! /home/user/web
+#else
+        call get_environment_variable("HOMEDRIVE", DOCUMENT_ROOT)
+        HEEDS_DIRECTORY = trim(DOCUMENT_ROOT)//DIRSEP//PROGNAME ! C:\HEEDS\UNIVERSITY
+        DOCUMENT_ROOT = trim(DOCUMENT_ROOT)//DIRSEP//PROGNAME//DIRSEP//'web' ! C:\HEEDS\web
+#endif
+        SERVER_PROTOCOL = 'http://'
+        SERVER_NAME = 'localhost'
+
+        ! open file, return on any error
+        call xml_read_file(unitXML, 'CONFIGURATION', pathToFile, errNo)
+        if (errNo/=0) return
+
+        ! examine the file line by line
+        do
+            read(unitXML, AFORMAT, iostat=stat) line
+            if (stat<0) exit
+
+            ! get tag and value if any; exit on any error
+            call xml_parse_line(line, tag, value, stat)
+            if (stat/=0) exit
+
+            select case (trim(tag))
+
+                case ('/CONFIGURATION')
+                    exit
+
+                case ('DOCUMENT_ROOT')
+                     DOCUMENT_ROOT = adjustl(value)
+
+                case ('HEEDS_DIRECTORY')
+                     HEEDS_DIRECTORY = adjustl(value)
+
+                case ('SERVER_PROTOCOL')
+                     SERVER_PROTOCOL = adjustl(value)
+
+                case ('SERVER_NAME')
+                     SERVER_NAME = adjustl(value)
+
+                case default ! do nothing
+
+            end select
+
+        end do
+
+        close(unitXML)
+        !call log_comment('From '//pathTofile, 'HEEDS_DIRECTORY='//trim(HEEDS_DIRECTORY), 'DOCUMENT_ROOT='//trim(DOCUMENT_ROOT), &
+        !    'SERVER_PROTOCOL='//trim(SERVER_PROTOCOL), 'SERVER_NAME='//trim(SERVER_NAME) )
+
+    end subroutine read_configuration
+
+
+!===========================================================
+! routines for country-level data
+!===========================================================
+
+    subroutine read_PSGC()
+
+        integer :: indexLoc, idx, stat
+        character(len=MAX_LEN_PSGC) :: tCode
+
+        ! initialize
+        NumPSGC = 0
+        PSGC = TYPE_PSGC(SPACE,SPACE)
+
+        ! open file, return on any error
+        call xml_read_file(unitXML, ROOT_PSGC, 'PSGC.XML', stat)
+        if (stat/=0) return
+
+        do
+
+            read(unitXML, AFORMAT, iostat=stat) line
+            if (stat<0) exit
+            ! get tag and value if any; exit on any error
+            call xml_parse_line(line, tag, value, stat)
+            if (stat/=0) exit
+            if (trim(tag)/='PSGC') cycle
+            !write(*,*) trim(tag)//'='//trim(value)
+            tCode = value(1:MAX_LEN_PSGC)
+            NumPSGC = NumPSGC + 1
+            indexLoc = NumPSGC
+            do while (indexLoc>1 .and. PSGC(indexLoc-1)%Code>tCode)
+                PSGC(indexLoc) = PSGC(indexLoc-1)
+                indexLoc = indexLoc - 1
+            end do
+            PSGC(indexLoc)%Code = tCode
+            PSGC(indexLoc)%Name = value(MAX_LEN_PSGC+2:)
+
+        end do
+
+        close(unitXML)
+
+        ! collect indices to Regions, Provinces/"Not a Province", Municipality\ies
+        Region = 0
+        Province = 0
+        Municipality = 0
+        NumRegion = 0
+        NumProvince = 0
+        NumMunicipality = 0
+        do indexLoc=1,NumPSGC
+            if ( isPSGC_kind(PSGC(indexLoc)%Code, kindRegion) ) then
+                NumRegion = NumRegion+1
+                Region(NumRegion) = indexLoc
+                !write(*,*) NumRegion, PSGC(indexLoc)%Code//' - '//PSGC(indexLoc)%Name
+            elseif ( isPSGC_kind(PSGC(indexLoc)%Code, kindProvince) ) then
+                NumProvince = NumProvince+1
+                Province(NumProvince) = indexLoc
+                !write(*,*) NumProvince, PSGC(indexLoc)%Code//' -   '//PSGC(indexLoc)%Name
+            elseif ( isPSGC_kind(PSGC(indexLoc)%Code, kindMunicipality) ) then
+                NumMunicipality = NumMunicipality+1
+                Municipality(NumMunicipality) = indexLoc
+                !write(*,*) NumMunicipality, PSGC(indexLoc)%Code//' -     '//PSGC(indexLoc)%Name
+            end if
+        end do
+        Region(NumRegion+1) = NumPSGC+1
+        Province(NumProvince+1) = NumPSGC+1
+        Municipality(NumMunicipality+1) = NumPSGC+1
+
+        ! convert Town, Province names to proper case
+        do indexLoc=1,NumProvince
+            idx = Province(indexLoc)
+            call proper_case(PSGC(idx)%Name)
+            if (PSGC(idx)%Name(1:3)=='Ncr') PSGC(idx)%Name(1:3) = 'NCR'
+        end do
+        do indexLoc=1,NumMunicipality
+            idx = Municipality(indexLoc)
+            call proper_case(PSGC(idx)%Name)
+            if (PSGC(idx)%Name(1:3)=='Ncr') PSGC(idx)%Name(1:3) = 'NCR'
+        end do
+
+    end subroutine read_PSGC
+
+
+    subroutine read_TONGUES()
+
+        integer :: indexLoc, j, k, stat
+        character(len=MAX_LEN_CODE_TONGUE) :: tCode
+
+        ! initialize
+        NumTongue = 0
+        Tongue = TYPE_TONGUE(0,SPACE,SPACE)
+
+        ! open file, return on any error
+        call xml_read_file(unitXML, ROOT_TONGUES, 'TONGUES.XML', indexLoc)
+        if (indexLoc/=0) return
+
+        do
+
+            read(unitXML, AFORMAT, iostat=stat) line
+            if (stat<0) exit
+            ! get tag and value if any; exit on any error
+            call xml_parse_line(line, tag, value, stat)
+            if (stat/=0) exit
+            if (trim(tag)/='TONGUE') cycle
+            !write(*,*) trim(tag)//'='//trim(value)
+            tCode = value(1:MAX_LEN_CODE_TONGUE)
+            NumTongue = NumTongue + 1
+            indexLoc = NumTongue
+            do while (indexLoc>1 .and. Tongue(indexLoc-1)%Code>tCode)
+                Tongue(indexLoc) = Tongue(indexLoc-1)
+                indexLoc = indexLoc - 1
+            end do
+            Tongue(indexLoc)%Code = tCode
+            Tongue(indexLoc)%Name = value(MAX_LEN_CODE_TONGUE+2:)
+
+        end do
+
+        close(unitXML)
+        ! sort
+        do indexLoc=1,NumTongue
+            Tongue(indexLoc)%Rank = indexLoc
+        end do
+        do indexLoc=1,NumTongue-1
+            do j=indexLoc+1,NumTongue
+                if (Tongue(Tongue(indexLoc)%Rank)%Name>Tongue(Tongue(j)%Rank)%Name) then
+                    k = Tongue(indexLoc)%Rank
+                    Tongue(indexLoc)%Rank = Tongue(j)%Rank
+                    Tongue(j)%Rank = k
+                end if
+            end do
+        end do
+
+    end subroutine read_TONGUES
+
+
 !===========================================================
 ! routines for University-level data
 !===========================================================
 
-    subroutine xml_read_university(pathToFile, errNo)
+    subroutine university_data_read(pathToFile)
 
         character(len=*), intent(in) :: pathToFile
-        integer, intent (out) :: errNo
 
-        integer :: nFees, loc, nSchols
+        integer :: nFees, loc, nSchols, stat
 
-        ! open file, return on any error
-        call xml_read_file(unitXML, XML_ROOT_UNIVERSITY, pathToFile, errNo)
-        if (errNo/=0) return
+        ! find ROOT_UNIVERSITY
+        call xml_read_file(unitXML, ROOT_UNIVERSITY, pathToFile, stat)
+        call terminate(stat, 'Error: "'//ROOT_UNIVERSITY//'" not found in '//pathToFile)
 
         ! examine the file line by line
         nFees = 0
         nSchols = 0
+        NumAccounts = 0
         do
-            read(unitXML, AFORMAT, iostat=eof) line
-            if (eof<0) exit
+            read(unitXML, AFORMAT, iostat=stat) line
+            if (stat<0) exit
 
             ! get tag and value if any; exit on any error
-            call xml_parse_line(line, tag, value, eof)
-            if (eof/=0) exit
+            call xml_parse_line(line, tag, value, stat)
+            if (stat/=0) exit
 
             select case (trim(tag))
 
-                case ('/'//XML_ROOT_UNIVERSITY)
+                case (FSLASH//ROOT_UNIVERSITY)
                     exit
 
                 case ('NAME')
@@ -105,6 +313,9 @@ contains
                 case ('THEREGISTRAR')
                     TheRegistrar = adjustl(value)
 
+                case ('PASSKEY')
+                     passwordEncryptionKey = adjustl(value)
+
                 case ('FEE')
                      loc = index(value, COMMA)
                      nFees = nFees + 1
@@ -117,6 +328,12 @@ contains
                      ScholarshipCode(nSchols) = value(1:loc-1)
                      ScholarshipDescription(nSchols) = value(loc+1:)
 
+                case ('Account', 'ACCOUNT')
+                     loc = index(value, COMMA)
+                     NumAccounts = NumAccounts + 1
+                     AccountCode(NumAccounts) = value(1:loc-1)
+                     AccountDescription(NumAccounts) = value(loc+1:)
+
                 case default ! do nothing
 
             end select
@@ -124,69 +341,77 @@ contains
         end do
 
         close(unitXML)
-        call log_comment('From '//pathTofile, trim(UniversityName)//' @ '//UniversityAddress)
 
-    end subroutine xml_read_university
-
+    end subroutine university_data_read
 
 
-    subroutine xml_write_university(pathToFile)
+    subroutine university_data_write(device, universityFile)
+        integer, intent (in) :: device
+        character (len=*), intent (in) :: universityFile
 
-        character(len=*), intent(in) :: pathToFile
+        integer :: idx, stat
+        character (len=MAX_LEN_FILE_PATH) :: fileName, filePart
 
-        if (isReadOnly) return
+        stat = 0 ! error status
 
-        call log_comment('xml_write_university('//trim(pathToFile)//')')
+        if (len_trim(universityFile)>0) then
+            fileName = universityFile
+#if defined GLNX
+            filePart = trim(fileName)//dotPART
+#else
+            filePart = fileName
+#endif
+            open(unit=device, file=filePart, iostat=stat, err=999)
+            call xml_write_character(device, 0, XML_DOC)
+        else
+            fileName = ' university-level data to backup file'
+        end if
 
-        open(unit=unitXML, file=pathToFile)
-        write(unitXML,AFORMAT) XML_DOC
-
-        call xml_university(unitXML)
-
-        close(unitXML)
-
-    end subroutine xml_write_university
-
-
-
-    subroutine xml_university(unitXML)
-
-        integer, intent(in) :: unitXML
-
-        integer :: idx
-
-        write(unitXML,AFORMAT) '<'//XML_ROOT_UNIVERSITY//'>', &
-            '    <comment>', &
-            '        Generated by '//PROGNAME//VERSION//' on '//currentDate(1:4)// &
-                        FSLASH//currentDate(5:6)//FSLASH//currentDate(7:8), &
-            '    </comment>'
-        call xml_write_character(unitXML, indent0, 'NAME', UniversityName)
-        call xml_write_character(unitXML, indent0, 'ADDRESS', UniversityAddress)
-        call xml_write_character(unitXML, indent0, 'WEB', UniversityWeb)
-        call xml_write_character(unitXML, indent0, 'PHONE', UniversityPhone)
-        call xml_write_character(unitXML, indent0, 'PRESIDENT', UniversityPresident)
-        call xml_write_character(unitXML, indent0, 'DEANOFINSTRUCTION', DeanOfInstruction)
-        call xml_write_character(unitXML, indent0, 'VPACADEMICAFFAIRS', VPAcademicAffairs)
-        call xml_write_character(unitXML, indent0, 'DEANOFCAMPUS', DeanOfCampus)
-        call xml_write_character(unitXML, indent0, 'THEREGISTRAR', TheRegistrar)
-        call xml_write_integer  (unitXML, indent0, 'BASEYEAR', baseYear)
+        call xml_write_character(unitXML, indent0, ROOT_UNIVERSITY)
+        call xml_write_character(unitXML, indent1, 'NAME', UniversityName)
+        call xml_write_character(unitXML, indent1, 'ADDRESS', UniversityAddress)
+        call xml_write_character(unitXML, indent1, 'WEB', UniversityWeb)
+        call xml_write_character(unitXML, indent1, 'PHONE', UniversityPhone)
+        call xml_write_character(unitXML, indent1, 'PRESIDENT', UniversityPresident)
+        call xml_write_character(unitXML, indent1, 'DEANOFINSTRUCTION', DeanOfInstruction)
+        call xml_write_character(unitXML, indent1, 'VPACADEMICAFFAIRS', VPAcademicAffairs)
+        call xml_write_character(unitXML, indent1, 'DEANOFCAMPUS', DeanOfCampus)
+        call xml_write_character(unitXML, indent1, 'THEREGISTRAR', TheRegistrar)
+        call xml_write_integer  (unitXML, indent1, 'BASEYEAR', baseYear)
+        call xml_write_character(unitXML, indent1, 'PASSKEY', passwordEncryptionKey)
 
         do idx=1,MAX_ALL_FEES
             if (FeeAmount(idx)==0.0) cycle
-            call xml_write_character(unitXML, indent0, 'FEE', trim(ftoa(FeeAmount(idx),1))//COMMA// &
+            call xml_write_character(unitXML, indent1, 'FEE', trim(ftoa(FeeAmount(idx),1))//COMMA// &
                 trim(FeeDescription(idx)))
         end do
 
         do idx=1,MAX_ALL_SCHOLARSHIPS
             if (len_trim(ScholarshipCode(idx))==0) cycle
-            call xml_write_character(unitXML, indent0, 'SCHOLARSHIP', trim(ScholarshipCode(idx))//COMMA// &
+            call xml_write_character(unitXML, indent1, 'SCHOLARSHIP', trim(ScholarshipCode(idx))//COMMA// &
                 trim(ScholarshipDescription(idx)))
         end do
 
-        write(unitXML,AFORMAT) '</'//XML_ROOT_UNIVERSITY//'>'
-        isDirtyXML = .true.
+        do idx=1,NumAccounts
+            call xml_write_character(unitXML, indent1, 'ACCOUNT', trim(AccountCode(idx))//COMMA// &
+                trim(AccountDescription(idx)))
+        end do
 
-    end subroutine xml_university
+        call xml_write_character(unitXML, indent0, FSLASH//ROOT_UNIVERSITY)
+
+        if (len_trim(universityFile)>0) then
+            close(device, iostat=stat, err=999)
+#if defined GLNX
+            call rename(filePart, fileName, stat)
+#endif
+        end if
+
+        999 call terminate(stat, 'Error in writing '//fileName)
+        call log_comment('Successfully wrote '//fileName)
+        isDirtyData = .true. ! allow writing to backup
+
+    end subroutine university_data_write
+
 
 
 !===========================================================
@@ -194,29 +419,170 @@ contains
 !===========================================================
 
 
-   subroutine xml_read_colleges(pathToFile, errNo)
+    subroutine colleges_index_read(device, path)
+        integer, intent (in) :: device
+        character (len=*), intent (in) :: path
+
+        integer :: stat
+
+        open(unit=device, file=trim(path)//'index', iostat=stat)
+        call terminate(stat, 'Error '//trim(itoa(stat))//' in opening index for '//path)
+        do
+            read(device, AFORMAT, iostat=stat) line
+            if (stat<0) exit
+            call college_details_read(trim(path)//trim(line)//dotXML)
+        end do
+        close(device)
+
+    end subroutine colleges_index_read
+
+
+    subroutine college_details_write(device, path, first, last)
+        character (len=*), intent (in) :: path
+        integer, intent (in) :: device, first
+        integer, intent (in), optional :: last
+
+        integer :: idx, ldx, tdx, lastIdx, tab0, tab1, tab2, stat
+        logical :: monolithic!, fileExists
+        character (len=MAX_LEN_FILE_PATH) :: fileName, filePart
+
+        if (isReadOnly) return
+
+        if (present(last)) then
+            lastIdx = last
+            tab0 = INDENT_INCR
+        else
+            lastIdx = first
+            tab0 = 0
+        end if
+        monolithic = lastIdx>first
+
+        tab1 = tab0+INDENT_INCR
+        tab2 = tab0+INDENT_INCR*2
+
+        stat = 0 ! error status
+        if (monolithic) then ! single file
+
+            if (len_trim(path)>0) then
+                fileName = path
+#if defined GLNX
+                filePart = trim(fileName)//dotPART
+#else
+                filePart = fileName
+#endif
+                open(unit=device, file=filePart, iostat=stat, err=999)
+
+                ! write the index only
+                if (index(path, DIRSEP//'index')>0) then
+                    write(device,AFORMAT, iostat=stat, err=999) &
+                        ( trim(filename_from(College(ldx)%Code)), ldx=first,lastIdx )
+                    close(device, iostat=stat, err=999)
+#if defined GLNX
+                    call rename(filePart, fileName, stat)
+#endif
+                    goto 999
+                end if
+
+                call xml_write_character(device, 0, XML_DOC)
+            else
+                fileName = 'colleges to backup file'
+            end if
+
+            call xml_write_character(device, 0, ROOT_COLLEGES)
+
+        end if
+
+
+        do ldx=first,lastIdx
+
+            if (.not. monolithic) then
+
+                fileName = trim(path)//trim(filename_from(College(ldx)%Code))//dotXML
+#if defined GLNX
+                filePart = trim(fileName)//dotPART
+#else
+                filePart = fileName
+#endif
+                open(unit=device, file=filePart, iostat=stat, err=999)
+                call xml_write_character(device, 0, XML_DOC)
+                call xml_write_character(device, 0, ROOT_COLLEGES)
+
+            end if
+
+            call xml_write_character(device, tab0, 'College')
+            call xml_write_character(device, tab1, 'Code', College(ldx)%Code)
+            call xml_write_character(device, tab1, 'Name', College(ldx)%Name)
+            call xml_write_character(device, tab1, 'Dean', College(ldx)%Dean)
+            call xml_write_character(device, tab1, 'TranscriptPreparer', College(ldx)%TranscriptPreparer)
+            call xml_write_character(device, tab1, 'TranscriptChecker', College(ldx)%TranscriptChecker)
+
+            !logical :: isAllowed(AdviseOpenSubjects:ToEditGRADES,3)
+            do tdx=firstSemester,summerTerm
+                do idx=AdviseOpenSubjects,ToEditGRADES
+                    if (College(ldx)%isAllowed(idx,tdx)) then
+                        call xml_write_character(device, tab1, 'isAllowed', &
+                            trim(itoa(idx))//SPACE//trim(itoa(tdx))//' 1')
+                    else
+                        call xml_write_character(device, tab1, 'isAllowed', &
+                            trim(itoa(idx))//SPACE//trim(itoa(tdx))//' 0')
+                    end if
+                end do
+            end do
+
+            call xml_write_character(device, tab0, '/College')
+
+            if (.not. monolithic) then
+                call xml_write_character(device, 0, FSLASH//ROOT_COLLEGES)
+                close(device, iostat=stat, err=999)
+#if defined GLNX
+                call rename(filePart, fileName, stat)
+#endif
+                if (stat/=0) goto 999
+            end if
+
+        end do
+
+        if (monolithic) then
+            call xml_write_character(device, 0, FSLASH//ROOT_COLLEGES)
+            if (len_trim(path)>0) then
+                close(device, iostat=stat, err=999)
+#if defined GLNX
+                call rename(filePart, fileName, stat)
+#endif
+            end if
+        end if
+
+        999 call terminate(stat, 'Error in writing '//fileName)
+        if (monolithic) call log_comment('Successfully wrote '//fileName)
+
+        isDirtyData = .true. ! allow writing to backup
+
+    end subroutine college_details_write
+
+
+   subroutine college_details_read(pathToFile)
 
         character(len=*), intent(in) :: pathToFile
-        integer, intent (out) :: errNo
 
         type(TYPE_COLLEGE) :: wrkCollege
+        integer :: idx, tdx, lval, stat
 
-        ! open file, return on any error
-        call xml_read_file(unitXML, XML_ROOT_COLLEGES, pathToFile, errNo)
-        if (errNo/=0) return
+        ! find ROOT_COLLEGES
+        call xml_read_file(unitXML, ROOT_COLLEGES, pathToFile, stat)
+        call terminate(stat, 'Error: "'//ROOT_COLLEGES//'" not found in '//pathToFile)
 
         ! examine the file line by line
         do
-            read(unitXML, AFORMAT, iostat=eof) line
-            if (eof<0) exit
+            read(unitXML, AFORMAT, iostat=stat) line
+            if (stat<0) exit
 
             ! get tag and value if any; exit on any error
-            call xml_parse_line(line, tag, value, eof)
-            if (eof/=0) exit
+            call xml_parse_line(line, tag, value, stat)
+            if (stat/=0) exit
 
             select case (trim(tag))
 
-                case ('/'//XML_ROOT_COLLEGES)
+                case (FSLASH//ROOT_COLLEGES)
                     exit
 
                 case ('College') ! initialize temporary college data
@@ -237,82 +603,29 @@ contains
                 case ('TranscriptChecker')
                     wrkCollege%TranscriptChecker = adjustl(value)
 
+                case ('isAllowed')
+                    read(value,*) idx, tdx, lval
+                    wrkCollege%isAllowed(idx,tdx) = lval/= 0
+
                 case ('/College') ! add temporary college data to College()
-                    if (index(wrkCollege%Code,trim(SYSAD))>0) cycle ! add later
-                    NumColleges = NumColleges + 1
-                    call check_array_bound (NumColleges, MAX_ALL_COLLEGES, 'MAX_ALL_COLLEGES')
-                    College(NumColleges) = wrkCollege
+                    if (index(wrkCollege%Code,trim(UniversityCode))>0) cycle ! add later
+                    idx = index_to_college(wrkCollege%Code)
+                    if (idx==0) then ! add
+                        NumColleges = NumColleges + 1
+                        call check_array_bound (NumColleges, MAX_ALL_COLLEGES, 'MAX_ALL_COLLEGES')
+                        idx = NumColleges
+                    end if
+                    College(idx) = wrkCollege
 
                 case default ! do nothing
 
             end select
 
         end do
-
-        ! add 'administrative' college for data that does not fit in the 'academic' colleges
-        NumColleges = NumColleges + 1
-        call check_array_bound (NumColleges, MAX_ALL_COLLEGES, 'MAX_ALL_COLLEGES')
-        call initialize_college (College(NumColleges), &
-            SYSAD, trim(UniversityCodeNoMirror)//' Administration', SYSAD, SPACE, SPACE)
-
-        close(unitXML)
-        call log_comment (itoa(NumColleges)//' colleges in '//pathTofile)
-
-    end subroutine xml_read_colleges
-
-
-
-    subroutine xml_write_colleges(pathToFile)
-
-        character(len=*), intent(in) :: pathToFile
-
-        if (isReadOnly) return
-
-        call move_to_backup(pathToFile)
-        call log_comment('xml_write_colleges('//trim(pathToFile)//')')
-
-        open(unit=unitXML, file=pathToFile)
-        write(unitXML,AFORMAT) XML_DOC
-
-        call xml_colleges(unitXML)
-
         close(unitXML)
 
-    end subroutine xml_write_colleges
+    end subroutine college_details_read
 
-
-
-    subroutine xml_colleges(unitXML)
-
-        integer, intent(in) :: unitXML
-
-        integer :: ldx
-
-        write(unitXML,AFORMAT) '<'//XML_ROOT_COLLEGES//'>', &
-            '    <comment>', &
-            '        Generated by '//PROGNAME//VERSION//' on '//currentDate(1:4)// &
-                        FSLASH//currentDate(5:6)//FSLASH//currentDate(7:8), &
-            '        Code - college code', &
-            '        Name - long name of college', &
-            '        Dean - dean of college (Firstname MI Lastname, PhD)', &
-            '        TranscriptPrepaper - transcript preparer for college (Firstname MI Lastname)', &
-            '        TranscriptChecker - transcript checker for college (Firstname MI Lastname)', &
-            '    </comment>'
-
-        do ldx = 1,NumColleges-1 ! exclude SYSAD
-            call xml_write_character(unitXML, indent0, 'College')
-            call xml_write_character(unitXML, indent1, 'Code', College(ldx)%Code)
-            call xml_write_character(unitXML, indent1, 'Name', College(ldx)%Name)
-            call xml_write_character(unitXML, indent1, 'Dean', College(ldx)%Dean)
-            call xml_write_character(unitXML, indent1, 'TranscriptPreparer', College(ldx)%TranscriptPreparer)
-            call xml_write_character(unitXML, indent1, 'TranscriptChecker', College(ldx)%TranscriptChecker)
-            call xml_write_character(unitXML, indent0, '/College')
-        end do
-
-        write(unitXML,AFORMAT) '</'//XML_ROOT_COLLEGES//'>'
-        isDirtyXML = .true.
-
-    end subroutine xml_colleges
 
 
 !===========================================================
@@ -320,32 +633,159 @@ contains
 !===========================================================
 
 
-    subroutine xml_read_departments(pathToFile, errNo)
+
+    subroutine departments_index_read(device, path)
+        integer, intent (in) :: device
+        character (len=*), intent (in) :: path
+
+        integer :: stat
+
+        open(unit=device, file=trim(path)//'index', iostat=stat)
+        call terminate(stat, 'Error '//trim(itoa(stat))//' in opening index for '//path)
+        do
+            read(device, AFORMAT, iostat=stat) line
+            if (stat<0) exit
+            call department_details_read(trim(path)//trim(line)//dotXML)
+        end do
+        close(device)
+
+    end subroutine departments_index_read
+
+
+    subroutine department_details_write(device, path, first, last)
+        character (len=*), intent (in) :: path
+        integer, intent (in) :: device, first
+        integer, intent (in), optional :: last
+
+        integer :: ldx, lastIdx, tab0, tab1, tab2, stat
+        logical :: monolithic!, fileExists
+        character (len=MAX_LEN_FILE_PATH) :: fileName, filePart
+
+        if (isReadOnly) return
+
+        if (present(last)) then
+            lastIdx = last
+            tab0 = INDENT_INCR
+        else
+            lastIdx = first
+            tab0 = 0
+        end if
+        monolithic = lastIdx>first
+
+        tab1 = tab0+INDENT_INCR
+        tab2 = tab0+INDENT_INCR*2
+
+        stat = 0 ! error status
+        if (monolithic) then ! single file
+
+            if (len_trim(path)>0) then
+                fileName = path
+#if defined GLNX
+                filePart = trim(fileName)//dotPART
+#else
+                filePart = fileName
+#endif
+                open(unit=device, file=filePart, iostat=stat, err=999)
+
+                ! write the index only
+                if (index(path, DIRSEP//'index')>0) then
+                    write(device,AFORMAT, iostat=stat, err=999) &
+                        ( trim(filename_from(Department(ldx)%Code)), ldx=first,lastIdx )
+                    close(device, iostat=stat, err=999)
+#if defined GLNX
+                    call rename(filePart, fileName, stat)
+#endif
+                    goto 999
+                end if
+
+                call xml_write_character(device, 0, XML_DOC)
+            else
+                fileName = ' departments to backup file'
+            end if
+
+            call xml_write_character(device, 0, ROOT_DEPARTMENTS)
+
+        end if
+
+        do ldx=first,lastIdx
+
+            if (.not. monolithic) then
+
+                fileName = trim(path)//trim(filename_from(Department(ldx)%Code))//dotXML
+#if defined GLNX
+                filePart = trim(fileName)//dotPART
+#else
+                filePart = fileName
+#endif
+                open(unit=device, file=filePart, iostat=stat, err=999)
+                call xml_write_character(device, 0, XML_DOC)
+                call xml_write_character(device, 0, ROOT_DEPARTMENTS)
+
+            end if
+
+            call xml_write_character(device, tab0, 'Department')
+            call xml_write_character(device, tab1, 'Code', Department(ldx)%Code)
+            call xml_write_character(device, tab1, 'Name', Department(ldx)%Name)
+            call xml_write_character(device, tab1, 'College', College(Department(ldx)%CollegeIdx)%Code)
+            if (Department(ldx)%SectionPrefix/=SPACE) &
+                call xml_write_character(device, tab1, 'SectionPrefix', Department(ldx)%SectionPrefix)
+            call xml_write_character(device, tab0, '/Department')
+
+            if (.not. monolithic) then
+                call xml_write_character(device, 0, FSLASH//ROOT_DEPARTMENTS)
+                close(device, iostat=stat, err=999)
+#if defined GLNX
+                call rename(filePart, fileName, stat)
+#endif
+                if (stat/=0) goto 999
+            end if
+
+        end do
+
+        if (monolithic) then
+            call xml_write_character(device, 0, FSLASH//ROOT_DEPARTMENTS)
+            if (len_trim(path)>0) then
+                close(device, iostat=stat, err=999)
+#if defined GLNX
+                call rename(filePart, fileName, stat)
+#endif
+            end if
+        end if
+
+        999 call terminate(stat, 'Error in writing '//fileName)
+        if (monolithic) call log_comment('Successfully wrote '//fileName)
+
+        isDirtyData = .true. ! allow writing to backup
+
+    end subroutine department_details_write
+
+
+
+    subroutine department_details_read(pathToFile)
 
         character(len=*), intent(in) :: pathToFile
-        integer, intent (out) :: errNo
 
-        integer :: j
-        type(typeDEPARTMENT) :: wrkDepartment
+        integer :: idx, stat
+        type(type_DEPARTMENT) :: wrkDepartment
         character (len=MAX_LEN_COLLEGE_CODE) :: tColl
 
-        ! open file, return on any error
-        call xml_read_file(unitXML, XML_ROOT_DEPARTMENTS, pathToFile, errNo)
-        if (errNo/=0) return
+        ! find ROOT_DEPARTMENTS
+        call xml_read_file(unitXML, ROOT_DEPARTMENTS, pathToFile, stat)
+        call terminate(stat, 'Error: "'//ROOT_DEPARTMENTS//'" not found in '//pathToFile)
 
         ! examine the file line by line
         do
 
-            read(unitXML, AFORMAT, iostat=eof) line
-            if (eof<0) exit
+            read(unitXML, AFORMAT, iostat=stat) line
+            if (stat<0) exit
 
             ! get tag and value if any; exit on any error
-            call xml_parse_line(line, tag, value, eof)
-            if (eof/=0) exit
+            call xml_parse_line(line, tag, value, stat)
+            if (stat/=0) exit
 
             select case (trim(tag))
 
-                case ('/'//XML_ROOT_DEPARTMENTS)
+                case (FSLASH//ROOT_DEPARTMENTS)
                     exit
 
                 case ('Department') ! initialize temporary department data
@@ -359,18 +799,22 @@ contains
 
                 case ('College')
                     tColl = adjustl(value)
-                    j = index_to_college(tColl)
-                    if (j==0) j = NumColleges ! use SYSAD for invalid college code
-                    wrkDepartment%CollegeIdx = j
+                    idx = index_to_college(tColl)
+                    if (idx==0) idx = NumColleges ! use SYSAD for invalid college code
+                    wrkDepartment%CollegeIdx = idx
 
                 case ('SectionPrefix')
                     wrkDepartment%SectionPrefix = adjustl(value)
 
                 case ('/Department') ! add temporary department data to Department()
                     if (index(wrkDepartment%Code,trim(SYSAD))>0) cycle ! add at the end
-                    NumDepartments = NumDepartments + 1
-                    call check_array_bound (NumDepartments, MAX_ALL_DEPARTMENTS, 'MAX_ALL_DEPARTMENTS')
-                    Department(NumDepartments) = wrkDepartment
+                    idx = index_to_dept(wrkDepartment%Code)
+                    if (idx==0) then ! add
+                        NumDepartments = NumDepartments + 1
+                        call check_array_bound (NumDepartments, MAX_ALL_DEPARTMENTS, 'MAX_ALL_DEPARTMENTS')
+                        idx = NumDepartments
+                    end if
+                    Department(idx) = wrkDepartment
 
                 case default
                    ! do nothing
@@ -380,67 +824,8 @@ contains
         end do
 
         close(unitXML)
-        call log_comment (itoa(NumDepartments)//' departments in '//pathToFile)
 
-        ! add REGISTAR as 'administrative' department for data that does not fit in the 'academic' departments
-        NumDepartments = NumDepartments + 1
-        call check_array_bound (NumDepartments, MAX_ALL_DEPARTMENTS, 'MAX_ALL_DEPARTMENTS')
-        call initialize_department (Department(NumDepartments), &
-            SYSAD, trim(UniversityCodeNoMirror)//' Registrar', TheRegistrar, 'Z', NumColleges)
-
-    end subroutine xml_read_departments
-
-
-
-    subroutine xml_write_departments(pathToFile)
-
-        character(len=*), intent(in) :: pathToFile
-
-        if (isReadOnly) return
-
-        call move_to_backup(pathToFile)
-        call log_comment('xml_write_departments('//trim(pathToFile)//')')
-
-        open(unit=unitXML, file=pathToFile)
-        write(unitXML,AFORMAT) XML_DOC
-
-        call xml_departments(unitXML)
-
-        close(unitXML)
-
-    end subroutine xml_write_departments
-
-
-
-    subroutine xml_departments(unitXML)
-
-        integer, intent(in) :: unitXML
-        integer :: ldx
-
-        write(unitXML,AFORMAT) '<'//XML_ROOT_DEPARTMENTS//'>', &
-        '    <comment>', &
-        '        Generated by '//PROGNAME//VERSION//' on '//currentDate(1:4)// &
-                    FSLASH//currentDate(5:6)//FSLASH//currentDate(7:8), &
-        '        Code - department code', &
-        '        Name - long name of department', &
-        '        College - mother unit of the department', &
-        '        SectionPrefix - prefix of codes for classes in this department', &
-        '    </comment>'
-
-        do ldx = 2,NumDepartments-1
-            call xml_write_character(unitXML, indent0, 'Department')
-            call xml_write_character(unitXML, indent1, 'Code', Department(ldx)%Code)
-            call xml_write_character(unitXML, indent1, 'Name', Department(ldx)%Name)
-            call xml_write_character(unitXML, indent1, 'College', College(Department(ldx)%CollegeIdx)%Code)
-            if (Department(ldx)%SectionPrefix/=SPACE) &
-                call xml_write_character(unitXML, indent1, 'SectionPrefix', Department(ldx)%SectionPrefix)
-            call xml_write_character(unitXML, indent0, '/Department')
-        end do
-
-        write(unitXML,AFORMAT) '</'//XML_ROOT_DEPARTMENTS//'>'
-        isDirtyXML = .true.
-
-    end subroutine xml_departments
+    end subroutine department_details_read
 
 
 !===========================================================
@@ -448,32 +833,160 @@ contains
 !===========================================================
 
 
-    subroutine xml_read_rooms(pathToFile, errNo)
+
+    subroutine rooms_index_read(device, path)
+        integer, intent (in) :: device
+        character (len=*), intent (in) :: path
+
+        integer :: stat
+
+        open(unit=device, file=trim(path)//'index', iostat=stat)
+        call terminate(stat, 'Error '//trim(itoa(stat))//' in opening index for '//path)
+        do
+            read(device, AFORMAT, iostat=stat) line
+            if (stat<0) exit
+            call room_details_read(trim(path)//trim(line)//dotXML)
+        end do
+        close(device)
+
+    end subroutine rooms_index_read
+
+
+    subroutine room_details_write(device, path, first, last)
+        character (len=*), intent (in) :: path
+        integer, intent (in) :: device, first
+        integer, intent (in), optional :: last
+
+        integer :: ldx, lastIdx, tab0, tab1, tab2, stat
+        logical :: monolithic!, fileExists
+        character (len=MAX_LEN_FILE_PATH) :: fileName, filePart
+
+        if (isReadOnly) return
+
+        if (present(last)) then
+            lastIdx = last
+            tab0 = INDENT_INCR
+        else
+            lastIdx = first
+            tab0 = 0
+        end if
+        monolithic = lastIdx>first
+
+        tab1 = tab0+INDENT_INCR
+        tab2 = tab0+INDENT_INCR*2
+
+        stat = 0 ! error status
+        if (monolithic) then ! single file
+
+            if (len_trim(path)>0) then
+                fileName = path
+#if defined GLNX
+                filePart = trim(fileName)//dotPART
+#else
+                filePart = fileName
+#endif
+                open(unit=device, file=filePart, iostat=stat, err=999)
+
+                ! write the index only
+                if (index(path, DIRSEP//'index')>0) then
+                    write(device,AFORMAT, iostat=stat, err=999) &
+                        ( trim(filename_from(Room(ldx)%Code)), ldx=first,lastIdx )
+                    close(device, iostat=stat, err=999)
+#if defined GLNX
+                    call rename(filePart, fileName, stat)
+#endif
+                    goto 999
+                end if
+
+                call xml_write_character(device, 0, XML_DOC)
+            else
+                fileName = 'rooms to backup file'
+            end if
+
+            call xml_write_character(device, 0, ROOT_ROOMS)
+
+        end if
+
+        do ldx=first,lastIdx
+
+            if (trim(Room(ldx)%Code)==SPACE) cycle
+
+            if (.not. monolithic) then
+
+                fileName = trim(path)//trim(filename_from(Room(ldx)%Code))//dotXML
+#if defined GLNX
+                filePart = trim(fileName)//dotPART
+#else
+                filePart = fileName
+#endif
+                open(unit=device, file=filePart, iostat=stat, err=999)
+                call xml_write_character(device, 0, XML_DOC)
+                call xml_write_character(device, 0, ROOT_ROOMS)
+
+            end if
+
+            call xml_write_character(device, tab0, 'Room')
+            call xml_write_character(device, tab1, 'Code', Room(ldx)%Code)
+            call xml_write_character(device, tab1, 'Department', Department(Room(ldx)%DeptIdx)%Code)
+            call xml_write_integer(device, tab1, 'Cluster', Room(ldx)%Cluster)
+            call xml_write_integer(device, tab1, 'MaxCapacity', Room(ldx)%MaxCapacity)
+            call xml_write_integer(device, tab1, 'EnergyFee', Room(ldx)%EnergyFee)
+            call xml_write_character(device, tab0, '/Room')
+
+            if (.not. monolithic) then
+                call xml_write_character(device, 0, FSLASH//ROOT_ROOMS)
+                close(device, iostat=stat, err=999)
+#if defined GLNX
+                call rename(filePart, fileName, stat)
+#endif
+                if (stat/=0) goto 999
+            end if
+
+        end do
+
+        if (monolithic) then
+            call xml_write_character(device, 0, FSLASH//ROOT_ROOMS)
+            if (len_trim(path)>0) then
+                close(device, iostat=stat, err=999)
+#if defined GLNX
+                call rename(filePart, fileName, stat)
+#endif
+            end if
+        end if
+
+        999 call terminate(stat, 'Error in writing '//fileName)
+        if (monolithic) call log_comment('Successfully wrote '//fileName)
+
+        isDirtyData = .true. ! allow writing to backup
+
+    end subroutine room_details_write
+
+
+    subroutine room_details_read(pathToFile)
 
         character(len=*), intent(in) :: pathToFile
-        integer, intent (out) :: errNo
 
-        integer :: j
+        integer :: idx, stat
         type(TYPE_ROOM) :: wrkRoom
         character (len=MAX_LEN_DEPARTMENT_CODE) :: tDept
 
         ! open file, return on any error
-        call xml_read_file(unitXML, XML_ROOT_ROOMS, pathToFile, errNo)
-        if (errNo/=0) return
+        call xml_read_file(unitXML, ROOT_ROOMS, pathToFile, stat)
+        if (stat/=0) return
 
         ! examine the file line by line
         do
 
-            read(unitXML, AFORMAT, iostat=eof) line
-            if (eof<0) exit
+            read(unitXML, AFORMAT, iostat=stat) line
+            if (stat<0) exit
 
             ! get tag and value if any; exit on any error
-            call xml_parse_line(line, tag, value, eof)
-            if (eof/=0) exit
+            call xml_parse_line(line, tag, value, stat)
+            if (stat/=0) exit
 
             select case (trim(tag))
 
-                case ('/'//XML_ROOT_ROOMS)
+                case (FSLASH//ROOT_ROOMS)
                     exit
 
                 case ('Room') ! initialize temporary room data
@@ -484,9 +997,9 @@ contains
 
                 case ('Department')
                     tDept = adjustl(value)
-                    j = index_to_dept(tDept)
-                    if (j==0) j = NumDepartments ! use SYSAD if tDept not in list of departments
-                    wrkRoom%DeptIdx = j
+                    idx = index_to_dept(tDept)
+                    if (idx==0) idx = NumDepartments ! use SYSAD if tDept not in list of departments
+                    wrkRoom%DeptIdx = idx
 
                 case ('Cluster')
                     wrkRoom%Cluster = atoi(value)
@@ -498,11 +1011,14 @@ contains
                     wrkRoom%EnergyFee = atoi(value)
 
                 case ('/Room') ! add temporary room data to Room()
-                    if (trim(wrkRoom%Code)==SPACE) cycle
-                    NumRooms = NumRooms + 1
-                    call check_array_bound (NumRooms, MAX_ALL_ROOMS, 'MAX_ALL_ROOMS')
-                    Room(NumRooms) = wrkRoom
-
+                    if (len_trim(wrkRoom%Code)==0) cycle
+                    idx = index_to_room(wrkRoom%Code)
+                    if (idx==0) then ! add
+                        NumRooms = NumRooms + 1
+                        call check_array_bound (NumRooms, MAX_ALL_ROOMS, 'MAX_ALL_ROOMS')
+                        idx = NumRooms
+                    end if
+                    Room(idx) = wrkRoom
                     Department(wrkRoom%DeptIdx)%hasInfo = .true.
 
                 case default
@@ -513,66 +1029,7 @@ contains
         end do
         close(unitXML)
 
-        !call sort_rooms()
-        call log_comment (itoa(NumRooms)//' rooms in '//pathToFile)
-
-    end subroutine xml_read_rooms
-
-
-
-    subroutine xml_write_rooms(pathToFile)
-
-        character(len=*), intent(in) :: pathToFile
-
-
-        if (isReadOnly) return
-
-        call move_to_backup(pathToFile)
-        call log_comment('xml_write_rooms('//trim(pathToFile)//')')
-
-        open(unit=unitXML, file=pathToFile)
-        write(unitXML,AFORMAT) XML_DOC
-
-        call xml_rooms(unitXML)
-
-        close(unitXML)
-
-    end subroutine xml_write_rooms
-
-
-
-    subroutine xml_rooms(unitXML)
-
-        integer, intent(in) :: unitXML
-        integer :: ldx
-
-        write(unitXML,AFORMAT) '<'//XML_ROOT_ROOMS//'>', &
-        '    <comment>', &
-        '        Generated by '//PROGNAME//VERSION//' on '//currentDate(1:4)// &
-                    FSLASH//currentDate(5:6)//FSLASH//currentDate(7:8), &
-        '        Code - room code', &
-        '        Department - responsible department', &
-        '        Cluster - rooms with the same cluster are "within walking distance" of each other', &
-        '        MaxCapacity- maximum seating capacity', &
-        '        EnergyFee - fee if student has a class in this room', &
-        '    </comment>'
-
-        do ldx = 1,NumRooms+NumAdditionalRooms
-            if (trim(Room(ldx)%Code)==SPACE) cycle
-            call xml_write_character(unitXML, indent0, 'Room')
-            call xml_write_character(unitXML, indent1, 'Code', Room(ldx)%Code)
-            call xml_write_character(unitXML, indent1, 'Department', Department(Room(ldx)%DeptIdx)%Code)
-            call xml_write_integer(unitXML, indent1, 'Cluster', Room(ldx)%Cluster)
-            call xml_write_integer(unitXML, indent1, 'MaxCapacity', Room(ldx)%MaxCapacity)
-            call xml_write_integer(unitXML, indent1, 'EnergyFee', Room(ldx)%EnergyFee)
-            call xml_write_character(unitXML, indent0, '/Room')
-        end do
-
-        write(unitXML,AFORMAT) '</'//XML_ROOT_ROOMS//'>'
-        isDirtyXML = .true.
-
-    end subroutine xml_rooms
-
+    end subroutine room_details_read
 
 
 !===========================================================
@@ -580,38 +1037,190 @@ contains
 !===========================================================
 
 
-    subroutine xml_read_teachers(pathToFile, errNo)
+    subroutine teachers_index_read(device, path)
+        integer, intent (in) :: device
+        character (len=*), intent (in) :: path
+
+        integer :: stat
+
+        open(unit=device, file=trim(path)//'index', iostat=stat)
+        call terminate(stat, 'Error '//trim(itoa(stat))//' in opening index for '//path)
+        do
+            read(device, AFORMAT, iostat=stat) line
+            if (stat<0) exit
+            call teacher_details_read(trim(path)//trim(line)//dotXML)
+        end do
+        close(device)
+
+    end subroutine teachers_index_read
+
+
+    subroutine teacher_details_write(device, path, first, last)
+        character (len=*), intent (in) :: path
+        integer, intent (in) :: device, first
+        integer, intent (in), optional :: last
+
+        integer :: ldx, lastIdx, tab0, tab1, tab2, stat
+        logical :: monolithic!, fileExists
+        character (len=MAX_LEN_FILE_PATH) :: fileName, filePart
+
+        stat = 0 ! error status
+        if (isReadOnly) return
+
+        if (present(last)) then
+            lastIdx = last
+            tab0 = INDENT_INCR
+        else
+            lastIdx = first
+            tab0 = 0
+        end if
+        monolithic = lastIdx>first
+
+        tab1 = tab0+INDENT_INCR
+        tab2 = tab0+INDENT_INCR*2
+
+        stat = 0 ! error status
+        if (monolithic) then ! single file
+
+            if (len_trim(path)>0) then
+                fileName = path
+#if defined GLNX
+                filePart = trim(fileName)//dotPART
+#else
+                filePart = fileName
+#endif
+                open(unit=device, file=filePart, iostat=stat, err=999)
+
+                ! write the index only
+                if (index(path, DIRSEP//'index')>0) then
+                    do ldx=first,lastIdx
+                        if (trim(Teacher(ldx)%TeacherId)==SPACE .or. trim(Teacher(ldx)%TeacherId)==trim(GUEST) .or. &
+                            Teacher(ldx)%DeptIdx==0) cycle
+                        write(device,AFORMAT, iostat=stat, err=999) trim(filename_from(Teacher(ldx)%TeacherId) )
+                    end do
+                    close(device, iostat=stat, err=999)
+#if defined GLNX
+                    call rename(filePart, fileName, stat)
+#endif
+                    goto 999
+                end if
+
+                call xml_write_character(device, 0, XML_DOC)
+
+            else
+                fileName = 'teachers to backup file'
+            end if
+
+            call xml_write_character(device, 0, ROOT_TEACHERS)
+
+        end if
+
+        do ldx=first,lastIdx
+
+            if (trim(Teacher(ldx)%TeacherId)==SPACE .or. trim(Teacher(ldx)%TeacherId)==trim(GUEST) .or. &
+                Teacher(ldx)%DeptIdx==0) cycle
+
+            if (.not. monolithic) then
+
+                fileName = trim(path)//trim(filename_from(Teacher(ldx)%TeacherId))//dotXML
+#if defined GLNX
+                filePart = trim(fileName)//dotPART
+#else
+                filePart = fileName
+#endif
+                open(unit=device, file=filePart, iostat=stat, err=999)
+                call xml_write_character(device, 0, XML_DOC)
+                call xml_write_character(device, 0, ROOT_TEACHERS)
+
+            end if
+
+            call xml_write_character(device, tab0, 'Teacher')
+            call xml_write_character(device, tab1, 'TeacherId', Teacher(ldx)%TeacherId)
+            call xml_write_character(device, tab1, 'Name', Teacher(ldx)%Name)
+            call xml_write_character(device, tab1, 'Department', Department(Teacher(ldx)%DeptIdx)%Code)
+            if (Teacher(ldx)%MaxLoad>0) &
+                call xml_write_integer(device, tab1, 'MaxLoad', Teacher(ldx)%MaxLoad)
+            if (Teacher(ldx)%Rank>0) &
+                call xml_write_character(device, tab1, 'Rank', AcademicRank(Teacher(ldx)%Rank))
+            if (Teacher(ldx)%Step>0) &
+                call xml_write_character(device, tab1, 'Step', RankStep(Teacher(ldx)%Step))
+            if (Teacher(ldx)%Bachelor/=SPACE) &
+                call xml_write_character(device, tab1, 'Bachelor', Teacher(ldx)%Bachelor)
+            if (Teacher(ldx)%Master/=SPACE) &
+                call xml_write_character(device, tab1, 'Master', Teacher(ldx)%Master)
+            if (Teacher(ldx)%Doctorate/=SPACE)  &
+                call xml_write_character(device, tab1, 'Doctorate', Teacher(ldx)%Doctorate)
+            if (Teacher(ldx)%Specialization/=SPACE)  &
+                call xml_write_character(device, tab1, 'Specialization', Teacher(ldx)%Specialization)
+            call xml_write_character(device, tab1, 'Password', Teacher(ldx)%Password)
+            if (.not. monolithic) call xml_write_character(device, tab1, 'Key', passwordEncryptionKey)
+            if (Teacher(ldx)%Role/=SPACE)  &
+                call xml_write_character(device, tab1, 'Role', Teacher(ldx)%Role)
+            call xml_write_character(device, tab0, '/Teacher')
+
+            if (.not. monolithic) then
+                call xml_write_character(device, 0, FSLASH//ROOT_TEACHERS)
+                close(device, iostat=stat, err=999)
+#if defined GLNX
+                call rename(filePart, fileName, stat)
+#endif
+                if (stat/=0) return
+            end if
+
+        end do
+
+        if (monolithic) then
+            call xml_write_character(device, 0, FSLASH//ROOT_TEACHERS)
+            if (len_trim(path)>0) then
+                close(device, iostat=stat, err=999)
+#if defined GLNX
+                call rename(filePart, fileName, stat)
+#endif
+            end if
+        end if
+
+        999 call terminate(stat, 'Error in writing '//fileName)
+        if (monolithic) call log_comment('Successfully wrote '//fileName)
+
+        isDirtyData = .true. ! allow writing to backup
+
+    end subroutine teacher_details_write
+
+
+    subroutine teacher_details_read(pathToFile)
 
         character(len=*), intent(in) :: pathToFile
-        integer, intent (out) :: errNo
 
-        integer :: i, j
+        integer :: i, j, stat
         type(TYPE_TEACHER) :: wrkTeacher
         character (len=MAX_LEN_DEPARTMENT_CODE) :: tDept
         character (len=MAX_LEN_STEP_IN_RANK) :: tStep
         character (len=MAX_LEN_ACADEMIC_RANK) :: tRank
+        character(len=lenPasswordEncryptionKey) :: tKey
+        character (len=MAX_LEN_PASSWD_VAR) :: Password
 
         ! open file, return on any error
-        call xml_read_file(unitXML, XML_ROOT_TEACHERS, pathToFile, errNo)
-        if (errNo/=0) return
+        call xml_read_file(unitXML, ROOT_TEACHERS, pathToFile, stat)
+        if (stat/=0) return
 
         ! examine the file line by line
         do
 
-            read(unitXML, AFORMAT, iostat=eof) line
-            if (eof<0) exit
+            read(unitXML, AFORMAT, iostat=stat) line
+            if (stat<0) exit
 
             ! get tag and value if any; exit on any error
-            call xml_parse_line(line, tag, value, eof)
-            if (eof/=0) exit
+            call xml_parse_line(line, tag, value, stat)
+            if (stat/=0) exit
 
             select case (trim(tag))
 
-                case ('/'//XML_ROOT_TEACHERS)
+                case (FSLASH//ROOT_TEACHERS)
                     exit
 
                 case ('Teacher') ! initialize temporary teacher data
                     call initialize_teacher(wrkTeacher)
+                    tKey = passwordEncryptionKey
 
                 case ('TeacherId')
                     wrkTeacher%TeacherId = adjustl(value)
@@ -665,6 +1274,9 @@ contains
                 case ('Password')
                     wrkTeacher%Password = adjustl(value)
 
+                case ('Key')
+                    tKey = adjustl(value)
+
                 case ('Role')
                     wrkTeacher%Role = adjustl(value)
                     i = -1
@@ -690,17 +1302,21 @@ contains
                         i = j
                         exit
                     end do
-                    if (i/=0) then ! overwrite existing record
-                        call log_comment ('Duplicate record for '//trim(wrkTeacher%TeacherId)//'; updated.')
-                        Teacher(i) = wrkTeacher
-                    else
+                    if (i==0) then
                         NumTeachers = NumTeachers + 1
                         call check_array_bound (NumTeachers, MAX_ALL_TEACHERS, 'MAX_ALL_TEACHERS')
-                        Teacher(NumTeachers) = wrkTeacher
                         i = NumTeachers
                     end if
-                    if (is_teacher_password(i, GUEST) .or. len_trim(Teacher(i)%Password)==0) &
-                        call set_password(Teacher(i)%Password)
+                    Teacher(i) = wrkTeacher
+                    if (isPassword_of_teacher(i, GUEST) .or. len_trim(Teacher(i)%Password)==0) then
+                        call set_password(Teacher(i)%Password, trim(Teacher(i)%TeacherId))
+                    else if (tKey/=passwordEncryptionKey) then
+                        Password = Teacher(i)%Password
+                        call decrypt(tKey, Password)
+                        Password = Password(lenPasswordEncryptionKey-atoi(Password(3:4))+1:)
+                        call set_password(Teacher(i)%Password, Password)
+                    end if
+
                     Department(Teacher(i)%DeptIdx)%hasInfo = .true.
                 case default
                     ! do nothing
@@ -709,79 +1325,9 @@ contains
         end do
 
         close(unitXML)
-        call log_comment (itoa(NumTeachers)//' teachers in '//pathTofile)
 
-    end subroutine xml_read_teachers
+    end subroutine teacher_details_read
 
-
-
-    subroutine xml_write_teachers(pathToFile)
-
-        character(len=*), intent(in) :: pathToFile
-
-        if (isReadOnly) return
-
-        call move_to_backup(pathToFile)
-        call log_comment('xml_write_teachers('//trim(pathToFile)//')')
-
-        open(unit=unitXML, file=pathToFile)
-        write(unitXML,AFORMAT) XML_DOC
-
-        call xml_teachers(unitXML)
-
-        close(unitXML)
-
-    end subroutine xml_write_teachers
-
-
-
-    subroutine xml_teachers(unitXML)
-
-        integer, intent(in) :: unitXML
-
-        integer :: ldx
-
-        write(unitXML,AFORMAT) '<'//XML_ROOT_TEACHERS//'>', &
-        '    <comment>', &
-        '        Generated by '//PROGNAME//VERSION//' on '//currentDate(1:4)// &
-                    FSLASH//currentDate(5:6)//FSLASH//currentDate(7:8), &
-        '        TeacherId - teacher code', &
-        '        Name - name of teacher', &
-        '        Department - responsible department', &
-        '    </comment>'
-
-        do ldx = 1,NumTeachers+NumAdditionalTeachers
-            if (trim(Teacher(ldx)%TeacherId)==SPACE .or. trim(Teacher(ldx)%TeacherId)==trim(GUEST) ) cycle
-
-            call xml_write_character(unitXML, indent0, 'Teacher')
-            call xml_write_character(unitXML, indent1, 'TeacherId', Teacher(ldx)%TeacherId)
-            call xml_write_character(unitXML, indent1, 'Name', Teacher(ldx)%Name)
-            call xml_write_character(unitXML, indent1, 'Department', Department(Teacher(ldx)%DeptIdx)%Code)
-            if (Teacher(ldx)%MaxLoad>0) &
-                call xml_write_integer(unitXML, indent1, 'MaxLoad', Teacher(ldx)%MaxLoad)
-            if (Teacher(ldx)%Rank>0) &
-                call xml_write_character(unitXML, indent1, 'Rank', AcademicRank(Teacher(ldx)%Rank))
-            if (Teacher(ldx)%Step>0) &
-                call xml_write_character(unitXML, indent1, 'Step', RankStep(Teacher(ldx)%Step))
-            if (Teacher(ldx)%Bachelor/=SPACE) &
-                call xml_write_character(unitXML, indent1, 'Bachelor', Teacher(ldx)%Bachelor)
-            if (Teacher(ldx)%Master/=SPACE) &
-                call xml_write_character(unitXML, indent1, 'Master', Teacher(ldx)%Master)
-            if (Teacher(ldx)%Doctorate/=SPACE)  &
-                call xml_write_character(unitXML, indent1, 'Doctorate', Teacher(ldx)%Doctorate)
-            if (Teacher(ldx)%Specialization/=SPACE)  &
-                call xml_write_character(unitXML, indent1, 'Specialization', Teacher(ldx)%Specialization)
-            call xml_write_character(unitXML, indent1, 'Password', Teacher(ldx)%Password)
-            if (Teacher(ldx)%Role/=SPACE)  &
-                call xml_write_character(unitXML, indent1, 'Role', Teacher(ldx)%Role)
-            call xml_write_character(unitXML, indent0, '/Teacher')
-
-        end do
-
-        write(unitXML,AFORMAT) '</'//XML_ROOT_TEACHERS//'>'
-        isDirtyXML = .true.
-
-    end subroutine xml_teachers
 
 
 !===========================================================
@@ -789,33 +1335,30 @@ contains
 !===========================================================
 
 
-
-    subroutine xml_read_subjects(pathToFile, errNo)
+    subroutine subject_codes_read(pathToFile)
 
         character(len=*), intent(in) :: pathToFile
-        integer, intent (out) :: errNo
 
-        integer :: i, j, k, l
+        integer :: i, j, stat
         type(TYPE_SUBJECT) :: wrkSubject
         character (len=MAX_LEN_DEPARTMENT_CODE) :: tDept
-        character (len=MAX_LEN_SUBJECT_CODE) :: token
 
-        ! open file for basic info on subjects, return on any error
-        call xml_read_file(unitXML, XML_ROOT_SUBJECTS, pathToFile, errNo)
-        if (errNo/=0) return
+        ! find ROOT_SUBJECTS
+        call xml_read_file(unitXML, ROOT_SUBJECTS, pathToFile, stat)
+        call terminate(stat, 'Error: "'//ROOT_SUBJECTS//'" not found in '//pathToFile)
 
         ! read subject code & responsible department
         do
-            read(unitXML, AFORMAT, iostat=eof) line
-            if (eof<0) exit
+            read(unitXML, AFORMAT, iostat=stat) line
+            if (stat<0) exit
 
             ! get tag and value if any; exit on any error
-            call xml_parse_line(line, tag, value, eof)
-            if (eof/=0) exit
+            call xml_parse_line(line, tag, value, stat)
+            if (stat/=0) exit
 
             select case (trim(tag))
 
-                case ('/'//XML_ROOT_SUBJECTS)
+                case (FSLASH//ROOT_SUBJECTS)
                     exit
 
                 case ('Subject') ! initialize temporary subject data
@@ -823,6 +1366,7 @@ contains
 
                 case ('Code')
                     wrkSubject%Name = adjustl(value)
+                    call upper_case(wrkSubject%Name)
 
                 case ('Department')
                     tDept = adjustl(value)
@@ -864,29 +1408,39 @@ contains
         end do
         close(unitXML)
 
-        call log_comment (itoa(NumSubjects)//' subjects in '//pathTofile)
-
         ! fix INDEX_TO_NONE
-        token = 'NONE'
-        INDEX_TO_NONE = index_to_subject(token)
+        wrkSubject%Name = 'NONE'
+        INDEX_TO_NONE = index_to_subject(wrkSubject%Name)
         Subject(:)%Prerequisite(1) = INDEX_TO_NONE
         Subject(:)%Corequisite(1) = INDEX_TO_NONE
         Subject(:)%Concurrent(1) = INDEX_TO_NONE
         Subject(:)%ConcPrerequisite(1) = INDEX_TO_NONE
 
+    end subroutine subject_codes_read
+
+
+    subroutine subject_details_read(pathToFile)
+
+        character(len=*), intent(in) :: pathToFile
+
+        integer :: i, j, k, l, stat
+        type(TYPE_SUBJECT) :: wrkSubject
+        character (len=MAX_LEN_DEPARTMENT_CODE) :: tDept
+
         ! read the rest of subject basic info
-        call xml_read_file(unitETC, XML_ROOT_SUBJECTS, pathToFile, eof)
+        call xml_read_file(unitXML, ROOT_SUBJECTS, pathToFile, stat)
+        call terminate(stat, 'Error: "'//ROOT_SUBJECTS//'" not found in '//pathToFile)
         do
-            read(unitETC, AFORMAT, iostat=eof) line
-            if (eof<0) exit
+            read(unitXML, AFORMAT, iostat=stat) line
+            if (stat<0) exit
 
             ! get tag and value if any; exit on any error
-            call xml_parse_line(line, tag, value, eof)
-            if (eof/=0) exit
+            call xml_parse_line(line, tag, value, stat)
+            if (stat/=0) exit
 
             select case (trim(tag))
 
-                case ('/'//XML_ROOT_SUBJECTS)
+                case (FSLASH//ROOT_SUBJECTS)
                     exit
 
                 case ('Subject') ! initialize temporary subject data
@@ -894,6 +1448,7 @@ contains
 
                 case ('Code')
                     wrkSubject%Name = adjustl(value)
+                    call upper_case(wrkSubject%Name)
 
                 case ('Title')
                     wrkSubject%Title = adjustl(value)
@@ -905,7 +1460,7 @@ contains
                     wrkSubject%DeptIdx = j
 
                 case ('Units')
-                    wrkSubject%Units = atof(value)
+                    wrkSubject%Units = floor(100.0*atof(value))/100.0
 
                 case ('Enrollment')
                     call index_to_delimiters(COMMA, value, ndels, pos)
@@ -957,21 +1512,21 @@ contains
 
                 case ('Prerequisite')
                     call tokenize_subjects(value, '+', MAX_ALL_SUBJECT_PREREQ, &
-                        wrkSubject%lenPreq, wrkSubject%Prerequisite, eof)
-                    if (eof>0) exit
+                        wrkSubject%lenPreq, wrkSubject%Prerequisite, stat)
+                    if (stat>0) exit
 
                 case ('Corequisite')
                     call tokenize_subjects(value, '+', MAX_ALL_SUBJECT_COREQ, &
-                        wrkSubject%lenCoreq, wrkSubject%Corequisite, eof)
-                    if (eof>0) exit
+                        wrkSubject%lenCoreq, wrkSubject%Corequisite, stat)
+                    if (stat>0) exit
                     if (wrkSubject%lenCoreq>0 .and. Subject(wrkSubject%Corequisite(1))%Name/='NONE') then
                         call log_comment(trim(wrkSubject%Name)//' has co-requisite '// &
                             Subject(wrkSubject%Corequisite(1))%Name ) ! , j=1,wrkSubject%lenCoreq)
                     end if
 
                 case ('ConcurrentWith')
-                    call tokenize_subjects(value, '+', MAX_ALL_SUBJECT_CONCURRENT, wrkSubject%lenConc, wrkSubject%Concurrent, eof)
-                    if (eof>0) exit
+                    call tokenize_subjects(value, '+', MAX_ALL_SUBJECT_CONCURRENT, wrkSubject%lenConc, wrkSubject%Concurrent, stat)
+                    if (stat>0) exit
                     if (wrkSubject%lenConc>0 .and. Subject(wrkSubject%Concurrent(1))%Name/='NONE') then
                         call log_comment(trim(wrkSubject%Name)//' is concurrent with '// &
                             Subject(wrkSubject%Concurrent(1))%Name ) !, j=1,wrkSubject%lenConc)
@@ -979,8 +1534,8 @@ contains
 
                 case ('ConcurrentPrerequisite')
                     call tokenize_subjects(value, '+', MAX_ALL_SUBJECT_CONCPREQ, wrkSubject%lenConcPreq, &
-                    wrkSubject%ConcPrerequisite, eof)
-                    if (eof>0) exit
+                        wrkSubject%ConcPrerequisite, stat)
+                    if (stat>0) exit
                     if (wrkSubject%lenConcPreq>0 .and. Subject(wrkSubject%ConcPrerequisite(1))%Name/='NONE') then
                         call log_comment(trim(wrkSubject%Name)//' has pre-req that can be concurrent : '// &
                            Subject(wrkSubject%ConcPrerequisite(1))%Name) ! , j=1,wrkSubject%lenConcPreq)
@@ -988,7 +1543,6 @@ contains
 
                 case ('/Subject') ! add temporary subject data to Subject()
                     i = index_to_subject(wrkSubject%Name)
-                    !wrkSubject%TermOffered = 7 ! HARDCODE
                     Subject(i) = wrkSubject
 
                 case default
@@ -998,79 +1552,126 @@ contains
 
         end do
 
-        close(unitETC)
+        close(unitXML)
 
-        call get_subject_areas()
-
-    end subroutine xml_read_subjects
+    end subroutine subject_details_read
 
 
 
-    subroutine xml_write_subjects(pathToFile)
+    subroutine subjects_index_read(device, path)
+        integer, intent (in) :: device
+        character (len=*), intent (in) :: path
 
-        character(len=*), intent(in) :: pathToFile
+        integer :: stat
+
+        open(unit=device, file=trim(path)//'index', iostat=stat, err=999)
+        ! read subject codes first
+        do
+            read(device, AFORMAT, iostat=stat) line
+            if (stat<0) exit
+            call subject_codes_read(trim(path)//trim(line)//dotXML)
+        end do
+
+        ! read subject details
+        rewind(device, iostat=stat, err=999)
+        do
+            read(device, AFORMAT, iostat=stat) line
+            if (stat<0) exit
+            call subject_details_read(trim(path)//trim(line)//dotXML)
+        end do
+
+        close(device)
+        stat = 0
+
+        999 call terminate(stat, 'Error '//trim(itoa(stat))//' in reading index of  '//path)
+
+    end subroutine subjects_index_read
+
+
+
+    subroutine subject_details_write(device, path, first, last)
+        character (len=*), intent (in) :: path
+        integer, intent (in) :: device, first
+        integer, intent (in), optional :: last
+
+        integer :: lastIdx, tab0, tab1, tab2, stat
+        logical :: monolithic!, fileExists
+        character (len=MAX_LEN_FILE_PATH) :: fileName, filePart
+        integer :: subj, i, j
+        character(len=255) :: mesg1, mesg2, mesg3, mesg4, errMesg
 
         if (isReadOnly) return
 
-        call move_to_backup(pathToFile)
-        call log_comment('xml_write_subjects('//trim(pathToFile)//')')
+        if (present(last)) then
+            lastIdx = last
+            tab0 = INDENT_INCR
+        else
+            lastIdx = first
+            tab0 = 0
+        end if
 
-        open(unit=unitXML, file=pathToFile)
-        write(unitXML,AFORMAT) XML_DOC
+        monolithic = lastIdx>first
 
-        call xml_subjects(unitXML)
+        tab1 = tab0+INDENT_INCR
+        tab2 = tab0+INDENT_INCR*2
 
-        close(unitXML)
+        stat = 0 ! error status
+        errMesg = SPACE
+        if (monolithic) then ! single file
 
-    end subroutine xml_write_subjects
+            if (len_trim(path)>0) then
+                fileName = path
+#if defined GLNX
+                filePart = trim(fileName)//dotPART
+#else
+                filePart = fileName
+#endif
+                errMesg = 'open '//trim(filePart)//'; '//errMesg
+                open(unit=device, file=filePart, iostat=stat, err=999)
 
+                ! write the index only
+                if (index(path, DIRSEP//'index')>0) then
+                    errMesg = 'write subject codes; '//errMesg
+                    write(device,AFORMAT, iostat=stat, err=999) &
+                        ( trim(filename_from(Subject(subj)%Name)), subj=first,-2 ), &
+                        ( trim(filename_from(Subject(subj)%Name)), subj=1,lastIdx )
+                    errMesg = 'close; '//errMesg
+                    close(device, iostat=stat, err=999)
+                    errMesg = 'rename; '//errmEsg
+#if defined GLNX
+                    call rename(filePart, fileName, stat)
+#endif
+                    goto 999
+                end if
 
+                call xml_write_character(device, 0, XML_DOC)
 
-    subroutine xml_subjects(unitXML)
+            else
+                fileName = 'subjects to backup file'
+            end if
 
-        integer, intent(in) :: unitXML
-        integer :: subj, i, j
-        character(len=255) :: mesg1, mesg2, mesg3, mesg4
+            call xml_write_character(device, 0, ROOT_SUBJECTS)
 
-        write(unitXML,AFORMAT) '<'//XML_ROOT_SUBJECTS//'>', &
-            '    <comment>', &
-            '        Generated by '//PROGNAME//VERSION//' on '//currentDate(1:4)// &
-                        FSLASH//currentDate(5:6)//FSLASH//currentDate(7:8), &
-            '        Code - subject identifier', &
-            '        Title - subject title', &
-            '        Department - responsible department', &
-            '        Units - credit to the student', &
-            '        Enrollment - #(Pass 1st),#(Fail 1st),#(Pass 2nd),#(Fail 2nd),#(Pass Sum.),#(Fail Sum.)', &
-            '            where: #(Pass) = #(Grade>=75) + #(Grade<=3.0); #(Fail) = not Pass', &
-            '        TermOffered - 1 for first semester, 2 for second semester, S for summer; or combinations of 1, 2, and S', &
-            '        LectHours - no. of lecture hours; 0 if the subject is lab-only', &
-            '        MinLectSize - minimum size to open lecture class; 0 if the subject is lab-only', &
-            '        MaxLectSize - maximum size to create another lecture class; 0 if the subject is lab-only', &
-            '        LabHours - laboratory/recitation/computation class hours; 0 if the subject is lecture-only', &
-            '        MinLabSize - minimum size to open lab class; 0 if the subject is lecture-only', &
-            '        MaxLabSize - maximum size to create another lab class; 0 if the subject is lecture-only', &
-            '        DisplayUnits - how the number of units will be displayed (i.e., 3, 2.0, (1.5) )', &
-            '        Tuition - how much a student will pay if he takes the subject', &
-            '        LabFee - how much (in addn to Tuition) a student will pay for laboratory fee', &
-            '        LectLoad - workload credit to teacher of lecture class', &
-            '        LabLoad - workload credit to teacher of laboratory/recitation/computation class', &
-            '        Prerequisite - subject prerequisite in prefix format, tokens being separated by "+"', &
-            '          possible values are', &
-            '            1. NONE', &
-            '            2. COI', &
-            '            3. Student classification (FRESHMAN, SOPHOMORE, JUNIOR, SENIOR)', &
-            '            4. year level in curriculum (FIRST,SECOND,THIRD,FOURTH,FIFTH,GRADUATING)', &
-            '            5. subject code - another subject', &
-            '            6. OR+2+5, OR+3+5, OR+4+5', &
-            '            7. OR+5+5, AND+5+5', &
-            '            8. OR+6+6, OR+6+7, OR+7+7, AND+7+7', &
-            '        Corequisite - subject co-requisite', &
-            '        Concurrent - subject to be concurrently registered', &
-            '        ConcurrentPrerequisite - prerequisite that can be registered concurrently', &
-            '    </comment>'
+        end if
 
-        do subj=NumDummySubjects,NumSubjects+NumAdditionalSubjects
-            if (subj==-1 .or. subj==0) cycle
+        do subj=first,lastIdx
+
+            if (subj==0 .or. subj==-1) cycle
+
+            if (.not. monolithic) then
+
+                fileName = trim(path)//trim(filename_from(Subject(subj)%Name))//dotXML
+#if defined GLNX
+                filePart = trim(fileName)//dotPART
+#else
+                filePart = fileName
+#endif
+                errMesg = 'open '//trim(filePart)//'; '//errMesg
+                open(unit=device, file=filePart, iostat=stat, err=999)
+                call xml_write_character(device, 0, XML_DOC)
+                call xml_write_character(device, 0, ROOT_SUBJECTS)
+
+            end if
 
             ! prerequisite
             i = Subject(subj)%Prerequisite(1)
@@ -1101,43 +1702,71 @@ contains
                 mesg4 = trim(mesg4)//'+'//Subject(i)%Name
             end do
 
-            call xml_write_character(unitXML, indent0, 'Subject')
-            call xml_write_character(unitXML, indent1, 'Code', Subject(subj)%Name)
-            call xml_write_character(unitXML, indent1, 'Title', Subject(subj)%Title)
-            call xml_write_character(unitXML, indent1, 'Department', Department(Subject(subj)%DeptIdx)%Code)
-            call xml_write_character(unitXML, indent1, 'TermOffered', text_term_offered(Subject(subj)%TermOffered))
-            if (Subject(subj)%Units/=0.0) call xml_write_float(unitXML, indent1, 'Units', Subject(subj)%Units,2)
-            if (Subject(subj)%Units>0.0) call xml_write_character(unitXML, indent1, 'DisplayUnits', ftoa(Subject(subj)%Units,2))
-            call xml_write_character(unitXML, indent1, 'Enrollment', &
-                trim(itoa(Subject(subj)%GrandTotal(1,1)))//COMMA// &
-                trim(itoa(Subject(subj)%GrandTotal(2,1)))//COMMA// &
-                trim(itoa(Subject(subj)%GrandTotal(1,2)))//COMMA// &
-                trim(itoa(Subject(subj)%GrandTotal(2,2)))//COMMA// &
-                trim(itoa(Subject(subj)%GrandTotal(1,3)))//COMMA// &
-                trim(itoa(Subject(subj)%GrandTotal(2,3))) )
-            if (Subject(subj)%Tuition/=0.0) call xml_write_float(unitXML, indent1, 'Tuition', Subject(subj)%Tuition,2)
-            if (Subject(subj)%LabFee/=0.0) call xml_write_float(unitXML, indent1, 'LabFee', Subject(subj)%LabFee,2)
-            if (Subject(subj)%LectHours/=0.0) call xml_write_float(unitXML, indent1, 'LectHours', Subject(subj)%LectHours,2)
-            if (Subject(subj)%MinLectSize/=0) call xml_write_integer(unitXML, indent1, 'MinLectSize', Subject(subj)%MinLectSize)
-            if (Subject(subj)%MaxLectSize/=0) call xml_write_integer(unitXML, indent1, 'MaxLectSize', Subject(subj)%MaxLectSize)
-            if (Subject(subj)%LectLoad/=0.0) call xml_write_float(unitXML, indent1, 'LectLoad', Subject(subj)%LectLoad,2)
-            if (Subject(subj)%LabHours/=0.0) call xml_write_float(unitXML, indent1, 'LabHours', Subject(subj)%LabHours,2)
-            if (Subject(subj)%MinLabSize/=0) call xml_write_integer(unitXML, indent1, 'MinLabSize', Subject(subj)%MinLabSize)
-            if (Subject(subj)%MaxLabSize/=0) call xml_write_integer(unitXML, indent1, 'MaxLabSize', Subject(subj)%MaxLabSize)
-            if (Subject(subj)%LabLoad/=0.0) call xml_write_float(unitXML, indent1, 'LabLoad', Subject(subj)%LabLoad,2)
-            if (trim(mesg1)/='NONE') call xml_write_character(unitXML, indent1, 'Prerequisite', mesg1)
-            if (trim(mesg2)/='NONE') call xml_write_character(unitXML, indent1, 'Corequisite', mesg2)
-            if (trim(mesg3)/='NONE') call xml_write_character(unitXML, indent1, 'ConcurrentWith', mesg3)
-            if (trim(mesg4)/='NONE') call xml_write_character(unitXML, indent1, 'ConcurrentPrerequisite', mesg4)
+            call xml_write_character(device, tab0, 'Subject')
+            call xml_write_character(device, tab1, 'Code', Subject(subj)%Name)
+            call xml_write_character(device, tab1, 'Title', Subject(subj)%Title)
+            call xml_write_character(device, tab1, 'Department', Department(Subject(subj)%DeptIdx)%Code)
+            call xml_write_character(device, tab1, 'TermOffered', text_term_offered(Subject(subj)%TermOffered))
+            if (Subject(subj)%Units/=0.0) call xml_write_float(device, tab1, 'Units', Subject(subj)%Units,2)
+            if (Subject(subj)%Units>0.0) call xml_write_character(device, tab1, 'DisplayUnits', ftoa(Subject(subj)%Units,2))
+            if (sum(Subject(subj)%GrandTotal(:,:))>0) &
+                call xml_write_character(device, tab1, 'Enrollment', &
+                    trim(itoa(Subject(subj)%GrandTotal(1,1)))//COMMA// &
+                    trim(itoa(Subject(subj)%GrandTotal(2,1)))//COMMA// &
+                    trim(itoa(Subject(subj)%GrandTotal(1,2)))//COMMA// &
+                    trim(itoa(Subject(subj)%GrandTotal(2,2)))//COMMA// &
+                    trim(itoa(Subject(subj)%GrandTotal(1,3)))//COMMA// &
+                    trim(itoa(Subject(subj)%GrandTotal(2,3))) )
+            if (Subject(subj)%Tuition/=0.0) call xml_write_float(device, tab1, 'Tuition', Subject(subj)%Tuition,2)
+            if (Subject(subj)%LabFee/=0.0) call xml_write_float(device, tab1, 'LabFee', Subject(subj)%LabFee,2)
+            if (Subject(subj)%LectHours/=0.0) call xml_write_float(device, tab1, 'LectHours', Subject(subj)%LectHours,2)
+            if (Subject(subj)%MinLectSize/=0) call xml_write_integer(device, tab1, 'MinLectSize', Subject(subj)%MinLectSize)
+            if (Subject(subj)%MaxLectSize/=0) call xml_write_integer(device, tab1, 'MaxLectSize', Subject(subj)%MaxLectSize)
+            if (Subject(subj)%LectLoad/=0.0) call xml_write_float(device, tab1, 'LectLoad', Subject(subj)%LectLoad,2)
+            if (Subject(subj)%LabHours/=0.0) call xml_write_float(device, tab1, 'LabHours', Subject(subj)%LabHours,2)
+            if (Subject(subj)%MinLabSize/=0) call xml_write_integer(device, tab1, 'MinLabSize', Subject(subj)%MinLabSize)
+            if (Subject(subj)%MaxLabSize/=0) call xml_write_integer(device, tab1, 'MaxLabSize', Subject(subj)%MaxLabSize)
+            if (Subject(subj)%LabLoad/=0.0) call xml_write_float(device, tab1, 'LabLoad', Subject(subj)%LabLoad,2)
+            if (trim(mesg1)/='NONE') call xml_write_character(device, tab1, 'Prerequisite', mesg1)
+            if (trim(mesg2)/='NONE') call xml_write_character(device, tab1, 'Corequisite', mesg2)
+            if (trim(mesg3)/='NONE') call xml_write_character(device, tab1, 'ConcurrentWith', mesg3)
+            if (trim(mesg4)/='NONE') call xml_write_character(device, tab1, 'ConcurrentPrerequisite', mesg4)
 
-            call xml_write_character(unitXML, indent0, '/Subject')
+            call xml_write_character(device, tab0, '/Subject')
+
+
+            if (.not. monolithic) then
+                call xml_write_character(device, 0, FSLASH//ROOT_SUBJECTS)
+                errMesg = 'close; '//errmesg
+                close(device, iostat=stat, err=999)
+                errMesg = 'rename; '//errMesg
+#if defined GLNX
+                call rename(filePart, fileName, stat)
+#endif
+                if (stat/=0) goto 999
+            end if
 
         end do
 
-        write(unitXML,AFORMAT) '</'//XML_ROOT_SUBJECTS//'>'
-        isDirtyXML = .true.
+        if (monolithic) then
+            call xml_write_character(device, 0, FSLASH//ROOT_SUBJECTS)
+            if (len_trim(path)>0) then
+                errMesg = 'close monolithic; '//errMesg
+                close(device, iostat=stat, err=999)
+                errMesg = 'rename monolithic; '//errMesg
+#if defined GLNX
+                call rename(filePart, fileName, stat)
+#endif
+            end if
+        end if
 
-    end subroutine xml_subjects
+        999 call terminate(stat, 'Error back trace: '//errMesg)
+        if (monolithic) call log_comment('Successfully wrote '//fileName)
+
+        isDirtyData = .true. ! allow writing to backup
+
+    end subroutine subject_details_write
+
 
 
 !===========================================================
@@ -1145,36 +1774,211 @@ contains
 !===========================================================
 
 
-    subroutine xml_read_curricula(pathToFile, errNo)
+    subroutine curricula_index_read(device, path)
+        integer, intent (in) :: device
+        character (len=*), intent (in) :: path
+
+        integer :: stat
+
+        open(unit=device, file=trim(path)//'index', iostat=stat)
+        call terminate(stat, 'Error '//trim(itoa(stat))//' in reading index of  '//path)
+        do
+            read(device, AFORMAT, iostat=stat) line
+            if (stat<0) exit
+            call curriculum_details_read(trim(path)//trim(line)//dotXML)
+        end do
+        close(device)
+
+    end subroutine curricula_index_read
+
+
+    subroutine curriculum_details_write(device, path, first, last)
+        character (len=*), intent (in) :: path
+        integer, intent (in) :: device, first
+        integer, intent (in), optional :: last
+
+        integer :: lastIdx, tab0, tab1, tab2, stat
+        logical :: monolithic!, fileExists
+        character (len=MAX_LEN_FILE_PATH) :: fileName, filePart
+
+        integer :: idxCOLL, idxCURR, idx, tdx, iYear, iTerm
+        character(len=255) :: mesg
+        character(len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
+
+        if (isReadOnly) return
+
+        if (present(last)) then
+            lastIdx = last
+            tab0 = INDENT_INCR
+        else
+            lastIdx = first
+            tab0 = 0
+        end if
+        monolithic = lastIdx>first
+
+        tab1 = tab0+INDENT_INCR
+        tab2 = tab0+INDENT_INCR*2
+
+        stat = 0 ! error status
+        if (monolithic) then ! single file
+
+            if (len_trim(path)>0) then
+                fileName = path
+#if defined GLNX
+                filePart = trim(fileName)//dotPART
+#else
+                filePart = fileName
+#endif
+                open(unit=device, file=filePart, iostat=stat, err=999)
+
+                ! write the index only
+                if (index(path, DIRSEP//'index')>0) then
+                    write(device,AFORMAT, iostat=stat, err=999) &
+                        ( trim(filename_from(Curriculum(idxCURR)%Code)), idxCURR=first,lastIdx )
+                    close(device, iostat=stat, err=999)
+#if defined GLNX
+                    call rename(filePart, fileName, stat)
+#endif
+                    goto 999
+                end if
+
+                call xml_write_character(device, 0, XML_DOC)
+
+            else
+                fileName = 'curricula to backup file'
+            end if
+
+            call xml_write_character(device, 0, ROOT_CURRICULA)
+
+        end if
+
+        do idxCURR=first,lastIdx
+
+            tCurriculum = Curriculum(idxCURR)%Code
+            if (trim(tCurriculum)==SPACE) cycle
+            idxCOLL = Curriculum(idxCURR)%CollegeIdx
+
+            if (.not. monolithic) then
+
+                fileName = trim(path)//trim(filename_from(tCurriculum))//dotXML
+#if defined GLNX
+                filePart = trim(fileName)//dotPART
+#else
+                filePart = fileName
+#endif
+                open(unit=device, file=filePart, iostat=stat, err=999)
+                call xml_write_character(device, 0, XML_DOC)
+                call xml_write_character(device, 0, ROOT_CURRICULA)
+
+            end if
+
+            call xml_write_character(device, tab0, 'Curriculum')
+            call xml_write_character(device, tab1, 'Code', tCurriculum)
+            call xml_write_character(device, tab1, 'Title', Curriculum(idxCURR)%Title)
+
+            if (Curriculum(idxCURR)%Specialization/=SPACE) then
+                call xml_write_character(device, tab1, 'Specialization', Curriculum(idxCURR)%Specialization)
+            end if
+
+            if (Curriculum(idxCURR)%Remark/=SPACE) then
+                call xml_write_character(device, tab1, 'Remark', Curriculum(idxCURR)%Remark)
+            end if
+
+            if (Curriculum(idxCURR)%Active) then
+                mesg = 'ACTIVE'
+            else
+                mesg = 'INACTIVE'
+            end if
+            call xml_write_character(device, tab1, 'Status', mesg)
+
+            call xml_write_character(device, tab1, 'College', College(idxCOLL)%Code)
+
+            do tdx=1,Curriculum(idxCURR)%NumTerms
+                call rank_to_year_term(tdx, iYear, iTerm)
+                mesg = SPACE
+                do idx=1,Curriculum(idxCURR)%NSubjects
+                    if (INDEX_TO_NONE==Curriculum(idxCURR)%SubjectIdx(idx)) cycle
+                    if (Curriculum(idxCURR)%SubjectTerm(idx) == tdx) then
+                        mesg = trim(mesg)//COMMA//Subject(Curriculum(idxCURR)%SubjectIdx(idx))%Name
+                    end if
+                end do
+                if (mesg==SPACE) cycle
+                call xml_write_character(device, tab1, 'Load')
+                call xml_write_character(device, tab2, 'Year', txtYear(iYear))
+                call xml_write_character(device, tab2, 'Term', txtSemester(iTerm))
+                call xml_write_character(device, tab2, 'Subjects', mesg(2:))
+                call xml_write_character(device, tab1, '/Load')
+            end do
+            do tdx=1,NumSubst
+                if (Substitution(SubstIdx(tdx))==idxCURR) then
+                    mesg = SPACE
+                    do idx=SubstIdx(tdx)+1, SubstIdx(tdx+1)-1
+                        mesg = trim(mesg)//COMMA//Subject(Substitution(idx))%Name
+                    end do
+                    call xml_write_character(device, tab1, 'Substitution', mesg(2:))
+                end if
+            end do
+
+            call xml_write_character(device, tab0, '/Curriculum')
+
+            if (.not. monolithic) then
+                call xml_write_character(device, 0, FSLASH//ROOT_CURRICULA)
+                close(device, iostat=stat, err=999)
+#if defined GLNX
+                call rename(filePart, fileName, stat)
+#endif
+                if (stat/=0) goto 999
+            end if
+
+        end do
+
+        if (monolithic) then
+            call xml_write_character(device, 0, FSLASH//ROOT_CURRICULA)
+            if (len_trim(path)>0) then
+                close(device, iostat=stat, err=999)
+#if defined GLNX
+                call rename(filePart, fileName, stat)
+#endif
+            end if
+        end if
+
+        999 call terminate(stat, 'Error in writing '//fileName)
+        if (monolithic) call log_comment('Successfully wrote '//fileName)
+
+        isDirtyData = .true. ! allow writing to backup
+
+    end subroutine curriculum_details_write
+
+
+    subroutine curriculum_details_read(pathToFile)
 
         character(len=*), intent(in) :: pathToFile
-        integer, intent (out) :: errNo
 
         type(TYPE_CURRICULUM) :: tmpCurriculum
 
-        integer :: i, j, k, idxterm, year, term, ierr
+        integer :: i, j, k, tdx, iYear, iTerm, stat
         character (len=MAX_LEN_SUBJECT_CODE) :: token
         character (len=MAX_LEN_COLLEGE_CODE) :: tCollege
         character (len=MAX_LEN_TEXT_SEMESTER) :: strTerm
         character (len=MAX_LEN_TEXT_YEAR) :: strYear
         integer :: nLoad, loadArray(MAX_SUBJECTS_PER_TERM)
 
-        ! open file, return on any error
-        call xml_read_file(unitXML, XML_ROOT_CURRICULA, pathToFile, errNo)
-        if (errNo/=0) return
+        ! find ROOT_CURRICULA
+        call xml_read_file(unitXML, ROOT_CURRICULA, pathToFile, stat)
+        call terminate(stat, 'Error: "'//ROOT_CURRICULA//'" not found in '//pathToFile)
 
         ! examine the file line by line
         do
-            read(unitXML, AFORMAT, iostat=eof) line
-            if (eof<0) exit
+            read(unitXML, AFORMAT, iostat=stat) line
+            if (stat<0) exit
 
             ! get tag and value if any
-            call xml_parse_line(line, tag, value, eof)
-            if (eof/=0) exit
+            call xml_parse_line(line, tag, value, stat)
+            if (stat/=0) exit
 
             select case (trim(tag))
 
-                case ('/'//XML_ROOT_CURRICULA)
+                case (FSLASH//ROOT_CURRICULA)
                     exit
 
                 case ('Curriculum') ! initialize temporary curriculum data
@@ -1202,38 +2006,39 @@ contains
                 case ('Load') ! value is empty
                     nLoad = 0
                     loadArray = 0
-                    year = -1
-                    term = -1
+                    iYear = -1
+                    iTerm = -1
 
                 case ('Year') ! value is one of FIRST, SECOND, THIRD, FOURTH, ...
                     strYear = adjustl(value)
                     call upper_case(strYear)
-                    year = index_to_year(strYear)
+                    iYear = index_to_year(strYear)
 
                 case ('Term') ! value is one of FIRST, SECOND, SUMMER
                     strTerm = adjustl(value)
                     call upper_case(strTerm)
-                    term = index_to_term(strTerm)
+                    iTerm = index_to_term(strTerm)
 
                 case ('Subjects') ! value is comma-separated list of subjects
-                    call tokenize_subjects(value, ',', MAX_SUBJECTS_PER_TERM, nLoad, loadArray, ierr)
+                    call upper_case(value)
+                    call tokenize_subjects(value, ',', MAX_SUBJECTS_PER_TERM, nLoad, loadArray, stat)
 
                 case ('/Load') ! value is empty
-                    if (year>0 .and. term>0) then ! ok
+                    if (iYear>0 .and. iTerm>0) then ! ok
                         ! collect subjects
-                        idxTerm = (year-1)*3 + term
-                        tmpCurriculum%NumTerms = idxTerm
+                        tdx = (iYear-1)*3 + iTerm
+                        tmpCurriculum%NumTerms = tdx
                         do k = 1,nLoad
                             if (INDEX_TO_NONE==loadArray(k)) cycle
                             token = Subject(loadArray(k))%Name
                             i = index_to_new_subject(loadArray(k))
                             !if (i/=loadArray(k)) &
                             !    call log_comment (tCurriculum//token//' renamed '//Subject(i)%Name)
-                            if ( is_offered(i,term) ) then
+                            if ( isSubject_offered(i,iTerm) ) then
                                 j = tmpCurriculum%NSubjects+1
                                 tmpCurriculum%NSubjects = j
                                 tmpCurriculum%SubjectIdx(j) = i
-                                tmpCurriculum%SubjectTerm(j) = idxTerm
+                                tmpCurriculum%SubjectTerm(j) = tdx
                             else
                                 call log_comment (token//': subject not offered during '//strTerm//' Term')
                             !return
@@ -1242,15 +2047,27 @@ contains
                     end if
                     nLoad = 0
                     loadArray = 0
-                    year = -1
-                    term = -1
+                    iYear = -1
+                    iTerm = -1
 
                 case ('/Curriculum') ! add temporary curriculum data to Curriculum()
                     if (trim(tmpCurriculum%Code)=='OTHER') cycle ! ignore OTHER
-                    if (trim(tmpCurriculum%Code)==SPACE) cycle ! ignore
-                    NumCurricula = NumCurricula + 1
-                    call check_array_bound (NumCurricula, MAX_ALL_CURRICULA, 'MAX_ALL_CURRICULA')
-                    Curriculum(NumCurricula) = tmpCurriculum
+                    if (len_trim(tmpCurriculum%Code)==0) cycle ! ignore
+                    if (tmpCurriculum%CollegeIdx==0) tmpCurriculum%CollegeIdx = NumColleges
+
+                    ! already in list?
+                    k = 0
+                    do i=1,NumCurricula
+                        if (tmpCurriculum%Code/=Curriculum(i)%Code) cycle
+                        k = i
+                        exit
+                    end do
+                    if (k==0) then ! add
+                        NumCurricula = NumCurricula + 1
+                        call check_array_bound (NumCurricula, MAX_ALL_CURRICULA, 'MAX_ALL_CURRICULA')
+                        k = NumCurricula
+                    end if
+                    Curriculum(k) = tmpCurriculum
                     College(tmpCurriculum%CollegeIdx)%hasInfo = .true.
 
                     ! if active curriculum, check that prerequisites are taken before successor subjects
@@ -1264,9 +2081,9 @@ contains
                         i = tmpCurriculum%SubjectIdx(k)
                         if (.not. is_prerequisite_satisfiable_in_curriculum(i,tmpCurriculum)) then
                             token = Subject(i)%Name
-                            call rank_to_year_term (tmpCurriculum%SubjectTerm(k), year, term)
-                            strYear = txtYear(year)
-                            strTerm = txtSemester(term)
+                            call rank_to_year_term (tmpCurriculum%SubjectTerm(k), iYear, iTerm)
+                            strYear = txtYear(iYear)
+                            strTerm = txtSemester(iTerm)
                             call log_comment (trim(tmpCurriculum%Code)//', '// &
                                 trim(strYear)//' year, '//trim(strTerm)//' term, '//trim(token)// &
                                 ': preq '//trim(text_prerequisite_in_curriculum(i))//' not specified earlier!')
@@ -1280,439 +2097,368 @@ contains
 
         close(unitXML)
 
-        ! sort
-        do i=1,NumCurricula-1
-            do j=i+1,NumCurricula
-                if (Curriculum(i)%Code>Curriculum(j)%Code) then
-                    tmpCurriculum = Curriculum(i)
-                    Curriculum(i) = Curriculum(j)
-                    Curriculum(j) = tmpCurriculum
-                end if
-            end do
-        end do
 
-        call log_comment (itoa(NumCurricula)//' curricula in '//pathToFile)
-
-        ! add OTHER
-        NumCurricula = NumCurricula + 1
-        call check_array_bound (NumCurricula, MAX_ALL_CURRICULA, 'MAX_ALL_CURRICULA')
-        Curriculum(NumCurricula)%Code = 'OTHER'
-        Curriculum(NumCurricula)%CollegeIdx = NumColleges
-        Curriculum(NumCurricula)%Title = 'Change curriculum'
-        Curriculum(NumCurricula)%Specialization = SPACE
-        Curriculum(NumCurricula)%Remark = SPACE
-        Curriculum(NumCurricula)%NSubjects = 0
-        Curriculum(NumCurricula)%Active = .true.
-
-        call make_curriculum_groups()
-
-    end subroutine xml_read_curricula
+    end subroutine curriculum_details_read
 
 
 
-    subroutine xml_write_curricula(pathToFile)
+    subroutine equivalence_data_read()
+        !device, path, indexFile)
+        !integer, intent (in) :: device
+        !character (len=*), intent (in) :: path
 
-        character(len=*), intent(in) :: pathToFile
-
-        if (isReadOnly) return
-
-        call move_to_backup(pathToFile)
-        call log_comment('xml_write_curricula('//trim(pathToFile)//')')
-
-        open(unit=unitXML, file=pathToFile)
-        write(unitXML,AFORMAT) XML_DOC
-
-        call xml_curricula(unitXML)
-
-        close(unitXML)
-
-    end subroutine xml_write_curricula
-
-
-
-    subroutine xml_curricula(unitXML)
-
-        integer, intent(in) :: unitXML
-        integer :: idxCOLL, idxCURR, idx, tdx, Year, Term
-        character(len=255) :: mesg
-        character(len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
-
-        write(unitXML,AFORMAT) '<'//XML_ROOT_CURRICULA//'>', &
-        '    <comment>', &
-        '        Generated by '//PROGNAME//VERSION//' on '//currentDate(1:4)// &
-                    FSLASH//currentDate(5:6)//FSLASH//currentDate(7:8), &
-        '        Code - code for the curriculum', &
-        '        Title - long name of curriculum', &
-        '        Specialization - curriculum option/major area', &
-        '        Remark - other info on the curriculum', &
-        '        College - responsible college', &
-        '        Status - to indicate status of curriculum: ACTIVE or INACTIVE', &
-        '        Load, Year, Term, Subjects - Subjects to be taken during (Year, Term)', &
-        '            where Year is one of FIRST, SECOND, THIRD, FOURTH, FIFTH', &
-        '            and   Term is one of FIRST, SECOND, SUMMER', &
-        '        Substitution - to indicate allowed automatic substitutions in this curriculum', &
-        '            subjects in this list which are required in the curriculum will', &
-        '            be considered "passed" if the rest of the subjects in the list have passing grades;', &
-        '            i.e., MATH 11 and MATH 14 can be substituted by MATH I and MATH 17', &
-        '    </comment>'
-
-        do idxCURR=1,NumCurricula-1
-
-            idxCOLL = Curriculum(idxCURR)%CollegeIdx
-
-            tCurriculum = Curriculum(idxCURR)%Code
-            if (trim(tCurriculum)==SPACE) cycle
-            call xml_write_character(unitXML, indent0, 'Curriculum')
-            call xml_write_character(unitXML, indent1, 'Code', tCurriculum)
-            call xml_write_character(unitXML, indent1, 'Title', Curriculum(idxCURR)%Title)
-
-            if (Curriculum(idxCURR)%Specialization/=SPACE) then
-                call xml_write_character(unitXML, indent1, 'Specialization', Curriculum(idxCURR)%Specialization)
-            end if
-
-            if (Curriculum(idxCURR)%Remark/=SPACE) then
-                call xml_write_character(unitXML, indent1, 'Remark', Curriculum(idxCURR)%Remark)
-            end if
-
-            if (Curriculum(idxCURR)%Active) then
-                mesg = 'ACTIVE'
-            else
-                mesg = 'INACTIVE'
-            end if
-            call xml_write_character(unitXML, indent1, 'Status', mesg)
-
-            call xml_write_character(unitXML, indent1, 'College', College(idxCOLL)%Code)
-
-            do tdx=1,Curriculum(idxCURR)%NumTerms
-                call rank_to_year_term(tdx, Year, Term)
-                mesg = SPACE
-                do idx=1,Curriculum(idxCURR)%NSubjects
-                    if (INDEX_TO_NONE==Curriculum(idxCURR)%SubjectIdx(idx)) cycle
-                    if (Curriculum(idxCURR)%SubjectTerm(idx) == tdx) then
-                        mesg = trim(mesg)//COMMA//Subject(Curriculum(idxCURR)%SubjectIdx(idx))%Name
-                    end if
-                end do
-                if (mesg==SPACE) cycle
-                call xml_write_character(unitXML, indent1, 'Load')
-                call xml_write_character(unitXML, indent2, 'Year', txtYear(Year))
-                call xml_write_character(unitXML, indent2, 'Term', txtSemester(Term))
-                call xml_write_character(unitXML, indent2, 'Subjects', mesg(2:))
-                call xml_write_character(unitXML, indent1, '/Load')
-            end do
-            do tdx=1,NumSubst
-                if (Substitution(SubstIdx(tdx))==idxCURR) then
-                    mesg = SPACE
-                    do idx=SubstIdx(tdx)+1, SubstIdx(tdx+1)-1
-                        mesg = trim(mesg)//COMMA//Subject(Substitution(idx))%Name
-                    end do
-                    call xml_write_character(unitXML, indent1, 'Substitution', mesg(2:))
-                end if
-            end do
-
-            call xml_write_character(unitXML, indent0, '/Curriculum')
-
-        end do
-
-        write(unitXML,AFORMAT) '</'//XML_ROOT_CURRICULA//'>'
-        isDirtyXML = .true.
-
-    end subroutine xml_curricula
-
-
-
-    subroutine xml_read_equivalencies(path, errNo, backupFile)
-
-        character(len=*), intent(in) :: path
-        integer, intent (out) :: errNo
-        character (len=*), intent(in), optional :: backupFile
-
-        character (len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
-        integer :: idxCURR
-
-        integer :: i, ptrS
-        integer :: nLoad, loadArray(MAX_SUBJECTS_PER_TERM)
+        integer :: ptrS, stat
 
         ptrS = 0 ! substitutions
 
-        ! open CURRICULUM file, return on any error
-        if (present(backupFile)) then
-            fileName = trim(path)//backupFile
-        else
-            fileName = trim(path)//'CURRICULA.XML'
-        end if
-        call xml_read_file(unitXML, XML_ROOT_CURRICULA, fileName, errNo)
-        if (errNo==0) then
-            ! examine the file line by line
-            do
-                read(unitXML, AFORMAT, iostat=eof) line
-                if (eof<0) exit
-                if (trim(line)=='</'//XML_ROOT_CURRICULA//'>') exit
+        ! from curriculum files
+        open(unit=unitIDX, file=trim(dirCURRICULA)//'index', iostat=stat)
+        call terminate(stat, 'Error '//trim(itoa(stat))//' in opening index for '//dirCURRICULA)
+        do
+            read(unitIDX, AFORMAT, iostat=stat) line
+            if (stat<0) exit
+            call equivalencies_by_curriculum(trim(dirCURRICULA)//trim(line)//dotXML, ptrS)
+        end do
+        close(unitIDX)
 
-                ! get tag and value if any
-                call xml_parse_line(line, tag, value, eof)
-                if (eof/=0) exit
+        ! from EQUIVALENCIES.XML
+        call equivalencies_for_all_curricula(trim(pathToYear)//'EQUIVALENCIES.XML', ptrS)
+        SubstIdx(NumSubst+1) = ptrS+1
 
-                select case (trim(tag))
+    end subroutine equivalence_data_read
 
-                    case ('Code')
-                        tCurriculum = adjustl(value)
-                        idxCURR = index_to_curriculum(tCurriculum)
 
-                    case ('Substitution') ! value is comma-separated list of subjects
-                        call tokenize_subjects(value, ',', MAX_SUBJECTS_PER_TERM, nLoad, loadArray, errNo)
-                        call check_array_bound (NumSubst+1, MAX_ALL_SUBSTITUTIONS, 'MAX_ALL_SUBSTITUTIONS')
-                        call check_array_bound (ptrS+nLoad, MAX_LEN_SUBSTITUTION_ARRAY, 'MAX_LEN_SUBSTITUTION_ARRAY')
-                        NumSubst = NumSubst + 1
+    subroutine equivalencies_by_curriculum(fileName, ptrS)
+        character(len=*), intent(in) :: fileName
+        integer, intent (in out) :: ptrS
+
+        character (len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
+        integer :: idxCURR, i, stat
+        integer :: nLoad, loadArray(MAX_SUBJECTS_PER_TERM)
+
+        call xml_read_file(unitXML, ROOT_CURRICULA, fileName, stat)
+        call terminate(stat, 'Error: "'//ROOT_CURRICULA//'" not found in '//fileName)
+        do
+            read(unitXML, AFORMAT, iostat=stat) line
+            if (stat<0) exit
+
+            ! get tag and value if any
+            call xml_parse_line(line, tag, value, stat)
+            if (stat/=0) exit
+
+            select case (trim(tag))
+
+                case (FSLASH//ROOT_CURRICULA)
+                    exit
+
+                case ('Code')
+                    tCurriculum = adjustl(value)
+                    idxCURR = index_to_curriculum(tCurriculum)
+
+                case ('Substitution') ! value is comma-separated list of subjects
+                    call upper_case(value)
+                    call tokenize_subjects(value, ',', MAX_SUBJECTS_PER_TERM, nLoad, loadArray, stat)
+                    call check_array_bound (NumSubst+1, MAX_ALL_SUBSTITUTIONS, 'MAX_ALL_SUBSTITUTIONS')
+                    call check_array_bound (ptrS+nLoad, MAX_LEN_SUBSTITUTION_ARRAY, 'MAX_LEN_SUBSTITUTION_ARRAY')
+                    NumSubst = NumSubst + 1
+                    ptrS = ptrS+1
+                    SubstIdx(NumSubst) = ptrS
+                    Substitution(ptrS) = idxCURR
+                    do i=1,nLoad
                         ptrS = ptrS+1
-                        SubstIdx(NumSubst) = ptrS
-                        Substitution(ptrS) = idxCURR
-                        do i=1,nLoad
-                            ptrS = ptrS+1
-                            Substitution(ptrS) = loadArray(i)
-                        end do
-                    case default
-                        ! do nothing
-                end select
-            end do
-            close(unitXML)
-        end if
-
-        ! open EQUIVALENCIES file, return on any error
-        if (present(backupFile)) then
-            fileName = trim(path)//backupFile
-        else
-            fileName = trim(path)//'EQUIVALENCIES.XML'
-        end if
-        call xml_read_file(unitXML, XML_ROOT_EQUIVALENCIES, fileName, errNo)
-        if (errNo==0) then
-            ! examine the file line by line
-            do
-                read(unitXML, AFORMAT, iostat=eof) line
-                if (eof<0) exit
-
-                ! get tag and value if any
-                call xml_parse_line(line, tag, value, eof)
-                if (eof/=0) exit
-
-                select case (trim(tag))
-
-                    case ('/'//XML_ROOT_EQUIVALENCIES)
-                        exit
-
-                    case ('Equivalence') ! value is comma-separated list of subjects
-                        call tokenize_subjects(value, ',', MAX_SUBJECTS_PER_TERM, nLoad, loadArray, errNo)
-                        call check_array_bound (NumSubst+1, MAX_ALL_SUBSTITUTIONS, 'MAX_ALL_SUBSTITUTIONS')
-                        call check_array_bound (ptrS+nLoad, MAX_LEN_SUBSTITUTION_ARRAY, 'MAX_LEN_SUBSTITUTION_ARRAY')
-                        NumSubst = NumSubst + 1
-                        ptrS = ptrS+1
-                        SubstIdx(NumSubst) = ptrS
-                        Substitution(ptrS) = -1
-                        do i=1,nLoad
-                            ptrS = ptrS+1
-                            Substitution(ptrS) = loadArray(i)
-                        end do
-                    case default
-                        ! do nothing
-                end select
-            end do
-            SubstIdx(NumSubst+1) = ptrS+1
-            close(unitXML)
-        end if
-
-    end subroutine xml_read_equivalencies
-
-
-    subroutine xml_write_equivalencies(pathToFile)
-
-        character(len=*), intent(in) :: pathToFile
-
-        if (isReadOnly) return
-
-        call move_to_backup(pathToFile)
-        call log_comment('xml_write_equivalencies('//trim(pathToFile)//')')
-
-        open(unit=unitXML, file=pathToFile)
-        write(unitXML,AFORMAT) XML_DOC
-
-        call xml_equivalencies(unitXML)
-
+                        Substitution(ptrS) = loadArray(i)
+                    end do
+                case default
+                    ! do nothing
+            end select
+        end do
         close(unitXML)
 
-    end subroutine xml_write_equivalencies
+    end subroutine equivalencies_by_curriculum
+
+
+    subroutine equivalencies_for_all_curricula(fileName, ptrS)
+
+        character(len=*), intent(in) :: fileName
+        integer, intent (in out) :: ptrS
+
+        integer :: i, stat
+        integer :: nLoad, loadArray(MAX_SUBJECTS_PER_TERM)
+
+        ! find ROOT_EQUIVALENCIES
+        call xml_read_file(unitXML, ROOT_EQUIVALENCIES, fileName, stat)
+        if (stat/=0) return
+
+        ! examine the file line by line
+        do
+            read(unitXML, AFORMAT, iostat=stat) line
+            if (stat<0) exit
+
+            ! get tag and value if any
+            call xml_parse_line(line, tag, value, stat)
+            if (stat/=0) exit
+
+            select case (trim(tag))
+
+                case (FSLASH//ROOT_EQUIVALENCIES)
+                    exit
+
+                case ('Equivalence') ! value is comma-separated list of subjects
+                    call upper_case(value)
+                    call tokenize_subjects(value, ',', MAX_SUBJECTS_PER_TERM, nLoad, loadArray, stat)
+                    call check_array_bound (NumSubst+1, MAX_ALL_SUBSTITUTIONS, 'MAX_ALL_SUBSTITUTIONS')
+                    call check_array_bound (ptrS+nLoad, MAX_LEN_SUBSTITUTION_ARRAY, 'MAX_LEN_SUBSTITUTION_ARRAY')
+                    NumSubst = NumSubst + 1
+                    ptrS = ptrS+1
+                    SubstIdx(NumSubst) = ptrS
+                    Substitution(ptrS) = -1
+                    do i=1,nLoad
+                        ptrS = ptrS+1
+                        Substitution(ptrS) = loadArray(i)
+                    end do
+                case default
+                    ! do nothing
+            end select
+        end do
+        close(unitXML)
+
+    end subroutine equivalencies_for_all_curricula
 
 
 
-    subroutine xml_equivalencies(unitXML)
+    subroutine equivalence_data_write(device, equivalenceFile)
+        integer, intent(in) :: device
+        character (len=*), intent (in) :: equivalenceFile
 
-        integer, intent(in) :: unitXML
-        integer :: idx, tdx
-        character(len=255) :: mesg
+        integer :: idx, stat, tdx
+        character (len=MAX_LEN_FILE_PATH) :: fileName, filePart, mesg
 
-        write(unitXML,AFORMAT) '<'//XML_ROOT_EQUIVALENCIES//'>', &
-            '    <comment>', &
-            '        Generated by '//PROGNAME//VERSION//' on '//currentDate(1:4)// &
-                        FSLASH//currentDate(5:6)//FSLASH//currentDate(7:8), &
-            '        Equivalence - to indicate allowed automatic substitutions in all curricula', &
-            '            Subjects in a list which are required in a curriculum will', &
-            '            be considered "passed" if the rest of the subjects in the list have earned credits', &
-            '    </comment>'
+        stat = 0
+        if (len_trim(equivalenceFile)>0) then
+            fileName = equivalenceFile
+#if defined GLNX
+            filePart = trim(fileName)//dotPART
+#else
+            filePart = fileName
+#endif
+            open(unit=device, file=filePart, iostat=stat, err=999)
+            call xml_write_character(device, 0, XML_DOC)
+        else
+            fileName = ' equivalence rules to backup file'
+        end if
+
+        call xml_write_character(device, indent0, ROOT_EQUIVALENCIES)
+
         do tdx=1,NumSubst
             if (Substitution(SubstIdx(tdx))==-1) then
                 mesg = SPACE
                 do idx=SubstIdx(tdx)+1, SubstIdx(tdx+1)-1
                     mesg = trim(mesg)//COMMA//Subject(Substitution(idx))%Name
                 end do
-                call xml_write_character(unitXML, indent0, 'Equivalence', mesg(2:))
+                call xml_write_character(device, indent1, 'Equivalence', mesg(2:))
             end if
         end do
 
-        write(unitXML,AFORMAT) '</'//XML_ROOT_EQUIVALENCIES//'>'
-        isDirtyXML = .true.
+        call xml_write_character(device, indent0, FSLASH//ROOT_EQUIVALENCIES)
 
-    end subroutine xml_equivalencies
+        if (len_trim(equivalenceFile)>0) then
+            close(device, iostat=stat, err=999)
+#if defined GLNX
+            call rename(filePart, fileName, stat)
+#endif
+        end if
 
+        999 call terminate(stat, 'Error in writing '//filename)
+        call log_comment('Successfully wrote '//fileName)
 
+        isDirtyData = .true. ! allow writing to backup
 
-    subroutine xml_read_intake(path, errNo)
-
-        character(len=*), intent(in) :: path
-        integer, intent (out) :: errNo
-
-        integer :: idxCURR
-        character (len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
-
-        ! open file, return on any error
-        fileName = trim(path)//'INTAKE.XML'
-        call xml_read_file(unitXML, XML_ROOT_INTAKE, fileName, errNo)
-        if (errNo/=0) return
-
-        ! examine the file line by line
-        do
-            read(unitXML, AFORMAT, iostat=eof) line
-            if (eof<0) exit
-
-            ! get tag and value if any; exit on any error
-            call xml_parse_line(line, tag, value, eof)
-            if (eof/=0) exit
-
-            select case (trim(tag))
-
-                case ('/'//XML_ROOT_INTAKE)
-                    exit
-
-                case ('Intake')
-                    call index_to_delimiters(COMMA, value, ndels, pos)
-                    tCurriculum = value(:pos(2)-1)
-                    idxCURR = index_to_curriculum(tCurriculum)
-                    if (idxCURR == 0) then
-                        cycle
-                    else if (idxCURR <= 0) then
-                        idxCURR = -idxCURR
-                    end if
-                    NFintake(idxCURR) = atoi(value(pos(2)+1:pos(3)-1))
-
-                case default ! do nothing
-
-            end select
-
-        end do
-
-        close(unitXML)
-
-    end subroutine xml_read_intake
-
-
-    subroutine xml_write_intake(path)
-
-        character(len=*), intent(in) :: path
-
-        if (isReadOnly) return
-
-        fileName = trim(path)//'INTAKE.XML'
-        call move_to_backup(fileName)
-        call log_comment('xml_write_intake('//trim(fileName)//')')
-
-        open(unit=unitXML, file=fileName)
-        write(unitXML,AFORMAT) XML_DOC
-
-        call xml_intake(unitXML)
-
-        close(unitXML)
-
-    end subroutine xml_write_intake
-
-
-
-    subroutine xml_intake(unitXML)
-
-        integer, intent(in) :: unitXML
-        integer :: idxCURR
-
-        write(unitXML,AFORMAT) '<'//XML_ROOT_INTAKE//'>', &
-            '    <comment>', &
-            '        Generated by '//PROGNAME//VERSION//' on '//currentDate(1:4)//FSLASH// &
-                        currentDate(5:6)//FSLASH//currentDate(7:8), &
-            '        Intake - curriculum,count', &
-            '    </comment>'
-
-        do idxCURR=1,NumCurricula
-            if (NFintake(idxCURR)==0) cycle
-            call xml_write_character(unitXML, indent0, 'Intake', &
-                trim(Curriculum(idxCURR)%Code)//COMMA//itoa(NFintake(idxCURR)) )
-        end do
-
-        write(unitXML,AFORMAT) '</'//XML_ROOT_INTAKE//'>'
-        isDirtyXML = .true.
-
-    end subroutine xml_intake
-
+    end subroutine equivalence_data_write
 
 
 !===========================================================
 ! routines for sections
 !===========================================================
 
+    subroutine classes_index_read(device, thisTerm, path, keepDuplicates)
 
-    subroutine read_classes(path, iTerm, NumSections, Section, Offering, errNo, backupFile)
+        integer, intent (in) :: device, thisTerm
+        character (len=*), intent (in) :: path
+        logical, intent(in), optional :: keepDuplicates
 
-        character(len=*), intent(in) :: path
-        type (TYPE_SECTION), intent(in out) :: Section(0:)
-        integer, intent (in) :: iTerm
-        integer, intent (in out) :: NumSections
-        type (TYPE_OFFERED_SUBJECTS), intent (in out), dimension (MAX_ALL_DUMMY_SUBJECTS:MAX_ALL_SUBJECTS) :: Offering
-        integer, intent (out) :: errNo
-        character(len=*), intent(in), optional :: backupFile
+        integer :: stat
 
-        integer :: ierr
-
-        errNo = 0 ! 0 is OK; there might be no classes entered yet
-        NumSections = 0
-        call initialize_section (Section(0))
-        Section(:) = Section(0)
-
-        if ( present(backupFile) )then
-            fileName = trim(path)//backupFile
-        else
-            fileName = trim(path)//'CLASSES.XML'
+        open(unit=device, file=trim(path)//'index', iostat=stat)
+        if (stat/=0) then
+            call log_comment('Error '//trim(itoa(stat))//' in opening index for '//path)
+            return
         end if
-        call xml_read_classes(fileName, iTerm, NumSections, Section, ierr)
+        if (present(keepDuplicates)) then
+            do
+                read(device, AFORMAT, iostat=stat) line
+                if (stat<0) exit
+                call class_details_read(trim(path)//trim(line)//dotXML, thisTerm, .true.)
+            end do
+        else
+            do
+                read(device, AFORMAT, iostat=stat) line
+                if (stat<0) exit
+                call class_details_read(trim(path)//trim(line)//dotXML, thisTerm)
+            end do
+        end if
+        close(device)
 
-        ! sort & summarize
-        call offerings_sort(NumSections, Section)
-        call offerings_summarize(NumSections, Section, Offering, 0)
-
-    end subroutine read_classes
+    end subroutine classes_index_read
 
 
-    subroutine xml_read_classes(fName, iTerm, NumSections, Section, errNo)
 
-        character(len=*), intent(in) :: fName
-        type (TYPE_SECTION), intent(in out) :: Section(0:)
-        integer, intent (in) :: iTerm
-        integer, intent (in out) :: NumSections
-        integer, intent (out) :: errNo
+    subroutine class_details_write(device, thisTerm, path, first, last)
+        character (len=*), intent (in) :: path
+        integer, intent (in) :: device, thisTerm, first
+        integer, intent (in), optional :: last
 
-        integer :: i, j, k
+        integer :: iSect, mdx, subj, lastIdx, tab0, tab1, tab2, stat
+        logical :: monolithic!, fileExists
+        character (len=MAX_LEN_FILE_PATH) :: fileName, filePart
+
+        if (isReadOnly) return
+
+        if (present(last)) then
+            lastIdx = last
+            tab0 = INDENT_INCR
+        else
+            lastIdx = first
+            tab0 = 0
+        end if
+        tab1 = tab0+INDENT_INCR
+        tab2 = tab0+INDENT_INCR*2
+        monolithic = lastIdx>first
+
+        stat = 0 ! error status
+        if (monolithic) then
+            if (len_trim(path)>0) then
+                fileName = path
+#if defined GLNX
+                filePart = trim(fileName)//dotPART
+#else
+                filePart = fileName
+#endif
+                open(unit=device, file=filePart, iostat=stat, err=999)
+                if (index(path, DIRSEP//'index')>0) then
+                    do iSect=first,lastIdx
+                        if (Section(thisTerm,iSect)%SubjectIdx==0) cycle
+                        write(device,AFORMAT, iostat=stat, err=999) trim(filename_from(Section(thisTerm,iSect)%ClassId))
+                    end do
+                    close(device, iostat=stat, err=999)
+#if defined GLNX
+                    call rename(filePart, fileName, stat)
+#endif
+                    goto 999
+                else
+                    call xml_write_character(device, 0, XML_DOC)
+                end if
+
+            else
+                fileName = trim(txtSemester(thisTerm))//' term classes to backup file'
+
+            end if
+            call xml_write_character(device, 0, ROOT_SECTIONS//trim(txtSemester(thisTerm)) )
+
+        end if
+
+        do iSect=first,lastIdx
+
+            subj = Section(thisTerm,iSect)%SubjectIdx
+            if (subj==0) cycle
+
+            if (.not. monolithic) then
+                fileName = trim(path)//trim(filename_from(Section(thisTerm,iSect)%ClassId))//dotXML
+#if defined GLNX
+                filePart = trim(fileName)//dotPART
+#else
+                filePart = fileName
+#endif
+                open(unit=device, file=filePart, iostat=stat, err=999)
+                call xml_write_character(device, 0, XML_DOC)
+                call xml_write_character(device, 0, ROOT_SECTIONS//trim(txtSemester(thisTerm)) )
+            end if
+
+            call xml_write_character(device, tab0, 'Section')
+            if (is_regular_schedule(iSect, thisTerm)) then
+
+                ! class is "regular": single entry for all meetings
+                call xml_write_character(device, tab1, 'Subject', Subject(subj)%Name)
+                call xml_write_character(device, tab1, 'Class', Section(thisTerm,iSect)%Code)
+                if (len_trim(Section(thisTerm,iSect)%GradeSubmissionDate)>0) &
+                    call xml_write_character(device, tab1, 'GradesIn', Section(thisTerm,iSect)%GradeSubmissionDate)
+                call xml_write_character(device, tab1, 'Owner', Department(Section(thisTerm,iSect)%DeptIdx)%Code)
+                call xml_write_integer(device,   tab1, 'Seats', Section(thisTerm,iSect)%Slots)
+                call xml_write_character(device, tab1, 'Meeting')
+                call xml_write_character(device, tab2, 'Time', text_time_period(Section(thisTerm,iSect)%bTimeIdx(1), &
+                    Section(thisTerm,iSect)%eTimeIdx(1)))
+                call xml_write_character(device, tab2, 'Day', text_days_of_section(Section(thisTerm,iSect)))
+                call xml_write_character(device, tab2, 'Room', Room(Section(thisTerm,iSect)%RoomIdx(1))%Code)
+                call xml_write_character(device, tab2, 'Teacher', Teacher(Section(thisTerm,iSect)%TeacherIdx(1))%TeacherId)
+                call xml_write_character(device, tab1, '/Meeting')
+
+            else ! class is "irregular": one entry for each meeting
+
+                call xml_write_character(device, tab1, 'Subject', Subject(subj)%Name)
+                call xml_write_character(device, tab1, 'Class', Section(thisTerm,iSect)%Code)
+                if (len_trim(Section(thisTerm,iSect)%GradeSubmissionDate)>0) &
+                    call xml_write_character(device, tab1, 'GradesIn', Section(thisTerm,iSect)%GradeSubmissionDate)
+                call xml_write_character(device, tab1, 'Owner', Department(Section(thisTerm,iSect)%DeptIdx)%Code)
+                call xml_write_integer(device,   tab1, 'Seats', Section(thisTerm,iSect)%Slots)
+                do mdx=1,Section(thisTerm,iSect)%NMeets
+                    call xml_write_character(device, tab1, 'Meeting')
+                    call xml_write_character(device, tab2, 'Time', text_time_period(Section(thisTerm,iSect)%bTimeIdx(mdx), &
+                        Section(thisTerm,iSect)%eTimeIdx(mdx)))
+                    call xml_write_character(device, tab2, 'Day', txtDay(Section(thisTerm,iSect)%DayIdx(mdx)))
+                    call xml_write_character(device, tab2, 'Room', Room(Section(thisTerm,iSect)%RoomIdx(mdx))%Code)
+                    call xml_write_character(device, tab2, 'Teacher', Teacher(Section(thisTerm,iSect)%TeacherIdx(mdx))%TeacherId)
+                    call xml_write_character(device, tab1, '/Meeting')
+                end do
+            end if
+            call xml_write_character(device, tab0, '/Section')
+
+            ! close file
+            if (.not. monolithic) then
+                call xml_write_character(device, 0, FSLASH//ROOT_SECTIONS//trim(txtSemester(thisTerm)) )
+                close(device, iostat=stat, err=999)
+#if defined GLNX
+                call rename(filePart, fileName, stat)
+#endif
+                if (stat/=0) goto 999
+            end if
+
+        end do
+
+        if (monolithic) then
+            call xml_write_character(device, 0, FSLASH//ROOT_SECTIONS//trim(txtSemester(thisTerm)) )
+            if (len_trim(path)>0) then
+                close(device, iostat=stat, err=999)
+#if defined GLNX
+                call rename(filePart, fileName, stat)
+#endif
+            end if
+        end if
+
+        999 call terminate(stat, 'Error in writing '//fileName)
+        if (monolithic) call log_comment('Successfully wrote '//fileName)
+
+        isDirtyData = .true. ! allow writing to backup
+
+    end subroutine class_details_write
+
+
+
+    subroutine class_details_read(fileName, thisTerm, keepDuplicates)
+
+        character(len=*), intent(in) :: fileName
+        integer, intent (in) :: thisTerm
+        logical, intent(in), optional :: keepDuplicates
+
+        integer :: i, j, k, stat
         character(len=MAX_LEN_XML_LINE) :: value
         character(len=MAX_LEN_XML_TAG) :: tag
         type(TYPE_SECTION) :: wrkSection
@@ -1725,23 +2471,23 @@ contains
         character (len=MAX_LEN_CLASS_ID) :: token
         character (len=MAX_LEN_ROOM_CODE) :: tRoom
         character (len=MAX_LEN_USERNAME) :: tTeacher
-        logical :: flag
 
         ! open file, return on any error
-        call xml_read_file(unitXML, XML_ROOT_SECTIONS//trim(txtSemester(iTerm)), fName, errNo)
-        if (errNo/=0) then
-            call log_comment ('ierr='//itoa(errNo)//' when opening '//fName)
+        tag = ROOT_SECTIONS//trim(txtSemester(thisTerm))
+        call xml_read_file(unitXML, trim(tag), fileName, stat)
+        if (stat/=0) then
+            call log_comment ('Warning: "'//trim(tag)//'" not found in '//fileName)
             return
         end if
 
         ! examine the file line by line
         do
-            read(unitXML, AFORMAT, iostat=eof) line
-            if (eof<0) exit
+            read(unitXML, AFORMAT, iostat=stat) line
+            if (stat<0) exit
 
             ! get tag and value if any; exit on any error
-            call xml_parse_line(line, tag, value, eof)
-            if (eof/=0) exit
+            call xml_parse_line(line, tag, value, stat)
+            if (stat/=0) exit
 
             select case (trim(tag))
 
@@ -1750,12 +2496,8 @@ contains
 
                 case ('Subject') ! subject code
                     tSubject = adjustl(value)
+                    call upper_case(tSubject)
                     subj = index_to_subject(tSubject)
-                    if (subj<=0) then
-                        errNo = 141
-                        call log_comment (trim(value)//' : subject not in catalog')
-                        return
-                    end if
                     wrkSection%SubjectIdx = subj
 
                 case ('Class') ! section code
@@ -1878,147 +2620,39 @@ contains
                     wrkSection%NMeets = wrkSection%NMeets + ndays
 
                 case ('/Section') ! make ClassId, then add to list of sections
-                    token = trim(Subject(wrkSection%SubjectIdx)%Name)//SPACE//wrkSection%Code
-                    wrkSection%ClassId = token
-                    flag = .true.
-                    do i=1,NumSections
-                        if (Section(i)%ClassId .ne. wrkSection%ClassId) cycle
-                        flag = .false.
-                        exit
-                    end do
-                    if (flag) then
-                        NumSections = NumSections + 1
-                        call check_array_bound (NumSections, MAX_ALL_SECTIONS, 'MAX_ALL_SECTIONS')
-                        Section(NumSections) = wrkSection
+                    if (wrkSection%SubjectIdx<=0) then
+                        call log_comment ('In '//trim(fileName)//' : '//trim(tSubject)//' : subject not in catalog')
                     else
-                        call log_comment ('In '//trim(fName)//' : '//trim(wrkSection%ClassId)// &
-                            ' owned by '//trim(tDept)//' - duplicate class; ignored.')
+                        token = trim(Subject(wrkSection%SubjectIdx)%Name)//SPACE//wrkSection%Code
+                        wrkSection%ClassId = token
+                        k = 0 ! already in list ?
+                        do i=1,NumSections(thisTerm)
+                            if (Section(thisTerm,i)%ClassId .ne. wrkSection%ClassId) cycle
+                            k = i
+                            if (present(keepDuplicates)) then
+                                k = 0
+                            end if
+                            exit
+                        end do
+                        if (k==0) then ! add
+                            NumSections(thisTerm) = NumSections(thisTerm) + 1
+                            call check_array_bound (NumSections(thisTerm), MAX_ALL_SECTIONS, 'MAX_ALL_SECTIONS')
+                            k = NumSections(thisTerm)
+                        end if
+                        Section(thisTerm,k) = wrkSection
                     end if
 
                 case default
-                    if ( trim(tag)=='/'//XML_ROOT_SECTIONS//trim(txtSemester(iTerm)) ) exit
+                    if ( trim(tag)==FSLASH//ROOT_SECTIONS//trim(txtSemester(thisTerm)) ) exit
 
             end select
         end do
 
         close(unitXML)
-        call log_comment (itoa(NumSections)//' sections after reading '//fName)
 
-    end subroutine xml_read_classes
-
+    end subroutine class_details_read
 
 
-    subroutine xml_write_classes(path, NumSections, Section, iDept)
-
-        character(len=*), intent(in) :: path
-        type (TYPE_SECTION), intent(in) :: Section(0:)
-        integer, intent (in) :: NumSections
-        integer, intent (in) :: iDept
-        integer :: iTerm
-
-        if (isReadOnly) return
-
-        ! all sections, or only the sections for given department?
-        if (iDept>0) then
-            fileName = trim(path)//'CLASSES-'//trim(Department(iDept)%Code)//'.XML'
-        else
-            fileName = trim(path)//'CLASSES.XML'
-        end if
-        do iTerm=1,3
-            if (index(path, trim(txtSemester(iTerm)))>0) exit
-        end do
-
-        call move_to_backup(fileName)
-        call html_comment('xml_write_classes('//trim(fileName)//')')
-
-        open(unit=unitXML, file=fileName)
-        write(unitXML,AFORMAT) XML_DOC
-
-        call xml_classes(unitXML, NumSections, Section, iDept, iTerm)
-
-        close(unitXML)
-
-    end subroutine xml_write_classes
-
-
-
-    subroutine xml_classes(unitXML, NumSections, Section, iDept, iTerm)
-
-        type (TYPE_SECTION), intent(in) :: Section(0:)
-        integer, intent (in) :: unitXML, NumSections, iDept, iTerm
-
-        integer :: sdx, mdx, subj
-
-        write(unitXML,AFORMAT) '<'//XML_ROOT_SECTIONS//trim(txtSemester(iTerm))//'>', &
-            '    <comment>', &
-            '        Generated by '//PROGNAME//VERSION//' on '//currentDate(1:4)// &
-                        FSLASH//currentDate(5:6)//FSLASH//currentDate(7:8), &
-            '        Subject - subject code', &
-            '        Class - class code, to differentiate classes for the same subject', &
-            '        GradesIn - Date when grades were submitted', &
-            '        Owner - responsible department', &
-            '        Slots - class capacity', &
-            '        BlockID - block code, if class is assigned to a blocked section', &
-            '        Meeting - a class meeting', &
-            '        Time - begin time - end time of meeting', &
-            '        Days - days of meetings', &
-            '        Room - code for meeting room', &
-            '        Teacher - code for teacher of meeting', &
-            '    </comment>'
-
-        do sdx=1,NumSections
-            subj = Section(sdx)%SubjectIdx
-            if (subj==0) cycle
-            !write(*,*) Section(sdx)%ClassId, Section(sdx)%SubjectIdx
-
-            ! subject belongs to given department?
-            if (iDept>0 .and. Section(sdx)%DeptIdx/=iDept) cycle
-
-            if (is_regular_schedule(sdx, Section)) then
-
-                ! class is "regular": single entry for all meetings
-                call xml_write_character(unitXML, indent0, 'Section')
-                call xml_write_character(unitXML, indent1, 'Subject', Subject(subj)%Name)
-                call xml_write_character(unitXML, indent1, 'Class', Section(sdx)%Code)
-                if (len_trim(Section(sdx)%GradeSubmissionDate)>0) &
-                    call xml_write_character(unitXML, indent1, 'GradesIn', Section(sdx)%GradeSubmissionDate)
-                call xml_write_character(unitXML, indent1, 'Owner', Department(Section(sdx)%DeptIdx)%Code)
-                call xml_write_integer(unitXML,   indent1, 'Seats', Section(sdx)%Slots)
-                call xml_write_character(unitXML, indent1, 'Meeting')
-                call xml_write_character(unitXML, indent2, 'Time', text_time_period(Section(sdx)%bTimeIdx(1), &
-                    Section(sdx)%eTimeIdx(1)))
-                call xml_write_character(unitXML, indent2, 'Day', text_days_of_section(Section(sdx)))
-                call xml_write_character(unitXML, indent2, 'Room', Room(Section(sdx)%RoomIdx(1))%Code)
-                call xml_write_character(unitXML, indent2, 'Teacher', Teacher(Section(sdx)%TeacherIdx(1))%TeacherId)
-                call xml_write_character(unitXML, indent1, '/Meeting')
-                call xml_write_character(unitXML, indent0, '/Section')
-
-            else ! class is "irregular": one entry for each meeting
-                call xml_write_character(unitXML, indent0, 'Section')
-                call xml_write_character(unitXML, indent1, 'Subject', Subject(subj)%Name)
-                call xml_write_character(unitXML, indent1, 'Class', Section(sdx)%Code)
-                if (len_trim(Section(sdx)%GradeSubmissionDate)>0) &
-                    call xml_write_character(unitXML, indent1, 'GradesIn', Section(sdx)%GradeSubmissionDate)
-                call xml_write_character(unitXML, indent1, 'Owner', Department(Section(sdx)%DeptIdx)%Code)
-                call xml_write_integer(unitXML,   indent1, 'Seats', Section(sdx)%Slots)
-                do mdx=1,Section(sdx)%NMeets
-                    call xml_write_character(unitXML, indent1, 'Meeting')
-                    call xml_write_character(unitXML, indent2, 'Time', text_time_period(Section(sdx)%bTimeIdx(mdx), &
-                        Section(sdx)%eTimeIdx(mdx)))
-                    call xml_write_character(unitXML, indent2, 'Day', txtDay(Section(sdx)%DayIdx(mdx)))
-                    call xml_write_character(unitXML, indent2, 'Room', Room(Section(sdx)%RoomIdx(mdx))%Code)
-                    call xml_write_character(unitXML, indent2, 'Teacher', Teacher(Section(sdx)%TeacherIdx(mdx))%TeacherId)
-                    call xml_write_character(unitXML, indent1, '/Meeting')
-                end do
-                call xml_write_character(unitXML, indent0, '/Section')
-            end if
-
-        end do
-
-        write(unitXML,AFORMAT) '</'//XML_ROOT_SECTIONS//trim(txtSemester(iTerm))//'>'
-        isDirtyXML = .true.
-
-    end subroutine xml_classes
 
 
 !===========================================================
@@ -2026,56 +2660,164 @@ contains
 !===========================================================
 
 
-    subroutine read_blocks(path, iTerm, NumBlocks, Block, NumSections, Section, errNo, backupFile)
 
-        character(len=*), intent(in) :: path
-        integer, intent (in) :: NumSections, iTerm
-        type (TYPE_SECTION), intent(in) :: Section(0:)
-        integer, intent (out) :: NumBlocks
-        type (TYPE_BLOCK), intent(out) :: Block(0:)
-        integer, intent (out) :: errNo
-        character(len=*), intent(in), optional :: backupFile
+    subroutine blocks_index_read(device, thisTerm, path)
 
-        integer :: blk, ierr, numEntries
+        integer, intent (in) :: device, thisTerm
+        character (len=*), intent (in) :: path
 
-        NumBlocks = 0
-        call initialize_block(Block(0))
-        Block(:) = Block(0)
+        integer :: numEntries, blk, stat
 
-        errNo = 0 ! no blocks is OK; none may be defined yet
-        if ( present(backupFile) )then
-            fileName = trim(path)//backupFile
-        else
-            fileName = trim(path)//'BLOCKS.XML'
+        open(unit=device, file=trim(path)//'index', iostat=stat)
+        if (stat/=0) then
+            call log_comment('Error '//trim(itoa(stat))//' in opening index for '//path)
+            return
         end if
-        call xml_read_blocks(fileName, iTerm, NumBlocks, Block, NumSections, Section, ierr)
+        do
+            read(device, AFORMAT, iostat=stat) line
+            if (stat<0) exit
+            call block_details_read(trim(path)//trim(line)//dotXML, thisTerm)
+        end do
+        close(device)
 
         ! compress block array
         numEntries = 0
-        do blk=1,NumBlocks
-            !write(*,*) blk, Block(blk)%BlockID, Block(blk)%CurriculumIdx
-            if (Block(blk)%CurriculumIdx/=0) then
+        do blk=1,NumBlocks(thisTerm)
+            !write(*,*) blk, Block(thisTerm,blk)%BlockID, Block(thisTerm,blk)%CurriculumIdx
+            if (Block(thisTerm,blk)%CurriculumIdx/=0) then
                 numEntries = numEntries+1
-                Block(numEntries) = Block(blk)
-                !write(*,*) 'Adding ', mainEntries, Block(blk)%BlockID
+                Block(thisTerm,numEntries) = Block(thisTerm,blk)
+                !write(*,*) 'Adding ', mainEntries, Block(thisTerm,blk)%BlockID
             end if
         end do
-        NumBlocks = numEntries
+        NumBlocks(thisTerm) = numEntries
 
-        call sort_alphabetical_blocks(NumBlocks, Block)
+        call sort_alphabetical_blocks(thisTerm)
 
-    end subroutine read_blocks
+    end subroutine blocks_index_read
 
 
+    subroutine block_details_write(device, thisTerm, path, first, last)
+        character (len=*), intent (in) :: path
+        integer, intent (in) :: device, thisTerm, first
+        integer, intent (in), optional :: last
 
-    subroutine xml_read_blocks(fName, iTerm, NumBlocks, Block, NumSections, Section, errNo)
+        integer :: iSect, blk, lastIdx, i, tab0, tab1, stat
+        logical :: monolithic!, fileExists
+        character (len=MAX_LEN_FILE_PATH) :: fileName, filePart
 
-        character(len=*), intent(in) :: fName ! YEAR/TERM/BLOCKS(-CURR)
-        integer, intent (in) :: iTerm, NumSections
-        type (TYPE_SECTION), intent(in) :: Section(0:)
-        integer, intent (out) :: NumBlocks
-        type (TYPE_BLOCK), intent(out) :: Block(0:)
-        integer, intent (out) :: errNo
+        if (isReadOnly) return
+
+        if (present(last)) then
+            lastIdx = last
+            tab0 = INDENT_INCR
+        else
+            lastIdx = first
+            tab0 = 0
+        end if
+        tab1 = tab0+INDENT_INCR
+        monolithic = lastIdx>first
+
+        stat = 0 ! error status
+        if (monolithic) then
+            if (len_trim(path)>0) then
+                fileName = path
+#if defined GLNX
+                filePart = trim(fileName)//dotPART
+#else
+                filePart = fileName
+#endif
+                open(unit=device, file=filePart, iostat=stat, err=999)
+                if (index(path, DIRSEP//'index')>0) then
+                    do blk=first,lastIdx
+                        if (Block(thisTerm,blk)%NumClasses==0) cycle
+                        write(device,AFORMAT, iostat=stat, err=999) trim(filename_from(Block(thisTerm,blk)%BlockID))
+                    end do
+                    close(device, iostat=stat, err=999)
+#if defined GLNX
+                    call rename(filePart, fileName, stat)
+#endif
+                    goto 999
+                else
+                    call xml_write_character(device, 0, XML_DOC)
+                end if
+
+            else
+                fileName = trim(txtSemester(thisTerm))//' term blocks to backup file'
+
+            end if
+            call xml_write_character(device, 0, ROOT_BLOCKS//trim(txtSemester(thisTerm)) )
+        end if
+
+        do blk=first,lastIdx
+
+            if (Block(thisTerm,blk)%NumClasses==0) cycle
+
+            if (.not. monolithic) then
+                fileName = trim(path)//trim(filename_from(Block(thisTerm,blk)%BlockID))//dotXML
+#if defined GLNX
+                filePart = trim(fileName)//dotPART
+#else
+                filePart = fileName
+#endif
+                open(unit=device, file=filePart, iostat=stat, err=999)
+                call xml_write_character(device, 0, XML_DOC)
+                call xml_write_character(device, 0, ROOT_BLOCKS//trim(txtSemester(thisTerm)) )
+            end if
+
+            call xml_write_character(device, tab0, 'Block')
+            call xml_write_character(device, tab1, 'Code', Block(thisTerm,blk)%BlockID)
+            call xml_write_character(device, tab1, 'Description', Block(thisTerm,blk)%Name)
+            call xml_write_character(device, tab1, 'Curriculum', Curriculum(Block(thisTerm,blk)%CurriculumIdx)%Code)
+            call xml_write_integer(device,   tab1, 'Year', Block(thisTerm,blk)%Year)
+            call xml_write_integer(device,   tab1, 'Term', Block(thisTerm,blk)%Term)
+            call xml_write_character(device, tab1, 'Owner', Department(Block(thisTerm,blk)%DeptIdx)%Code)
+
+            ! write classes assigned to block
+            do i=1,Block(thisTerm,blk)%NumClasses
+                iSect = Block(thisTerm,blk)%Section(i)
+                if (iSect==0) then
+                    call xml_write_character(device, tab1, 'Subject', Subject(Block(thisTerm,blk)%Subject(i))%Name)
+                else
+                    call xml_write_character(device, tab1, 'Section', Section(thisTerm,iSect)%ClassId)
+                end if
+            end do
+
+            call xml_write_character(device, tab0, '/Block')
+
+            if (.not. monolithic) then
+                call xml_write_character(device, 0, FSLASH//ROOT_BLOCKS//trim(txtSemester(thisTerm)) )
+                close(device, iostat=stat, err=999)
+#if defined GLNX
+                call rename(filePart, fileName, stat)
+#endif
+                if (stat/=0) goto 999
+            end if
+
+        end do
+        if (monolithic) then
+            call xml_write_character(device, 0, FSLASH//ROOT_BLOCKS//trim(txtSemester(thisTerm)) )
+            if (len_trim(path)>0) then
+                close(device, iostat=stat, err=999)
+#if defined GLNX
+                call rename(filePart, fileName, stat)
+#endif
+            end if
+        end if
+
+        999 call terminate(stat, 'Error in writing '//fileName)
+        if (monolithic) call log_comment('Successfully wrote '//fileName)
+
+        isDirtyData = .true. ! allow writing to backup
+
+    end subroutine block_details_write
+
+
+    subroutine block_details_read(fileName, thisTerm, keepDuplicates)
+
+        character(len=*), intent(in) :: fileName
+        integer, intent (in) :: thisTerm
+        logical, intent(in), optional :: keepDuplicates
 
         type (TYPE_BLOCK) :: wrkBlock
         character (len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
@@ -2084,24 +2826,25 @@ contains
         character (len=MAX_LEN_CLASS_ID) :: tSection
         character (len=MAX_LEN_XML_LINE) :: value
         character (len=MAX_LEN_XML_TAG) :: tag
-        logical :: flag
-        integer :: i, idxCurr, idxSubj, idxSect, loc
+        integer :: i, idxCurr, idxSubj, idxSect, loc, stat
 
         ! open file, return on any error
-        call xml_read_file(unitXML, XML_ROOT_BLOCKS//trim(txtSemester(iTerm)), fName, errNo)
-        if (errNo/=0) then
-            call log_comment ('ierr='//itoa(errNo)//' when opening '//fName)
+        tag = ROOT_BLOCKS//trim(txtSemester(thisTerm))
+        call xml_read_file(unitXML, trim(tag), fileName, stat)
+        if (stat/=0) then
+            call log_comment ('Warning: "'//trim(tag)//'" not found in '//fileName)
             return
         end if
 
         ! examine the file line by line
         do
-            read(unitXML, AFORMAT, iostat=eof) line
-            if (eof<0) exit
+            read(unitXML, AFORMAT, iostat=stat) line
+            if (stat<0) exit
 
             ! get tag and value if any
-            call xml_parse_line(line, tag, value, eof)
-            if (eof/=0) exit
+            call xml_parse_line(line, tag, value, stat)
+            if (stat/=0) exit
+
             select case (trim(tag))
 
                 case ('Block')
@@ -2137,6 +2880,7 @@ contains
 
                 case ('Subject')
                     tSubject = adjustl(value)
+                    call upper_case(tSubject)
                     idxSubj = index_to_subject(tSubject)
                     if (idxSubj==0) cycle
 
@@ -2152,17 +2896,17 @@ contains
                         wrkBlock%NumClasses = wrkBlock%NumClasses + 1
                         wrkBlock%Subject(wrkBlock%NumClasses) = idxSubj
                     else
-                        call log_comment ('In '//trim(fName)//' : '//trim(WrkBlock%BlockID)// &
+                        call log_comment ('In '//trim(fileName)//' : '//trim(WrkBlock%BlockID)// &
                             ' duplicate subject '//trim(tSubject)//'; ignored.')
                     end if
 
                 case ('Section')
                     tSection = adjustl(value)
                     if (len_trim(tSection)==0) cycle ! no section code
-                    idxSect = index_to_section(tSection, NumSections, Section)
+                    idxSect = index_to_section(tSection, thisTerm)
                     if (idxSect==0) cycle ! section does not exist
 
-                    idxSubj = Section(idxSect)%SubjectIdx
+                    idxSubj = Section(thisTerm,idxSect)%SubjectIdx
                     ! check if duplicate
                     loc = 0 ! not found
                     do i=1,wrkBlock%NumClasses
@@ -2179,133 +2923,38 @@ contains
                     elseif (wrkBlock%Section(loc)==0) then ! duplicate subject and prior entry had no section
                         wrkBlock%Section(loc) = idxSect
                     else ! duplicate subject and prior entry had a section
-                        call log_comment ('In '//trim(fName)//' : '//trim(WrkBlock%BlockID)// &
+                        call log_comment ('In '//trim(fileName)//' : '//trim(WrkBlock%BlockID)// &
                             ' using section '//trim(tSection)//' instead of earlier entry '// &
-                            Section(wrkBlock%Section(loc))%ClassID)
+                            Section(thisTerm,wrkBlock%Section(loc))%ClassId)
                         wrkBlock%Section(loc) = idxSect
                     end if
 
                 case ('/Block')
-                    flag = .true.
-                    do idxCurr=1,NumBlocks
-                        if (wrkBlock%BlockID/=Block(idxCurr)%BlockID) cycle
-                        flag = .false.
+                    loc = 0 ! not found
+                    do idxCurr=1,NumBlocks(thisTerm)
+                        if (wrkBlock%BlockID/=Block(thisTerm,idxCurr)%BlockID) cycle
+                        loc = idxCurr
+                        if (present(keepDuplicates)) then
+                            loc = 0
+                        end if
                         exit
                     end do
-                    if (flag) then
-                        NumBlocks = NumBlocks + 1
-                        call check_array_bound (NumBlocks, MAX_ALL_BLOCKS, 'MAX_ALL_BLOCKS')
-                        Block(NumBlocks) = wrkBlock
-                    else
-                        call log_comment ('In '//trim(fName)//' : '//trim(WrkBlock%BlockID)// &
-                            ' owned by '//trim(tDepartment)//' - duplicate block; ignored.')
+                    if (loc==0) then
+                        NumBlocks(thisTerm) = NumBlocks(thisTerm) + 1
+                        call check_array_bound (NumBlocks(thisTerm), MAX_ALL_BLOCKS, 'MAX_ALL_BLOCKS')
+                        loc = NumBlocks(thisTerm)
                     end if
+                    Block(thisTerm,loc) = wrkBlock
 
                 case default
-                    if (trim(tag)=='/'//XML_ROOT_BLOCKS//trim(txtSemester(iTerm)) ) exit
+                    if (trim(tag)==FSLASH//ROOT_BLOCKS//trim(txtSemester(thisTerm)) ) exit
 
                     ! do nothing
             end select
         end do
         close(unitXML)
-        call log_comment (itoa(NumBlocks)//' blocks after reading '//fName)
 
-    end subroutine xml_read_blocks
-
-
-
-    subroutine xml_write_blocks(path, NumBlocks, Block, Section, iDept)
-
-        integer, intent (in) :: iDept, NumBlocks
-        character(len=*), intent(in) :: path
-        type (TYPE_BLOCK), intent(in) :: Block(0:)
-        type (TYPE_SECTION), intent(in) :: Section(0:)
-        integer :: iTerm
-
-        if (isReadOnly) return
-
-        ! generate file name
-        if (iDept>0) then
-            fileName = trim(path)//'BLOCKS-'//trim(Department(iDept)%Code)//'.XML'
-        else
-            fileName = trim(path)//'BLOCKS.XML'
-        end if
-        do iTerm=1,3
-            if (index(path, trim(txtSemester(iTerm)))>0) exit
-        end do
-
-        call move_to_backup(fileName)
-        call html_comment('xml_write_blocks('//trim(fileName)//')')
-
-        open(unit=unitXML, file=fileName)
-        write(unitXML,AFORMAT) XML_DOC
-
-        call xml_blocks(unitXML, NumBlocks, Block, Section, iDept, iTerm)
-
-        close(unitXML)
-
-    end subroutine xml_write_blocks
-
-
-
-    subroutine xml_blocks(unitXML, NumBlocks, Block, Section, iDept, iTerm)
-
-        integer, intent (in) :: unitXML, iDept, NumBlocks, iTerm
-        type (TYPE_BLOCK), intent(in) :: Block(0:)
-        type (TYPE_SECTION), intent(in) :: Section(0:)
-
-        integer :: blk, sect, i
-
-        write(unitXML,AFORMAT) '<'//XML_ROOT_BLOCKS//trim(txtSemester(iTerm))//'>', &
-            '    <comment>', &
-            '        Generated by '//PROGNAME//VERSION//' on '//currentDate(1:4)// &
-                        FSLASH//currentDate(5:6)//FSLASH//currentDate(7:8), &
-            '        Code - Block identifier', &
-            '        Curriculum - Curricular program for block', &
-            '        Description - Block description', &
-            '        Year - Year level in curriculum', &
-            '        Term - Term of the year in curriculum', &
-            '        Owner - Department that created (thus, can modify) block', &
-            '        Section - Section already assigned to a subject', &
-            '        Subject - Subject not yet assigned a section', &
-            '    </comment>'
-
-        ! loop over blocks
-        do blk=1,NumBlocks
-
-            ! block was created / is modifiable by given department?
-            if (iDept>0 .and. Block(blk)%DeptIdx/=iDept) cycle
-
-            ! any classes assigned to this block?
-            if (Block(blk)%NumClasses==0) cycle
-
-            ! block info start
-            call xml_write_character(unitXML, indent0, 'Block')
-            call xml_write_character(unitXML, indent1, 'Code', Block(blk)%BlockID)
-            call xml_write_character(unitXML, indent1, 'Description', Block(blk)%Name)
-            call xml_write_character(unitXML, indent1, 'Curriculum', Curriculum(Block(blk)%CurriculumIdx)%Code)
-            call xml_write_integer(unitXML,   indent1, 'Year', Block(blk)%Year)
-            call xml_write_integer(unitXML,   indent1, 'Term', Block(blk)%Term)
-            call xml_write_character(unitXML, indent1, 'Owner', Department(Block(blk)%DeptIdx)%Code)
-
-            ! write classes assigned to block
-            do i=1,Block(blk)%NumClasses
-                sect = Block(blk)%Section(i)
-                if (sect==0) then
-                    call xml_write_character(unitXML, indent2, 'Subject', Subject(Block(blk)%Subject(i))%Name)
-                else
-                    call xml_write_character(unitXML, indent2, 'Section', Section(sect)%ClassId)
-                end if
-            end do
-
-            ! block info end
-            call xml_write_character(unitXML, indent0, '/Block')
-        end do
-
-        write(unitXML,AFORMAT) '</'//XML_ROOT_BLOCKS//trim(txtSemester(iTerm))//'>'
-        isDirtyXML = .true.
-
-    end subroutine xml_blocks
+    end subroutine block_details_read
 
 
 !===========================================================
@@ -2313,54 +2962,297 @@ contains
 !===========================================================
 
 
-    subroutine read_students(path, errNo)
 
-        character(len=*), intent(in) :: path
-        integer, intent (out) :: errNo
+    subroutine students_index_read(device, path)
+        integer, intent (in) :: device
+        character (len=*), intent (in) :: path
 
-        integer :: iCurr, ierr, i, partialEntries, mainEntries
+        integer :: stat
 
-        errNo = 0 ! errors or 'not found' are OK; there might be no students entered yet
+        open(unit=device, file=trim(path)//'index', iostat=stat)
+        call terminate(stat, 'Error '//trim(itoa(stat))//' in reading index of  '//path)
+        do
+            read(device, AFORMAT, iostat=stat) line
+            if (stat<0) exit
+            call student_details_read(trim(path)//trim(line)//dotXML, stat)
+        end do
+        close(device)
 
-        call xml_read_students (path, 0, mainEntries, ierr)
+    end subroutine students_index_read
 
-        ! check for students added by program advisers
-        done = .false.
-        do iCurr=1,NumCurricula
-            if (done(iCurr)) cycle
-            call xml_read_students (path, iCurr, partialEntries, ierr)
-            do i = iCurr+1,NumCurricula
-                if (CurrProgCode(iCurr)==CurrProgCode(i)) done(i) = .true.
+
+    subroutine student_details_write(device, path, first, last)
+        character (len=*), intent (in) :: path
+        integer, intent (in) :: device, first
+        integer, intent (in), optional :: last
+
+        integer :: std, lastIdx, tab0, tab1, tab2, stat
+        integer :: iTerm, iSect, i, gdx, lenSubject
+        logical :: monolithic!, fileExists
+        character (len=MAX_LEN_FILE_PATH) :: fileName, filePart
+
+        if (isReadOnly) return
+
+        if (present(last)) then
+            lastIdx = last
+            tab0 = INDENT_INCR
+        else
+            lastIdx = first
+            tab0 = 0
+        end if
+
+        monolithic = lastIdx>first
+
+        tab1 = tab0+INDENT_INCR
+        tab2 = tab0+INDENT_INCR*2
+
+        stat = 0 ! error status
+        if (monolithic) then ! single file for all students
+
+            if (len_trim(path)>0) then
+                fileName = path
+#if defined GLNX
+                filePart = trim(fileName)//dotPART
+#else
+                filePart = fileName
+#endif
+                open(unit=device, file=filePart, iostat=stat, err=999)
+
+                ! write the index only
+                if (index(path, DIRSEP//'index')>0) then
+                    do std=first,lastIdx
+                        if (len_trim(Student(std)%StdNo)==0) cycle
+                        if (Student(std)%ResidenceStatus==REMOVE_FROM_ROSTER) cycle
+                        write(device,AFORMAT, iostat=stat, err=999) trim(basefile_student(std))
+                    end do
+                    close(device, iostat=stat, err=999)
+#if defined GLNX
+                    call rename(filePart, fileName, stat)
+#endif
+                    goto 999
+                end if
+
+                call xml_write_character(device, 0, XML_DOC)
+
+            else
+                fileName = 'students to backup file'
+
+            end if
+
+            call xml_write_character(device, 0, ROOT_STUDENTS)
+
+        end if
+
+
+        do std=first,lastIdx
+
+            if (len_trim(Student(std)%StdNo)==0) cycle
+            if (Student(std)%ResidenceStatus==REMOVE_FROM_ROSTER) cycle
+
+            if (.not. monolithic) then
+
+                fileName = trim(path)//trim(basefile_student(std))//dotXML
+#if defined GLNX
+                filePart = trim(fileName)//dotPART
+#else
+                filePart = fileName
+#endif
+                open(unit=device, file=filePart, iostat=stat, err=999)
+                call xml_write_character(device, 0, XML_DOC)
+                call xml_write_character(device, 0, ROOT_STUDENTS)
+
+            end if
+
+            call xml_write_character(device, tab0, 'Student')
+
+            ! Student() entries
+            if (Student(std)%Gender=='M' .or. Student(std)%Gender=='F') &
+                call xml_write_character(device, tab1, 'Gender', Student(std)%Gender)
+
+            call xml_write_character(device, tab1, 'StdNo', Student(std)%StdNo)
+
+            call xml_write_character(device, tab1, 'Name', Student(std)%Name)
+
+            if (len_trim(Student(std)%Password)/=0) then
+                call xml_write_character(device, tab1, 'Password', Student(std)%Password)
+                if (.not. monolithic) call xml_write_character(device, tab1, 'Key', passwordEncryptionKey)
+            end if
+
+            if (Student(std)%CurriculumIdx/=0) &
+                call xml_write_character(device, tab1, 'Curriculum', Curriculum(Student(std)%CurriculumIdx)%Code)
+
+            if (Student(std)%ResidenceStatus/=RESIDENCY_STATUS_NOT_SET) &
+                call xml_write_integer(device,   tab1, 'ResidenceStatus', Student(std)%ResidenceStatus)
+
+            if (len_trim(Student(std)%Adviser)/=0) &
+                call xml_write_character(device, tab1, 'Adviser', Student(std)%Adviser)
+
+            if (len_trim(Student(std)%Scholarship)/=0) &
+                call xml_write_character(device, tab1, 'Scholarship', Student(std)%Scholarship)
+
+            if (len_trim(Student(std)%HomePSGC)/=0) &
+                call xml_write_character(device, tab1, 'HomePSGC', Student(std)%HomePSGC)
+
+            if (len_trim(Student(std)%MotherTongue)/=0) &
+                call xml_write_character(device, tab1, 'MotherTongue', Student(std)%MotherTongue)
+
+!            ! StudentInfo entries
+!            if (len_trim(StudentInfo%Email)/=0) &
+!                call xml_write_character(device, tab1, 'Email', StudentInfo%Email)
+!
+!            if (len_trim(StudentInfo%Father)/=0) &
+!                call xml_write_character(device, tab1, 'Father', StudentInfo%Father)
+!
+!            if (len_trim(StudentInfo%Mother)/=0) &
+!                call xml_write_character(device, tab1, 'Mother', StudentInfo%Mother)
+!
+!            if (len_trim(StudentInfo%Guardian)/=0) &
+!                call xml_write_character(device, tab1, 'Guardian', StudentInfo%Guardian)
+!
+!            if (len_trim(StudentInfo%Gender)/=0) &
+!                call xml_write_character(device, tab1, 'Gender', StudentInfo%Gender)
+!
+!            if (len_trim(StudentInfo%BirthDate)/=0) &
+!                call xml_write_character(device, tab1, 'BirthDate', StudentInfo%BirthDate)
+!
+!            if (len_trim(StudentInfo%EntryDate)/=0) &
+!                call xml_write_character(device, tab1, 'EntryDate', StudentInfo%EntryDate)
+!
+!            if (len_trim(StudentInfo%GraduationDate)/=0) &
+!                call xml_write_character(device, tab1, 'GraduationDate', StudentInfo%GraduationDate)
+!
+!            if (len_trim(StudentInfo%BirthPlace)/=0) &
+!                call xml_write_character(device, tab1, 'BirthPlace', StudentInfo%BirthPlace)
+!
+!            if (len_trim(StudentInfo%BirthPlacePSGC)/=0) &
+!                call xml_write_character(device, tab1, 'BirthPlacePSGC', StudentInfo%BirthPlacePSGC)
+!
+!            if (len_trim(StudentInfo%HomeStreetAddress)/=0) &
+!                call xml_write_character(device, tab1, 'HomeStreetAddress', StudentInfo%HomeStreetAddress)
+!
+!            if (len_trim(StudentInfo%LastAttended)/=0) &
+!                call xml_write_character(device, tab1, 'LastAttended', StudentInfo%LastAttended)
+!
+!            if (len_trim(StudentInfo%TranscriptRemark)/=0) &
+!                call xml_write_character(device, tab1, 'TranscriptRemark', StudentInfo%TranscriptRemark)
+!
+!            if (len_trim(StudentInfo%TranscriptAdditionalRemark)/=0) &
+!                call xml_write_character(device, tab1, 'TranscriptAdditionalRemark', StudentInfo%TranscriptAdditionalRemark)
+!
+!            if (len_trim(StudentInfo%AdmissionData)/=0) &
+!                call xml_write_character(device, tab1, 'AdmissionData', StudentInfo%AdmissionData)
+
+            ! enlistment
+            do iTerm=firstSemester, summerTerm
+
+                if (Student(std)%Enlistment(iTerm)%statusAdvising==ADVISING_NEEDED .and. &
+                    Student(std)%Enlistment(iTerm)%statusEnlistment==ENLISTMENT_NEEDED) cycle
+
+                lenSubject = max(Student(std)%Enlistment(iTerm)%lenSubject, &
+                    Student(std)%Enlistment(iTerm)%NPriority+Student(std)%Enlistment(iTerm)%NAlternates+ &
+                    Student(std)%Enlistment(iTerm)%NCurrent)
+                if (lenSubject==0) cycle
+
+                call xml_write_character(device, tab1, ROOT_ENLISTMENT )
+                call xml_write_integer  (device, tab2, 'Term', iTerm)
+
+                if (Student(std)%Enlistment(iTerm)%levelClassification/=0) &
+                    call xml_write_integer  (device, tab2, 'levelClassification', &
+                        Student(std)%Enlistment(iTerm)%levelClassification )
+                if (Student(std)%Enlistment(iTerm)%levelYear/=YEAR_NOT_SET) &
+                    call xml_write_integer  (device, tab2, 'levelYear', Student(std)%Enlistment(iTerm)%levelYear)
+                call xml_write_integer  (device, tab2, 'levelPriority', Student(std)%Enlistment(iTerm)%levelPriority)
+
+                if (Student(std)%Enlistment(iTerm)%NPriority/=0) &
+                    call xml_write_integer  (device, tab2, 'NPriority', Student(std)%Enlistment(iTerm)%NPriority)
+                if (Student(std)%Enlistment(iTerm)%NAlternates/=0) &
+                    call xml_write_integer  (device, tab2, 'NAlternates', Student(std)%Enlistment(iTerm)%NAlternates)
+                if (Student(std)%Enlistment(iTerm)%NCurrent/=0) &
+                    call xml_write_integer  (device, tab2, 'NCurrent', Student(std)%Enlistment(iTerm)%NCurrent)
+                if (Student(std)%Enlistment(iTerm)%NRemaining/=0) &
+                    call xml_write_integer  (device, tab2, 'NRemaining', Student(std)%Enlistment(iTerm)%NRemaining)
+                if (Student(std)%Enlistment(iTerm)%MissingPOCW/=0) &
+                    call xml_write_integer  (device, tab2, 'MissingPOCW', Student(std)%Enlistment(iTerm)%MissingPOCW)
+
+                if (Student(std)%Enlistment(iTerm)%statusAdvising/=ADVISING_NEEDED) &
+                    call xml_write_integer  (device, tab2, 'statusAdvising', Student(std)%Enlistment(iTerm)%statusAdvising)
+                if (Student(std)%Enlistment(iTerm)%statusEnlistment/=ENLISTMENT_NEEDED) &
+                    call xml_write_integer  (device, tab2, 'statusEnlistment', Student(std)%Enlistment(iTerm)%statusEnlistment)
+                if (Student(std)%Enlistment(iTerm)%statusScholastic/=SCHOLASTIC_STATUS_NOT_SET) &
+                    call xml_write_integer  (device, tab2, 'statusScholastic', Student(std)%Enlistment(iTerm)%statusScholastic)
+                if (Student(std)%Enlistment(iTerm)%codeConditional/=0) &
+                    call xml_write_integer  (device, tab2, 'codeConditional', Student(std)%Enlistment(iTerm)%codeConditional)
+                if (Student(std)%Enlistment(iTerm)%codeNSTP/=0) &
+                    call xml_write_integer  (device, tab2, 'codeNSTP', Student(std)%Enlistment(iTerm)%codeNSTP)
+
+                if (Student(std)%Enlistment(iTerm)%UnitsEarned/=0.0) &
+                    call xml_write_character(device, tab2, 'UnitsEarned', ftoa(Student(std)%Enlistment(iTerm)%UnitsEarned,1))
+                if (Student(std)%Enlistment(iTerm)%AllowedLoad/=0.0) &
+                    call xml_write_character(device, tab2, 'AllowedLoad', ftoa(Student(std)%Enlistment(iTerm)%AllowedLoad,1))
+                if (Student(std)%Enlistment(iTerm)%UnderLoad/=0.0) &
+                    call xml_write_character(device, tab2, 'UnderLoad', ftoa(Student(std)%Enlistment(iTerm)%UnderLoad,1))
+
+                do i=1,lenSubject
+                    iSect = Student(std)%Enlistment(iTerm)%Section(i)
+                    if (iSect>0) then
+                        gdx = Student(std)%Enlistment(iTerm)%Grade(i)
+                        call xml_write_character(device, tab2, 'Graded', &
+                            trim(Subject(Section(iTerm,iSect)%SubjectIdx)%Name)//SPACE//trim(Section(iTerm,iSect)%Code)//COMMA// &
+                            txtGrade(pGrade(gdx)) )
+                    elseif (Student(std)%Enlistment(iTerm)%Subject(i)>0) then
+                        if (Student(std)%Enlistment(iTerm)%Contrib(i)>0.0) then
+                            call xml_write_character(device, tab2, 'Predicted', &
+                                trim(Subject(Student(std)%Enlistment(iTerm)%Subject(i))%Name)//COMMA// &
+                                ftoa(Student(std)%Enlistment(iTerm)%Contrib(i),5) )
+                        else
+                            call xml_write_character(device, tab2, 'Allowed', &
+                                Subject(Student(std)%Enlistment(iTerm)%Subject(i))%Name)
+                        end if
+                    end if
+                end do
+
+                call xml_write_character(device, tab1, FSLASH//ROOT_ENLISTMENT )
+
             end do
+
+            call xml_write_character(device, tab0, '/Student')
+
+            if (.not. monolithic) then
+                call xml_write_character(device, 0, FSLASH//ROOT_STUDENTS)
+                close(device, iostat=stat, err=999)
+#if defined GLNX
+                call rename(filePart, fileName, stat)
+#endif
+                if (stat/=0) goto 999
+            end if
+
         end do
 
-        ! read list of new students
-        call read_new_students (path, iCurr, ierr) ! iCurr is the length of the list
+        if (monolithic) then
+            call xml_write_character(device, 0, FSLASH//ROOT_STUDENTS)
+            if (len_trim(path)>0) then
+                close(device, iostat=stat, err=999)
+#if defined GLNX
+                call rename(filePart, fileName, stat)
+#endif
+            end if
+        end if
 
-        if (NumStudents>mainEntries .or. iCurr>0) call xml_write_students(path, 0)
+        999 call terminate(stat, 'Error in writing '//fileName)
+        if (monolithic) call log_comment('Successfully wrote '//fileName)
+        isDirtyData = .true. ! allow writing to backup
 
-        ! update advisee counts
-        do i=1,NumTeachers+NumAdditionalTeachers
-            Teacher(i)%NumAdvisees = 0
-        end do
-        do i=1,NumStudents+NumAdditionalStudents
-            iCurr = index_to_teacher(Student(i)%Adviser)
-            Teacher(iCurr)%NumAdvisees = Teacher(iCurr)%NumAdvisees + 1
-        end do
-
-    end subroutine read_students
+    end subroutine student_details_write
 
 
-    subroutine read_new_students(path, numEntries, errNo)
+    subroutine read_new_students(fileName, numEntries)
 
-        character(len=*), intent(in) :: path ! YEAR/TERM/
-        integer, intent (out) :: numEntries, errNo
+        character(len=*), intent(in) :: fileName
+        integer, intent (out) :: numEntries
 
         type (TYPE_STUDENT) :: wrkStudent
-        integer :: indexLoc
-
-        ! generate file name
-        fileName = trim(path)//'STUDENTS-NEW.CSV'
+        integer :: indexLoc, i, stat, errNo
+        logical :: criticalErr
 
         ! open file, return on any error
         numEntries = 0
@@ -2373,8 +3265,8 @@ contains
         call log_comment('read_new_students('//trim(fileName)//')')
         ! examine the file line by line
         do
-            read(unitRAW, AFORMAT, iostat=eof) line
-            if (eof<0) exit
+            read(unitRAW, AFORMAT, iostat=stat) line
+            if (stat<0) exit
 
             if (line(1:1) == '#' .or. line(1:3) == '   ') cycle
 
@@ -2384,66 +3276,98 @@ contains
             call initialize_student(wrkStudent)
             wrkStudent%StdNo = adjustl(line(:pos(2)-1))
             call upper_case(wrkStudent%StdNo)
+            indexLoc = index_to_student(wrkStudent%StdNo)
+            if (indexLoc/=0) then
+                call log_comment (trim(line)//' - student already exists')
+                cycle ! exists
+            end if
+
+            call check_array_bound (NumStudents+NumAdditionalStudents+1, MAX_ALL_STUDENTS, 'MAX_ALL_STUDENTS', criticalErr)
+            if (criticalErr) then
+                call log_comment (itoa(MAX_ALL_STUDENTS)//' limit on the number of students reached.')
+                close(unitRAW)
+                return
+            end if
+
             wrkStudent%Name = line(pos(2)+1:)
+            i = index(wrkStudent%Name, '"')
+            do while (i>0)
+                wrkStudent%Name(i:) = wrkStudent%Name(i+1:)
+                i = index(wrkStudent%Name, '"')
+            end do
+            wrkStudent%Name = adjustl(wrkStudent%Name)
             call upper_case(wrkStudent%Name)
             wrkStudent%CurriculumIdx = NumCurricula
-            wrkStudent%Classification = 1
-            call set_password(wrkStudent%Password)
 
-            call update_student_info(wrkStudent, indexLoc)
-            if (indexLoc<0) numEntries = numEntries + 1
+            ! use student number as initial password
+            call set_password(wrkStudent%Password, trim(wrkStudent%StdNo))
+
+            ! add a record
+            if (NumStudents>0) then
+                NumAdditionalStudents = NumAdditionalStudents + 1
+            else ! this is the first student
+                NumStudents = 1
+            end if
+
+            indexLoc = NumStudents+NumAdditionalStudents
+            StdRank(indexLoc) = indexLoc
+            Student(indexLoc) = wrkStudent
+            numEntries = numEntries + 1
 
         end do
         close(unitRAW)
         call log_comment (itoa(numEntries)//' students added from '//fileName)
 
-        ! remove
-        call move_to_backup(fileName)
-
     end subroutine read_new_students
 
 
-    subroutine xml_read_students(path, iCurr, numEntries, errNo, backupFile)
+    subroutine student_details_read(fileName, numEntries)
 
-        character(len=*), intent(in) :: path ! YEAR/TERM/
-        integer, intent (in) :: iCurr
-        integer, intent (out) :: numEntries, errNo
-        character(len=*), intent(in), optional :: backupFile
+        character(len=*), intent(in) :: fileName
+        integer, intent (out) :: numEntries
 
         type (TYPE_STUDENT) :: wrkStudent
         character (len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
-        integer :: indexLoc, idxCurr
+        integer :: indexLoc, idxCurr, iTerm, stat
+        character(len=lenPasswordEncryptionKey) :: tKey
+        character (len=MAX_LEN_PASSWD_VAR) :: Password
 
-        ! generate file name
-        if (iCurr>0) then
-            fileName = trim(path)//'STUDENTS-'//trim(CurrProgCode(iCurr))//'.XML'
-        elseif ( present(backupFile) ) then
-            fileName = trim(path)//backupFile
-        else
-            fileName = trim(path)//'STUDENTS.XML'
-        end if
+        type(TYPE_PRE_ENLISTMENT) :: wrkEnlistment(3)
+        character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
+        character (len=MAX_LEN_CLASS_ID) :: tClass
+        character (len = MAX_LEN_TEXT_GRADE) :: tGrade
+        integer :: cdx, idx, iSect, gdx, loc, i
+        logical :: checkRegular
 
         ! open file, return on any error
         numEntries = 0
-        call xml_read_file(unitXML, XML_ROOT_STUDENTS, fileName, errNo)
-        if (errNo/=0) return
+        call xml_read_file(unitXML, ROOT_STUDENTS, fileName, stat)
+        if (stat/=0) return
 
         ! examine the file line by line
         do
-            read(unitXML, AFORMAT, iostat=eof) line
-            if (eof<0) exit
+            read(unitXML, AFORMAT, iostat=stat) line
+            if (stat<0) exit
 
             ! get tag and value if any
-            call xml_parse_line(line, tag, value, eof)
-            if (eof/=0) exit
+            call xml_parse_line(line, tag, value, stat)
+            if (stat/=0) exit
 
             select case (trim(tag))
 
-                case ('/'//XML_ROOT_STUDENTS)
+                case (FSLASH//ROOT_STUDENTS)
                     exit
 
                 case ('Student')
                     call initialize_student(wrkStudent)
+                    tKey = passwordEncryptionKey
+
+                    call initialize_pre_enlistment (wrkEnlistment(1))
+                    wrkEnlistment(2:3) = wrkEnlistment(1)
+
+                case ('Gender')
+                    wrkStudent%Gender = adjustl(value)
+                    call upper_case(wrkStudent%Gender)
 
                 case ('StdNo')
                     wrkStudent%StdNo = adjustl(value)
@@ -2452,15 +3376,38 @@ contains
                 case ('Name')
                     wrkStudent%Name = adjustl(value)
                     call upper_case(wrkStudent%Name)
+!                    ! add comma before last token
+!                    call index_to_delimiters(COMMA, wrkStudent%Name, ndels, pos)
+!                    if (ndels<3) then ! not "LAST, FIRST, MIDDLE"
+!                        loc = 0
+!                        do i=len_trim(wrkStudent%Name),1,-1
+!                            if (wrkStudent%Name(i:i)==SPACE) then
+!                                loc = i
+!                                exit
+!                            end if
+!                        end do
+!                        if (loc>0) then
+!                            wrkStudent%Name = wrkStudent%Name(:loc-1)//COMMA//wrkStudent%Name(loc:pos(ndels+1)-1)
+!                        end if
+!                    end if
 
                 case ('Password')
                     wrkStudent%Password = adjustl(value)
+
+                case ('Key')
+                    tKey = adjustl(value)
 
                 case ('Adviser')
                     wrkStudent%Adviser = adjustl(value)
 
                 case ('Scholarship')
                     wrkStudent%Scholarship = adjustl(value)
+
+                case ('HomePSGC')
+                    wrkStudent%HomePSGC = adjustl(value)
+
+                case ('MotherTongue')
+                    wrkStudent%MotherTongue = adjustl(value)
 
                 case ('Curriculum')
                     tCurriculum = adjustl(value)
@@ -2472,815 +3419,398 @@ contains
                     end if
                     wrkStudent%CurriculumIdx = idxCurr
 
-                case ('Classification')
-                    wrkStudent%Classification = atoi(value)
+                case ('ResidenceStatus')
+                    wrkStudent%ResidenceStatus = max(0,atoi(value))
 
-                case ('/Student')
-                    if (wrkStudent%Classification>=8) cycle ! hidden
-                    if (len_trim(wrkStudent%StdNo)==0) cycle
-                    if (len_trim(wrkStudent%Password)==0) then
-                        call set_password(wrkStudent%Password)
-                        isDirtySTUDENTS = .true.
-                    end if
-                    call update_student_info(wrkStudent, indexLoc)
-                    if (indexLoc<0) numEntries = numEntries + 1
+                case (ROOT_ENLISTMENT)
+                    checkRegular = .false.
 
-                case default
-                    ! do nothing
-            end select
-        end do
-        close(unitXML)
-        call log_comment (itoa(numEntries)//' students from '//fileName)
+                case ('Term')
+                    iTerm = atoi(value)
 
-    end subroutine xml_read_students
+                case ('levelYear','StdYear')
+                    wrkEnlistment(iTerm)%levelYear = atoi(value)
 
+                case ('levelClassification', 'StdClassification')
+                    wrkEnlistment(iTerm)%levelClassification = atoi(value)
 
+                case ('levelPriority', 'StdPriority')
+                    wrkEnlistment(iTerm)%levelPriority = atoi(value)
 
-    subroutine xml_write_students(path, iCurr)
-
-        integer, intent (in) :: iCurr
-        character(len=*), intent(in) :: path ! YEAR/TERM/
-        integer :: i, j
-
-        if (isReadOnly) return
-
-        ! generate file name
-        if (iCurr>0) then
-            fileName = trim(path)//'STUDENTS-'//trim(CurrProgCode(iCurr))//'.XML'
-        else
-            fileName = trim(path)//'STUDENTS.XML'
-        end if
-
-        call move_to_backup(fileName)
-        call log_comment('xml_write_students('//trim(fileName)//')')
-
-        ! write file
-        open(unit=unitXML, file=fileName)
-        write(unitXML,AFORMAT) XML_DOC
-
-        call xml_students(unitXML, iCurr)
-
-        close(unitXML)
-
-        if (iCurr==0) then ! remove STUDENTS-<curr>.XML
-            isDirtySTUDENTS = .false.
-            done = .false.
-            do j=1,NumCurricula
-                if (done(j)) cycle
-                call move_to_backup(trim(path)//'STUDENTS-'//trim(CurrProgCode(j))//'.XML')
-                do i = j+1,NumCurricula
-                    if (CurrProgCode(j)==CurrProgCode(i)) done(i) = .true.
-                end do
-            end do
-        end if
-
-        ! update advisee counts
-        do i=1,NumTeachers+NumAdditionalTeachers
-            Teacher(i)%NumAdvisees = 0
-        end do
-        do i=1,NumStudents+NumAdditionalStudents
-            j = index_to_teacher(Student(i)%Adviser)
-            Teacher(j)%NumAdvisees = Teacher(j)%NumAdvisees + 1
-        end do
-
-    end subroutine xml_write_students
-
-
-
-    subroutine xml_students(unitXML, iCurr)
-
-        integer, intent(in) :: unitXML
-        integer, intent (in) :: iCurr
-
-        integer :: std, idx
-
-        write(unitXML,AFORMAT) '<'//XML_ROOT_STUDENTS//'>', &
-            '    <comment>', &
-            '        Generated by '//PROGNAME//VERSION//' on '//currentDate(1:4)// &
-                        FSLASH//currentDate(5:6)//FSLASH//currentDate(7:8), &
-            '        StdNo - Student number', &
-            '        Name - Student name', &
-            '        Password - Encrypted password', &
-            '        Adviser - TeacherId of adviser', &
-            '        Curriculum - Curriculum code', &
-            '        Classification - 0=undetermined; 1=NF, 2=SO, 3=JR, 4=SR', &
-            '    </comment>'
-
-        ! loop over students
-        do std=1,NumStudents+NumAdditionalStudents
-
-            if (len_trim(Student(std)%StdNo)==0) cycle
-
-            idx = Student(std)%CurriculumIdx
-            if (iCurr>0) then
-                if (CurrProgCode(idx)/=CurrProgCode(iCurr)) cycle
-            end if
-
-            if (Student(std)%Classification>=8) cycle ! hidden
-
-            call xml_write_character(unitXML, indent0, 'Student')
-
-            call xml_write_character(unitXML, indent1, 'StdNo', Student(std)%StdNo)
-
-            call xml_write_character(unitXML, indent1, 'Name', Student(std)%Name)
-
-            call xml_write_character(unitXML, indent1, 'Password', Student(std)%Password)
-
-            call xml_write_character(unitXML, indent1, 'Curriculum', Curriculum(idx)%Code)
-
-            if (Student(std)%Classification/=0) &
-                call xml_write_integer(unitXML,   indent1, 'Classification', Student(std)%Classification)
-
-            if (len_trim(Student(std)%Adviser)/=0) &
-                call xml_write_character(unitXML, indent1, 'Adviser', Student(std)%Adviser)
-
-            if (len_trim(Student(std)%Scholarship)/=0) &
-                call xml_write_character(unitXML, indent1, 'Scholarship', Student(std)%Scholarship)
-
-            call xml_write_character(unitXML, indent0, '/Student')
-        end do
-        write(unitXML,AFORMAT) '</'//XML_ROOT_STUDENTS//'>'
-        isDirtyXML = .true.
-
-    end subroutine xml_students
-
-
-!===========================================================
-! routines for pre-enlistment
-!===========================================================
-
-    subroutine read_enlistment(path, iTerm, basename, firstGrp, lastGrp, NumSections, Section, &
-        eList, numEntries, errNo, backupFile)
-
-        character(len=*), intent(in) :: path, basename ! YEAR/TERM
-        integer, intent (in) :: firstGrp, lastGrp, NumSections, iTerm
-        type (TYPE_SECTION), intent(in out) :: Section(0:)
-        type (TYPE_PRE_ENLISTMENT), intent(out) :: eList(0:)
-        integer, intent (in out) :: numEntries
-        character (len=*), intent(in), optional :: backupFile
-        integer, intent (out) :: errNo
-
-        integer :: grp, mainEntries, partialEntries, ierr
-        logical :: noXML
-
-
-        numEntries = 0
-        call initialize_pre_enlistment(eList(0))
-        eList(:) = eList(0)
-        errNo = 0 ! OK if there's no enlistment record
-
-        ! read the university-level data
-        if ( present(backupFile) ) then
-            fileName = backupFile
-        else
-            fileName = basename
-        end if
-        grp = index(fileName, '.XML')
-        if (grp>0) fileName(grp:) = SPACE
-
-        ! try the monolithic XML file
-        call xml_read_pre_enlistment(path, iTerm, fileName, NumSections, Section, eList, numEntries, errNo)
-        noXML = numEntries==0
-        mainEntries = numEntries
-        if (noXML) then
-            ! try each priority group
-            do grp=firstGrp, lastGrp
-                fileName = 'ENLISTMENT-'//itoa(grp)
-                call xml_read_pre_enlistment(path, iTerm, fileName, NumSections, Section, eList, &
-                    partialEntries, ierr)
-                numEntries = numEntries + partialEntries
-                if (partialEntries>0) then ! not empty; move to backup
-                    call move_to_backup(trim(path)//trim(fileName)//'.XML')
-                end if
-            end do
-        end if
-        ! get curriculum group enlistment if any
-        done = .false.
-        do grp=1,NumCurricula
-            if (done(grp)) cycle
-            fileName = 'ENLISTMENT-'//CurrProgCode(grp)
-            call xml_read_pre_enlistment(path, iTerm, fileName, NumSections, Section, eList, partialEntries, ierr)
-            numEntries = numEntries + partialEntries
-            if (partialEntries>0) then ! not empty; move to backup
-                call move_to_backup(trim(path)//trim(fileName)//'.XML')
-            end if
-            do ierr=grp,NumCurricula
-                if (CurrProgCode(grp)==CurrProgCode(ierr)) done(ierr) = .true.
-            end do
-        end do
-
-        if (numEntries>mainEntries) then ! write the XML enlistment file?
-            call xml_write_pre_enlistment(path, 'ENLISTMENT', eList, Section)
-        end if
-
-    end subroutine read_enlistment
-
-
-
-    subroutine xml_read_pre_enlistment(path, iTerm, basename, NumSections, Section, eList, numEntries, errNo)
-
-        character(len=*), intent(in) :: path, basename
-        integer, intent (in) :: iTerm, NumSections
-        type (TYPE_SECTION), intent(in) :: Section(0:)
-        type (TYPE_PRE_ENLISTMENT), intent(in out) :: eList(0:)
-        integer, intent (out) :: numEntries, errNo
-
-        type(TYPE_PRE_ENLISTMENT) :: wrk
-        character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
-        character (len=MAX_LEN_CLASS_ID) :: tClass
-        character (len=MAX_LEN_STUDENT_CODE) :: tStdNo
-        character (len = MAX_LEN_TEXT_GRADE) :: tGrade
-        integer :: cdx, idx, sdx, std,gdx, pos, i, nGraded
-
-        numEntries = 0
-        ! open file, return on any error
-        fileName = trim(path)//trim(basename)//'.XML'
-        call xml_read_file(unitXML, XML_ROOT_ENLISTMENT//trim(txtSemester(iTerm)), fileName, errNo)
-        if (errNo/=0) return
-
-        ! examine the file line by line
-        do
-            read(unitXML, AFORMAT, iostat=eof) line
-            if (eof<0) exit
-
-            ! get tag and value if any; exit on any error
-            call xml_parse_line(line, tag, value, eof)
-            if (eof/=0) exit
-
-            select case (trim(tag))
-
-                case ('Student') ! initialize temporary college data
-                    call initialize_pre_enlistment (wrk)
-                    nGraded = 0
-
-                case ('StdNo')
-                    tStdNo = adjustl(value)
-                    std = index_to_student(tStdNo)
-
-                case ('UnitsEarned')
-                    wrk%UnitsEarned = atof(value)
-
-                case ('StdYear')
-                    wrk%StdYear = atoi(value)
-
-                case ('StdClassification')
-                    wrk%StdClassification = atoi(value)
-
-                case ('AllowedLoad')
-                    wrk%AllowedLoad = atof(value)
-
-                case ('StdPriority')
-                    wrk%StdPriority = atoi(value)
 
                 case ('NPriority')
-                    wrk%NPriority = atoi(value)
+                    wrkEnlistment(iTerm)%NPriority = atoi(value)
 
                 case ('NAlternates')
-                    wrk%NAlternates = atoi(value)
+                    wrkEnlistment(iTerm)%NAlternates = atoi(value)
 
                 case ('NCurrent')
-                    wrk%NCurrent = atoi(value)
+                    wrkEnlistment(iTerm)%NCurrent = atoi(value)
+
+                case ('NRemaining')
+                    wrkEnlistment(iTerm)%NRemaining = atoi(value)
+
+                case ('MissingPOCW')
+                    wrkEnlistment(iTerm)%MissingPOCW = atoi(value)
+
+                case ('statusAdvising')
+                    wrkEnlistment(iTerm)%statusAdvising = atoi(value)
+
+                case ('statusEnlistment')
+                    wrkEnlistment(iTerm)%statusEnlistment = atoi(value)
+
+                case ('statusScholastic', 'ScholasticStatus')
+                    wrkEnlistment(iTerm)%statusScholastic = atoi(value)
+
+                case ('codeConditional')
+                    wrkEnlistment(iTerm)%codeConditional = atoi(value)
+
+                case ('codeNSTP')
+                    wrkEnlistment(iTerm)%codeNSTP = atoi(value)
+
+                case ('UnitsEarned')
+                    wrkEnlistment(iTerm)%UnitsEarned = atof(value)
+
+                case ('AllowedLoad')
+                    wrkEnlistment(iTerm)%AllowedLoad = atof(value)
+
+                case ('UnderLoad')
+                    wrkEnlistment(iTerm)%UnderLoad = atof(value)
 
                 case ('Status')
-                    wrk%Status = atoi(value)
+                    i = atoi(value)
+                    select case (i)
+                        !        Status=-3          : NAdv
+                        case (-3)
+                            wrkEnlistment(iTerm)%statusAdvising = ADVISING_NEEDED
+                        !        Status=-2          : Done
+                        case (-2)
+                            wrkEnlistment(iTerm)%statusAdvising = ADVISING_FINISHED
+                        !        Status=-1          : Excl
+                        case (-1)
+                            wrkEnlistment(iTerm)%statusAdvising = ADVISING_EXCLUDED
+                        !        Status=0          : NSub
+                        case (0)
+                            wrkEnlistment(iTerm)%statusAdvising = ADVISING_NO_SUBJECTS
+                        !        Status=1          : AAdv
+                        case (1)
+                            wrkEnlistment(iTerm)%statusAdvising = ADVISING_IRREGULAR ! check later
+                        !        Status=2          : MAdv
+                        case (2)
+                            wrkEnlistment(iTerm)%statusAdvising = ADVISING_IRREGULAR
+                        !        Status=3          : AEnl
+                        case (3)
+                            wrkEnlistment(iTerm)%statusEnlistment = ENLISTMENT_AUTOMATIC
+                        !        Status=4          : MEnl
+                        case (4)
+                            wrkEnlistment(iTerm)%statusEnlistment = ENLISTMENT_MANUAL
+                        !        Status=5          : Cfrm
+                        case (5)
+                            wrkEnlistment(iTerm)%statusEnlistment = ENLISTMENT_CONFIRMED
+                        !        Status=6          : Lckd
+                        case (6)
+                            wrkEnlistment(iTerm)%statusEnlistment = ENLISTMENT_LOCKED
+                        !        Status=7          : Paid
+                        case (7)
+                            wrkEnlistment(iTerm)%statusEnlistment = ENLISTMENT_PAID
 
-                case ('ErrNSTP')
-                    wrk%errNSTP = atoi(value)
-
-!                case ('Enlisted')
-!                    tClass = adjustl(value)
-!                    sdx = index_to_section(tClass, NumSections, Section)
-!                    if (sdx==0) then ! invalid class; attempt to extract subject
-!                        sdx = len_trim(tClass)
-!                        do while (sdx>1 .and. tClass(sdx:sdx)/=SPACE)
-!                            sdx = sdx-1
-!                        end do
-!                        tSubject = tClass(:sdx)
-!                        cdx = index_to_subject(tSubject)
-!                        if (cdx<=0) then ! subject code not found
-!                            call log_comment ('No such class; ignored - '//tClass)
-!                            cycle
-!                        end if
-!                        ! add as subject
-!                        call check_array_bound (wrk%lenSubject, MAX_SUBJECTS_PER_TERM, 'MAX_SUBJECTS_PER_TERM')
-!                        wrk%lenSubject = wrk%lenSubject + 1
-!                        wrk%Subject(wrk%lenSubject) = cdx
-!                    else ! add as section
-!                        call check_array_bound (wrk%lenSubject, MAX_SUBJECTS_PER_TERM, 'MAX_SUBJECTS_PER_TERM')
-!                        wrk%lenSubject = wrk%lenSubject + 1
-!                        wrk%Section(wrk%lenSubject) = sdx
-!                        wrk%Subject(wrk%lenSubject) = Section(sdx)%SubjectIdx
-!                        wrk%Grade(wrk%lenSubject) = gdxREGD
-!                    end if
+                    end select
+                    checkRegular = .true.
 
                 case ('Predicted')
                     idx = index(value, COMMA)
                     tSubject = adjustl(value(:idx-1))
+                    call upper_case(tSubject)
                     cdx = index_to_subject(tSubject)
                     if (cdx<=0) then ! subject code not found
-                        call log_comment ('No such subject; ignored - '//tSubject)
+                        call log_comment (wrkStudent%StdNo//': no such subject; ignored - '//line)
                         cycle
                     end if
                     ! check if already among previous entries
-                    pos = 0
-                    do i=1,wrk%lenSubject
-                        if (wrk%Subject(i)==cdx) pos = i
+                    loc = 0
+                    do i=1,wrkEnlistment(iTerm)%lenSubject
+                        if (wrkEnlistment(iTerm)%Subject(i)==cdx) loc = i
                     end do
-                    if (pos==0) then
-                        pos = wrk%lenSubject + 1
-                        call check_array_bound (pos, MAX_SUBJECTS_PER_TERM, 'MAX_SUBJECTS_PER_TERM')
-                        wrk%lenSubject = pos
+                    if (loc==0) then
+                        loc = wrkEnlistment(iTerm)%lenSubject + 1
+                        call check_array_bound (loc, MAX_SUBJECTS_PER_TERM, 'MAX_SUBJECTS_PER_TERM in '//trim(line))
+                        wrkEnlistment(iTerm)%lenSubject = loc
                     else
-                        call log_comment('Using duplicate entry:  '//trim(tStdNo)//DASH//trim(line))
+                        call log_comment('Using duplicate predicted entry:  '//trim(wrkStudent%StdNo)//DASH//trim(line))
                     end if
                     ! add as predicted subject
-                    wrk%Subject(pos) = cdx
-                    wrk%Contrib(pos) = atof( trim( value(idx+1:) ) )
+                    wrkEnlistment(iTerm)%Subject(loc) = cdx
+                    wrkEnlistment(iTerm)%Contrib(loc) = atof( trim( value(idx+1:) ) )
 
                 case ('Allowed')
                     tSubject = adjustl(value)
+                    call upper_case(tSubject)
                     cdx = index_to_subject(tSubject)
                     if (cdx<=0) then ! subject code not found
-                        call log_comment ('No such subject; ignored - '//tSubject)
+                        call log_comment (wrkStudent%StdNo//': no such subject; ignored - '//line)
                         cycle
                     end if
                     ! check if already among previous entries
-                    pos = 0
-                    do i=1,wrk%lenSubject
-                        if (wrk%Subject(i)==cdx) pos = i
+                    loc = 0
+                    do i=1,wrkEnlistment(iTerm)%lenSubject
+                        if (wrkEnlistment(iTerm)%Subject(i)==cdx) loc = i
                     end do
-                    if (pos==0) then
-                        pos = wrk%lenSubject + 1
-                        call check_array_bound (pos, MAX_SUBJECTS_PER_TERM, 'MAX_SUBJECTS_PER_TERM')
-                        wrk%lenSubject = pos
+                    if (loc==0) then
+                        loc = wrkEnlistment(iTerm)%lenSubject + 1
+                        call check_array_bound (loc, MAX_SUBJECTS_PER_TERM, 'MAX_SUBJECTS_PER_TERM in '//trim(line))
+                        wrkEnlistment(iTerm)%lenSubject = loc
                         ! add as allowed subject
-                        wrk%Subject(pos) = cdx
-                        wrk%Contrib(pos) = 0.0
+                        wrkEnlistment(iTerm)%Subject(loc) = cdx
+                        wrkEnlistment(iTerm)%Contrib(loc) = 0.0
                     else
-                        call log_comment('Discarding duplicate entry:  '//trim(tStdNo)//DASH//trim(line))
+                        call log_comment('Discarding duplicate allowed entry:  '//trim(wrkStudent%StdNo)//DASH//trim(line))
                     end if
 
                 case ('Graded')
                     idx = index(value, COMMA)
                     tClass = adjustl(value(:idx-1))
                     tGrade = adjustl(value(idx+1:))
-                    sdx = index_to_section(tClass, NumSections, Section)
+                    iSect = index_to_section(tClass, iTerm)
                     gdx = index_to_grade(tGrade)
                     ! check if already among previous entries
-                    pos = 0
-                    do i=1,wrk%lenSubject
-                        if (wrk%Subject(i)==Section(sdx)%SubjectIdx) pos = i
+                    loc = 0
+                    do i=1,wrkEnlistment(iTerm)%lenSubject
+                        if (wrkEnlistment(iTerm)%Subject(i)==Section(iTerm,iSect)%SubjectIdx) loc = i
                     end do
-                    if (pos==0) then
-                        pos = wrk%lenSubject + 1
-                        call check_array_bound (pos, MAX_SUBJECTS_PER_TERM, 'MAX_SUBJECTS_PER_TERM')
-                        wrk%lenSubject = pos
+                    if (loc==0) then
+                        loc = wrkEnlistment(iTerm)%lenSubject + 1
+                        call check_array_bound (loc, MAX_SUBJECTS_PER_TERM, 'MAX_SUBJECTS_PER_TERM in '//trim(line))
+                        wrkEnlistment(iTerm)%lenSubject = loc
                     else
-                        call log_comment('Using duplicate entry:  '//trim(tStdNo)//DASH//trim(line))
+                        call log_comment('Using duplicate graded entry:  '//trim(wrkStudent%StdNo)//DASH//trim(line))
                     end if
-                    wrk%Section(pos) = sdx
-                    wrk%Subject(pos) = Section(sdx)%SubjectIdx
-                    wrk%Grade(pos) = gdx
-                    wrk%Contrib(pos) = 1.0
-                    nGraded = nGraded+1
+                    wrkEnlistment(iTerm)%Section(loc) = iSect
+                    wrkEnlistment(iTerm)%Subject(loc) = Section(iTerm,iSect)%SubjectIdx
+                    wrkEnlistment(iTerm)%Grade(loc) = gdx
+                    wrkEnlistment(iTerm)%Contrib(loc) = 1.0
+
+                case (FSLASH//ROOT_ENLISTMENT)
+                    if (wrkEnlistment(iTerm)%NPriority + wrkEnlistment(iTerm)%NAlternates + wrkEnlistment(iTerm)%NCurrent /= &
+                            wrkEnlistment(iTerm)%lenSubject) then
+                        wrkEnlistment(iTerm)%NPriority = wrkEnlistment(iTerm)%lenSubject
+                        wrkEnlistment(iTerm)%NAlternates = 0
+                        wrkEnlistment(iTerm)%NCurrent = 0
+                    end if
+                    ! check if manually enlisted without being advised
+                    if (wrkEnlistment(iTerm)%statusAdvising<ADVISING_REGULAR .and. sum(wrkEnlistment(iTerm)%Section)>0) then
+                        wrkEnlistment(iTerm)%statusAdvising = ADVISING_IRREGULAR
+                    end if
+                    ! check is advised subjects are regular
+                    if (checkRegular .and. wrkEnlistment(iTerm)%statusAdvising==ADVISING_IRREGULAR) then
+                        call check_for_regular_advised_subjects(idxCurr, iTerm, wrkEnlistment(iTerm))
+                    end if
 
                 case ('/Student')
-                    if (wrk%NPriority+wrk%NAlternates+wrk%NCurrent /= wrk%lenSubject) then
-                        wrk%NPriority = wrk%lenSubject
-                        wrk%NAlternates = 0
-                        wrk%NCurrent = 0
+                    if (.not. isAlphaNumeric(wrkStudent%StdNo) ) cycle
+                    if (len_trim(wrkStudent%Password)==0) then
+                        call set_password(wrkStudent%Password, trim(wrkStudent%StdNo))
+                        isDirtySTUDENTS = .true.
+                    else if (tKey/=passwordEncryptionKey) then
+                        Password = wrkStudent%Password
+                        call decrypt(tKey, Password)
+                        Password = Password(lenPasswordEncryptionKey-atoi(Password(3:4))+1:)
+                        call set_password(wrkStudent%Password, Password)
                     end if
-                    if (std/=0) then
-                        select case (wrk%Status)
-
-                            case (0) ! enlistment status NONE
-                                if (nGraded>0) then
-                                    wrk%Status = SECTIONS_ARE_SELECTED
-                                elseif (wrk%lenSubject>0) then
-                                    wrk%Status = SUBJECTS_ARE_ADVISED
-                                end if
-
-                            case (SUBJECTS_ARE_ADVISED)
-                                if (wrk%lenSubject==0) then ! no advised subjects
-                                    wrk%Status = 0
-                                elseif (nGraded>0) then ! some enlisted
-                                    wrk%Status = SECTIONS_ARE_SELECTED
-                                end if
-
-                            case (SECTIONS_ARE_SELECTED, SCHEDULE_IS_CONFIRMED, SCHEDULE_IS_LOCKED)
-                                if (wrk%lenSubject==0) then ! no advised subject
-                                    wrk%Status = 0
-                                elseif (nGraded==0) then ! none enlisted
-                                    wrk%Status = SUBJECTS_ARE_ADVISED
-                                end if
-
-                        end select
-                        eList(std) = wrk
-                        numEntries = numEntries+1
-                    else
-                        call log_comment ('No such student; ignored - '//tStdNo)
-                    end if
+                    if (len_trim(wrkStudent%HomePSGC)==0) wrkStudent%HomePSGC = PSGC(NumPSGC)%Code
+                    wrkStudent%Enlistment = wrkEnlistment
+                    call update_student_info(wrkStudent, indexLoc)
+                    if (indexLoc<0) numEntries = numEntries + 1
+                    !do iTerm=1,3
+                    !    Enlistment(iTerm,abs(indexLoc)) = wrkEnlistment(iTerm)
+                    !end do
 
                 case default
-                    if ( trim(tag)=='/'//XML_ROOT_ENLISTMENT//trim(txtSemester(iTerm)) ) exit
+                    ! do nothing
 
             end select
-
         end do
-
         close(unitXML)
-        call log_comment (itoa(numEntries)//' pre-enlistment entries in '//fileName)
 
-    end subroutine xml_read_pre_enlistment
+    end subroutine student_details_read
 
 
-    subroutine xml_write_pre_enlistment(path, basename, eList, Section, curriculumFilter)
-        character (len=*), intent (in) :: path, basename ! YEAR/TERM/(ENLISTMENT,PREDICTION,WAIVER-COI)
-        type (TYPE_PRE_ENLISTMENT), intent(in) :: eList(0:)
-        type (TYPE_SECTION), intent(in) :: Section(0:)
-        integer, intent (in), optional :: curriculumFilter
 
-        integer :: filter, iTerm
+    subroutine backup_write(backupFile)
 
+        character (len=MAX_LEN_FILE_PATH), intent(in), optional :: backupFile
+
+        integer :: iTerm, stat
+        character (len=MAX_LEN_FILE_PATH) :: fileName, filePart
+        logical :: existsBackup
+
+        tickLastBackup = tick
         if (isReadOnly) return
+        if (.not. isDirtyData) return
 
-        if (present(curriculumFilter)) then
-            filter = curriculumFilter
+        if (present(backupFile) ) then
+            fileName = backupFile
         else
-            filter = 0
+            fileName = trim(pathToYear)//trim(UniversityCode)//'-BACKUP.XML'
         end if
+        filePart = trim(fileName)//dotPart
+        open(unit=unitXML, file=filePart, form='formatted', status='unknown', iostat=stat, err=999)
+        call xml_write_character(unitXML, 0, XML_DOC)
 
-        ! generate file name
-        fileName = trim(path)//basename
-        if (filter>0) then
-            fileName = trim(fileName)//DASH//trim(CurrProgCode(filter))//'.XML'
-        else
-            fileName = trim(fileName)//'.XML'
-        end if
-        do iTerm=1,3
-            if (index(path, trim(txtSemester(iTerm)))>0) exit
-        end do
+        call university_data_write(unitXML, '')
 
-        call move_to_backup(fileName)
-        call html_comment('xml_write_pre_enlistment('//trim(fileName)//')')
+        call college_details_write(unitXML, '', 1, NumColleges-1)
 
-        ! write file
-        open(unit=unitXML, file=fileName)
-        write(unitXML,AFORMAT) XML_DOC
+        call department_details_write(unitXML, '', 2, NumDepartments-1)
 
-        call xml_pre_enlistment(unitXML, eList, Section, filter, iTerm)
+        call subject_details_write(unitXML, '', NumDummySubjects, NumSubjects+NumAdditionalSubjects)
 
-        close(unitXML)
+        call curriculum_details_write(unitXML, '', 1,NumCurricula-1)
 
-        ! remove curriculum enlistment files
-        if (filter==0) then
-            done = .false.
-            do filter=1,NumCurricula
-                if (done(filter)) cycle
-                call move_to_backup(trim(path)//trim('ENLISTMENT-'//CurrProgCode(filter))//'.XML')
-                do iTerm=filter,NumCurricula
-                    if (CurrProgCode(filter)==CurrProgCode(iTerm)) done(iTerm) = .true.
-                end do
-            end do
-        end if
+        call equivalence_data_write(unitXML, '')
 
-    end subroutine xml_write_pre_enlistment
+        call room_details_write(unitXML, '', 1, NumRooms+NumAdditionalRooms)
 
+        call teacher_details_write(unitXML, '', 1, NumTeachers+NumAdditionalTeachers)
 
+        call student_details_write(unitXML, '', 1, NumStudents+NumAdditionalStudents)
 
-    subroutine xml_pre_enlistment(unitXML, eList, Section, filter, iTerm)
+        do iTerm=firstSemester,summerTerm
+            call class_details_write(unitXML, iTerm, '', 1, NumSections(iTerm) )
 
-        integer, intent (in) :: unitXML, filter, iTerm
-        type (TYPE_PRE_ENLISTMENT), intent(in) :: eList(0:)
-        type (TYPE_SECTION), intent(in) :: Section(0:)
-
-        integer :: std, sect, i, lenRecord, gdx
-
-        write(unitXML,AFORMAT) '<'//XML_ROOT_ENLISTMENT//trim(txtSemester(iTerm))//'>', &
-            '    <comment>', &
-            '        Generated by '//PROGNAME//VERSION//' on '//currentDate(1:4)// &
-                        FSLASH//currentDate(5:6)//FSLASH//currentDate(7:8), &
-            '        UnitsEarned       : Units earned in curriculum', &
-            '        StdClassification : Student classification (25% rule) - 1=FRESHMAN, 2=SOPHOMORE, 3=JUNIOR, 4=SENIOR', &
-            '        StdYear           : Year level in curriculum - 1=FIRST, 2=SECOND, 3=THIRD, 4=FOURTH, 5=FIFTH', &
-            '        AllowedLoad       : Units to enlist based on year+term level in curriculum', &
-            '        StdPriority       : (see below)', &
-            '        Status            : 1="Feasible subjects fixed"; 2="Sections fixed"', &
-            '        ErrNSTP           : 1="Track mismatch in NSTP 11/12"', &
-            '        NPriority         : No. of priority subjects', &
-            '        NAlternates       : No. of alternate subjects', &
-            '        NCurrent          : No. of subjects currently registered', &
-            '        Graded            : Enlisted section', &
-            '        Allowed           : Subject with satisfied prerequisite', &
-            '        Predicted         : Allowed subject that contributes to demand', &
-            '        StdPriority=0     : Manually enlisted ("special-treatment" students)', &
-            '        StdPriority=1     : New Student (no record of any grade)', &
-            '        StdPriority=2     : Graduating (27 units or less left, no remaining subjects w/ unsatisfied prereqs)', &
-            '        StdPriority=3     : Did not fail any subject last sem, or on LOA last sem', &
-            '        StdPriority=4     : Failed (0-50%] of units last sem', &
-            '        StdPriority=5     : Failed (50%,75%] of units', &
-            '        StdPriority=6     : Failed (75%-100%] of units last sem', &
-            '        StdPriority=7     : (reserved)', &
-            '        StdPriority=8     : (reserved)', &
-            '        StdPriority=9     : Subjects not offered, or prerequisites not satisfied', &
-            '        StdPriority=10    : Curricular program completed?', &
-            '    </comment>'
-
-        do std=1,NumStudents+NumAdditionalStudents
-            ! skip student with no record
-            lenRecord = max(eList(std)%lenSubject, eList(std)%NPriority+eList(std)%NAlternates+eList(std)%NCurrent)
-            if (lenRecord==0) cycle
-            ! skip student if curriculum does not match filter
-            if (filter>0) then
-                if (CurrProgCode(filter)/=CurrProgCode(Student(std)%CurriculumIdx)) cycle
-            end if
-
-            ! student info start
-            call xml_write_character(unitXML, indent0, 'Student')
-            call xml_write_character(unitXML, indent1, 'StdNo', Student(std)%StdNo)
-            call xml_write_character(unitXML, indent1, 'Name', Student(std)%Name)
-            if (eList(std)%UnitsEarned/=0.0) &
-                call xml_write_character  (unitXML, indent1, 'UnitsEarned', ftoa(eList(std)%UnitsEarned,1))
-            if (eList(std)%StdYear/=0) &
-                call xml_write_integer  (unitXML, indent1, 'StdYear', eList(std)%StdYear)
-            if (eList(std)%StdClassification/=0) &
-                call xml_write_integer  (unitXML, indent1, 'StdClassification', eList(std)%StdClassification)
-            if (eList(std)%AllowedLoad/=0.0) &
-                call xml_write_character  (unitXML, indent1, 'AllowedLoad', ftoa(eList(std)%AllowedLoad,1))
-            if (eList(std)%StdPriority/=0) &
-                call xml_write_integer  (unitXML, indent1, 'StdPriority', eList(std)%StdPriority)
-            if (eList(std)%NPriority/=0) &
-                call xml_write_integer  (unitXML, indent1, 'NPriority', eList(std)%NPriority)
-            if (eList(std)%NAlternates/=0) &
-                call xml_write_integer  (unitXML, indent1, 'NAlternates', eList(std)%NAlternates)
-            if (eList(std)%NCurrent/=0) &
-                call xml_write_integer  (unitXML, indent1, 'NCurrent', eList(std)%NCurrent)
-            if (eList(std)%Status/=0) &
-                call xml_write_integer  (unitXML, indent1, 'Status', eList(std)%Status)
-            if (eList(std)%ErrNSTP/=0) &
-                call xml_write_integer  (unitXML, indent1, 'ErrNSTP', eList(std)%errNSTP)
-
-            do i=1,lenRecord
-                sect = eList(std)%Section(i)
-                if (sect>0) then
-                    gdx = eList(std)%Grade(i)
-                    !if (gdx>0) then
-                        call xml_write_character(unitXML, indent1, 'Graded', &
-                            trim(Subject(Section(sect)%SubjectIdx)%Name)//SPACE//trim(Section(sect)%Code)//COMMA// &
-                                txtGrade(pGrade(gdx)) )
-                    !else
-                    !    call xml_write_character(unitXML, indent1, 'Enlisted', &
-                    !        trim(Subject(Section(sect)%SubjectIdx)%Name)//SPACE//Section(sect)%Code )
-                    !end if
-                elseif (eList(std)%Subject(i)>0) then
-                    if (eList(std)%Contrib(i)>0.0) then
-                        call xml_write_character(unitXML, indent1, 'Predicted', &
-                            trim(Subject(eList(std)%Subject(i))%Name)//COMMA//ftoa(eList(std)%Contrib(i),5) )
-                    else
-                        call xml_write_character(unitXML, indent1, 'Allowed', Subject(eList(std)%Subject(i))%Name)
-                    end if
-                end if
-            end do
-            ! student info end
-            call xml_write_character(unitXML, indent0, '/Student')
-        end do
-
-        write(unitXML,AFORMAT) '</'//XML_ROOT_ENLISTMENT//trim(txtSemester(iTerm))//'>'
-        isDirtyXML = .true.
-
-    end subroutine xml_pre_enlistment
-
-
-
-    subroutine xml_read_waivers(path, iTerm, NumSections, Section, numEntries, errNo, backupFile)
-
-        character(len=*), intent(in) :: path
-        integer, intent (in) :: NumSections, iTerm
-        type (TYPE_SECTION), intent(in) :: Section(0:)
-        integer, intent (out) :: numEntries, errNo
-        character(len=*), intent(in), optional :: backupFile
-
-        type(TYPE_WAIVER) :: wrk
-        character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
-        character (len=MAX_LEN_CLASS_ID) :: tClass
-        character (len=MAX_LEN_STUDENT_CODE) :: tStdNo
-        integer :: cdx, sdx, std
-
-        numEntries = 0
-        ! open file, return on any error
-        if (present(backupFile)) then
-            fileName = trim(path)//backupFile
-        else
-            fileName = trim(path)//'WAIVER-COI.XML'
-        end if
-        call xml_read_file(unitXML, XML_ROOT_WAIVERS//trim(txtSemester(iTerm)), fileName, errNo)
-        if (errNo/=0) then
-            call log_comment ('ierr='//itoa(errNo)//' when opening '//fileName)
-            return
-        end if
-
-        ! examine the file line by line
-        do
-            read(unitXML, AFORMAT, iostat=eof) line
-            if (eof<0) exit
-
-            ! get tag and value if any; exit on any error
-            call xml_parse_line(line, tag, value, eof)
-            if (eof/=0) exit
-
-            select case (trim(tag))
-
-                case ('WaiverCOI') ! initialize temporary data
-                    call initialize_waiver (wrk)
-
-                case ('StdNo')
-                    tStdNo = adjustl(value)
-                    std = index_to_student(tStdNo)
-
-                case ('Section')
-                    tClass = adjustl(value)
-                    sdx = index_to_section(tClass, NumSections, Section)
-                    if (sdx==0) then ! invalid class; attempt to extract subject
-                        sdx = len_trim(tClass)
-                        do while (sdx>1 .and. tClass(sdx:sdx)/=SPACE)
-                            sdx = sdx-1
-                        end do
-                        tSubject = tClass(:sdx)
-                        cdx = index_to_subject(tSubject)
-                        if (cdx<=0) then ! subject code not found
-                            call log_comment ('No such class; ignored - '//tClass)
-                            cycle
-                        end if
-                        ! add as subject
-                        call check_array_bound (wrk%lenSubject, MAX_SUBJECTS_PER_TERM, 'MAX_SUBJECTS_PER_TERM')
-                        wrk%lenSubject = wrk%lenSubject + 1
-                        wrk%Subject(wrk%lenSubject) = cdx
-                    else ! add as section
-                        call check_array_bound (wrk%lenSubject, MAX_SUBJECTS_PER_TERM, 'MAX_SUBJECTS_PER_TERM')
-                        wrk%lenSubject = wrk%lenSubject + 1
-                        wrk%Section(wrk%lenSubject) = sdx
-                        wrk%Subject(wrk%lenSubject) = Section(sdx)%SubjectIdx
-                    end if
-
-                case ('Subject')
-                    tSubject = adjustl(value)
-                    cdx = index_to_subject(tSubject)
-                    if (cdx<=0) then ! subject code not found
-                        call log_comment ('No such subject; ignored - '//tSubject)
-                        cycle
-                    end if
-                    ! add as allowed subject
-                    call check_array_bound (wrk%lenSubject, MAX_SUBJECTS_PER_TERM, 'MAX_SUBJECTS_PER_TERM')
-                    wrk%lenSubject = wrk%lenSubject + 1
-                    wrk%Subject(wrk%lenSubject) = cdx
-
-                case ('/WaiverCOI')
-                    if (std/=0) then
-                        WaiverCOI(std) = wrk
-                        numEntries = numEntries+1
-                    else
-                        call log_comment ('No such student; ignored - '//tStdNo)
-                    end if
-
-                case default
-                    if ( trim(tag)=='/'//XML_ROOT_WAIVERS//trim(txtSemester(iTerm)) ) exit
-
-
-            end select
+            call block_details_write(unitXML, iTerm, '', 1, NumBlocks(iTerm) )
 
         end do
 
-        close(unitXML)
-        call log_comment (itoa(numEntries)//' Waiver/COI entries in '//fileName)
+        close(unitXML, iostat=stat, err=999)
+        ! temporary backup created
 
-    end subroutine xml_read_waivers
+        ! move existing backup to archive
+        inquire(file=fileName, exist=existsBackup)
+        if (existsBackup) call move_to_backup(fileName)
 
+        ! rename temporary backup file
+!#if defined GLNX
+        call rename(filePart, fileName, stat)
+!#else
+!        call system(mvCmd//trim(filePart)//SPACE//trim(fileName), stat)
+!#endif
 
-    subroutine xml_write_waivers(path, Section, iTerm)
-        character (len=*), intent (in) :: path ! YEAR/TERM/WAIVER-COI
-        type (TYPE_SECTION), intent(in) :: Section(0:)
-        integer, intent (in) :: iTerm
+        ! reset 'dirty' flag
+        isDirtyData = .false.
 
-        if (isReadOnly) return
+        999 call terminate(stat, 'Error in writing backup to '//fileName)
+        call log_comment('Backup on '//currentDate//DASH//currentTime//' to '//trim(fileName))
 
-        ! generate file name
-        fileName = trim(path)//'WAIVER-COI.XML'
-
-        call move_to_backup(fileName)
-        call html_comment('xml_write_waivers('//trim(fileName)//')')
-
-        open(unit=unitXML, file=fileName)
-        write(unitXML,AFORMAT) XML_DOC
-        call xml_waivers(unitXML, Section, iTerm)
-        close(unitXML)
-
-    end subroutine xml_write_waivers
+    end subroutine backup_write
 
 
-    subroutine xml_waivers(unitXML, Section, iTerm)
-        integer, intent (in) :: unitXML, iTerm
-        type (TYPE_SECTION), intent(in) :: Section(0:)
-
-        integer :: std, sect, i
-
-        write(unitXML,AFORMAT) '<'//XML_ROOT_WAIVERS//trim(txtSemester(iTerm))//'>', &
-        '    <comment>', &
-        '        Generated by '//PROGNAME//VERSION//' on '//currentDate(1:4)// &
-                    FSLASH//currentDate(5:6)//FSLASH//currentDate(7:8), &
-        '        StdNo    : Student number', &
-        '        Section   : Enlisted section', &
-        '        Subject    : Allowed subject (COI/waive prerequisite)', &
-        '    </comment>'
-
-        do std=1,NumStudents+NumAdditionalStudents
-            if (WaiverCOI(std)%lenSubject==0) cycle ! skip student with no record
-            call xml_write_character(unitXML, indent0, 'WaiverCOI')
-            call xml_write_character(unitXML, indent1, 'StdNo', Student(std)%StdNo)
-            do i=1,WaiverCOI(std)%lenSubject
-                sect = WaiverCOI(std)%Section(i)
-                if (sect>0) then
-                    call xml_write_character(unitXML, indent1, 'Section', Section(sect)%ClassId)
-                else
-                    call xml_write_character(unitXML, indent1, 'Subject', Subject(WaiverCOI(std)%Subject(i))%Name)
-                end if
-            end do
-            call xml_write_character(unitXML, indent0, '/WaiverCOI')
-        end do
-
-        ! close file
-        write(unitXML,AFORMAT) '</'//XML_ROOT_WAIVERS//trim(txtSemester(iTerm))//'>'
-        isDirtyXML = .true.
-
-    end subroutine xml_waivers
-
-
-
-    subroutine xml_read_basic_data(path, backupFile)
+    subroutine year_data_read(path)
 
         character (len=*), intent(in) :: path
-        character (len=*), intent(in), optional :: backupFile
 
         integer :: jTmp, iTmp, errNo
+        logical :: readFromBackup
 
-        ! read the university-level data
-        if ( present(backupFile) ) then
-            fileName = trim(path)//backupFile
-        else
-            fileName = trim(path)//'UNIVERSITY.XML'
-        end if
-        call xml_read_university(fileName, errNo)
-        if (errNo/=0) call terminate('Error in reading university info')
+        readFromBackup = index(path, trim(UniversityCode)//'-BACKUP.XML')>0
 
-        ! read the colleges
-        if ( present(backupFile) ) then
-            fileName = trim(path)//backupFile
+        ! the university-level data
+        if (readFromBackup) then
+            call university_data_read(path)
         else
-            fileName = trim(path)//'COLLEGES.XML'
+            call university_data_read(trim(path)//'UNIVERSITY.XML')
         end if
-        call xml_read_colleges(fileName, errNo)
-        if (errNo/=0) call terminate('Error in reading the list of colleges')
+        call log_comment(trim(UniversityName)//' @ '//UniversityAddress)
+
+        ! the colleges
+        if (readFromBackup) then
+            call college_details_read(path)
+        else
+            call colleges_index_read(unitIDX, dirCOLLEGES)
+        end if
+        call log_comment(itoa(NumColleges)//' colleges from '//path)
+
+        ! add 'administrative' college for data that does not fit in the 'academic' colleges
+        NumColleges = NumColleges + 1
+        call check_array_bound (NumColleges, MAX_ALL_COLLEGES, 'MAX_ALL_COLLEGES')
+        call initialize_college (College(NumColleges), &
+            SYSAD, trim(UniversityCode)//' Administration', SYSAD, SPACE, SPACE)
 
         ! log directory for users in the college
         do iTmp=1,NumColleges
             call make_directory( trim(dirLOG)//trim(College(iTmp)%Code)//DIRSEP )
         end do
 
-        ! read the departments
-        if ( present(backupFile) ) then
-            fileName = trim(path)//backupFile
+        ! the departments
+        if (readFromBackup) then
+            call department_details_read(path)
         else
-            fileName = trim(path)//'DEPARTMENTS.XML'
+            call departments_index_read(unitIDX, dirDEPARTMENTS)
         end if
-        call xml_read_departments(fileName, errNo)
-        if (errNo/=0) call terminate('Error in reading the list of departments')
+        call log_comment(itoa(NumDepartments-1)//' departments from '//path)
 
-        ! read the subjects
-        if ( present(backupFile) ) then
-            fileName = trim(path)//backupFile
+        ! add REGISTAR as 'administrative' department for data that does not fit in the 'academic' departments
+        NumDepartments = NumDepartments + 1
+        call check_array_bound (NumDepartments, MAX_ALL_DEPARTMENTS, 'MAX_ALL_DEPARTMENTS')
+        call initialize_department (Department(NumDepartments), &
+            SYSAD, trim(UniversityCode)//' Registrar', TheRegistrar, 'Z', NumColleges)
+
+
+        ! the subjects
+        if (readFromBackup) then
+            call subject_codes_read(path)
+            call subject_details_read(path)
         else
-            fileName = trim(path)//'SUBJECTS.XML'
+            call subjects_index_read(unitIDX, dirSUBJECTS)
         end if
-        call xml_read_subjects(fileName, errNo)
-        if (errNo/=0) call terminate('Error in reading the list of subjects')
+        call log_comment (itoa(NumSubjects)//FSLASH//itoa(-NumDummySubjects)// &
+            ' "regular"/"dummy" subjects from '//path)
 
         ! subject areas
         call get_subject_areas()
 
-        ! read the curricular programs
-        if ( present(backupFile) ) then
-            fileName = trim(path)//backupFile
+        ! the curricular programs
+        if (readFromBackup) then
+            call curriculum_details_read(path)
         else
-            fileName = trim(path)//'CURRICULA.XML'
+            call curricula_index_read(unitIDX, dirCURRICULA)
         end if
-        call xml_read_curricula(fileName, errNo)
-        if (errNo/=0) call terminate('Error in reading the list of curricular programs')
+        call log_comment (itoa(NumCurricula)//' curricula from '//dirCURRICULA)
 
-        ! read the substitution rules
-        if ( present(backupFile) ) then
-            call xml_read_equivalencies(path, iTmp, backupFile)
+        ! sort
+        do iTmp=1,NumCurricula-1
+            do jTmp=iTmp+1,NumCurricula
+                if (Curriculum(iTmp)%Code>Curriculum(jTmp)%Code) then
+                    Curriculum(NumCurricula+1) = Curriculum(iTmp)
+                    Curriculum(iTmp) = Curriculum(jTmp)
+                    Curriculum(jTmp) = Curriculum(NumCurricula+1)
+                end if
+            end do
+        end do
+
+        ! add OTHER
+        NumCurricula = NumCurricula + 1
+        call check_array_bound (NumCurricula, MAX_ALL_CURRICULA, 'MAX_ALL_CURRICULA')
+        Curriculum(NumCurricula) = Curriculum(0)
+        Curriculum(NumCurricula)%Code = 'OTHER'
+        Curriculum(NumCurricula)%CollegeIdx = NumColleges
+        Curriculum(NumCurricula)%Title = 'Change curriculum'
+        Curriculum(NumCurricula)%Specialization = SPACE
+        Curriculum(NumCurricula)%Remark = SPACE
+        Curriculum(NumCurricula)%NSubjects = 0
+        Curriculum(NumCurricula)%Active = .true.
+
+        call make_curriculum_groups()
+
+        ! the substitution rules
+        if (readFromBackup) then
+            iTmp = 0 ! substitutions
+            call equivalencies_by_curriculum(path, iTmp)
+            call equivalencies_for_all_curricula(path, iTmp)
+            SubstIdx(NumSubst+1) = iTmp+1
         else
-            call xml_read_equivalencies(path, iTmp)
+            call equivalence_data_read()
         end if
+
         call log_comment('EQUIVALENCIES')
         do iTmp=1,NumSubst
             if (Substitution(SubstIdx(iTmp))>0 .and. Substitution(SubstIdx(iTmp))<=NumCurricula) then
@@ -3309,42 +3839,43 @@ contains
             Subject(jTmp)%Prerequisite = Subject(iTmp)%Prerequisite
         end do
 
-        ! read the rooms
-        if ( present(backupFile) ) then
-            fileName = trim(path)//backupFile
+        ! the rooms
+        if (readFromBackup) then
+            call room_details_read(path)
         else
-            fileName = trim(path)//'ROOMS.XML'
+            call rooms_index_read(unitIDX, dirROOMS)
         end if
-        call xml_read_rooms(fileName, errNo)
+        call log_comment (itoa(NumRooms)//' rooms from '//path)
+
         if (NumRooms==0) then
             do iTmp=2,NumDepartments-1 ! create rooms for each department
                 NumRooms = NumRooms+1
-                call initialize_room(Room(NumRooms), trim(Department(iTmp)%Code)//' Room', &
-                    iTmp, 0, 0)
+                call initialize_room(Room(NumRooms), trim(Department(iTmp)%Code)//' Room', iTmp, 0, 0)
             end do
             errNo = 0
         end if
 
-        ! read the teachers
-        if ( present(backupFile) ) then
-            fileName = trim(path)//backupFile
+        ! the teachers
+        if (readFromBackup) then
+            call teacher_details_read(path)
         else
-            fileName = trim(path)//'TEACHERS.XML'
+            call teachers_index_read(unitIDX, dirTEACHERS)
         end if
-        call xml_read_teachers(fileName, errNo) ! try the XML file
+        call log_comment (itoa(NumTeachers)//' teachers from '//path)
+
         Teacher(1)%DeptIdx = NumDepartments ! Guest's unit is not previously set
-        if (errNo/=0 .or. NumTeachers==1) then ! 1=Guest only
+        if (NumTeachers==1) then ! 1=Guest only
 
             do iTmp=2,NumDepartments-1 ! create teacher for each department
                 NumTeachers = NumTeachers+1
                 call check_array_bound (NumTeachers, MAX_ALL_TEACHERS, 'MAX_ALL_TEACHERS')
-                Teacher(NumTeachers)%TeacherID = trim(Department(iTmp)%Code)//'-Teacher'
+                Teacher(NumTeachers)%TeacherId = trim(Department(iTmp)%Code)//'-Teacher'
                 Teacher(NumTeachers)%DeptIdx = iTmp
                 Teacher(NumTeachers)%Role = GUEST
                 Teacher(NumTeachers)%Name = trim(Department(iTmp)%Code)//' Teacher'
                 Teacher(NumTeachers)%MaxLoad = 0
                 Teacher(NumTeachers)%Specialization = 'Teaching'
-                call set_password(Teacher(NumTeachers)%Password)
+                call set_password(Teacher(NumTeachers)%Password, trim(Teacher(NumTeachers)%TeacherId))
 
             end do
             errNo = 0
@@ -3352,7 +3883,7 @@ contains
             ! the Developer account
             NumTeachers = NumTeachers+1
             call check_array_bound (NumTeachers, MAX_ALL_TEACHERS, 'MAX_ALL_TEACHERS')
-            Teacher(NumTeachers)%TeacherID = PROGNAME
+            Teacher(NumTeachers)%TeacherId = PROGNAME
             Teacher(NumTeachers)%DeptIdx = NumDepartments
             Teacher(NumTeachers)%Role = SYSAD
             Teacher(NumTeachers)%Name = PROGNAME//' Developer'
@@ -3363,7 +3894,7 @@ contains
             ! the Administrator
             NumTeachers = NumTeachers+1
             call check_array_bound (NumTeachers, MAX_ALL_TEACHERS, 'MAX_ALL_TEACHERS')
-            Teacher(NumTeachers)%TeacherID = SYSAD
+            Teacher(NumTeachers)%TeacherId = 'Registrar'
             Teacher(NumTeachers)%DeptIdx = NumDepartments
             Teacher(NumTeachers)%Role = SYSAD
             Teacher(NumTeachers)%Name = PROGNAME//' Administrator'
@@ -3382,13 +3913,13 @@ contains
 
             NumTeachers = NumTeachers+1
             call check_array_bound (NumTeachers, MAX_ALL_TEACHERS, 'MAX_ALL_TEACHERS')
-            Teacher(NumTeachers)%TeacherID = ScholarshipCode(iTmp)
+            Teacher(NumTeachers)%TeacherId = ScholarshipCode(iTmp)
             Teacher(NumTeachers)%DeptIdx = NumDepartments
             Teacher(NumTeachers)%Role = BENEFACTOR
             Teacher(NumTeachers)%Name = ScholarshipDescription(iTmp)
             Teacher(NumTeachers)%MaxLoad = 0
             Teacher(NumTeachers)%Specialization = 'Benefactor'
-            call set_password(Teacher(NumTeachers)%Password)
+            call set_password(Teacher(NumTeachers)%Password, Teacher(NumTeachers)%TeacherId)
 
         end do
 
@@ -3401,97 +3932,390 @@ contains
             College(iTmp)%hasInfo = College(iTmp)%hasInfo .or. Department(jTmp)%hasInfo
         end do
 
+
+        ! classes and blocks
+        do jTmp=firstSemester,summerTerm
+
+            ! the classes
+            if (readFromBackup) then
+                call class_details_read(path, jTmp)
+            else
+                call classes_index_read(unitIDX, jTmp, dirCLASSES(jTmp))
+            end if
+            call log_comment (itoa(NumSections(jTmp))//' sections for '//trim(text_term_school_year(jTmp, currentYear))// &
+                ' in '//path)
+
+            ! sort & summarize
+            call offerings_sort(jTmp)
+            call offerings_summarize(jTmp, 0)
+
+            ! read the blocks
+            if (readFromBackup) then
+                call block_details_read(path, jTmp )
+            else
+                call blocks_index_read(unitIDX, jTmp, dirBLOCKS(jTmp) )
+            end if
+            call log_comment (itoa(NumBlocks(jTmp))//' blocks for '//trim(text_term_school_year(jTmp, currentYear))// &
+                ' in '//path)
+
+            ! compress block array
+            errNo = 0
+            do iTmp=1,NumBlocks(jTmp)
+                if (Block(jTmp,iTmp)%CurriculumIdx/=0) then
+                    errNo = errNo+1
+                    Block(jTmp,errNo) = Block(jTmp,iTmp)
+                end if
+            end do
+            NumBlocks(jTmp) = errNo
+            errNo = 0
+
+            call sort_alphabetical_blocks(jTmp)
+
+            ! count no. of sections by dept
+            call count_sections_by_dept(jTmp)
+
+        end do
+
         ! read the students
-        if ( present(backupFile) ) then
-            call xml_read_students(path, 0, iTmp, errNo, 'BACKUP.XML')
+        if (readFromBackup) then
+            call student_details_read(path, iTmp)
         else
-            call read_students(path, errNo)
+            call students_index_read(unitIDX, dirSTUDENTS)
         end if
+        ! update advisee counts
+        do jTmp=1,NumTeachers+NumAdditionalTeachers
+            Teacher(jTmp)%NumAdvisees = 0
+        end do
+        do iTmp=1,NumStudents+NumAdditionalStudents
+            jTmp = index_to_teacher(Student(iTmp)%Adviser)
+            Teacher(jTmp)%NumAdvisees = Teacher(jTmp)%NumAdvisees + 1
+        end do
+
+        call log_comment (itoa(NumStudents)//' students from '//path)
+
         call sort_alphabetical_students()
+
+        do jTmp=firstSemester,summerTerm
+            call recalculate_available_seats(jTmp)
+        end do
 
         ! remember clock tick when data is retrieved
         CALL SYSTEM_CLOCK(tickLastRefresh, count_rate, count_max)
         tickLastBackup = tickLastRefresh
 
-    end subroutine xml_read_basic_data
+    end subroutine year_data_read
 
 
-    subroutine xml_write_data()
+   subroutine read_EVALUATION_FORM()
 
-        integer :: i, tYear, tTerm
+        integer :: idx, stat
 
-        if (isReadOnly) return
+        ! initialize
+        NumEvalCriteria = 0
+        Evaluation = TYPE_EVALUATION_CRITERION(0, 0, SPACE)
+        NumEvalCategories = 0
+        EvalCategory = TYPE_EVALUATION_CATEGORY(SPACE, 0, SPACE)
 
-        ! year data
-        dirPath = trim(dirDATA)//trim(itoa(currentYear))//DIRSEP
-        call xml_write_university(trim(dirPath)//'UNIVERSITY.XML')
-        call xml_write_colleges(trim(dirPath)//'COLLEGES.XML')
-        call xml_write_departments(trim(dirPath)//'DEPARTMENTS.XML')
-        call xml_write_rooms(trim(dirPath)//'ROOMS.XML')
-        call xml_write_teachers(trim(dirPath)//'TEACHERS.XML')
-        call xml_write_subjects(trim(dirPath)//'SUBJECTS.XML')
-        call xml_write_curricula(trim(dirPath)//'CURRICULA.XML')
-        call xml_write_equivalencies(trim(dirPath)//'EQUIVALENCIES.XML')
-        call xml_write_students(trim(dirPath), 0)
+        ! open file, return on any error
+        call xml_read_file(unitXML, ROOT_EVALUATION, 'EVALUATION.XML', stat)
+        if (stat/=0) return
 
-        ! term-specific data
-        do i=termBegin,termEnd
-            call qualify_term (i, tYear, tTerm)
-            dirPath = trim(dirDATA)//trim(itoa(tYear))//DIRSEP//trim(txtSemester(tTerm))//DIRSEP
-            call xml_write_classes(dirPath, NumSections(tTerm), Section(tTerm,0:), 0)
-            call xml_write_blocks(dirPath, NumBlocks(tTerm), Block(tTerm,0:), Section(tTerm,0:), 0)
-            call xml_write_pre_enlistment(dirPath, 'ENLISTMENT', Enlistment(tTerm,0:), Section(tTerm,0:))
-        end do
+        ! examine the file line by line
+        do
+            read(unitXML, AFORMAT, iostat=stat) line
+            if (stat<0) exit
 
-    end subroutine xml_write_data
+            ! get tag and value if any; exit on any error
+            call xml_parse_line(line, tag, value, stat)
+            if (stat/=0) exit
 
+            select case (trim(tag))
 
-    subroutine xml_backup(fileName)
-        character (len=*), intent (in) :: fileName
+                case (FSLASH//ROOT_EVALUATION)
+                    exit
 
-        integer :: i, j, k
+                case ('Category')
+                    NumEvalCategories = NumEvalCategories + 1
+                    idx = 0
 
-        tickLastBackup = tick
-        if (.not. isDirtyXML) return
+                case ('Code')
+                    EvalCategory(NumEvalCategories)%Code = value
 
-        open(unit=unitXML, file=trim(fileName), form='formatted', status='new')
-        write(unitXML,AFORMAT) XML_DOC
+                case ('Weight')
+                    EvalCategory(NumEvalCategories)%Weight = atoi(value)
 
-        call xml_university(unitXML)
-        call xml_colleges(unitXML)
-        call xml_departments(unitXML)
-        call xml_subjects(unitXML)
-        call xml_curricula(unitXML)
-        call xml_equivalencies(unitXML)
-        call xml_rooms(unitXML)
-        call xml_teachers(unitXML)
-        call xml_students(unitXML, 0)
+                case ('Description')
+                    EvalCategory(NumEvalCategories)%Description = value
 
-        do k=termBegin,termEnd
-            call qualify_term (k, i, j)
+                case ('Item')
+                    idx = idx + 1
+                    NumEvalCriteria = NumEvalCriteria + 1
+                    Evaluation(NumEvalCriteria)%Category = NumEvalCategories
+                    Evaluation(NumEvalCriteria)%Item = idx
+                    Evaluation(NumEvalCriteria)%Criterion = value
 
-            call xml_classes(unitXML, NumSections(j), Section(j,0:), 0, j)
-            call xml_blocks(unitXML, NumBlocks(j), Block(j,0:), Section(j,0:), 0, j)
-            call xml_pre_enlistment(unitXML, Enlistment(j,0:), Section(j,0:), 0, j)
+                case ('/Category')
+
+                case default ! do nothing
+
+            end select
 
         end do
-        if (NumWaiverRecords>0) then
-            call qualify_term (nextTerm, i, j)
-            call xml_waivers(unitXML, Section(j,0:), j)
+        close(unitXML)
+
+    end subroutine read_EVALUATION_FORM
+
+
+    subroutine evaluation_details_read(pathToFile)
+
+        character(len=*), intent(in) :: pathToFile
+
+        integer :: idx, stat
+
+        EvaluationForm = TYPE_EVALUATION_FORM(0, 0, 0, SPACE, SPACE, SPACE, SPACE, SPACE, 0)
+
+        ! find ROOT_EVALUATION
+        call xml_read_file(unitXML, ROOT_EVALUATION, pathToFile, stat)
+        if (stat/=0) return ! nothing found
+
+        ! examine the file line by line
+        do
+            read(unitXML, AFORMAT, iostat=stat) line
+            if (stat<0) exit
+
+            ! get tag and value if any; exit on any error
+            call xml_parse_line(line, tag, value, stat)
+            if (stat/=0) exit
+
+            select case (trim(tag))
+
+                case (FSLASH//ROOT_EVALUATION)
+                    exit
+
+                case ('EvalType')
+                    EvaluationForm%EvalType = atoi(value)
+
+                case ('Year')
+                    EvaluationForm%Year = atoi(value)
+
+                case ('Term')
+                    EvaluationForm%Term = atoi(value)
+
+                case ('LastModified')
+                    EvaluationForm%LastModified = value
+
+                case ('EvaluatedID')
+                    EvaluationForm%EvaluatedID = value
+
+                case ('EvaluatorID')
+                    EvaluationForm%EvaluatorID = value
+
+                case ('ClassId')
+                    EvaluationForm%ClassId = value
+
+                case ('Comments')
+                    EvaluationForm%Comments = value
+
+                case ('Rating')
+                    read(value,*) (EvaluationForm%Rating(idx), idx=1,NumEvalCriteria)
+
+                case default ! do nothing
+
+            end select
+
+        end do
+        close(unitXML)
+
+    end subroutine evaluation_details_read
+
+
+
+    subroutine evaluation_details_write(pathToFile)
+
+        character(len=*), intent(in) :: pathToFile
+
+        integer :: stat, idx
+        character (len=MAX_LEN_FILE_PATH) :: fileName, filePart
+
+        fileName = pathToFile
+        filePart = trim(fileName)//dotPart
+        call open_for_write(unitXML, filePart, stat)
+
+        call xml_write_character(unitXML, 0, XML_DOC)
+        call xml_write_character(unitXML, indent0, ROOT_EVALUATION)
+
+        call xml_write_integer  (unitXML, indent1, 'EvalType', EvaluationForm%EvalType)
+        call xml_write_integer  (unitXML, indent1, 'Year', EvaluationForm%Year)
+        call xml_write_integer  (unitXML, indent1, 'Term', EvaluationForm%Term)
+        call xml_write_character(unitXML, indent1, 'LastModified', EvaluationForm%LastModified)
+        call xml_write_character(unitXML, indent1, 'EvaluatedID', EvaluationForm%EvaluatedID)
+        call xml_write_character(unitXML, indent1, 'EvaluatorID', EvaluationForm%EvaluatorID)
+
+        if (len_trim(EvaluationForm%ClassId)>0) &
+            call xml_write_character(unitXML, indent1, 'ClassId', EvaluationForm%ClassId)
+
+        line = SPACE
+        write(line,'(50i2)') (EvaluationForm%Rating(idx), idx=1,NumEvalCriteria)
+        call xml_write_character(unitXML, indent1, 'Rating', line)
+
+        if (len_trim(EvaluationForm%Comments)>0) &
+            call xml_write_character(unitXML, indent1, 'Comments', EvaluationForm%Comments)
+
+        call xml_write_character(unitXML, indent0, FSLASH//ROOT_EVALUATION)
+
+        close(unitXML, iostat=stat, err=999)
+        ! temporary backup created
+
+        ! rename temporary backup file
+        call rename(filePart, fileName, stat)
+
+        999 call terminate(stat, 'Error in writing to '//fileName)
+
+    end subroutine evaluation_details_write
+
+
+    subroutine evaluation_duty_read(evalDutyFile, tLen, tArray)
+
+        character (len=*), intent(in) :: evalDutyFile
+        integer, intent(in out) :: tLen, tArray(:)
+        integer :: ierr, pos, idx1, idx2, start
+        character (len=MAX_LEN_FILE_PATH) :: line
+        character(len=MAX_LEN_USERNAME) :: evaluatorID, evaluatedID
+
+        ! remember 1st position
+        start = tLen
+        ! open file for reading; exit (go to 999) on error
+        open(unit=unitETC, file=evalDutyFile, status='old', iostat=ierr, err=999)
+        !call html_comment('evaluation_duty_read : '//itoa(ierr)//' in opening '//evalDutyFile)
+        ierr = 1 ! file is open
+        do
+            ! read one line; stop reading (goto 998) of end or error
+            read(unitETC, AFORMAT, end=998, err=998) line
+            !call html_comment(line)
+            pos = index(line, COMMA)
+            if (pos<2) cycle
+
+            evaluatorID = line(1:pos-1)
+            idx1 = index_to_teacher( evaluatorID )
+            evaluatedID = line(pos+1:)
+            idx2 = index_to_teacher( evaluatedID )
+            !call html_comment(itoa(idx1)//evaluatorID, itoa(idx2)//evaluatedID)
+
+            if (idx1*idx2>0) then
+                tLen = tLen+1
+                tArray(2*tLen-1) = idx1
+                tArray(2*tLen  ) = idx2
+            end if
+
+        end do
+        998 if (ierr/=0) close(unitETC)
+        999 continue
+
+        ! re-count Teacher()%EvalsToGive, Teacher()%EvalsToReceive
+         if (start<tLen) then
+            do pos=1,NumTeachers
+                Teacher(pos)%EvalsToGive = 0
+                Teacher(pos)%EvalsToReceive = 0
+            end do
+            do  pos=1,tLen
+                idx1 = tArray(2*pos-1)
+                idx2 = tArray(2*pos  )
+                Teacher(idx1)%EvalsToGive = Teacher(idx1)%EvalsToGive +1
+                Teacher(idx2)%EvalsToReceive = Teacher(idx2)%EvalsToReceive + 1
+            end do
+        end if
+        !call html_comment('evaluation_duty_read : '//itoa(tLen)//' in '//evalDutyFile)
+
+    end subroutine evaluation_duty_read
+
+
+    subroutine evaluation_duty_write(evalDutyFile, tLen, tArray)
+
+        character (len=*), intent(in) :: evalDutyFile
+        integer, intent(in) :: tLen, tArray(:)
+        integer :: ierr, pos, idx1, idx2
+
+        call open_for_write(unitETC, evalDutyFile, ierr)
+        ! re-count Teacher()%EvalsToGive, Teacher()%EvalsToReceive
+        do pos=1,NumTeachers
+            Teacher(pos)%EvalsToGive = 0
+            Teacher(pos)%EvalsToReceive = 0
+        end do
+        ierr = 0
+        do  pos=1,tLen
+            idx1 = tArray(2*pos-1)
+            idx2 = tArray(2*pos  )
+            if (idx1*idx2==0) cycle
+
+            Teacher(idx1)%EvalsToGive = Teacher(idx1)%EvalsToGive +1
+            Teacher(idx2)%EvalsToReceive = Teacher(idx2)%EvalsToReceive + 1
+            write(unitETC,AFORMAT) trim(Teacher(idx1)%TeacherID)//COMMA//trim(Teacher(idx2)%TeacherID)
+            ierr = ierr + 1
+        end do
+        close(unitETC)
+        !call html_comment('evaluation_duty_write() : '//itoa(ierr)//' in '//evalDutyFile)
+
+    end subroutine evaluation_duty_write
+
+    subroutine  effectiveness_ratings_retrieve (evalType, evalFilePattern, fileCount, sumRating, remarksFile)
+        integer, intent(in) :: evalType
+        character (len=*), intent(in) :: evalFilePattern, remarksFile
+        integer, dimension(MAX_EVALUATION_TYPES), intent(in out) :: fileCount
+        real, dimension(MAX_EVALUATION_TYPES,MAX_EVALUATION_CRITERIA), intent(in out) :: sumRating
+
+        character (len=MAX_LEN_FILE_PATH) :: evaluationFile, fileList
+        integer :: ierr, sarray(13)
+
+        ! where to write list of files that match pattern
+        fileList = evalFilePattern
+        do ierr = len_trim(evalFilePattern),1,-1
+            if (fileList(ierr:ierr)==DIRSEP) then
+                 if (fileList(ierr-1:ierr-1)=='*') then
+                     fileList(ierr-1:) = SPACE
+                 else
+                     fileList(ierr+1:) = SPACE
+                 end if
+                 exit
+             end if
+        end do
+        fileList = trim(fileList)//EvalTypeDescription(evalType)
+
+        !call html_comment('effectiveness_ratings_retrieve()', evalFilePattern, fileList)
+        call system(dirCmd//trim(evalFilePattern)//' > '//trim(fileList), ierr)
+
+        ierr = stat(fileList, sarray)
+
+        if (ierr .eq. 0 .and. sarray(8) .gt. 0) then
+
+            open(unit=unitETC, file=fileList, status='unknown', form='formatted', iostat=ierr)
+            ! loop through files
+            do while (ierr==0)
+
+                read(unitETC,AFORMAT,iostat=ierr) evaluationFile
+                if (ierr .lt. 0) then ! no more mailboxes
+                    close(unitETC)
+                    exit
+                end if
+
+                !call html_comment(evaluationFile)
+                call evaluation_details_read(evaluationFile)
+                fileCount(evalType) = fileCount(evalType) + 1
+                sumRating(evalType,1:NumEvalCriteria) = sumRating(evalType,1:NumEvalCriteria) + &
+                    EvaluationForm%Rating(1:NumEvalCriteria)
+
+                ! write Remarks ?
+                if (len_trim(remarksFile)>0) then
+                    if (len_trim(EvaluationForm%Comments)>0) &
+                        write(unitREM,AFORMAT) b_para, &
+                            trim(EvalTypeDescription(evalType))//': '//trim(EvaluationForm%Comments), &
+                            e_para
+                end if
+
+            end do
+
         end if
 
-        close(unitXML)
-        call log_comment('Backup on '//currentDate//DASH//currentTime//' to '//trim(fileName))
-
-        ! reset 'dirty' flag
-        isDirtyXML = .false.
-
-#if defined GLNX
-        call system('gzip '//trim(fileName), k)
-        call log_comment(itoa(k)//' returned by: gzip '//trim(fileName))
-#endif
-
-    end subroutine xml_backup
+    end subroutine effectiveness_ratings_retrieve
 
 
 end module XMLIO

@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012-2014 Ricolindo L. Carino
+!    Copyright (C) 2012-2015 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -53,47 +53,47 @@ contains
         call make_form_start(device, fnEditSignatories)
 
         write(device,AFORMAT) '<table border="0" width="100%">', &
-            begintr//thalignright//'Title or Position'//endth//tdnbspendtd//thalignleft//'Name'//endth//endtr, &
-            begintr//tdalignright//beginitalic//'(University name)'//enditalic//endtd//tdnbspendtd// &
-                     begintd//'<input name="UniversityName" size="60" value="'//trim(UniversityName)//'">'//endtd// &
-            endtr, &
-            begintr//tdalignright//beginitalic//'(University address)'//enditalic//endtd//tdnbspendtd// &
-                     begintd//'<input name="UniversityAddress" size="60" value="'//trim(UniversityAddress)//'">'//endtd// &
-            endtr, &
-            begintr//tdalignright//beginitalic//'(University phone)'//enditalic//endtd//tdnbspendtd// &
-                     begintd//'<input name="UniversityPhone" size="60" value="'//trim(UniversityPhone)//'">'//endtd// &
-            endtr, &
-            begintr//tdalignright//beginitalic//'(University web address)'//enditalic//endtd//tdnbspendtd// &
-                     begintd//'<input name="UniversityWeb" size="60" value="'//trim(UniversityWeb)//'">'//endtd// &
-            endtr, &
-            begintr// &
-                tdalignright//'<input name="titleUniversityPresident" size="40" value="'//trim(titleUniversityPresident)//'">'// &
-                endtd//tdnbspendtd// &
-                begintd//'<input name="UniversityPresident" size="60" value="'//trim(UniversityPresident)//'">'//endtd// &
-            endtr, &
-            begintr// &
-                tdalignright//'<input name="titleVPAcademicAffairs" size="40" value="'//trim(titleVPAcademicAffairs)//'">'// &
-                endtd//tdnbspendtd// &
-                begintd//'<input name="VPAcademicAffairs" size="60" value="'//trim(VPAcademicAffairs)//'">'//endtd// &
-            endtr, &
-            begintr// &
-                tdalignright//'<input name="titleDeanOfCampus" size="40" value="'//trim(titleDeanOfCampus)//'">'// &
-                endtd//tdnbspendtd// &
-                begintd//'<input name="DeanOfCampus" size="60" value="'//trim(DeanOfCampus)//'">'//endtd// &
-            endtr, &
-            begintr// &
-                tdalignright//'<input name="titleDeanOfInstruction" size="40" value="'//trim(titleDeanOfInstruction)//'">'// &
-                endtd//tdnbspendtd// &
-                begintd//'<input name="DeanOfInstruction" size="60" value="'//trim(DeanOfInstruction)//'">'//endtd// &
-            endtr, &
-            begintr// &
-                tdalignright//'<input name="titleTheRegistrar" size="40" value="'//trim(titleTheRegistrar)//'">'// &
-                endtd//tdnbspendtd// &
-                begintd//'<input name="TheRegistrar" size="60" value="'//trim(TheRegistrar)//'">'//endtd// &
-            endtr
+            b_tr//b_thar//'Title or Position'//e_th//b_td_nbsp_e_td//b_thal//'Name'//e_th//e_tr, &
+            b_tr//b_tdar//b_italic//'(University name)'//e_italic//e_td//b_td_nbsp_e_td// &
+                     b_td//'<input name="UniversityName" size="60" value="'//trim(UniversityName)//'">'//e_td// &
+            e_tr, &
+            b_tr//b_tdar//b_italic//'(University address)'//e_italic//e_td//b_td_nbsp_e_td// &
+                     b_td//'<input name="UniversityAddress" size="60" value="'//trim(UniversityAddress)//'">'//e_td// &
+            e_tr, &
+            b_tr//b_tdar//b_italic//'(University phone)'//e_italic//e_td//b_td_nbsp_e_td// &
+                     b_td//'<input name="UniversityPhone" size="60" value="'//trim(UniversityPhone)//'">'//e_td// &
+            e_tr, &
+            b_tr//b_tdar//b_italic//'(University web address)'//e_italic//e_td//b_td_nbsp_e_td// &
+                     b_td//'<input name="UniversityWeb" size="60" value="'//trim(UniversityWeb)//'">'//e_td// &
+            e_tr, &
+            b_tr// &
+                b_tdar//'<input name="titleUniversityPresident" size="40" value="'//trim(titleUniversityPresident)//'">'// &
+                e_td//b_td_nbsp_e_td// &
+                b_td//'<input name="UniversityPresident" size="60" value="'//trim(UniversityPresident)//'">'//e_td// &
+            e_tr, &
+            b_tr// &
+                b_tdar//'<input name="titleVPAcademicAffairs" size="40" value="'//trim(titleVPAcademicAffairs)//'">'// &
+                e_td//b_td_nbsp_e_td// &
+                b_td//'<input name="VPAcademicAffairs" size="60" value="'//trim(VPAcademicAffairs)//'">'//e_td// &
+            e_tr, &
+            b_tr// &
+                b_tdar//'<input name="titleDeanOfCampus" size="40" value="'//trim(titleDeanOfCampus)//'">'// &
+                e_td//b_td_nbsp_e_td// &
+                b_td//'<input name="DeanOfCampus" size="60" value="'//trim(DeanOfCampus)//'">'//e_td// &
+            e_tr, &
+            b_tr// &
+                b_tdar//'<input name="titleDeanOfInstruction" size="40" value="'//trim(titleDeanOfInstruction)//'">'// &
+                e_td//b_td_nbsp_e_td// &
+                b_td//'<input name="DeanOfInstruction" size="60" value="'//trim(DeanOfInstruction)//'">'//e_td// &
+            e_tr, &
+            b_tr// &
+                b_tdar//'<input name="titleTheRegistrar" size="40" value="'//trim(titleTheRegistrar)//'">'// &
+                e_td//b_td_nbsp_e_td// &
+                b_td//'<input name="TheRegistrar" size="60" value="'//trim(TheRegistrar)//'">'//e_td// &
+            e_tr
 
-        write(device,AFORMAT) endtable, linebreak, &
-            nbsp//'<input name="action" type="submit" value="Update">'//endform//linebreak
+        write(device,AFORMAT) e_table, linebreak, &
+            nbsp//'<input name="action" type="submit" value="Update">'//e_form//linebreak
 
 
         write(device,AFORMAT) '<h3>Update college signatories</h3>'
@@ -101,32 +101,32 @@ contains
         call make_form_start(device, fnEditSignatories)
 
         write(device,AFORMAT) '<table border="0" width="100%">', &
-            begintr//thalignright//'Title or Position'//endth//tdnbspendtd//thalignleft//'Name'//endth//endtr
+            b_tr//b_thar//'Title or Position'//e_th//b_td_nbsp_e_td//b_thal//'Name'//e_th//e_tr
 
         do iColl=1,NumColleges-1
             write(device,AFORMAT) &
-                begintr, &
-                tdalignright//beginitalic//'(College Dean, '//trim(College(iColl)%Code)//')'//enditalic//endtd, &
-                tdnbspendtd, &
-                begintd//'<input name="DEAN:'//trim(College(iColl)%Code)//'" size="60" value="'// &
-                         trim(College(iColl)%Dean)//'">'//endtd, &
-                endtr, &
-                begintr, &
-                tdalignright//beginitalic//'(Transcript Preparer, '//trim(College(iColl)%Code)//')'//enditalic//endtd, &
-                tdnbspendtd, &
-                begintd//'<input name="PREPARER:'//trim(College(iColl)%Code)//'" size="60" value="'// &
-                         trim(College(iColl)%TranscriptPreparer)//'">'//endtd, &
-                endtr, &
-                begintr, &
-                tdalignright//beginitalic//'(Transcript Checker, '//trim(College(iColl)%Code)//')'//enditalic//endtd, &
-                tdnbspendtd, &
-                begintd//'<input name="CHECKER:'//trim(College(iColl)%Code)//'" size="60" value="'// &
-                         trim(College(iColl)%TranscriptChecker)//'">'//endtd, &
-                endtr
+                b_tr, &
+                b_tdar//b_italic//'(College Dean, '//trim(College(iColl)%Code)//')'//e_italic//e_td, &
+                b_td_nbsp_e_td, &
+                b_td//'<input name="DEAN:'//trim(College(iColl)%Code)//'" size="60" value="'// &
+                         trim(College(iColl)%Dean)//'">'//e_td, &
+                e_tr, &
+                b_tr, &
+                b_tdar//b_italic//'(Transcript Preparer, '//trim(College(iColl)%Code)//')'//e_italic//e_td, &
+                b_td_nbsp_e_td, &
+                b_td//'<input name="PREPARER:'//trim(College(iColl)%Code)//'" size="60" value="'// &
+                         trim(College(iColl)%TranscriptPreparer)//'">'//e_td, &
+                e_tr, &
+                b_tr, &
+                b_tdar//b_italic//'(Transcript Checker, '//trim(College(iColl)%Code)//')'//e_italic//e_td, &
+                b_td_nbsp_e_td, &
+                b_td//'<input name="CHECKER:'//trim(College(iColl)%Code)//'" size="60" value="'// &
+                         trim(College(iColl)%TranscriptChecker)//'">'//e_td, &
+                e_tr
         end do
 
-        write(device,AFORMAT) endtable, linebreak, &
-            nbsp//'<input name="action" type="submit" value="Update">'//endform//horizontal
+        write(device,AFORMAT) e_table, linebreak, &
+            nbsp//'<input name="action" type="submit" value="Update">'//e_form//horizontal
 
 
     end subroutine display_signatories
@@ -183,7 +183,7 @@ contains
             if (tInput /= titleTheRegistrar) then
                 titleTheRegistrar = tInput
                 changes = .true.
-                sorryMessageOfficial = trim(UniversityCodeNoMirror)//' officials and their friends '// &
+                sorryMessageOfficial = trim(UniversityCode)//' officials and their friends '// &
                     ' have a "read-only" permission at this time. '// &
                     ' Please see the '//trim(titleTheRegistrar)//' if you wish to change some data.'
             end if
@@ -251,11 +251,11 @@ contains
                 changes = .true.
             end if
 
-            if (changes) call xml_write_university(trim(pathToYear)//'UNIVERSITY.XML')
+            if (changes) call university_data_write(unitXML, trim(pathToYear)//'UNIVERSITY.XML')
 
-            ! collect changes to COLLEGES.XML
-            changes = .false.
+            ! collect changes to colleges
             do iColl=1,NumColleges-1
+                changes = .false.
                 call cgi_get_named_string(QUERY_STRING, 'DEAN:'//trim(College(iColl)%Code), tInput, ierr)
                 if (ierr/=0) tInput = College(iColl)%Dean
                 if (tInput /= College(iColl)%Dean) then
@@ -274,9 +274,12 @@ contains
                     College(iColl)%TranscriptChecker = tInput
                     changes = .true.
                 end if
-            end do
 
-            if (changes) call xml_write_colleges(trim(pathToYear)//'COLLEGES.XML')
+                if (changes) then
+                    call college_details_write(unitXML, dirCOLLEGES, iColl)
+                end if
+
+            end do
 
         end if
 
@@ -309,23 +312,33 @@ contains
 
         if (ierr/=0 .or. tAction==SPACE) then ! no action; display existing info
         else ! action is Update; collect changes, if any
+
             call cgi_get_named_integer(QUERY_STRING, 'maxIdleTime', tTime, ierr)
             if (ierr/=0) tTime = maxIdleTime
             if (tTime /= maxIdleTime) then
                 maxIdleTime = tTime
                 mesg = ' : Max idle time='//trim(itoa(tTime))//mesg
             end if
+
             call cgi_get_named_integer(QUERY_STRING, 'maxBackupTime', tTime, ierr)
             if (ierr/=0) tTime = maxBackupTime
             if (tTime /= maxBackupTime) then
                 maxBackupTime = tTime
                 mesg = ' : Max backup time='//trim(itoa(tTime))//mesg
             end if
+
             call cgi_get_named_integer(QUERY_STRING, 'maxRefreshTime', tTime, ierr)
             if (ierr/=0) tTime = maxRefreshTime
             if (tTime /= maxRefreshTime) then
                 maxRefreshTime = tTime
                 mesg = ' : Max refresh time='//trim(itoa(tTime))//mesg
+            end if
+
+            call cgi_get_named_integer(QUERY_STRING, 'maxSFNA', tTime, ierr)
+            if (ierr/=0) tTime = maxStudentsForNeedsAnalysis
+            if (tTime /= maxStudentsForNeedsAnalysis) then
+                maxStudentsForNeedsAnalysis = tTime
+                mesg = ' : Max students for Needs Analysis='//trim(itoa(tTime))//mesg
             end if
 
         end if
@@ -336,22 +349,26 @@ contains
         call make_form_start(device, fnTimers)
 
         write(device,AFORMAT) '<table border="0" width="50%">', &
-            begintr//thalignright//'Description'//endth//tdnbspendtd//thalignleft//'Value'//endth//endtr, &
-            begintr//tdalignright//beginitalic//'No. of seconds for auto-logout of an idle user'//enditalic// &
-                     endtd//tdnbspendtd// &
-                     begintd//'<input name="maxIdleTime" value="'//trim(itoa(maxIdleTime))//'">'//endtd// &
-            endtr, &
-            begintr//tdalignright//beginitalic//'No. of seconds for auto-backup of data'//enditalic// &
-                     endtd//tdnbspendtd// &
-                     begintd//'<input name="maxBackupTime" value="'//trim(itoa(maxBackupTime))//'">'//endtd// &
-            endtr, &
-            begintr//tdalignright//beginitalic//'No. of seconds for auto-refresh of data in mirror'//enditalic// &
-                     endtd//tdnbspendtd// &
-                     begintd//'<input name="maxRefreshTime" value="'//trim(itoa(maxRefreshTime))//'">'//endtd// &
-            endtr
+            b_tr//b_thar//'Description'//e_th//b_td_nbsp_e_td//b_thal//'Value'//e_th//e_tr, &
+            b_tr//b_tdar//b_italic//'No. of seconds for auto-logout of an idle user'//e_italic// &
+                     e_td//b_td_nbsp_e_td// &
+                     b_td//'<input name="maxIdleTime" value="'//trim(itoa(maxIdleTime))//'">'//e_td// &
+            e_tr, &
+            b_tr//b_tdar//b_italic//'No. of seconds for auto-backup of data'//e_italic// &
+                     e_td//b_td_nbsp_e_td// &
+                     b_td//'<input name="maxBackupTime" value="'//trim(itoa(maxBackupTime))//'">'//e_td// &
+            e_tr, &
+            b_tr//b_tdar//b_italic//'No. of seconds for auto-refresh of data in mirror'//e_italic// &
+                     e_td//b_td_nbsp_e_td// &
+                     b_td//'<input name="maxRefreshTime" value="'//trim(itoa(maxRefreshTime))//'">'//e_td// &
+            e_tr, &
+            b_tr//b_tdar//b_italic//'Max no. of students for Needs Analysis to avoid timeout'//e_italic// &
+                     e_td//b_td_nbsp_e_td// &
+                     b_td//'<input name="maxSFNA" value="'//trim(itoa(maxStudentsForNeedsAnalysis))//'">'//e_td// &
+            e_tr
 
-        write(device,AFORMAT) endtable, linebreak, &
-            nbsp//'<input name="action" type="submit" value="Update">'//endform//linebreak, horizontal
+        write(device,AFORMAT) e_table, linebreak, &
+            nbsp//'<input name="action" type="submit" value="Update">'//e_form//linebreak, horizontal
 
     end subroutine edit_timers
 
@@ -375,15 +392,15 @@ contains
             call html_write_header(device, 'Edit the message of the day', SPACE)
             call make_form_start(device, fnEditMOTD)
             write(device,AFORMAT) &
-                beginitalic, &
+                b_italic, &
                 'Note: Type one continuous line of text. Intersperse &lt;br&gt; for line breaks', &
-                enditalic, &
+                e_italic, &
                 linebreak, &
                 '<textarea cols="80" rows="5" name="MOTD">'//trim(MOTD)//'</textarea>', &
                 linebreak, &
                 linebreak, &
                 nbsp//'<input name="action" type="submit" value="Update">', &
-                endform//horizontal
+                e_form//horizontal
 
         else ! action is Update
 
@@ -394,7 +411,7 @@ contains
                     call html_college_links(device, CollegeIdxUser, mesg='"Message of the day" not changed. '//sorryMessageOfficial)
                 else
                     call html_college_links(device, CollegeIdxUser, mesg='Message of the day is: '//trim(MOTD))
-                    if (.not. isReadOnly) then
+                    if (.not. isMirror) then
                         open (unit=unitETC, file=trim(pathToYear)//'MOTD.TXT', status='unknown')
                         write(unitETC, AFORMAT) trim(MOTD)
                         close(unitETC)
@@ -425,15 +442,15 @@ contains
             call html_write_header(device, 'Edit the emergency message', SPACE)
             call make_form_start(device, fnEditEMERGENCY)
             write(device,AFORMAT) &
-                beginitalic, &
+                b_italic, &
                 'Note: Type one continuous line of text. Intersperse &lt;br&gt; for line breaks', &
-                enditalic, &
+                e_italic, &
                 linebreak, &
                 '<textarea cols="80" rows="5" name="EMERGENCY">'//trim(EMERGENCY)//'</textarea>', &
                 linebreak, &
                 linebreak, &
                 nbsp//'<input name="action" type="submit" value="Update">', &
-                endform//horizontal
+                e_form//horizontal
 
         else ! action is Update
 
@@ -449,28 +466,28 @@ contains
 
         end if
 
-    end subroutine emergency_message 
+    end subroutine emergency_message
 
 
     subroutine room_edit(device)
         integer, intent(in) :: device
         character(len=MAX_LEN_ROOM_CODE) :: tRoom, tAction
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
-        integer :: ierr, rdx, j
+        integer :: ierr, iRoom, j
         character (len=255) :: mesg, remark
         type (TYPE_ROOM) :: wrk
         logical :: isDirtyROOMS, criticalErr
 
         ! which room ?
-        call cgi_get_named_string(QUERY_STRING, 'A1', tRoom, rdx)
-        if (rdx/=0) tRoom = 'TBA'
+        call cgi_get_named_string(QUERY_STRING, 'A1', tRoom, iRoom)
+        if (iRoom/=0) tRoom = 'TBA'
 
         call html_comment('room_edit('//trim(tRoom)//') ')
-        rdx = index_to_room(tRoom)
-        targetDepartment = Room(rdx)%DeptIdx
+        iRoom = index_to_room(tRoom)
+        targetDepartment = Room(iRoom)%DeptIdx
         targetCollege = Department(targetDepartment)%CollegeIdx
 
-        wrk = Room(rdx) ! make a working copy
+        wrk = Room(iRoom) ! make a working copy
         isDirtyROOMS = .false.
         remark = SPACE
         mesg = SPACE
@@ -500,54 +517,54 @@ contains
 
             call cgi_get_named_integer(QUERY_STRING, 'MaxCapacity', wrk%MaxCapacity, ierr)
             !write(*,*) 'ierr=', ierr, ', MaxCapacity=', wrk%MaxCapacity
-            if (ierr/=0) wrk%MaxCapacity = Room(rdx)%MaxCapacity
+            if (ierr/=0) wrk%MaxCapacity = Room(iRoom)%MaxCapacity
 
             call cgi_get_named_integer(QUERY_STRING, 'Cluster', wrk%Cluster, ierr)
             !write(*,*) 'ierr=', ierr, ', Cluster=', wrk%Cluster
-            if (ierr/=0) wrk%Cluster = Room(rdx)%Cluster
+            if (ierr/=0) wrk%Cluster = Room(iRoom)%Cluster
 
             call cgi_get_named_integer(QUERY_STRING, 'EnergyFee', wrk%EnergyFee, ierr)
             !write(*,*) 'ierr=', ierr, ', EnergyFeer=', wrk%EnergyFee
-            if (ierr/=0) wrk%EnergyFee = Room(rdx)%EnergyFee
+            if (ierr/=0) wrk%EnergyFee = Room(iRoom)%EnergyFee
 
             call cgi_get_named_string(QUERY_STRING, 'Code', mesg, ierr)
             wrk%Code = trim(mesg)
             !write(*,*) 'ierr=', ierr, ', Code=', wrk%Code
-            if (ierr/=0) wrk%Code = Room(rdx)%Code
+            if (ierr/=0) wrk%Code = Room(iRoom)%Code
 
             call cgi_get_named_string(QUERY_STRING, 'Department', tDepartment, ierr)
             wrk%DeptIdx = index_to_dept(tDepartment)
             !write(*,*) 'ierr=', ierr, ', DeptIdx=', wrk%DeptIdx
-            if (ierr/=0 .or. wrk%DeptIdx<=0) wrk%DeptIdx = Room(rdx)%DeptIdx
+            if (ierr/=0 .or. wrk%DeptIdx<=0) wrk%DeptIdx = Room(iRoom)%DeptIdx
 
-            if (wrk%Code /= Room(rdx)%Code) then
+            if (wrk%Code /= Room(iRoom)%Code) then
                 isDirtyROOMS = .true.
                 remark = trim(remark)//': Code changed to '//wrk%Code
             end if
 
-            if (wrk%DeptIdx /= Room(rdx)%DeptIdx) then
+            if (wrk%DeptIdx /= Room(iRoom)%DeptIdx) then
                 isDirtyROOMS = .true.
                 remark = trim(remark)//': Department changed to '//Department(wrk%DeptIdx)%Code
             end if
 
-            if ( wrk%MaxCapacity /= Room(rdx)%MaxCapacity) then
+            if ( wrk%MaxCapacity /= Room(iRoom)%MaxCapacity) then
                 isDirtyROOMS = .true.
                 remark = trim(remark)//': Max seating capacity changed to '//itoa(wrk%MaxCapacity)
             end if
 
-            if ( wrk%Cluster /= Room(rdx)%Cluster) then
+            if ( wrk%Cluster /= Room(iRoom)%Cluster) then
                 isDirtyROOMS = .true.
                 remark = trim(remark)//': Cluster changed to '//itoa(wrk%Cluster)
             end if
 
-            if ( wrk%EnergyFee /= Room(rdx)%EnergyFee) then
+            if ( wrk%EnergyFee /= Room(iRoom)%EnergyFee) then
                 isDirtyROOMS = .true.
                 remark = trim(remark)//': Energy fee changed to '//itoa(wrk%EnergyFee)
             end if
 
             if (isDirtyROOMS) then ! some changes
 
-                if (wrk%Code /= Room(rdx)%Code) then  ! new code; check if room already exists
+                if (wrk%Code /= Room(iRoom)%Code) then  ! new code; check if room already exists
 
                     j = index_to_room(wrk%Code)
                     if (j==0) then ! not used
@@ -560,13 +577,14 @@ contains
                             else
                                 NumAdditionalRooms = NumAdditionalRooms+1
                                 Room(NumRooms+NumAdditionalRooms) = wrk
-                                rdx = NumRooms+NumAdditionalRooms
+                                iRoom = NumRooms+NumAdditionalRooms
                                 tRoom = wrk%Code
                                 remark = ': Added new room '//wrk%Code
+                                call room_details_write(unitXML, trim(dirROOMS)//'index', 1, NumRooms+NumAdditionalRooms)
                             end if
                         else
                             ! update existing
-                            Room(rdx) = wrk
+                            Room(iRoom) = wrk
                         end if
 
                     else
@@ -577,10 +595,10 @@ contains
                     end if
                 else
                     ! same code; update other fields
-                    Room(rdx) = wrk
+                    Room(iRoom) = wrk
                 end if
 
-                if (isDirtyROOMS) call xml_write_rooms(trim(pathToYear)//'ROOMS.XML')
+                if (isDirtyROOMS) call room_details_write(unitXML, dirROOMS, iRoom)
 
             else ! Add or Update clicked, but no changes made
                 remark = ': No changes made?'
@@ -595,132 +613,169 @@ contains
     end subroutine room_edit
 
 
-    subroutine room_list_all (device)
-        integer, intent (in) :: device
-        integer :: rdx, n_count, nsect(3), sdx, tdx, term, ierr
-        integer :: n_meetings, meetings(MAX_SECTION_MEETINGS)
+    subroutine room_list_all (device, fn)
+        integer, intent (in) :: device, fn
+        integer :: iRoom, n_count, ierr
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
-        integer, dimension(60,7) :: TimeTable
-        character (len=127) :: mesg
-        integer :: tYear, tTerm
 
         ! collect rooms
         tArray = 0
         n_count = 0
-
         ! which dept ?
         call cgi_get_named_string(QUERY_STRING, 'A1', tDepartment, ierr)
-
         call html_comment('room_list_all('//trim(tDepartment)//')')
-
         targetDepartment = index_to_dept(tDepartment)
         targetCollege = Department(targetDepartment)%CollegeIdx
-        do rdx=1,NumRooms+NumAdditionalRooms
-            if (targetDepartment==Room(rdx)%DeptIdx) then
+        do iRoom=1,NumRooms+NumAdditionalRooms
+            if (targetDepartment==Room(iRoom)%DeptIdx) then
                 n_count = n_count+1
-                tArray(n_count) = rdx
+                tArray(n_count) = iRoom
             end if
         end do
-        mesg = 'Rooms in '//tDepartment
-
-        call html_write_header(device, mesg)
-
-        if (n_count == 0) then
-            write(device,AFORMAT) '<table border="0">', &
-                begintr//begintd//JUSTNONE//endtd//tdalignright
-            if (.not. isRectify .and. is_admin_of_college(targetCollege)) then
-                write(device,AFORMAT) trim(make_href(fnEditRoom, 'Add room', &
-                    A1='TBA', pre=beginsmall//'('//nbsp, post=' )'//endsmall ))
-            end if
-            write(device,AFORMAT) endtd//endtr//endtable
-        else
-            ! sort rooms
-            do tdx=1,n_count-1
-                do sdx=tdx+1,n_count
-                    if (Room(tArray(sdx))%Code<Room(tArray(tdx))%Code) then
-                        rdx =tArray(sdx)
-                        tArray(sdx) = tArray(tdx)
-                        tArray(tdx) = rdx
-                    end if
-                end do
-            end do
-
-            if (.not. isRectify .and. is_admin_of_college(targetCollege) )then
-                write(device,AFORMAT) trim(make_href(fnEditRoom, 'Add room', &
-                    A1='TBA', pre=beginsmall//'('//nbsp, post=' )'//endsmall ))//linebreak
-            end if
-
-            write(device,AFORMAT) beginitalic//'Note: Number under Term links to classes in the room.'//enditalic//linebreak, &
-                '<table border="0" width="75%">'//&
-                begintr//thalignleft//'Code'//endth// &
-                thaligncenter//'Cluster'//endth, &
-                thaligncenter//'Capacity'//endth, &
-                thaligncenter//'Energy Fee'//endth
-            do tTerm=termBegin,termEnd
-                call qualify_term (tTerm, tYear, term)
-                write(device,AFORMAT) &
-                    thaligncenter//txtSemester(term+6)//termQualifier(term+6)//linebreak// &
-                    text_school_year(tYear)//endth
-            end do
-            write(device,AFORMAT) &
-                thaligncenter//'Remark'//endth//endtr
-
-            do tdx=1,n_count
-                rdx = tArray(tdx)
-
-                ! check conflicts for each term
-                mesg = SPACE
-                nsect = 0
-                do tTerm=termBegin,termEnd
-                    call qualify_term (tTerm, tYear, term)
-                    call timetable_clear(TimeTable)
-                    ! collect classes in room
-                    do sdx=1,NumSections(term)
-                        call meetings_of_section_in_room(Section(term,0:), sdx, rdx, n_meetings, meetings)
-                        if (n_meetings==0) cycle ! room not assigned to this section
-                        nsect(term) = nsect(term)+1
-                        ierr = -10
-                        call timetable_add_meetings_of_section(Section(term,0:), sdx, n_meetings, meetings, TimeTable, ierr)
-                        if (ierr /= -10) then
-                            mesg = trim(mesg)//SPACE//txtSemester(term+6)
-                        end if
-                    end do
-                end do
-                if (len_trim(mesg)>0) mesg = red//'Conflict: '//trim(mesg)//black
-
-                QUERY_put = Room(rdx)%Code
-                write(device,AFORMAT) begintr//begintd//trim(Room(rdx)%Code)
-                if (.not. isRectify .and. &
-                        is_dean_of_college(targetCollege, orHigherUp)  .or. is_admin_of_college(targetCollege) ) then
-                    write(device,AFORMAT) trim(make_href(fnEditRoom, 'Edit', &
-                        A1=QUERY_put, pre=nbsp//beginsmall, post=endsmall))
-                end if
-                write(device,AFORMAT) &
-                    endtd//tdaligncenter//trim(itoa(Room(rdx)%Cluster))//endtd// &
-                    tdaligncenter//trim(itoa(Room(rdx)%MaxCapacity))//endtd// &
-                    tdaligncenter//trim(itoa(Room(rdx)%EnergyFee))//endtd
-
-                do tTerm=termBegin,termEnd
-                    call qualify_term (tTerm, tYear, term)
-                    write(device,AFORMAT) trim(make_href(fnRoomSchedule, itoa(nsect(term)), &
-                        A1=QUERY_put, A9=term, pre=tdaligncenter, post=endtd))
-                end do
-
-                write(device,AFORMAT) tdaligncenter//trim(mesg)//endtd//endtr
-            end do
-            write(device,AFORMAT) endtable
-        end if
-        write(device,AFORMAT) horizontal
+        call html_room_list (device, fn, n_count, tArray(0:n_count), 'Rooms in '//tDepartment, SPACE)
 
     end subroutine room_list_all
 
 
+    subroutine html_room_list (device, fn, n_count, tArray, header, searchString)
+        integer, intent (in) :: device, fn, n_count
+        integer, intent (in out) :: tArray(0:n_count)
+        character (len=*), intent (in) :: header
+        character (len=*), intent (in) :: searchString ! for fn==fnSearchCategory
 
-    subroutine room_conflicts (device, thisTerm, NumSections, Section)
+        integer :: iRoom, nsect(3), jdx, idx, iTerm, ierr, tLen, iSect
+        integer :: n_meetings, meetings(MAX_SECTION_MEETINGS)
+        integer, dimension(60,7) :: TimeTable
+        character (len=127) :: mesg, tString
+        character(len=80) :: location
+
+        tString = searchString
+        tLen = max(len_trim(tString),1)
+        call html_write_header(device, header)
+
+        if (n_count == 0) then
+            write(device,AFORMAT) '<table border="0">', &
+                b_tr//b_td//JUSTNONE//e_td//b_tdar
+            if ( isRole_admin_of_college(targetCollege) .and. fn/=fnSearchCategory) then
+                write(device,AFORMAT) trim(make_href(fnEditRoom, 'Add room', &
+                    A1='TBA', pre=b_small//'('//nbsp, post=' )'//e_small ))
+            end if
+            write(device,AFORMAT) e_td//e_tr//e_table
+        else
+            ! sort rooms
+            do idx=1,n_count-1
+                do jdx=idx+1,n_count
+                    if (Room(tArray(jdx))%Code<Room(tArray(idx))%Code) then
+                        iRoom =tArray(jdx)
+                        tArray(jdx) = tArray(idx)
+                        tArray(idx) = iRoom
+                    end if
+                end do
+            end do
+
+            if ( isRole_admin_of_college(targetCollege)  .and. fn/=fnSearchCategory )then
+                write(device,AFORMAT) trim(make_href(fnEditRoom, 'Add room', &
+                    A1='TBA', pre=b_small//'('//nbsp, post=' )'//e_small ))//linebreak
+            end if
+
+            write(device,AFORMAT) b_italic//'Note: Number under Term links to classes in the room.'//e_italic//linebreak, &
+                '<table border="0" width="90%">'//&
+                b_tr//b_thal//'Code'//e_th// &
+                b_thac//'Cluster'//e_th, &
+                b_thac//'Capacity'//e_th, &
+                b_thac//'Energy Fee'//e_th
+            do iTerm=firstSemester,summerTerm
+                write(device,AFORMAT) &
+                    b_thac//txtSemester(iTerm+6)//termQualifier(iTerm+6)//linebreak// &
+                    text_school_year(currentYear)//e_th
+            end do
+            write(device,AFORMAT) b_thac//'Remark'//e_th
+            if (fn/=fnSearchCategory) then
+                write(device,AFORMAT) e_tr
+            else
+                write(device,AFORMAT) b_thal//'"'//tString(:tLen)//'" found in ...'//e_th//e_tr
+            end if
+
+            do idx=1,n_count
+                iRoom = tArray(idx)
+
+                ! check conflicts for each term
+                mesg = SPACE
+                nsect = 0
+                do iTerm=firstSemester,summerTerm
+                    call timetable_clear(TimeTable)
+                    ! collect classes in room
+                    do iSect=1,NumSections(iTerm)
+                        call meetings_of_section_in_room(iTerm, iSect, iRoom, n_meetings, meetings)
+                        if (n_meetings==0) cycle ! room not assigned to this section
+                        nsect(iTerm) = nsect(iTerm)+1
+                        ierr = -10
+                        call timetable_add_meetings_of_section(iTerm, iSect, n_meetings, meetings, TimeTable, ierr)
+                        if (ierr /= -10) then
+                            mesg = trim(mesg)//SPACE//txtSemester(iTerm+6)
+                        end if
+                    end do
+                end do
+                if (len_trim(mesg)>0) mesg = red//'Conflict: '//trim(mesg)//e_color
+
+                QUERY_put = Room(iRoom)%Code
+                write(device,AFORMAT) '<tr bgcolor="'//bgcolor(mod(idx,2))//'">'//b_td//trim(Room(iRoom)%Code)
+                if ( isRole_dean_of_college(targetCollege, orHigherUp)  .or. isRole_admin_of_college(targetCollege) ) then
+                    write(device,AFORMAT) trim(make_href(fnEditRoom, 'Edit', &
+                        A1=QUERY_put, pre=nbsp//b_small, post=e_small))
+                end if
+                write(device,AFORMAT) &
+                    e_td//b_tdac//trim(itoa(Room(iRoom)%Cluster))//e_td// &
+                    b_tdac//trim(itoa(Room(iRoom)%MaxCapacity))//e_td// &
+                    b_tdac//trim(itoa(Room(iRoom)%EnergyFee))//e_td
+
+                do iTerm=firstSemester,summerTerm
+                    write(device,AFORMAT) trim(make_href(fnRoomSchedule, itoa(nsect(iTerm)), &
+                        A1=QUERY_put, A9=iTerm, pre=b_tdac, post=e_td))
+                end do
+
+                write(device,AFORMAT) b_tdac//trim(mesg)//e_td
+                if (fn/=fnSearchCategory) then
+                    write(device,AFORMAT) e_tr
+                else
+                    call room_search_info(iRoom, tString(:tLen), location)
+                    ierr = max(3, len_trim(location) )
+                    write(device,AFORMAT) b_td//b_small//location(:ierr-2)//e_small//e_td//e_tr
+                end if
+
+            end do
+            write(device,AFORMAT) e_table
+        end if
+        write(device,AFORMAT) horizontal
+
+    end subroutine html_room_list
+
+
+    subroutine room_search_info(rIdx, searchString, location)
+        integer, intent(in) :: rIdx
+        character(len=*), intent(in) :: searchString
+        character(len=80), intent(out) :: location
+        integer :: iSect, iTerm, n_meetings, meetings(MAX_SECTION_MEETINGS)
+
+        location = SPACE
+        do iTerm=summerTerm,firstSemester,-1
+            do iSect=1,NumSections(iTerm)
+                if (index(Section(iTerm,iSect)%ClassId,searchString)==0) cycle ! search string not in section ID
+                call meetings_of_section_in_room(iTerm, iSect, rIdx, n_meetings, meetings)
+                if (n_meetings==0) cycle ! room not assigned to this section
+                location = trim(txtSemester(iTerm+6))//trim(termQualifier(iTerm+6))//' : '//location
+                exit
+            end do
+        end do
+        if (index(Room(rIdx)%Code,searchString)>0) location = 'Code : '//location
+
+    end subroutine room_search_info
+
+
+
+    subroutine room_conflicts (device, thisTerm)
         integer, intent (in) :: device, thisTerm
-        integer, intent (in) :: NumSections
-        type (TYPE_SECTION), intent(in) :: Section(0:)
-        integer :: rdx, n_count, nsect, sdx, tdx, ierr
+        integer :: iRoom, n_count, nsect, iSect, idx, ierr, jdx
         integer :: n_meetings, meetings(MAX_SECTION_MEETINGS)
         character(len=MAX_LEN_COLLEGE_CODE) :: tCollege
         integer, dimension(60,7) :: TimeTable
@@ -735,16 +790,16 @@ contains
         call html_comment('room_conflicts('//trim(tCollege)//')')
 
         targetCollege = index_to_college(tCollege)
-        do rdx=1,NumRooms+NumAdditionalRooms
-            if (Department(Room(rdx)%DeptIdx)%CollegeIdx/=targetCollege) cycle ! not in college
+        do iRoom=1,NumRooms+NumAdditionalRooms
+            if (Department(Room(iRoom)%DeptIdx)%CollegeIdx/=targetCollege) cycle ! not in college
             call timetable_clear(TimeTable)
             ! collect classes in room
             nsect = 0
-            do sdx=1,NumSections
-                call meetings_of_section_in_room(Section, sdx, rdx, n_meetings, meetings)
+            do iSect=1,NumSections(thisTerm)
+                call meetings_of_section_in_room(thisTerm, iSect, iRoom, n_meetings, meetings)
                 if (n_meetings>0) then ! room assigned to this section
                     ierr = -10
-                    call timetable_add_meetings_of_section(Section, sdx, n_meetings, meetings, TimeTable, ierr)
+                    call timetable_add_meetings_of_section(thisTerm, iSect, n_meetings, meetings, TimeTable, ierr)
                     if (ierr /= -10) then
                         nsect = nsect+1
                         exit
@@ -753,7 +808,7 @@ contains
             end do
             if (nsect>0) then ! conflict
                 n_count = n_count + 1
-                tArray(n_count) = rdx
+                tArray(n_count) = iRoom
             end if
         end do
         mesg = 'Rooms with schedule conflicts in '//tCollege
@@ -764,78 +819,75 @@ contains
             write(device,AFORMAT) BRNONE
         else
             ! sort rooms
-            do tdx=1,n_count-1
-                do sdx=tdx+1,n_count
-                    if (Room(tArray(sdx))%Code<Room(tArray(tdx))%Code) then
-                        rdx =tArray(sdx)
-                        tArray(sdx) = tArray(tdx)
-                        tArray(tdx) = rdx
+            do idx=1,n_count-1
+                do jdx=idx+1,n_count
+                    if (Room(tArray(jdx))%Code<Room(tArray(idx))%Code) then
+                        iRoom =tArray(jdx)
+                        tArray(jdx) = tArray(idx)
+                        tArray(idx) = iRoom
                     end if
                 end do
             end do
 
             write(device,AFORMAT) '<table border="0" width="50%">'//&
-                begintr//thalignleft//'Code'//endth// &
-                thaligncenter//'Cluster'//endth, &
-                thaligncenter//'Capacity'//endth// &
-                thaligncenter//'Classes'//endth// &
-                thaligncenter//'Remark'//endth//endtr
+                b_tr//b_thal//'Code'//e_th// &
+                b_thac//'Cluster'//e_th, &
+                b_thac//'Capacity'//e_th// &
+                b_thac//'Classes'//e_th// &
+                b_thac//'Remark'//e_th//e_tr
 
-            do tdx=1,n_count
-                rdx = tArray(tdx)
+            do idx=1,n_count
+                iRoom = tArray(idx)
                 ! check conflicts
                 mesg = SPACE
                 call timetable_clear(TimeTable)
                 ! collect classes in room
                 nsect = 0
-                do sdx=1,NumSections
-                    call meetings_of_section_in_room(Section, sdx, rdx, n_meetings, meetings)
+                do iSect=1,NumSections(thisTerm)
+                    call meetings_of_section_in_room(thisTerm, iSect, iRoom, n_meetings, meetings)
                     if (n_meetings>0) then ! room assigned to this section
                         nsect = nsect+1
-                        tArray(n_count+nsect) = sdx
+                        tArray(n_count+nsect) = iSect
                         ierr = -10
-                        call timetable_add_meetings_of_section(Section, sdx, n_meetings, meetings, TimeTable, ierr)
+                        call timetable_add_meetings_of_section(thisTerm, iSect, n_meetings, meetings, TimeTable, ierr)
                         if (ierr /= -10) then
-                            mesg = red//'Conflict!'//black
+                            mesg = red//'Conflict!'//e_color
                         end if
                     end if
                 end do
-                QUERY_put = Room(rdx)%Code
-                write(device,AFORMAT) begintr//begintd//trim(Room(rdx)%Code)
-                if (.not. isRectify .and. &
-                        (is_dean_of_college(targetCollege, orHigherUp) .or. is_admin_of_college(targetCollege) ) ) then
+                QUERY_put = Room(iRoom)%Code
+                write(device,AFORMAT) b_tr//b_td//trim(Room(iRoom)%Code)
+                if ( (isRole_dean_of_college(targetCollege, orHigherUp) .or. isRole_admin_of_college(targetCollege) ) ) then
                     write(device,AFORMAT) trim(make_href(fnEditRoom, 'Edit', &
-                        A1=QUERY_put, pre=nbsp//beginsmall, post=endsmall))
+                        A1=QUERY_put, pre=nbsp//b_small, post=e_small))
                 end if
                 write(device,AFORMAT) &
-                    endtd//tdaligncenter//trim(itoa(Room(rdx)%Cluster))//endtd// &
-                    tdaligncenter//trim(itoa(Room(rdx)%MaxCapacity))//endtd
+                    e_td//b_tdac//trim(itoa(Room(iRoom)%Cluster))//e_td// &
+                    b_tdac//trim(itoa(Room(iRoom)%MaxCapacity))//e_td
                 !if (nsect>0) then
                 write(device,AFORMAT) trim(make_href(fnRoomSchedule, itoa(nsect), &
-                    A1=QUERY_put, A9=thisTerm, pre=tdaligncenter, post=endtd))
+                    A1=QUERY_put, A9=thisTerm, pre=b_tdac, post=e_td))
                 !else
-                !  write(device,AFORMAT) tdaligncenter//trim(itoa(nsect))//endtd
+                !  write(device,AFORMAT) b_tdac//trim(itoa(nsect))//e_td
                 !end if
-                write(device,AFORMAT) tdaligncenter//trim(mesg)//endtd//endtr
+                write(device,AFORMAT) b_tdac//trim(mesg)//e_td//e_tr
             end do
-            write(device,AFORMAT) endtable
+            write(device,AFORMAT) e_table
         end if
         write(device,AFORMAT) horizontal
 
     end subroutine room_conflicts
 
 
-    subroutine room_schedule(device, thisTerm, NumSections, Section, LoadSource)
+    subroutine room_schedule(device, thisTerm, LoadSource)
         integer, intent(in), optional :: LoadSource
         integer, intent (in) :: device, thisTerm
-        integer, intent (in) :: NumSections
-        type (TYPE_SECTION), intent(in out) :: Section(0:)
-        integer :: mdx, sdx, tLen1, tLen2, ierr, sect, LoadFromDept
+        integer :: iMeet, iDept, tLen1, tLen2, ierr, iSect, LoadFromDept
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
         character(len=MAX_LEN_ROOM_CODE) :: tRoom
         character(len=MAX_LEN_CLASS_ID) :: tAction, tClassId
         integer, dimension(60,7) :: TimeTable
-        logical :: conflicted, assigned, allowed_to_edit
+        logical :: conflicted, assigned, allowed_to_edit, allowed_to_show
         character(len=127) :: mesg
 
         call cgi_get_named_string(QUERY_STRING, 'A1', tRoom, ierr)
@@ -846,32 +898,33 @@ contains
         targetDepartment = Room(targetRoom)%DeptIdx
         targetCollege = Department(targetDepartment)%CollegeIdx
         mesg = SPACE
-        allowed_to_edit = is_admin_of_college(targetCollege) .or. &
-            ( is_chair_of_department(targetDepartment,orHigherUp) .and. &
-              ( (thisTerm==currentTerm .and. isPeriodOne) .or. &
-                thisTerm==nextTerm ) ) ! (thisTerm==nextTerm .and. (.not. isPeriodOne)) ) )
+        allowed_to_edit = isRole_admin_of_college(targetCollege) .or. &
+            ( isRole_chair_of_department(targetDepartment,orHigherUp) .and. &
+            College(targetCollege)%isAllowed(ToEditCLASSES,thisTerm) )
+        allowed_to_show = College(targetCollege)%isAllowed(ToShowTEACHERS,thisTerm) .or. &
+                   isRole_chair_of_department(targetDepartment, orHigherUp)
 
         ! check if there are other arguments
         call cgi_get_named_string(QUERY_STRING, 'A2', tAction, ierr)
 
         if (ierr==0) then ! action is Add or Del
             call cgi_get_named_string(QUERY_STRING, 'A3', tClassId, ierr)
-            sect = index_to_section(tClassId, NumSections, Section)
-            if (sect>0 .and. .not. isRoleofficial) then ! target of action is indexed by sect
-                LoadFromDept = Section(sect)%DeptIdx
+            iSect = index_to_section(tClassId, thisTerm)
+            if (iSect>0 .and. .not. isRoleofficial) then ! target of action is indexed by iSect
+                LoadFromDept = Section(thisTerm,iSect)%DeptIdx
                 if (tAction=='Add') then
-                    do mdx=1,Section(sect)%NMeets
-                        Section(sect)%RoomIdx(mdx) = targetRoom
+                    do iMeet=1,Section(thisTerm,iSect)%NMeets
+                        Section(thisTerm,iSect)%RoomIdx(iMeet) = targetRoom
                     end do
                     mesg = 'Added '//tClassId
                 end if
                 if (tAction=='Del') then
-                    do mdx=1,Section(sect)%NMeets
-                        Section(sect)%RoomIdx(mdx) = 0
+                    do iMeet=1,Section(thisTerm,iSect)%NMeets
+                        Section(thisTerm,iSect)%RoomIdx(iMeet) = 0
                     end do
                     mesg = 'Deleted '//tClassId
                 end if
-                call xml_write_classes(pathToTerm, NumSections, Section, 0)
+                call class_details_write(unitXML, thisTerm, dirCLASSES(thisTerm), iSect)
             end if
 
             if (isRoleOfficial) then
@@ -882,17 +935,20 @@ contains
 
         call html_write_header(device, 'Classes in room '//tRoom, mesg)
 
-        ! collect classes in room rdx
-        call timetable_meetings_in_room(NumSections, Section, targetRoom, 0, tLen1, tArray, TimeTable, conflicted)
+        ! collect classes in room iRoom
+        call timetable_meetings_in_room(thisTerm, targetRoom, 0, tLen1, tArray, TimeTable, conflicted)
 
-        call list_sections_to_edit(device, thisTerm, Section, tLen1, tArray, fnRoomSchedule, tRoom, 'Del', allowed_to_edit)
+        call list_sections_to_edit(device, thisTerm, tLen1, tArray, &
+            fnRoomSchedule, tRoom, 'Del', allowed_to_edit, allowed_to_show)
 
         if (tLen1>0) then
-            call timetable_display(device, Section, TimeTable)
-            write(device,AFORMAT) horizontal
+            call timetable_display(device, thisTerm, TimeTable)
         end if
 
-        if (isRoleStudent .or. isRoleGuest) return
+        if (isRoleStudent .or. isRoleGuest) then
+            write(device,AFORMAT) horizontal
+            return
+        end if
 
         ! make list of TBA sections LoadSource that fit the schedule of room
         if (present(LoadSource)) then
@@ -908,19 +964,19 @@ contains
         end if
 
         tLen2 = 0
-        do sdx=1,NumSections
-            if (LoadFromDept/=Section(sdx)%DeptIdx) cycle ! not in this department
-            if (Section(sdx)%NMeets==1 .and. Section(sdx)%DayIdx(1)==0) cycle ! meeting days/time not specified
+        do iSect=1,NumSections(thisTerm)
+            if (LoadFromDept/=Section(thisTerm,iSect)%DeptIdx) cycle ! not in this unit
+            if (Section(thisTerm,iSect)%NMeets==1 .and. Section(thisTerm,iSect)%DayIdx(1)==0) cycle ! meeting days/time not specified
             ! room(s) already assigned to this section?
             assigned = .false.
-            do mdx=1,Section(sdx)%NMeets
-                if (Section(sdx)%RoomIdx(mdx)/=0) assigned = .true.
+            do iMeet=1,Section(thisTerm,iSect)%NMeets
+                if (Section(thisTerm,iSect)%RoomIdx(iMeet)/=0) assigned = .true.
             end do
             if (assigned) cycle ! section has a teacher
-            if (.not. is_conflict_timetable_with_section(Section, sdx, TimeTable)) then ! add to list
-                do mdx=1,Section(sdx)%NMeets
-                    tArray(tLen1+tLen2+1) = sdx
-                    tArray(tLen1+tLen2+2) = mdx
+            if (.not. is_conflict_timetable_with_section(thisTerm, iSect, TimeTable)) then ! add to list
+                do iMeet=1,Section(thisTerm,iSect)%NMeets
+                    tArray(tLen1+tLen2+1) = iSect
+                    tArray(tLen1+tLen2+2) = iMeet
                     tArray(tLen1+tLen2+3) = 0
                     tLen2 = tLen2+3
                 end do
@@ -930,25 +986,27 @@ contains
         tArray(tLen1+tLen2+2) = 0
         tArray(tLen1+tLen2+3) = 0
         if (tLen2>0) then
-            call list_sections_to_edit(device, thisTerm, Section, tLen2, tArray(tLen1+1), fnRoomSchedule, tRoom, 'Add', &
-            allowed_to_edit, beginbold//'Classes with TBA rooms in '//trim(Department(LoadFromDept)%Code)// &
-            ' that fit available times in '//trim(tRoom)//endbold)
+            write(device,AFORMAT) horizontal
+            call list_sections_to_edit(device, thisTerm, tLen2, tArray(tLen1+1), &
+                fnRoomSchedule, tRoom, 'Add', allowed_to_edit, allowed_to_show, &
+                b_bold//'Classes with TBA rooms in '//trim(Department(LoadFromDept)%Code)// &
+                ' that fit available times in '//trim(tRoom)//e_bold)
         end if
 
-        ! search for feasible classes in another department?
+        ! search for feasible classes in another unit?
         if ( .not. isRoleFaculty ) then
             call make_form_start(device, fnRoomSchedule, tRoom, A9=thisTerm)
             write(device,AFORMAT) linebreak//'Search for feasible classes in : <select name="A4">'
-            do mdx=2,NumDepartments
-                if (mdx/=LoadFromDept) then
+            do iDept=2,NumDepartments
+                if (iDept/=LoadFromDept) then
                     ierr = 0
                 else
                     ierr = 1
                 end if
-                write(device,AFORMAT) '<option value="'//trim(Department(mdx)%Code)//'"'//trim(selected(ierr))//'> '// &
-                trim(Department(mdx)%Code)//DASH//trim(Department(mdx)%Name)
+                write(device,AFORMAT) '<option value="'//trim(Department(iDept)%Code)//'"'//trim(selected(ierr))//'> '// &
+                trim(Department(iDept)%Code)//DASH//trim(Department(iDept)%Name)
             end do
-            write(device,AFORMAT) '</select>'//nbsp//'<input type="submit" value="Find classes">'//endform
+            write(device,AFORMAT) '</select>'//nbsp//'<input type="submit" value="Find classes">'//e_form
         end if
         write(device,AFORMAT) horizontal
 
@@ -971,11 +1029,11 @@ contains
         call make_form_start(device, fnEditRoom, tRoom)
 
         write(device,AFORMAT) '<table border="0" width="80%">', &
-            begintr//begintd//'Room code'//endtd//begintd//'<input name="Code" size="'//trim(itoa(MAX_LEN_ROOM_CODE))// &
-            '" value="'//trim(tRoom)//'">'//endtd//endtr
+            b_tr//b_td//'Room code'//e_td//b_td//'<input name="Code" size="'//trim(itoa(MAX_LEN_ROOM_CODE))// &
+            '" value="'//trim(tRoom)//'">'//e_td//e_tr
 
         write(device,AFORMAT) &
-            begintr//begintd//'Responsible department'//endtd//begintd//'<select name="Department">'
+            b_tr//b_td//'Responsible unit'//e_td//b_td//'<select name="Department">'
         do i=2,NumDepartments
             if (i/=targetDepartment) then
                 j=0
@@ -985,16 +1043,16 @@ contains
             write(device,AFORMAT) '<option '//trim(selected(j))//' value="'//trim(Department(i)%Code)//'">'// &
             trim(Department(i)%Name)
         end do
-        write(device,AFORMAT) '</select>'//endtd//endtr, &
-            begintr//begintd//'Maximum seating capacity'//endtd//begintd//'<input name="MaxCapacity" size="3" value="'// &
-            trim(itoa(wrk%MaxCapacity))//'">'//endtd//endtr, &
-            begintr//begintd//'Cluster'//endtd//begintd//'<input name="Cluster" size="3" value="'// &
-            trim(itoa(wrk%Cluster))//'">'//endtd//endtr, &
-            begintr//begintd//'Energy fee'//endtd//begintd//'<input name="EnergyFee" size="3" value="'// &
-            trim(itoa(wrk%EnergyFee))//'">'//endtd//endtr
+        write(device,AFORMAT) '</select>'//e_td//e_tr, &
+            b_tr//b_td//'Maximum seating capacity'//e_td//b_td//'<input name="MaxCapacity" size="3" value="'// &
+            trim(itoa(wrk%MaxCapacity))//'">'//e_td//e_tr, &
+            b_tr//b_td//'Cluster'//e_td//b_td//'<input name="Cluster" size="3" value="'// &
+            trim(itoa(wrk%Cluster))//'">'//e_td//e_tr, &
+            b_tr//b_td//'Energy fee'//e_td//b_td//'<input name="EnergyFee" size="3" value="'// &
+            trim(itoa(wrk%EnergyFee))//'">'//e_td//e_tr
 
-        write(device,AFORMAT) endtable//linebreak//nbsp// &
-            '<input name="action" type="submit" value="'//trim(tAction)//'">'//endform//'<pre>', &
+        write(device,AFORMAT) e_table//linebreak//nbsp// &
+            '<input name="action" type="submit" value="'//trim(tAction)//'">'//e_form//'<pre>', &
             'NOTE: Rooms that are within walking distance of each other must belong to the same cluster.', &
             '</pre>'//horizontal
 
@@ -1005,17 +1063,17 @@ contains
         integer, intent(in) :: device
         character(len=MAX_LEN_SUBJECT_CODE) :: tSubject, tAction, token
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
-        integer :: ierr, crse, i, j
-        character (len=255) :: mesg, remark
+        integer :: ierr, iSubj, i, j
+        character (len=255) :: mesg, remark, line
         type (TYPE_SUBJECT) :: wrk
         logical :: isDirtySUBJECTS, criticalErr
 
         call html_comment('subject_edit()')
 
         ! which subject ?
-        call cgi_get_named_string(QUERY_STRING, 'A1', tSubject, crse)
-        crse = index_to_subject(tSubject)
-        wrk = Subject(crse) ! make a working copy
+        call cgi_get_named_string(QUERY_STRING, 'A1', tSubject, iSubj)
+        iSubj = index_to_subject(tSubject)
+        wrk = Subject(iSubj) ! make a working copy
 
         ! check for other arguments
         call cgi_get_named_string(QUERY_STRING, 'action', tAction, ierr)
@@ -1025,102 +1083,102 @@ contains
         if (trim(tAction)=='Update' .and. .not. isRoleOfficial) then
 
                 call cgi_get_named_float(QUERY_STRING, 'Units', wrk%Units, ierr)
-                if (ierr/=0) wrk%Units = Subject(crse)%Units
-                if ( wrk%Units /= Subject(crse)%Units) then
+                if (ierr/=0) wrk%Units = Subject(iSubj)%Units
+                if ( wrk%Units /= Subject(iSubj)%Units) then
                     isDirtySUBJECTS = .true.
                     remark = trim(remark)//': Units changed to '//ftoa(wrk%Units,1)
                 end if
 
                 call cgi_get_named_float(QUERY_STRING, 'Tuition', wrk%Tuition, ierr)
-                if (ierr/=0) wrk%Tuition = Subject(crse)%Tuition
-                if ( wrk%Tuition /= Subject(crse)%Tuition) then
+                if (ierr/=0) wrk%Tuition = Subject(iSubj)%Tuition
+                if ( wrk%Tuition /= Subject(iSubj)%Tuition) then
                     isDirtySUBJECTS = .true.
                     remark = trim(remark)//': Tuition fee changed to '//ftoa(wrk%Tuition,2)
                 end if
 
                 call cgi_get_named_float(QUERY_STRING, 'LabFee', wrk%LabFee, ierr)
-                if (ierr/=0) wrk%LabFee = Subject(crse)%LabFee
-                if ( wrk%LabFee /= Subject(crse)%LabFee) then
+                if (ierr/=0) wrk%LabFee = Subject(iSubj)%LabFee
+                if ( wrk%LabFee /= Subject(iSubj)%LabFee) then
                     isDirtySUBJECTS = .true.
                     remark = trim(remark)//': Lab fee changed to '//ftoa(wrk%LabFee,2)
                 end if
 
                 call cgi_get_named_float(QUERY_STRING, 'LectHours', wrk%LectHours, ierr)
-                if (ierr/=0) wrk%LectHours = Subject(crse)%LectHours
-                if ( wrk%LectHours /= Subject(crse)%LectHours) then
+                if (ierr/=0) wrk%LectHours = Subject(iSubj)%LectHours
+                if ( wrk%LectHours /= Subject(iSubj)%LectHours) then
                     isDirtySUBJECTS = .true.
                     remark = trim(remark)//': Lecture Hours changed to '//ftoa(wrk%LectHours,2)
                 end if
 
                 call cgi_get_named_float(QUERY_STRING, 'LectLoad', wrk%LectLoad, ierr)
-                if (ierr/=0) wrk%LectLoad = Subject(crse)%LectLoad
-                if ( wrk%LectLoad /= Subject(crse)%LectLoad) then
+                if (ierr/=0) wrk%LectLoad = Subject(iSubj)%LectLoad
+                if ( wrk%LectLoad /= Subject(iSubj)%LectLoad) then
                     isDirtySUBJECTS = .true.
                     remark = trim(remark)//': Lecture workload changed to '//ftoa(wrk%LectLoad,2)
                 end if
 
                 call cgi_get_named_integer(QUERY_STRING, 'MinLectSize', wrk%MinLectSize, ierr)
-                if (ierr/=0) wrk%MinLectSize = Subject(crse)%MinLectSize
-                if ( wrk%MinLectSize /= Subject(crse)%MinLectSize) then
+                if (ierr/=0) wrk%MinLectSize = Subject(iSubj)%MinLectSize
+                if ( wrk%MinLectSize /= Subject(iSubj)%MinLectSize) then
                     isDirtySUBJECTS = .true.
                     remark = trim(remark)//': MinLectSize changed to '//itoa(wrk%MinLectSize)
                 end if
 
                 call cgi_get_named_integer(QUERY_STRING, 'MaxLectSize', wrk%MaxLectSize, ierr)
-                if (ierr/=0) wrk%MaxLectSize = Subject(crse)%MaxLectSize
-                if ( wrk%MaxLectSize /= Subject(crse)%MaxLectSize) then
+                if (ierr/=0) wrk%MaxLectSize = Subject(iSubj)%MaxLectSize
+                if ( wrk%MaxLectSize /= Subject(iSubj)%MaxLectSize) then
                     isDirtySUBJECTS = .true.
                     remark = trim(remark)//': MaxLectSize changed to '//itoa(wrk%MaxLectSize)
                 end if
 
                 call cgi_get_named_float(QUERY_STRING, 'LabHours', wrk%LabHours, ierr)
-                if (ierr/=0) wrk%LabHours = Subject(crse)%LabHours
-                if ( wrk%LabHours /= Subject(crse)%LabHours) then
+                if (ierr/=0) wrk%LabHours = Subject(iSubj)%LabHours
+                if ( wrk%LabHours /= Subject(iSubj)%LabHours) then
                     isDirtySUBJECTS = .true.
                     remark = trim(remark)//': LabHours changed to '//ftoa(wrk%LabHours,2)
                 end if
 
                 call cgi_get_named_float(QUERY_STRING, 'LabLoad', wrk%LabLoad, ierr)
-                if (ierr/=0) wrk%LabLoad = Subject(crse)%LabLoad
-                if ( wrk%LabLoad /= Subject(crse)%LabLoad) then
+                if (ierr/=0) wrk%LabLoad = Subject(iSubj)%LabLoad
+                if ( wrk%LabLoad /= Subject(iSubj)%LabLoad) then
                     isDirtySUBJECTS = .true.
                     remark = trim(remark)//': Lab workload changed to '//ftoa(wrk%LabLoad,2)
                 end if
 
                 call cgi_get_named_integer(QUERY_STRING, 'MinLabSize', wrk%MinLabSize, ierr)
-                if (ierr/=0) wrk%MinLabSize = Subject(crse)%MinLabSize
-                if ( wrk%MinLabSize /= Subject(crse)%MinLabSize) then
+                if (ierr/=0) wrk%MinLabSize = Subject(iSubj)%MinLabSize
+                if ( wrk%MinLabSize /= Subject(iSubj)%MinLabSize) then
                     isDirtySUBJECTS = .true.
                     remark = trim(remark)//': MinLabSize changed to '//itoa(wrk%MinLabSize)
                 end if
 
                 call cgi_get_named_integer(QUERY_STRING, 'MaxLabSize', wrk%MaxLabSize, ierr)
-                if (ierr/=0) wrk%MaxLabSize = Subject(crse)%MaxLabSize
-                if ( wrk%MaxLabSize /= Subject(crse)%MaxLabSize) then
+                if (ierr/=0) wrk%MaxLabSize = Subject(iSubj)%MaxLabSize
+                if ( wrk%MaxLabSize /= Subject(iSubj)%MaxLabSize) then
                     isDirtySUBJECTS = .true.
                     remark = trim(remark)//': MaxLabSize changed to '//itoa(wrk%MaxLabSize)
                 end if
 
-                call cgi_get_named_string(QUERY_STRING, 'Name', mesg, ierr)
-                wrk%Name  = trim(mesg)
-                if (ierr/=0) wrk%Name = Subject(crse)%Name
-                if ( wrk%Name /= Subject(crse)%Name) then
+                call cgi_get_named_string(QUERY_STRING, 'Name', line, ierr)
+                wrk%Name  = trim(line)
+                if (ierr/=0) wrk%Name = Subject(iSubj)%Name
+                if ( wrk%Name /= Subject(iSubj)%Name) then
                     isDirtySUBJECTS = .true.
                     remark = trim(remark)//': Name changed to '//wrk%Name
                 end if
 
-                call cgi_get_named_string(QUERY_STRING, 'Title', mesg, ierr)
-                wrk%Title = trim(mesg)
-                if (ierr/=0) wrk%Title = Subject(crse)%Title
-                if ( wrk%Title /= Subject(crse)%Title) then
+                call cgi_get_named_string(QUERY_STRING, 'Title', line, ierr)
+                wrk%Title = trim(line)
+                if (ierr/=0) wrk%Title = Subject(iSubj)%Title
+                if ( wrk%Title /= Subject(iSubj)%Title) then
                     isDirtySUBJECTS = .true.
                     remark = trim(remark)//': Title changed to '//wrk%Title
                 end if
 
                 call cgi_get_named_string(QUERY_STRING, 'Department', tDepartment, ierr)
                 wrk%DeptIdx = index_to_dept(tDepartment)
-                if (ierr/=0 .or. wrk%DeptIdx<=0) wrk%DeptIdx = Subject(crse)%DeptIdx
-                if ( wrk%DeptIdx /= Subject(crse)%DeptIdx) then
+                if (ierr/=0 .or. wrk%DeptIdx<=0) wrk%DeptIdx = Subject(iSubj)%DeptIdx
+                if ( wrk%DeptIdx /= Subject(iSubj)%DeptIdx) then
                     isDirtySUBJECTS = .true.
                     remark = trim(remark)//': Department changed to '//Department(wrk%DeptIdx)%Code
                 end if
@@ -1131,84 +1189,103 @@ contains
                 if (index(token, '2')>0 ) j = j+2
                 if (index(token, 'S')>0 ) j = j+4
                 wrk% TermOffered= j
-                if (ierr/=0 .or. j==0) wrk%TermOffered = Subject(crse)%TermOffered
-                if ( wrk%TermOffered /= Subject(crse)%TermOffered) then
+                if (ierr/=0 .or. j==0) wrk%TermOffered = Subject(iSubj)%TermOffered
+                if ( wrk%TermOffered /= Subject(iSubj)%TermOffered) then
                     isDirtySUBJECTS = .true.
                     remark = trim(remark)//': TermOffered changed to '//text_term_offered_separated(wrk%TermOffered)
                 end if
 
-                call cgi_get_named_string(QUERY_STRING, 'Prerequisite', mesg, ierr)
-                call tokenize_subjects(mesg, '+', MAX_ALL_SUBJECT_PREREQ, wrk%lenPreq, wrk%Prerequisite, ierr)
+                call cgi_get_named_string(QUERY_STRING, 'Prerequisite', line, ierr)
+                call tokenize_subjects(line, '+', MAX_ALL_SUBJECT_PREREQ, wrk%lenPreq, wrk%Prerequisite, ierr, mesg)
+                !call html_comment(mesg)
+                !do j=1,wrk%lenPreq
+                !    call html_comment(itoa(j)//Subject(wrk%Prerequisite(j))%Name)
+                !end do
                 if (ierr/=0) then
-                    wrk%lenPreq = Subject(crse)%lenPreq
-                    wrk%Prerequisite = Subject(crse)%Prerequisite
+                    wrk%lenPreq = Subject(iSubj)%lenPreq
+                    wrk%Prerequisite = Subject(iSubj)%Prerequisite
                 end if
 
-
-                if ( wrk%lenPreq /= Subject(crse)%lenPreq) then
+                if ( wrk%lenPreq /= Subject(iSubj)%lenPreq) then
                     isDirtySUBJECTS = .true.
-                    remark = trim(remark)//': lenPreq changed to '//itoa(wrk%lenPreq)
+                    remark = trim(remark)//': Prerequisite changed to '//line
                 else
                     do j=1,wrk%lenPreq
-                        if (wrk%Prerequisite(j) == Subject(crse)%Prerequisite(j)) cycle
+                        if (wrk%Prerequisite(j) == Subject(iSubj)%Prerequisite(j)) cycle
                         isDirtySUBJECTS = .true.
-                        remark = trim(remark)//': Prerequisite changed'
+                        remark = trim(remark)//': Prerequisite changed to '//line
+                        exit
                     end do
                 end if
 
-                call cgi_get_named_string(QUERY_STRING, 'Corequisite', mesg, ierr)
-                call tokenize_subjects(mesg, '+', MAX_ALL_SUBJECT_COREQ, wrk%lenCoreq, wrk%Corequisite, ierr)
+                call cgi_get_named_string(QUERY_STRING, 'Corequisite', line, ierr)
+                call tokenize_subjects(line, '+', MAX_ALL_SUBJECT_COREQ, wrk%lenCoreq, wrk%Corequisite, ierr, mesg)
+                !call html_comment(mesg)
+                !do j=1,wrk%lenPreq
+                !    call html_comment(itoa(j)//Subject(wrk%Prerequisite(j))%Name)
+                !end do
                 if (ierr/=0) then
-                    wrk%lenCoreq = Subject(crse)%lenCoreq
-                    wrk%Corequisite = Subject(crse)%Corequisite
+                    wrk%lenCoreq = Subject(iSubj)%lenCoreq
+                    wrk%Corequisite = Subject(iSubj)%Corequisite
                 end if
-                if ( wrk%lenCoreq /= Subject(crse)%lenCoreq) then
+                if ( wrk%lenCoreq /= Subject(iSubj)%lenCoreq) then
                     isDirtySUBJECTS = .true.
-                    remark = trim(remark)//': lenCoreq changed to '//itoa(wrk%lenCoreq)
+                    remark = trim(remark)//': Corequisite changed to '//line
                 else
                     do j=1,wrk%lenCoreq
-                        if (wrk%Corequisite(j) == Subject(crse)%Corequisite(j)) cycle
+                        if (wrk%Corequisite(j) == Subject(iSubj)%Corequisite(j)) cycle
                         isDirtySUBJECTS = .true.
-                        remark = trim(remark)//': Corequisite changed'
+                        remark = trim(remark)//': Corequisite changed to '//line
+                        exit
                     end do
                 end if
 
-                call cgi_get_named_string(QUERY_STRING, 'Concurrent', mesg, ierr)
-                call tokenize_subjects(mesg, '+', MAX_ALL_SUBJECT_PREREQ, wrk%lenConc, wrk%Concurrent, ierr)
+                call cgi_get_named_string(QUERY_STRING, 'Concurrent', line, ierr)
+                call tokenize_subjects(line, '+', MAX_ALL_SUBJECT_PREREQ, wrk%lenConc, wrk%Concurrent, ierr, mesg)
+                !call html_comment(mesg)
+                !do j=1,wrk%lenPreq
+                !    call html_comment(itoa(j)//Subject(wrk%Prerequisite(j))%Name)
+                !end do
                 if (ierr/=0) then
-                    wrk%lenConc = Subject(crse)%lenConc
-                    wrk%Concurrent = Subject(crse)%Concurrent
+                    wrk%lenConc = Subject(iSubj)%lenConc
+                    wrk%Concurrent = Subject(iSubj)%Concurrent
                 end if
-                if ( wrk%lenConc /= Subject(crse)%lenConc) then
+                if ( wrk%lenConc /= Subject(iSubj)%lenConc) then
                     isDirtySUBJECTS = .true.
-                    remark = trim(remark)//': lenConc changed to '//itoa(wrk%lenConc)
+                    remark = trim(remark)//': Concurrent changed to '//line
                 else
                     do j=1,wrk%lenConc
-                        if (wrk%Concurrent(j) == Subject(crse)%Concurrent(j)) cycle
+                        if (wrk%Concurrent(j) == Subject(iSubj)%Concurrent(j)) cycle
                         isDirtySUBJECTS = .true.
-                        remark = trim(remark)//': Concurrent changed'
+                        remark = trim(remark)//': Concurrent changed to '//line
+                        exit
                     end do
                 end if
 
-                call cgi_get_named_string(QUERY_STRING, 'ConcPrerequisite', mesg, ierr)
-                call tokenize_subjects(mesg, '+', MAX_ALL_SUBJECT_CONCPREQ, wrk%lenConcPreq, wrk%ConcPrerequisite, ierr)
+                call cgi_get_named_string(QUERY_STRING, 'ConcPrerequisite', line, ierr)
+                call tokenize_subjects(line, '+', MAX_ALL_SUBJECT_CONCPREQ, wrk%lenConcPreq, wrk%ConcPrerequisite, ierr, mesg)
+                !call html_comment(mesg)
+                !do j=1,wrk%lenPreq
+                !    call html_comment(itoa(j)//Subject(wrk%Prerequisite(j))%Name)
+                !end do
                 if (ierr/=0) then
-                    wrk%lenConcPreq = Subject(crse)%lenConcPreq
-                    wrk%ConcPrerequisite = Subject(crse)%ConcPrerequisite
+                    wrk%lenConcPreq = Subject(iSubj)%lenConcPreq
+                    wrk%ConcPrerequisite = Subject(iSubj)%ConcPrerequisite
                 end if
-                if ( wrk%lenConcPreq /= Subject(crse)%lenConcPreq) then
+                if ( wrk%lenConcPreq /= Subject(iSubj)%lenConcPreq) then
                     isDirtySUBJECTS = .true.
-                    remark = trim(remark)//': lenConcPreq changed to '//itoa(wrk%lenConcPreq)
+                    remark = trim(remark)//': Prerequisite that can be taken concurrently changed to '//line
                 else
                     do j=1,wrk%lenConcPreq
-                        if (wrk%ConcPrerequisite(j) == Subject(crse)%ConcPrerequisite(j)) cycle
+                        if (wrk%ConcPrerequisite(j) == Subject(iSubj)%ConcPrerequisite(j)) cycle
                         isDirtySUBJECTS = .true.
-                        remark = trim(remark)//': Prerequisite that can be taken concurrently changed'
+                        remark = trim(remark)//': Prerequisite that can be taken concurrently changed to '//line
+                        exit
                     end do
                 end if
 
                 if (isDirtySUBJECTS) then
-                    if ( wrk%Name /= Subject(crse)%Name) then
+                    if ( wrk%Name /= Subject(iSubj)%Name) then
                         ! add new subject?
                         j = index_to_subject(wrk%Name)
                         if (j==0) then
@@ -1223,9 +1300,12 @@ contains
                             else
                                 NumAdditionalSubjects = NumAdditionalSubjects+1
                                 Subject(NumSubjects+NumAdditionalSubjects) = wrk
-                                crse = NumSubjects+NumAdditionalSubjects
+                                iSubj = NumSubjects+NumAdditionalSubjects
+                                call subject_details_write(unitXML, dirSUBJECTS, iSubj)
                                 tSubject = wrk%Name
                                 remark = ': Added new subject '//wrk%Name
+                                call subject_details_write(unitXML, trim(dirSUBJECTS)//'index', NumDummySubjects, &
+                                    NumSubjects+NumAdditionalSubjects)
                                 call get_subject_areas()
                             end if
                         else
@@ -1233,36 +1313,36 @@ contains
                         end if
                     else
                         ! update existing
-                        Subject(crse) = wrk
+                        Subject(iSubj) = wrk
+                        call subject_details_write(unitXML, dirSUBJECTS, iSubj)
                     end if
                 end if
 
-        end if ! (trim(tAction)=='Update' .and. .not.
+        end if ! (trim(tAction)=='Update' ...
 
         if (len_trim(tAction)>0 .and. isRoleOfficial) then
             remark = '  Update "'//trim(tSubject)//'" failed. '//sorryMessageOfficial
         end if
 
+        !if (isDirtySUBJECTS) call subject_details_write(unitXML, dirSUBJECTS, iSubj)
 
-        if (isDirtySUBJECTS) call xml_write_subjects(trim(pathToYear)//'SUBJECTS.XML')
-
-        targetDepartment = Subject(crse)%DeptIdx
+        targetDepartment = Subject(iSubj)%DeptIdx
 
         call html_write_header(device, 'Edit subject '//tSubject, remark(3:))
         j = index(tSubject,SPACE)
         if ( j<len_trim(tSubject) ) then
             write(device,AFORMAT) &
                 trim(make_href(fnSubjectList, tSubject(:j-1), A1=tSubject(:j-1), &
-                pre=beginsmall//beginitalic//'Edit another '//nbsp, post=' subject'//enditalic//endsmall))
+                pre=b_small//b_italic//'Edit another '//nbsp, post=' subject'//e_italic//e_small))
         end if
 
         call make_form_start(device, fnEditSubject, tSubject)
         write(device,AFORMAT)  '<table border="0" width="100%">', &
-            begintr//begintd//'Subject code'//endtd//begintd//'<input name="Name" size="'//trim(itoa(MAX_LEN_SUBJECT_CODE))// &
-            '" value="'//trim(tSubject)//'"> (A new subject will be created if this is changed)'//endtd//endtr
-        !begintr//begintd//'Subject code'//endtd//begintd//trim(tSubject)//' (Cannot be changed)'//endtd//endtr
+            b_tr//b_td//'Subject code'//e_td//b_td//'<input name="Name" size="'//trim(itoa(MAX_LEN_SUBJECT_CODE))// &
+            '" value="'//trim(tSubject)//'"> (A new subject will be created if this is changed)'//e_td//e_tr
+        !b_tr//b_td//'Subject code'//e_td//b_td//trim(tSubject)//' (Cannot be changed)'//e_td//e_tr
         write(device,AFORMAT) &
-            begintr//begintd//'Responsible department'//endtd//begintd//'<select name="Department">'
+            b_tr//b_td//'Responsible unit'//e_td//b_td//'<select name="Department">'
         do i=2,NumDepartments
             if (i/=targetDepartment) then
                 j=0
@@ -1272,76 +1352,76 @@ contains
             write(device,AFORMAT) '<option '//trim(selected(j))//' value="'//trim(Department(i)%Code)//'">'// &
                 trim(Department(i)%Name)
         end do
-        write(device,AFORMAT) '</select>'//endtd//endtr, &
-            begintr//begintd//'Title'//endtd//begintd//'<input name="Title" size="'//trim(itoa(MAX_LEN_SUBJECT_TITLE))// &
-            '" value="'//trim(Subject(crse)%Title)//'">'//endtd//endtr, &
-            begintr//begintd//'Units'//endtd//begintd//'<input name="Units" size="3" value="'// &
-            trim(ftoa(Subject(crse)%Units,1))//'"> (0, if non-credit; i.e., PE, NSTP)'//endtd//endtr, &
-            begintr//begintd//'Term Offered'//endtd//begintd//'<input name="TermOffered" size="3" value="'// &
-            trim(text_term_offered_separated(Subject(crse)%TermOffered))//'"> (1, 2, S, or combination)'//endtd//endtr, &
-            begintr//begintd//'Tuition fee'//endtd//begintd//'<input name="Tuition" size="3" value="'// &
-            trim(ftoa(Subject(crse)%Tuition,2))//'"> (total amount)'//endtd//endtr, &
-            begintr//begintd//'Subject fee'//endtd//begintd//'<input name="LabFee" size="3" value="'// &
-            trim(ftoa(Subject(crse)%LabFee,2))//'"> (total amount; additional to tuition)'//endtd//endtr
+        write(device,AFORMAT) '</select>'//e_td//e_tr, &
+            b_tr//b_td//'Title'//e_td//b_td//'<input name="Title" size="'//trim(itoa(MAX_LEN_SUBJECT_TITLE))// &
+            '" value="'//trim(Subject(iSubj)%Title)//'">'//e_td//e_tr, &
+            b_tr//b_td//'Units'//e_td//b_td//'<input name="Units" size="3" value="'// &
+            trim(ftoa(Subject(iSubj)%Units,1))//'"> (0, if non-credit; i.e., PE, NSTP)'//e_td//e_tr, &
+            b_tr//b_td//'Term Offered'//e_td//b_td//'<input name="TermOffered" size="3" value="'// &
+            trim(text_term_offered_separated(Subject(iSubj)%TermOffered))//'"> (1, 2, S, or combination)'//e_td//e_tr, &
+            b_tr//b_td//'Tuition fee'//e_td//b_td//'<input name="Tuition" size="3" value="'// &
+            trim(ftoa(Subject(iSubj)%Tuition,2))//'"> (total amount)'//e_td//e_tr, &
+            b_tr//b_td//'Subject fee'//e_td//b_td//'<input name="LabFee" size="3" value="'// &
+            trim(ftoa(Subject(iSubj)%LabFee,2))//'"> (total amount; additional to tuition)'//e_td//e_tr
         write(device,AFORMAT)  &
-            begintr//begintd//'Hours lecture class'//endtd//begintd//'<input name="LectHours" size="3" value="'// &
-            trim(ftoa(Subject(crse)%LectHours,2))//'"> (0, if no lecture component)'//endtd//endtr, &
-            begintr//begintd//'Workload for lecture class'//endtd//begintd//'<input name="LectLoad" size="3" value="'// &
-            trim(ftoa(Subject(crse)%LectLoad,2))//'"> (0, if no lecture component)'//endtd//endtr, &
-            begintr//begintd//'Min size lecture class'//endtd//begintd//'<input name="MinLectSize" size="3" value="'// &
-            trim(itoa(Subject(crse)%MinLectSize))//'">'//endtd//endtr, &
-            begintr//begintd//'Max size lecture class'//endtd//begintd//'<input name="MaxLectSize" size="3" value="'// &
-            trim(itoa(Subject(crse)%MaxLectSize))//'">'//endtd//endtr, &
-            begintr//begintd//'Hours lab/recit/comp class'//endtd//begintd//'<input name="LabHours" size="3" value="'// &
-            trim(ftoa(Subject(crse)%LabHours,2))//'"> (0, if no lab/recit/computations component)'//endtd//endtr, &
-            begintr//begintd//'Workload for lab class'//endtd//begintd//'<input name="LabLoad" size="3" value="'// &
-            trim(ftoa(Subject(crse)%LabLoad,2))//'"> (0, if no lab/recit/computations component)'//endtd//endtr, &
-            begintr//begintd//'Min size lab/recit/comp class'//endtd//begintd//'<input name="MinLabSize" size="3" value="'// &
-            trim(itoa(Subject(crse)%MinLabSize))//'">'//endtd//endtr, &
-            begintr//begintd//'Max size lab/recit/comp class'//endtd//begintd//'<input name="MaxLabSize" size="3" value="'// &
-            trim(itoa(Subject(crse)%MaxLabSize))//'">'//endtd//endtr
+            b_tr//b_td//'Hours lecture class'//e_td//b_td//'<input name="LectHours" size="3" value="'// &
+            trim(ftoa(Subject(iSubj)%LectHours,2))//'"> (0, if no lecture component)'//e_td//e_tr, &
+            b_tr//b_td//'Workload for lecture class'//e_td//b_td//'<input name="LectLoad" size="3" value="'// &
+            trim(ftoa(Subject(iSubj)%LectLoad,2))//'"> (0, if no lecture component)'//e_td//e_tr, &
+            b_tr//b_td//'Min size lecture class'//e_td//b_td//'<input name="MinLectSize" size="3" value="'// &
+            trim(itoa(Subject(iSubj)%MinLectSize))//'">'//e_td//e_tr, &
+            b_tr//b_td//'Max size lecture class'//e_td//b_td//'<input name="MaxLectSize" size="3" value="'// &
+            trim(itoa(Subject(iSubj)%MaxLectSize))//'">'//e_td//e_tr, &
+            b_tr//b_td//'Hours lab/recit/comp class'//e_td//b_td//'<input name="LabHours" size="3" value="'// &
+            trim(ftoa(Subject(iSubj)%LabHours,2))//'"> (0, if no lab/recit/computations component)'//e_td//e_tr, &
+            b_tr//b_td//'Workload for lab class'//e_td//b_td//'<input name="LabLoad" size="3" value="'// &
+            trim(ftoa(Subject(iSubj)%LabLoad,2))//'"> (0, if no lab/recit/computations component)'//e_td//e_tr, &
+            b_tr//b_td//'Min size lab/recit/comp class'//e_td//b_td//'<input name="MinLabSize" size="3" value="'// &
+            trim(itoa(Subject(iSubj)%MinLabSize))//'">'//e_td//e_tr, &
+            b_tr//b_td//'Max size lab/recit/comp class'//e_td//b_td//'<input name="MaxLabSize" size="3" value="'// &
+            trim(itoa(Subject(iSubj)%MaxLabSize))//'">'//e_td//e_tr
         !      lenPreq, Prerequisite(MAX_ALL_SUBJECT_PREREQ), &
-        i = Subject(crse)%Prerequisite(1)
+        i = Subject(iSubj)%Prerequisite(1)
         mesg = Subject(i)%Name
-        do j=2,Subject(crse)%lenPreq
-            i = Subject(crse)%Prerequisite(j)
+        do j=2,Subject(iSubj)%lenPreq
+            i = Subject(iSubj)%Prerequisite(j)
             mesg = trim(mesg)//'+'//Subject(i)%Name
         end do
         write(device,AFORMAT) &
-            begintr//begintd//'Prerequisite'//endtd//begintd//'<input name="Prerequisite" size="'// &
-            trim(itoa(Subject(crse)%lenPreq*2*MAX_LEN_SUBJECT_CODE/3))//'" value="'//trim(mesg)//'">'//endtd//endtr
+            b_tr//b_td//'Prerequisite'//e_td//b_td//'<input name="Prerequisite" size="'// &
+            trim(itoa(Subject(iSubj)%lenPreq*2*MAX_LEN_SUBJECT_CODE/3))//'" value="'//trim(mesg)//'">'//e_td//e_tr
         !      lenCoreq, Corequisite(MAX_ALL_SUBJECT_COREQ), &
-        i = Subject(crse)%Corequisite(1)
+        i = Subject(iSubj)%Corequisite(1)
         mesg = Subject(i)%Name
-        do j=2,Subject(crse)%lenCoreq
-            i = Subject(crse)%Corequisite(j)
+        do j=2,Subject(iSubj)%lenCoreq
+            i = Subject(iSubj)%Corequisite(j)
             mesg = trim(mesg)//'+'//Subject(i)%Name
         end do
         write(device,AFORMAT) &
-            begintr//begintd//'Corequisite'//endtd//begintd//'<input name="Corequisite" size="'// &
-            trim(itoa(Subject(crse)%lenCoreq*2*MAX_LEN_SUBJECT_CODE/3))//'" value="'//trim(mesg)//'">'//endtd//endtr
+            b_tr//b_td//'Corequisite'//e_td//b_td//'<input name="Corequisite" size="'// &
+            trim(itoa(Subject(iSubj)%lenCoreq*2*MAX_LEN_SUBJECT_CODE/3))//'" value="'//trim(mesg)//'">'//e_td//e_tr
         !      lenConc, Concurrent(MAX_ALL_SUBJECT_CONCURRENT), &
-        i = Subject(crse)%Concurrent(1)
+        i = Subject(iSubj)%Concurrent(1)
         mesg = Subject(i)%Name
-        do j=2,Subject(crse)%lenConc
-            i = Subject(crse)%Concurrent(j)
+        do j=2,Subject(iSubj)%lenConc
+            i = Subject(iSubj)%Concurrent(j)
             mesg = trim(mesg)//'+'//Subject(i)%Name
         end do
         write(device,AFORMAT) &
-            begintr//begintd//'Concurrent with'//endtd//begintd//'<input name="Concurrent" size="'// &
-            trim(itoa(Subject(crse)%lenConc*2*MAX_LEN_SUBJECT_CODE/3))//'" value="'//trim(mesg)//'">'//endtd//endtr
+            b_tr//b_td//'Concurrent with'//e_td//b_td//'<input name="Concurrent" size="'// &
+            trim(itoa(Subject(iSubj)%lenConc*2*MAX_LEN_SUBJECT_CODE/3))//'" value="'//trim(mesg)//'">'//e_td//e_tr
         !      lenConcPreq, ConcPrerequisite(MAX_ALL_SUBJECT_CONCPREQ)
-        i = Subject(crse)%ConcPrerequisite(1)
+        i = Subject(iSubj)%ConcPrerequisite(1)
         mesg = Subject(i)%Name
-        do j=2,Subject(crse)%lenConcPreq
-            i = Subject(crse)%ConcPrerequisite(j)
+        do j=2,Subject(iSubj)%lenConcPreq
+            i = Subject(iSubj)%ConcPrerequisite(j)
             mesg = trim(mesg)//'+'//Subject(i)%Name
         end do
         write(device,AFORMAT) &
-            begintr//begintd//'Prerequisite that can be concurrent'//endtd//begintd//'<input name="ConcPrerequisite" size="'// &
-            trim(itoa(Subject(crse)%lenConcPreq*2*MAX_LEN_SUBJECT_CODE/3))//'" value="'//trim(mesg)//'">'//endtd//endtr
+            b_tr//b_td//'Prerequisite that can be concurrent'//e_td//b_td//'<input name="ConcPrerequisite" size="'// &
+            trim(itoa(Subject(iSubj)%lenConcPreq*2*MAX_LEN_SUBJECT_CODE/3))//'" value="'//trim(mesg)//'">'//e_td//e_tr
 
-        write(device,AFORMAT) endtable//linebreak//nbsp//'<input name="action" type="submit" value="Update">'//endform//'<pre>', &
+        write(device,AFORMAT) e_table//linebreak//nbsp//'<input name="action" type="submit" value="Update">'//e_form//'<pre>', &
             'NOTE: The prerequisite is in prefix notation, the tokens being separated by the "+" symbol. Patterns are', &
             '   1. NONE - no prerequisite', &
             '   2. COI  - Consent of Instructor', &
@@ -1357,35 +1437,79 @@ contains
     end subroutine subject_edit
 
 
+    subroutine subject_search_info(iSubj, searchString, location)
+        integer, intent(in) :: iSubj
+        character(len=*), intent(in) :: searchString
+        character(len=80), intent(out) :: location
+        integer :: i, j
+        character (len=255) :: mesg
+
+        location = SPACE
+
+        i = Subject(iSubj)%Prerequisite(1)
+        mesg = Subject(i)%Name
+        do j=2,Subject(iSubj)%lenPreq
+            i = Subject(iSubj)%Prerequisite(j)
+            mesg = trim(mesg)//'+'//Subject(i)%Name
+        end do
+        if (index(mesg,searchString)>0) location = 'Prerequisite : '//location
+        i = Subject(iSubj)%Corequisite(1)
+        mesg = Subject(i)%Name
+        do j=2,Subject(iSubj)%lenCoreq
+            i = Subject(iSubj)%Corequisite(j)
+            mesg = trim(mesg)//'+'//Subject(i)%Name
+        end do
+        if (index(mesg,searchString)>0) location = 'Corequisite : '//location
+        i = Subject(iSubj)%Concurrent(1)
+        mesg = Subject(i)%Name
+        do j=2,Subject(iSubj)%lenConc
+            i = Subject(iSubj)%Concurrent(j)
+            mesg = trim(mesg)//'+'//Subject(i)%Name
+        end do
+        if (index(mesg,searchString)>0) location = 'Concurrent : '//location
+        i = Subject(iSubj)%ConcPrerequisite(1)
+        mesg = Subject(i)%Name
+        do j=2,Subject(iSubj)%lenConcPreq
+            i = Subject(iSubj)%ConcPrerequisite(j)
+            mesg = trim(mesg)//'+'//Subject(i)%Name
+        end do
+        if (index(mesg,searchString)>0) location = 'ConcPrerequisite : '//location
+        if (index(Subject(iSubj)%Title,searchString)>0) location = 'Title : '//location
+        if (index(Subject(iSubj)%Name,searchString)>0) location = 'Name : '//location
+
+    end subroutine subject_search_info
+
+
     subroutine subject_list_all (device)
         integer, intent (in) :: device
-        integer :: crse, idx, nSubjects, ierr, ncol, maxcol=7
+        integer :: idx, nSubjects, ierr!, coll, ncol, iSubj, maxcol=7
         character(len=MAX_LEN_DEPARTMENT_CODE) :: tDepartment
-        character(len=MAX_LEN_SUBJECT_CODE) :: tSubject
+        character(len=MAX_LEN_COLLEGE_CODE) :: tCollege
+        !character(len=MAX_LEN_SUBJECT_CODE) :: tSubject
+        character(len=80) :: header
 
-        ! which department ?
+        ! which unit ?
+        tArray = 0
         call cgi_get_named_string(QUERY_STRING, 'A1', tDepartment, ierr)
         targetDepartment = index_to_dept(tDepartment)
         if (targetDepartment>1) then
             targetCollege = Department(targetDepartment)%CollegeIdx
             nSubjects = 0
-#if defined REGIST
             do idx=1,NumSubjects+NumAdditionalSubjects
+#if defined UPLB
                 if (Subject(idx)%DeptIdx == targetDepartment) then
                     nSubjects = nSubjects+1
                     tArray(nSubjects) = idx
                 end if
-            end do
 #else
-            ! Subjects administered by program
-            do idx=1,NumSubjects+NumAdditionalSubjects
-                if (is_used_in_college_subject(targetCollege, idx) ) then
+                if (Subject(idx)%DeptIdx == targetDepartment .or. isSubject_used_in_college(targetCollege, idx)) then
                     nSubjects = nSubjects+1
                     tArray(nSubjects) = idx
                 end if
-            end do
 #endif
-            call html_write_header(device, 'Subjects in '//Department(targetDepartment)%Name)
+            end do
+            header = 'Subjects in '//Department(targetDepartment)%Name
+
         else ! try subject area
             if (ierr/=0 .or. tDepartment==SPACE) then
                 targetDepartment = DeptIdxUser
@@ -1394,21 +1518,50 @@ contains
                 return
             else
                 ! make list of subjects in subject area to display
-                targetDepartment = DeptIdxUser
+                call cgi_get_named_string(QUERY_STRING, 'A2', tCollege, ierr)
+                if (ierr==0) then
+                    targetCollege = index_to_college(tCollege)
+                else
+                    targetCollege = NumColleges
+                    tCollege = College(targetCollege)%Code
+                end if
                 nSubjects = 0
                 do idx=1,NumSubjects+NumAdditionalSubjects
                     if (index(Subject(idx)%Name,trim(tDepartment)//SPACE)==1) then
+#if defined UPLB
                         nSubjects = nSubjects + 1
-                        !write(*,*) nSubjects, Subject(idx)%Name
                         tArray(nSubjects) = idx
-                        targetDepartment = Subject(idx)%DeptIdx
+#else
+                        if (isSubject_used_in_college (targetCollege, idx)) then
+                            nSubjects = nSubjects + 1
+                            tArray(nSubjects) = idx
+                        end if
+#endif
                     end if
                 end do
-                call html_write_header(device, '"'//trim(tDepartment)//'" subjects')
+                header = '"'//trim(tDepartment)//'" subjects in '//tCollege
+                tDepartment = tCollege
+                targetDepartment = index_to_dept(tDepartment)
             end if
         end if
+        call html_subject_list (device, nSubjects, tArray(0:nSubjects), header)
 
-        if (nSubjects>0) then
+    end subroutine subject_list_all
+
+
+    subroutine html_subject_list (device, nSubjects, tArray, header)
+        integer, intent (in) :: device, nSubjects
+        integer, intent (in out) :: tArray(0:nSubjects)
+        character (len=*), intent (in) :: header
+
+        integer :: idx, iSubj, ncol, maxcol=7 !, ierr,
+        character(len=MAX_LEN_SUBJECT_CODE) :: tSubject
+
+        call html_write_header(device, header)
+
+        if (nSubjects==0) then
+            write(device,AFORMAT) JUSTNONE
+        else
 
             ! write shortcut to subjects
             write(device,AFORMAT) '<table border="0" width="100%">'
@@ -1417,77 +1570,75 @@ contains
                 tSubject = Subject(tArray(idx))%Name
                 ncol = ncol + 1
                 if (ncol == 1) then
-                    write(device,AFORMAT) begintr//begintd//'<a href="#'//trim(tSubject)//'">'//trim(tSubject)//'</a>'//endtd
+                    write(device,AFORMAT) b_tr//b_td//'<a href="#'//trim(tSubject)//'">'//trim(tSubject)//'</a>'//e_td
                 else if (ncol == maxcol) then
-                    write(device,AFORMAT) begintd//'<a href="#'//trim(tSubject)//'">'//trim(tSubject)//'</a>'//endtd//endtr
+                    write(device,AFORMAT) b_td//'<a href="#'//trim(tSubject)//'">'//trim(tSubject)//'</a>'//e_td//e_tr
                     ncol = 0
                 else
-                    write(device,AFORMAT) begintd//'<a href="#'//trim(tSubject)//'">'//trim(tSubject)//'</a>'//endtd
+                    write(device,AFORMAT) b_td//'<a href="#'//trim(tSubject)//'">'//trim(tSubject)//'</a>'//e_td
                 end if
             end do
             if (ncol /= 0)  then
                 do idx=ncol+1,maxcol
-                    write(device,AFORMAT) tdnbspendtd
+                    write(device,AFORMAT) b_td_nbsp_e_td
                 end do
-                write(device,AFORMAT) endtr
+                write(device,AFORMAT) e_tr
             end if
-            write(device,AFORMAT) endtable//horizontal//linebreak
+            write(device,AFORMAT) e_table//horizontal//linebreak
 
-            write(device,AFORMAT) '<table border="0" cellspacing="0" width="100%">'//beginsmall
+            write(device,AFORMAT) '<table border="0" cellspacing="0" width="100%">'//b_small
             do idx=1,nSubjects
-                crse = tArray(idx)
-                tSubject = Subject(crse)%Name
+                iSubj = tArray(idx)
+                tSubject = Subject(iSubj)%Name
 
-                if (mod(idx,6)==1) write(device,AFORMAT) begintr//thalignleft//'Subject'//endth// &
-                    beginth//'Units'//endth//beginth//'Term'//endth//beginth//'Tuition'//endth//beginth//'Lab fee'//endth// &
-                    beginth//'Lect hrs'//endth//beginth//'Lect load'//endth//beginth//'Min Size'//endth// &
-                    beginth//'Max Size'//endth,  &
-                    beginth//'Lab hrs'//endth//beginth//'Lab load'//endth//beginth//'Min Size'//endth// &
-                    beginth//'Max Size'//endth//endtr, &
-                    begintr//'<td colspan="11">'//nbsp//endtd//endtr
+                if (mod(idx,6)==1) write(device,AFORMAT) b_tr//b_thal//'Subject'//e_th// &
+                    b_th//'Units'//e_th//b_th//'Term'//e_th//b_th//'Tuition'//e_th//b_th//'Lab fee'//e_th// &
+                    b_th//'Lect hrs'//e_th//b_th//'Lect load'//e_th//b_th//'Min Size'//e_th// &
+                    b_th//'Max Size'//e_th,  &
+                    b_th//'Lab hrs'//e_th//b_th//'Lab load'//e_th//b_th//'Min Size'//e_th// &
+                    b_th//'Max Size'//e_th//e_tr, &
+                    b_tr//'<td colspan="11">'//nbsp//e_td//e_tr
 
-                write(device,AFORMAT) begintr//begintd//'<a name="'//trim(tSubject)//'">'//beginbold//'Name:'//endbold
+                write(device,AFORMAT) b_tr//b_td//'<a name="'//trim(tSubject)//'">'//b_bold//'Name: '//e_bold
                 if (isRoleSysAd .or. isRoleStaff .or. isRoleOfficial) then
                     write(device,AFORMAT) trim(make_href(fnEditSubject, tSubject, A1=tSubject))
                 else
                     write(device,AFORMAT) tSubject
                 end if
-                write(device,AFORMAT) '</a>'//endtd, &
-                    tdaligncenter//trim(ftoa(Subject(crse)%Units,1))//endtd// &
-                    tdaligncenter//trim(text_term_offered(Subject(crse)%TermOffered))//endtd// &
-                    tdaligncenter//trim(ftoa(Subject(crse)%Tuition,2))//endtd// &
-                    tdaligncenter//trim(ftoa(Subject(crse)%LabFee,2))//endtd// &
-                    tdaligncenter//trim(ftoa(Subject(crse)%LectHours,2))//endtd// &
-                    tdaligncenter//trim(ftoa(Subject(crse)%LectLoad,2))//endtd// &
-                    tdaligncenter//trim(itoa(Subject(crse)%MinLectSize))//endtd// &
-                    tdaligncenter//trim(itoa(Subject(crse)%MaxLectSize))//endtd,  &
-                    tdaligncenter//trim(ftoa(Subject(crse)%LabHours,2))//endtd// &
-                    tdaligncenter//trim(ftoa(Subject(crse)%LabLoad,2))//endtd// &
-                    tdaligncenter//trim(itoa(Subject(crse)%MinLabSize))//endtd// &
-                    tdaligncenter//trim(itoa(Subject(crse)%MaxLabSize))//endtd//endtr
+                write(device,AFORMAT) '</a>'//e_td, &
+                    b_tdac//trim(ftoa(Subject(iSubj)%Units,1))//e_td// &
+                    b_tdac//trim(text_term_offered(Subject(iSubj)%TermOffered))//e_td// &
+                    b_tdac//trim(ftoa(Subject(iSubj)%Tuition,2))//e_td// &
+                    b_tdac//trim(ftoa(Subject(iSubj)%LabFee,2))//e_td// &
+                    b_tdac//trim(ftoa(Subject(iSubj)%LectHours,2))//e_td// &
+                    b_tdac//trim(ftoa(Subject(iSubj)%LectLoad,2))//e_td// &
+                    b_tdac//trim(itoa(Subject(iSubj)%MinLectSize))//e_td// &
+                    b_tdac//trim(itoa(Subject(iSubj)%MaxLectSize))//e_td,  &
+                    b_tdac//trim(ftoa(Subject(iSubj)%LabHours,2))//e_td// &
+                    b_tdac//trim(ftoa(Subject(iSubj)%LabLoad,2))//e_td// &
+                    b_tdac//trim(itoa(Subject(iSubj)%MinLabSize))//e_td// &
+                    b_tdac//trim(itoa(Subject(iSubj)%MaxLabSize))//e_td//e_tr
 
                 write(device,AFORMAT) &
-                    begintr//'<td colspan="13">'//beginbold//'Title:'//endbold//trim(Subject(crse)%Title)//endtd//endtr, &
-                    begintr//'<td colspan="13">'//beginbold//'Preq.'//endbold//trim(text_prerequisite_of_subject(crse,0))// &
-                        endtd//endtr, &
-                    begintr//'<td colspan="13">'//nbsp//endtd//endtr
+                    b_tr//'<td colspan="13">'//b_bold//'Title: '//e_bold//trim(Subject(iSubj)%Title)//e_td//e_tr, &
+                    b_tr//'<td colspan="13">'//b_bold//'Preq. '//e_bold//trim(text_prerequisite_of_subject(iSubj,0))// &
+                        e_td//e_tr, &
+                    b_tr//'<td colspan="13">'//nbsp//e_td//e_tr
             end do
 
-            write(device,AFORMAT) endsmall//endtable
+            write(device,AFORMAT) e_small//e_table
 
-        else
-            write(device,AFORMAT) linebreak//'No subjects in this college?'
         end if
         write(device,AFORMAT) horizontal
 
-    end subroutine subject_list_all
+    end subroutine html_subject_list
 
 
 
     subroutine curriculum_edit(device, given)
         integer, intent(in), optional :: given
         integer, intent (in) :: device
-        integer :: crse, i, j, k, ierr, idx, tdx, m, Year, Term, ptrS
+        integer :: iSubj, i, j, k, ierr, idx, tdx, m, iYear, iTerm, ptrS
         real :: tUnits, credit
         character(len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum, tAction
         character(len=MAX_LEN_COLLEGE_CODE) :: tCollege
@@ -1592,7 +1743,7 @@ contains
                 wrk%SubjectTerm = 0
                 ! collect subjects
                 do tdx=1,Curriculum(targetCurriculum)%NumTerms+6
-                    call rank_to_year_term(tdx, Year, Term)
+                    call rank_to_year_term(tdx, iYear, iTerm)
                     call cgi_get_named_string(QUERY_STRING, 'Subjects'//trim(itoa(tdx)), mesg, ierr)
                     if (len_trim(mesg)==0) cycle
                     call tokenize_subjects(mesg, COMMA, MAX_SECTION_MEETINGS, m, subjectList, ierr, tokenizeErr)
@@ -1611,30 +1762,30 @@ contains
                 end do
                 ! check deleted subjects from original curriculum
                 do idx=1,Curriculum(targetCurriculum)%NSubjects
-                    crse = Curriculum(targetCurriculum)%SubjectIdx(idx)
+                    iSubj = Curriculum(targetCurriculum)%SubjectIdx(idx)
                     tdx = Curriculum(targetCurriculum)%SubjectTerm(idx)
                     possibleImpact = .false.
-                    i = index_of_subject_in_curriculum (wrk, crse)
-                    if (i==0) then ! crse not in wrk, deleted from targetCurriculum
+                    i = index_of_subject_in_curriculum (wrk, iSubj)
+                    if (i==0) then ! iSubj not in wrk, deleted from targetCurriculum
                         changed = .true.
                         possibleImpact = .true.
-                        remark = trim(remark)//': Deleted '//Subject(crse)%Name
-                        call html_comment('>>> Deleted '//Subject(crse)%Name)
-                    else ! crse retained; check if moved to another term
+                        remark = trim(remark)//': Deleted '//Subject(iSubj)%Name
+                        call html_comment('>>> Deleted '//Subject(iSubj)%Name)
+                    else ! iSubj retained; check if moved to another term
                         if (tdx/=wrk%SubjectTerm(i)) then ! but moved to a different semester
                             changed = .true.
                             possibleImpact = .true.
-                            remark = trim(remark)//': Moved '//Subject(crse)%Name
-                            call html_comment('>>> Moved '//Subject(crse)%Name)
+                            remark = trim(remark)//': Moved '//Subject(iSubj)%Name
+                            call html_comment('>>> Moved '//Subject(iSubj)%Name)
                         end if
                     end if
-                    !if (possibleImpact) then ! check if crse is used in a block section
-                    !    call rank_to_year_term(tdx, Year, Term)
+                    !if (possibleImpact) then ! check if iSubj is used in a block section
+                    !    call rank_to_year_term(tdx, iYear, iTerm)
                     !    do i=1,NumBlocks
                     !        if (Block(i)%CurriculumIdx==targetCurriculum .and. &
-                    !            Block(i)%Year==Year .and. Block(i)%Term==Term) then
+                    !            Block(i)%Year==iYear .and. Block(i)%Term==iTerm) then
                     !            remark = trim(remark)//', affects '//Block(i)%BlockID
-                    !            call html_comment('>>> Change in '//Subject(crse)%Name//'may affect '//Block(i)%Name)
+                    !            call html_comment('>>> Change in '//Subject(iSubj)%Name//'may affect '//Block(i)%Name)
                     !        end if
                     !    end do
                     !end if
@@ -1642,19 +1793,19 @@ contains
 
                 ! check for additional subjects to original curriculum
                 do idx=1,wrk%NSubjects
-                    crse = wrk%SubjectIdx(idx)
+                    iSubj = wrk%SubjectIdx(idx)
                     tdx = wrk%SubjectTerm(idx)
-                    i = index_of_subject_in_curriculum (Curriculum(targetCurriculum), crse)
-                    if (i==0) then ! crse added to targetCurriculum
+                    i = index_of_subject_in_curriculum (Curriculum(targetCurriculum), iSubj)
+                    if (i==0) then ! iSubj added to targetCurriculum
                         changed = .true.
-                        remark = trim(remark)//': Added '//Subject(crse)%Name
-                        call html_comment('>>> Added '//Subject(crse)%Name)
-                        !call rank_to_year_term(tdx, Year, Term)
+                        remark = trim(remark)//': Added '//Subject(iSubj)%Name
+                        call html_comment('>>> Added '//Subject(iSubj)%Name)
+                        !call rank_to_year_term(tdx, iYear, iTerm)
                         !do i=1,NumBlocks
                         !    if (Block(i)%CurriculumIdx==targetCurriculum .and. &
-                        !        Block(i)%Year==Year .and. Block(i)%Term==Term) then
+                        !        Block(i)%Year==iYear .and. Block(i)%Term==iTerm) then
                         !        remark = trim(remark)//', affects '//Block(i)%BlockID
-                        !        call html_comment('>>> Addition of '//Subject(crse)%Name//' affects '//Block(i)%Name)
+                        !        call html_comment('>>> Addition of '//Subject(iSubj)%Name//' affects '//Block(i)%Name)
                         !    end if
                         !end do
                     end if
@@ -1755,6 +1906,7 @@ contains
                                 if (ptrS>0) then
                                     Substitution(SubstIdx(NumSubst)) = targetCurriculum
                                 end if
+                                call curriculum_details_write(unitXML, trim(dirCURRICULA)//'index', 1, NumCurricula-1)
                                 call make_curriculum_groups()
                             end if
                         end if
@@ -1772,22 +1924,22 @@ contains
         end if ! (len_trim(tAction)>0 .and. isRoleOfficial) then
 
         if (changed) then
-            call xml_write_curricula(trim(pathToYear)//'CURRICULA.XML')
+            call curriculum_details_write(unitXML, dirCURRICULA, targetCurriculum)
         end if
 
         call html_write_header(device, 'Edit curriculum '//tCurriculum, remark(3:))
         write(device,AFORMAT) trim(make_href(fnCurriculumList, CurrProgCode(targetCurriculum), &
             A1=CurrProgCode(targetCurriculum), &
-            pre=beginsmall//'Edit other'//nbsp, post=' option'//endsmall))//linebreak
+            pre=b_small//'Edit other'//nbsp, post=' option'//e_small))//linebreak
 
         call make_form_start(device, fnEditCurriculum, tCurriculum)
         write(device,AFORMAT) '<table border="0" width="100%">', &
-            begintr//begintd//beginbold//'Curriculum code'//endbold//endtd//begintd//'<input name="Code" size="'// &
+            b_tr//b_td//b_bold//'Curriculum code'//e_bold//e_td//b_td//'<input name="Code" size="'// &
             trim(itoa(MAX_LEN_CURRICULUM_CODE))// &
-            '" value="'//trim(tCurriculum)//'"> (A new curriculum will be created if this is changed)'//endtd//endtr
+            '" value="'//trim(tCurriculum)//'"> (A new curriculum will be created if this is changed)'//e_td//e_tr
 
         write(device,AFORMAT) &
-            begintr//begintd//beginbold//'College'//endbold//endtd//begintd//'<select name="College">'
+            b_tr//b_td//b_bold//'College'//e_bold//e_td//b_td//'<select name="College">'
         do i=1,NumColleges
             if (i/=targetCollege) then
                 j=0
@@ -1806,25 +1958,25 @@ contains
             '<input type="radio" name="Status" value="Inactive" checked="yes"> Inactive'
         end if
 
-        write(device,AFORMAT) '</select>'//endtd//endtr, &
-            begintr//begintd//beginbold//'Title'//endbold//endtd//begintd//'<input name="Title" size="'// &
+        write(device,AFORMAT) '</select>'//e_td//e_tr, &
+            b_tr//b_td//b_bold//'Title'//e_bold//e_td//b_td//'<input name="Title" size="'// &
                 trim(itoa(MAX_LEN_CURRICULUM_NAME))//&
-            '" value="'//trim(Curriculum(targetCurriculum)%Title)//'">'//endtd//endtr, &
-            begintr//begintd//beginbold//'Specialization'//endbold//endtd//begintd//'<input name="Specialization" size="'// &
+            '" value="'//trim(Curriculum(targetCurriculum)%Title)//'">'//e_td//e_tr, &
+            b_tr//b_td//b_bold//'Specialization'//e_bold//e_td//b_td//'<input name="Specialization" size="'// &
             trim(itoa(MAX_LEN_CURRICULUM_NAME))//'" value="'//trim(Curriculum(targetCurriculum)%Specialization)// &
-            '">'//endtd//endtr, &
-            begintr//begintd//beginbold//'Remark'//endbold//endtd// &
-            begintd//'<input name="Remark" size="'//trim(itoa(MAX_LEN_CURRICULUM_NAME))// &
-            '" value="'//trim(Curriculum(targetCurriculum)%Remark)//'">'//endtd//endtr, &
-            begintr//begintd//beginbold//'Status'//endbold//endtd//begintd//trim(mesg)//endtd//endtr, &
-            begintr//begintd//beginbold//'Year, Term (Units/Cumulative)'//endbold//endtd// &
-            begintd//beginbold//'Comma-separated subject codes'//endbold//endtd//endtr
+            '">'//e_td//e_tr, &
+            b_tr//b_td//b_bold//'Remark'//e_bold//e_td// &
+            b_td//'<input name="Remark" size="'//trim(itoa(MAX_LEN_CURRICULUM_NAME))// &
+            '" value="'//trim(Curriculum(targetCurriculum)%Remark)//'">'//e_td//e_tr, &
+            b_tr//b_td//b_bold//'Status'//e_bold//e_td//b_td//trim(mesg)//e_td//e_tr, &
+            b_tr//b_td//b_bold//'Year, Term (Units/Cumulative)'//e_bold//e_td// &
+            b_td//b_bold//'Comma-separated subject codes'//e_bold//e_td//e_tr
 
         tunits = 0.0
 
         do tdx=1,Curriculum(targetCurriculum)%NumTerms+6
 
-            call rank_to_year_term(tdx, Year, Term)
+            call rank_to_year_term(tdx, iYear, iTerm)
 
             m = 0
             credit = 0
@@ -1832,25 +1984,25 @@ contains
 
             do idx=1,Curriculum(targetCurriculum)%NSubjects
                 if (Curriculum(targetCurriculum)%SubjectTerm(idx) == tdx) then
-                    crse = Curriculum(targetCurriculum)%SubjectIdx(idx)
+                    iSubj = Curriculum(targetCurriculum)%SubjectIdx(idx)
                     m = m+1
-                    credit = credit + Subject(crse)%Units
-                    mesg = trim(mesg)//COMMA//SPACE//Subject(crse)%Name
+                    credit = credit + Subject(iSubj)%Units
+                    mesg = trim(mesg)//COMMA//SPACE//Subject(iSubj)%Name
                 end if
             end do
 
             tUnits = tUnits + credit
 
-            write(device,AFORMAT) begintr//begintd// &
-                trim(txtYear(Year+11))//' Year, '//trim(txtSemester(Term+6))//' Term ('// &
-                trim(ftoa(credit,1))//FSLASH//trim(ftoa(tUnits,1))//')'//endtd, &
-                begintd//'<input name="Subjects'//trim(itoa(tdx))//'" size="'//trim(itoa(MAX_LEN_CURRICULUM_NAME))// &
-                '" value="'//trim(mesg(3:))//'">'//endtd//endtr
+            write(device,AFORMAT) b_tr//b_td// &
+                trim(txtYear(iYear+10))//' Year, '//trim(txtSemester(iTerm+6))//' Term ('// &
+                trim(ftoa(credit,1))//FSLASH//trim(ftoa(tUnits,1))//')'//e_td, &
+                b_td//'<input name="Subjects'//trim(itoa(tdx))//'" size="'//trim(itoa(MAX_LEN_CURRICULUM_NAME))// &
+                '" value="'//trim(mesg(3:))//'">'//e_td//e_tr
         end do
 
-        write(device,AFORMAT) begintr//begintd//beginbold//'Substitution rules'//endbold//endtd, &
-            begintd//'Required subjects in list will be PASSED if credits have been earned '// &
-            'for the other subjects in the list'//endtd//endtr
+        write(device,AFORMAT) b_tr//b_td//b_bold//'Substitution rules'//e_bold//e_td, &
+            b_td//'Required subjects in list will be PASSED if credits have been earned '// &
+            'for the other subjects in the list'//e_td//e_tr
 
         do tdx=1,NumSubst
             if (Substitution(SubstIdx(tdx))==targetCurriculum) then
@@ -1858,15 +2010,15 @@ contains
                 do j=SubstIdx(tdx)+1, SubstIdx(tdx+1)-1
                     mesg = trim(mesg)//COMMA//SPACE//Subject(Substitution(j))%Name
                 end do
-                write(device,AFORMAT) begintr//begintd//'SUBSTITUTION'//endtd//begintd//trim(mesg(3:))//endtd//endtr
+                write(device,AFORMAT) b_tr//b_td//'SUBSTITUTION'//e_td//b_td//trim(mesg(3:))//e_td//e_tr
             end if
         end do
 
-        write(device,AFORMAT) begintr//begintd//'SUBSTITUTION'//endtd// &
-            begintd//'<input name="Substitution" size="'//trim(itoa(MAX_LEN_CURRICULUM_NAME))// &
-            '" value="(Enter new substitution rule)">'//endtd//endtr
+        write(device,AFORMAT) b_tr//b_td//'SUBSTITUTION'//e_td// &
+            b_td//'<input name="Substitution" size="'//trim(itoa(MAX_LEN_CURRICULUM_NAME))// &
+            '" value="(Enter new substitution rule)">'//e_td//e_tr
 
-        write(device,AFORMAT) endtable//linebreak//nbsp//'<input name="action" type="submit" value="Update">'//endform//'<pre>', &
+        write(device,AFORMAT) e_table//linebreak//nbsp//'<input name="action" type="submit" value="Update">'//e_form//'<pre>', &
             '</pre>'//horizontal
 
     end subroutine curriculum_edit
@@ -1874,7 +2026,7 @@ contains
 
     subroutine equivalencies_edit(device)
         integer, intent (in) :: device
-        integer :: idx, tdx, ierr, crse, ptrS, i, m!, j, k, Year, Term
+        integer :: idx, tdx, ierr, iSubj, ptrS, i, m!, j, k, iYear, iTerm
         character (len=255) :: mesg, remark!, tokenizeErr
         character (len=MAX_LEN_SUBJECT_CODE) :: tSubject
         logical :: changed, critical1, critical2!, possibleImpact, critical3
@@ -1907,8 +2059,8 @@ contains
             ! a rule was added?
             call cgi_get_named_string(QUERY_STRING, 'Required', tSubject, ierr)
             if (len_trim(tSubject)>0) then ! new rule entered?
-                crse = index_to_subject(tSubject)
-                if (crse>0) then ! required subject is OK
+                iSubj = index_to_subject(tSubject)
+                if (iSubj>0) then ! required subject is OK
                     call cgi_get_named_string(QUERY_STRING, 'Equivalent', mesg, ierr)
 
                     if (ierr==0) then  ! Equivalent list is not empty
@@ -1957,7 +2109,7 @@ contains
             end if
 
             if (changed) then
-                call xml_write_equivalencies(trim(pathToYear)//'EQUIVALENCIES.XML')
+                call equivalence_data_write(unitXML, trim(pathToYear)//'EQUIVALENCIES.XML')
             else
                 call cgi_get_named_string(QUERY_STRING, 'action', tSubject, ierr)
                 if (ierr==0) remark = ' : No changes to equivalence rules?'
@@ -1971,30 +2123,30 @@ contains
             'for Equivalent(s). Checked rules will be deleted.'//linebreak//linebreak
 
         call make_form_start(device, fnEditEquivalencies)
-        write(device,AFORMAT) '<table border="0" width="50%">', begintr// &
-            thalignleft//'Required'//endth// &
-            thalignleft//'Equivalent(s)'//endth// &
-            thalignleft//'Delete?'//endth//endtr
+        write(device,AFORMAT) '<table border="0" width="50%">', b_tr// &
+            b_thal//'Required'//e_th// &
+            b_thal//'Equivalent(s)'//e_th// &
+            b_thal//'Delete?'//e_th//e_tr
         do tdx=1,NumSubst
             if (Substitution(SubstIdx(tdx))==-1) then
                 write(device,AFORMAT) '<tr bgcolor="'//bgcolor(mod(tdx,2))//'">'// &
-                    begintd//trim(Subject(Substitution(SubstIdx(tdx)+1))%Name)//endtd
+                    b_td//trim(Subject(Substitution(SubstIdx(tdx)+1))%Name)//e_td
                 mesg = SPACE
                 do idx=SubstIdx(tdx)+2, SubstIdx(tdx+1)-1
                     mesg = trim(mesg)//COMMA//Subject(Substitution(idx))%Name
                 end do
-                write(device,AFORMAT) begintd//trim(mesg(2:))//endtd// &
-                    begintd//'<input type="checkbox" name="del'//trim(itoa(tdx))//'">'//endtd//endtr
+                write(device,AFORMAT) b_td//trim(mesg(2:))//e_td// &
+                    b_td//'<input type="checkbox" name="del'//trim(itoa(tdx))//'">'//e_td//e_tr
             end if
         end do
 
-        write(device,AFORMAT) begintr// &
-            begintd//'<input name="Required" size="'//trim(itoa(MAX_LEN_SUBJECT_CODE))// &
-            '" value="">'//endtd// &
-            begintd//'<input name="Equivalent" size="'//trim(itoa(MAX_LEN_SUBJECT_CODE))// &
-            '" value="">'//endtd//begintd//beginbold//'Add rule'//endbold//endtd//endtr
+        write(device,AFORMAT) b_tr// &
+            b_td//'<input name="Required" size="'//trim(itoa(MAX_LEN_SUBJECT_CODE))// &
+            '" value="">'//e_td// &
+            b_td//'<input name="Equivalent" size="'//trim(itoa(MAX_LEN_SUBJECT_CODE))// &
+            '" value="">'//e_td//b_td//b_bold//'Add rule'//e_bold//e_td//e_tr
 
-        write(device,AFORMAT) endtable//linebreak//nbsp//'<input name="action" type="submit" value="Update">'//endform//'<pre>', &
+        write(device,AFORMAT) e_table//linebreak//nbsp//'<input name="action" type="submit" value="Update">'//e_form//'<pre>', &
             '</pre>'//horizontal
 
     end subroutine equivalencies_edit
@@ -2005,8 +2157,8 @@ contains
     subroutine curriculum_list_all(device, fn)
         integer, intent (in) :: device, fn
         character(len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
-        character(len=10) :: tStatus, tAction ! (ACTIVE)/(INACTIVE), Activate/Deactivate
-        integer :: ierr, ldx, fnAction, ncurr
+        !character(len=10) :: tStatus, tAction ! (ACTIVE)/(INACTIVE), Activate/Deactivate
+        integer :: ierr, ldx, ncurr!, fnAction
         character(len=255) :: mesg
 
         ! which program ?
@@ -2064,21 +2216,44 @@ contains
 
             end select
 
-            if (mesg/=SPACE) call xml_write_curricula(trim(pathToYear)//'CURRICULA.XML')
+            if (mesg/=SPACE) call curriculum_details_write(unitXML, dirCURRICULA, targetCurriculum)
 
         end if
 
-        call html_write_header(device, tCurriculum//' options', mesg)
+        ncurr = 0
+        tArray = 0
+        do ldx=1,NumCurricula-1
+            if (CurrProgCode(ldx) /= tCurriculum) cycle
+            ncurr = ncurr+1
+            tArray(ncurr) = ldx
+        end do
+        call html_curriculum_list(device, fn, ncurr, tArray(0:ncurr), tCurriculum//' options', mesg, SPACE)
+
+    end subroutine curriculum_list_all
+
+
+    subroutine html_curriculum_list(device, fn, ncurr, tArray, header, mesg, searchString)
+        integer, intent (in) :: device, fn, ncurr, tArray(0:ncurr)
+        character(len=*), intent(in) :: header, mesg, searchString
+        integer :: cdx, ldx, tLen
+        character (len=80) :: tString, location
+
+        !character(len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum
+        character(len=10) :: tStatus, tAction ! (ACTIVE)/(INACTIVE), Activate/Deactivate
+        integer :: fnAction !ierr,
+
+        tString = searchString
+        tLen = max(len_trim(tString),1)
+
+        call html_write_header(device, header, mesg)
 
         ! collect curricula
         write(device,AFORMAT) '<ol>'
-        do ldx=1,NumCurricula-1
-
-            if (CurrProgCode(ldx) /= tCurriculum) cycle
-
+        do cdx=1,ncurr
+            ldx =tArray(cdx)
             write(device,AFORMAT) trim(make_href(fnCurriculum, Curriculum(ldx)%Code, &
                 A1=Curriculum(ldx)%Code, &
-                pre=beginitem, post=' - '//trim(Curriculum(ldx)%Title)))
+                pre=b_item, post=' - '//trim(Curriculum(ldx)%Title)))
             if (trim(Curriculum(ldx)%Specialization)/=SPACE) &
                 write(device,AFORMAT) ' : '//trim(Curriculum(ldx)%Specialization)
             if (trim(Curriculum(ldx)%Remark)/=SPACE) &
@@ -2094,27 +2269,57 @@ contains
                 fnAction = fnActivateCurriculum
             end if
 
-            write(device,AFORMAT) nbsp//beginitalic//tStatus//enditalic//nbsp
+            write(device,AFORMAT) nbsp//b_italic//tStatus//e_italic//nbsp
 
-            if (is_admin_of_college(targetCollege)) then
+            if (isRole_admin_of_college(targetCollege)) then
                 write(device,AFORMAT) trim(make_href(fnAction, tAction, A1=Curriculum(ldx)%Code, &
-                    pre=nbsp//beginsmall, post=nbsp))
+                    pre=nbsp//b_small, post=nbsp))
                 write(device,AFORMAT) trim(make_href(fnEditCurriculum, 'Edit', A1=Curriculum(ldx)%Code, &
-                    pre=nbsp, post=endsmall))
+                    pre=nbsp, post=e_small))
             end if
 
-            write(device,AFORMAT) enditem
+            if (fn==fnSearchCategory) then
+                call curriculum_search_info(ldx, tString(:tLen), location)
+                ldx = len_trim(location)
+                write(device,AFORMAT) nbsp//nbsp//b_small//b_italic//trim(tString)//' in '// &
+                    location(:ldx-2)//e_italic//e_small
+            end if
+
+            write(device,AFORMAT) e_item
 
         end do
         write(device,AFORMAT) '</ol>'//horizontal
 
-    end subroutine curriculum_list_all
+    end subroutine html_curriculum_list
+
+
+    subroutine curriculum_search_info(curr, searchString, location)
+        integer, intent(in) :: curr
+        character(len=*), intent(in) :: searchString
+        character(len=80), intent(out) :: location
+        character(len=80) :: subjectInfo
+        integer :: idx
+
+        location = SPACE
+        do idx=1,Curriculum(curr)%NSubjects
+            call subject_search_info(Curriculum(curr)%SubjectIdx(idx), searchString, subjectInfo)
+            if (len_trim(subjectInfo)>0) then
+                location = 'Subjects : '//location
+                exit
+            end if
+        end do
+        if (index(Curriculum(curr)%Remark,searchString)>0) location = 'Remark : '//location
+        if (index(Curriculum(curr)%Specialization,searchString)>0) location = 'Specialization : '//location
+        if (index(Curriculum(curr)%Title,searchString)>0) location = 'Title : '//location
+        if (index(Curriculum(curr)%Code,searchString)>0) location = 'Code : '//location
+
+    end subroutine curriculum_search_info
 
 
     subroutine curriculum_display(device, given)
         integer, intent(in), optional :: given
         integer, intent (in) :: device
-        integer :: idx, tdx, m, n, Year, Term, fnAction
+        integer :: idx, tdx, m, n, iYear, iTerm, fnAction
         character(len=MAX_LEN_CURRICULUM_CODE) :: tCurriculum, tAction
         character(len=10) :: tStatus ! (ACTIVE)/(INACTIVE)
         real :: tUnits, cumulative
@@ -2131,13 +2336,13 @@ contains
 
         call html_write_header(device, SPACE) ! Curriculum(targetCurriculum)%Code)
 
-        write(device,AFORMAT) beginbold//trim(Curriculum(targetCurriculum)%Code)//' - '// &
-        trim(Curriculum(targetCurriculum)%Title)//endbold
+        write(device,AFORMAT) b_bold//trim(Curriculum(targetCurriculum)%Code)//' - '// &
+        trim(Curriculum(targetCurriculum)%Title)//e_bold
         if (len_trim(Curriculum(targetCurriculum)%Specialization) > 0) then
-            write(device,AFORMAT) beginbold//' : '//trim(Curriculum(targetCurriculum)%Specialization)//endbold
+            write(device,AFORMAT) b_bold//' : '//trim(Curriculum(targetCurriculum)%Specialization)//e_bold
         end if
         if (len_trim(Curriculum(targetCurriculum)%Remark) > 0) then
-            write(device,AFORMAT) beginbold//' : '//trim(Curriculum(targetCurriculum)%Remark)//endbold
+            write(device,AFORMAT) b_bold//' : '//trim(Curriculum(targetCurriculum)%Remark)//e_bold
         end if
         if (Curriculum(targetCurriculum)%Active) then
             tStatus = '(Active)'
@@ -2148,24 +2353,24 @@ contains
             tAction = 'Activate'
             fnAction = fnActivateCurriculum
         end if
-        write(device,AFORMAT) nbsp//beginitalic//tStatus//enditalic//nbsp
-        if (is_admin_of_college(targetCollege)) then
+        write(device,AFORMAT) nbsp//b_italic//tStatus//e_italic//nbsp
+        if (isRole_admin_of_college(targetCollege)) then
             write(device,AFORMAT) trim(make_href(fnAction, tAction, A1=Curriculum(targetCurriculum)%Code, &
-                pre=nbsp//beginsmall, post=nbsp))
+                pre=nbsp//b_small, post=nbsp))
             write(device,AFORMAT) trim(make_href(fnEditCurriculum, 'Edit', A1=Curriculum(targetCurriculum)%Code, &
-                pre=nbsp, post=endsmall))
+                pre=nbsp, post=e_small))
         end if
 
-        write(device,AFORMAT) linebreak//'Note: A '//red//'SUBJECT'//black//' in column '//beginbold// &
-            beginitalic//'Prerequisite'//enditalic//endbold, &
-            ' indicates an inconsistency. Said '//red//'SUBJECT'//black// &
+        write(device,AFORMAT) linebreak//'Note: A '//red//'SUBJECT'//e_color//' in column '//b_bold// &
+            b_italic//'Prerequisite'//e_italic//e_bold, &
+            ' indicates an inconsistency. Said '//red//'SUBJECT'//e_color// &
             ' is not present in the curriculum, or is not taken in a prior term, ', &
             ' or the prerequisite expression should be "SUBJECT1 OR SUBJECT2" where either one is taken in a prior term.', &
             linebreak//'<table border="1" width="100%">'
         cumulative = 0.0
         do tdx=1,Curriculum(targetCurriculum)%NumTerms
 
-            call rank_to_year_term(tdx, Year, Term)
+            call rank_to_year_term(tdx, iYear, iTerm)
             m = 0
             tUnits = 0.0
 
@@ -2179,46 +2384,46 @@ contains
             cumulative = cumulative + tUnits
 
             if (m > 0) then
-                write(device,AFORMAT) begintr//'<td colspan="6">'//nbsp//endtd//endtr, &
-                    begintr//'<td colspan="6"> '//beginbold//trim(Curriculum(targetCurriculum)%Code)//': '// &
-                    trim(txtYear(Year))//' Year, '// &
-                    trim(txtSemester(Term+3))//' Term ('//trim(ftoa(tUnits,1))//' units; '// &
+                write(device,AFORMAT) b_tr//'<td colspan="6">'//nbsp//e_td//e_tr, &
+                    b_tr//'<td colspan="6"> '//b_bold//trim(Curriculum(targetCurriculum)%Code)//': '// &
+                    trim(txtYear(iYear))//' Year, '// &
+                    trim(txtSemester(iTerm+3))//' Term ('//trim(ftoa(tUnits,1))//' units; '// &
                     trim(ftoa(cumulative,1))//' cumulative)' &
-                    //endbold//endtd//endtr
+                    //e_bold//e_td//e_tr
 
-                write(device,AFORMAT) begintr, &
-                    tdnbspendtd//tdnbspendtd//tdnbspendtd//&
-                    begintd//beginbold//beginitalic//'Lect'//enditalic//endbold//endtd, &
-                    begintd//beginbold//beginitalic//'Lab'//enditalic//endbold//endtd, &
-                    tdnbspendtd, endtr
-                write(device,AFORMAT) begintr, &
-                    begintd//beginbold//beginitalic//'Subject'//enditalic//endbold//endtd, &
-                    begintd//beginbold//beginitalic//'Title'//enditalic//endbold//endtd, &
-                    begintd//beginbold//beginitalic//'Units'//enditalic//endbold//endtd, &
-                    begintd//beginbold//beginitalic//'Hrs'//enditalic//endbold//endtd, &
-                    begintd//beginbold//beginitalic//'Hrs'//enditalic//endbold//endtd, &
-                    begintd//beginbold//beginitalic//'Prerequisite'//enditalic//endbold//endtd, &
-                    endtr
+                write(device,AFORMAT) b_tr, &
+                    b_td_nbsp_e_td//b_td_nbsp_e_td//b_td_nbsp_e_td//&
+                    b_td//b_bold//b_italic//'Lect'//e_italic//e_bold//e_td, &
+                    b_td//b_bold//b_italic//'Lab'//e_italic//e_bold//e_td, &
+                    b_td_nbsp_e_td, e_tr
+                write(device,AFORMAT) b_tr, &
+                    b_td//b_bold//b_italic//'Subject'//e_italic//e_bold//e_td, &
+                    b_td//b_bold//b_italic//'Title'//e_italic//e_bold//e_td, &
+                    b_td//b_bold//b_italic//'Units'//e_italic//e_bold//e_td, &
+                    b_td//b_bold//b_italic//'Hrs'//e_italic//e_bold//e_td, &
+                    b_td//b_bold//b_italic//'Hrs'//e_italic//e_bold//e_td, &
+                    b_td//b_bold//b_italic//'Prerequisite'//e_italic//e_bold//e_td, &
+                    e_tr
                 do idx=1,Curriculum(targetCurriculum)%NSubjects
                     if (Curriculum(targetCurriculum)%SubjectTerm(idx) /= tdx) cycle
                     n = Curriculum(targetCurriculum)%SubjectIdx(idx)
-                    if (is_admin_of_college(targetCollege) .or. isRoleOfficial) then
-                        write(device,AFORMAT) begintr//begintd, &
+                    if (isRole_admin_of_college(targetCollege) .or. isRoleOfficial) then
+                        write(device,AFORMAT) b_tr//b_td, &
                             trim(make_href(fnEditSubject, Subject(n)%Name, A1=Subject(n)%Name, A2=College(targetCollege)%Code))
                     else
-                        write(device,AFORMAT) begintr//begintd//trim(Subject(n)%Name)
+                        write(device,AFORMAT) b_tr//b_td//trim(Subject(n)%Name)
                     end if
-                    write(device,AFORMAT) endtd//begintd//trim(Subject(n)%Title)//endtd// &
-                        tdaligncenter//trim(ftoa(Subject(n)%Units,1))//endtd//&
-                        tdaligncenter//trim(ftoa(Subject(n)%LectHours,2))//endtd//&
-                        tdaligncenter//trim(ftoa(Subject(n)%LabHours,2))//endtd//&
-                        '<td width="20%">'//trim(text_prerequisite_in_curriculum(n,Curriculum(targetCurriculum)))//endtd//&
-                        endtr
+                    write(device,AFORMAT) e_td//b_td//trim(Subject(n)%Title)//e_td// &
+                        b_tdac//trim(ftoa(Subject(n)%Units,1))//e_td//&
+                        b_tdac//trim(ftoa(Subject(n)%LectHours,2))//e_td//&
+                        b_tdac//trim(ftoa(Subject(n)%LabHours,2))//e_td//&
+                        '<td width="20%">'//trim(text_prerequisite_in_curriculum(n,Curriculum(targetCurriculum)))//e_td//&
+                        e_tr
                 end do
             end if
         end do
 
-        write(device,AFORMAT) endtable//horizontal
+        write(device,AFORMAT) e_table//horizontal
 
     end subroutine curriculum_display
 
@@ -2239,21 +2444,21 @@ contains
         call make_form_start(device, fnEditFees)
 
         write(device,AFORMAT) '<table border="0" width="100%">', &
-            begintr//thalignright//'Amount'//endth//tdnbspendtd//thalignleft//'Description'//endth//endtr
+            b_tr//b_thar//'Amount'//e_th//b_td_nbsp_e_td//b_thal//'Description'//e_th//e_tr
         do idx=1,MAX_ALL_FEES
             write(device,AFORMAT) &
-                begintr//tdalignright// &
+                b_tr//b_tdar// &
                        '<input align="right" name="amount_'//trim(itoa(idx))//'" size="6" value="'// &
                         trim(ftoa(FeeAmount(idx),1))//'">'// &
-                    endtd//tdnbspendtd// &
-                    begintd// &
+                    e_td//b_td_nbsp_e_td// &
+                    b_td// &
                        '<input name="desc_'//trim(itoa(idx))//'" size="60" value="'//trim(FeeDescription(idx))//'">'// &
-                    endtd// &
-                endtr
+                    e_td// &
+                e_tr
         end do
 
-        write(device,AFORMAT) endtable, linebreak, &
-            nbsp//'<input name="action" type="submit" value="Update">'//endform//horizontal
+        write(device,AFORMAT) e_table, linebreak, &
+            nbsp//'<input name="action" type="submit" value="Update">'//e_form//horizontal
 
     end subroutine display_fees
 
@@ -2292,7 +2497,7 @@ contains
                 end if
             end do
 
-            if (changes) call xml_write_university(trim(pathToYear)//'UNIVERSITY.XML')
+            if (changes) call university_data_write(unitXML, trim(pathToYear)//'UNIVERSITY.XML')
 
         end if
 
@@ -2326,23 +2531,23 @@ contains
             call make_form_start(device, fnEditScholarships)
 
             write(device,AFORMAT) linebreak, '<table border="0" width="100%">', &
-                begintr//thalignright//'Code'//endth//tdnbspendtd//thalignleft//'Description'//endth//endtr
+                b_tr//b_thar//'Code'//e_th//b_td_nbsp_e_td//b_thal//'Description'//e_th//e_tr
 
             do idx=jdx,min(jdx+19,MAX_ALL_SCHOLARSHIPS)
                 write(device,AFORMAT) &
-                    begintr//tdalignright// &
+                    b_tr//b_tdar// &
                            '<input align="right" name="code_'//trim(itoa(idx))//'" size="6" value="'// &
                             trim(ScholarshipCode(idx))//'">'// &
-                        endtd//tdnbspendtd// &
-                        begintd// &
+                        e_td//b_td_nbsp_e_td// &
+                        b_td// &
                            '<input name="desc_'//trim(itoa(idx))//'" size="60" value="'// &
                             trim(ScholarshipDescription(idx))//'">'// &
-                        endtd// &
-                    endtr
+                        e_td// &
+                    e_tr
             end do
 
-            write(device,AFORMAT) endtable, linebreak, &
-                nbsp//'<input name="action" type="submit" value="Update">'//endform//linebreak
+            write(device,AFORMAT) e_table, linebreak, &
+                nbsp//'<input name="action" type="submit" value="Update">'//e_form//linebreak
 
         end do
         write(device,AFORMAT) horizontal
@@ -2384,7 +2589,7 @@ contains
                 end if
             end do
 
-            if (changes) call xml_write_university(trim(pathToYear)//'UNIVERSITY.XML')
+            if (changes) call university_data_write(unitXML, trim(pathToYear)//'UNIVERSITY.XML')
 
         end if
 

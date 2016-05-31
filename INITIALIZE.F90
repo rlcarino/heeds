@@ -2,7 +2,7 @@
 !
 !    HEEDS (Higher Education Enrollment Decision Support) - A program
 !      to create enrollment scenarios for 'next term' in a university
-!    Copyright (C) 2012-2014 Ricolindo L. Carino
+!    Copyright (C) 2012-2015 Ricolindo L. Carino
 !
 !    This file is part of the HEEDS program.
 !
@@ -29,18 +29,19 @@
 
 module INITIALIZE
 
-    use UNIVERSITY
+    use XMLIO
 
     implicit none
 
 
 contains
 
+
 !===========================================================
-! initializations
+! get_arguments
 !===========================================================
 
-    subroutine initializations()
+    subroutine get_arguments()
 
         integer :: iTmp, numArgs
         character (len=MAX_LEN_FILE_PATH) :: dataSource
@@ -71,104 +72,34 @@ contains
         iTmp = index(fileEXE, '-')
         VERSION = SPACE//fileEXE(iTmp+1:)
 
-        ! arguments are: UNIV YEAR TERM ACTION PATH
+        ! arguments are: PATH UNIV YEAR TERM ACTION
         numArgs = iargc()
-        if (numArgs<1) call usage('Error: command arguments are UNIV YEAR TERM ACTION PATH')
+        if (numArgs<3) call usage('Error: command arguments are UNIV YEAR TERM ACTION')
 
-        ! WEBROOT - 'root' for nginx
-        inquire(file=WEBROOT, exist=pathExists)
-        if (.not. pathExists) call usage('Error: directory '//WEBROOT//' does not exist')
+        ! ACTION
+        call getarg(4, ACTION)
+        if (len_trim(ACTION)==0) ACTION = 'Server'
 
-        ! data directory
-        if (numArgs>4) then
-            call getarg(5, dirUNIV)
-        else
-            ! user's HOME directory
-#if defined GLNX
-            call get_environment_variable("HOME", dirUNIV)
-#else
-            dirUNIV = 'C:'
+        ! instance will be running as mirror?
+        isMirror = trim(ACTION)=='Mirror'
+        isReadOnly = isMirror
+#if defined no_password_check
+        isReadOnly = .true.
 #endif
-            dirUNIV = trim(dirUNIV)//DIRSEP//PROGNAME
-        end if
+        isAllowedNonEditors = .true.
 
+#if defined UPLB
+        isProbabilistic = .false.
+#endif
         ! University code
         call getarg(1, UniversityCode)
 
-        ! dirUNIV - location of files for target University
-        dirUNIV = trim(dirUNIV)//DIRSEP//trim(UniversityCode)//DIRSEP
-        inquire(file=trim(dirUNIV), exist=pathExists)
-        if (.not. pathExists) call usage('Error: directory '//trim(dirUNIV)//' does not exist')
-
-        ! log directory
-        dirLOG = trim(dirUNIV)//'logs'//DIRSEP
-        call make_directory( dirLOG )
-        call log_comment( '-------', 'Begins '//currentDate//DASH//currentTime, '-------', &
-            'Executable is : '//trim(fileEXE)//SPACE//DASH//SPACE//'( '//PROGNAME//VERSION//' )' )
-
-        ! data directory
-        dirDATA = trim(dirUNIV)//'data'//DIRSEP
-        lenDirDATA = len_trim(dirDATA)
-        call make_directory( dirDATA )
-
-        ! create year/term directories in dirDATA
-        call make_year_term_directory( dirDATA, currentYear )
-
-        ! instance is running as mirror?
-        iTmp = index(UniversityCode, '-mirror')
-        if (iTmp > 0) then
-            isReadOnly = .true.
-            UniversityCodeNoMirror = UniversityCode(:iTmp-1)
-        else
-            isReadOnly = .false.
-            iTmp = index(UniversityCode, '-rectify')
-            if (iTmp > 0) then
-                isRectify = .true.
-                UniversityCodeNoMirror = UniversityCode(:iTmp-1)
-            else
-                UniversityCodeNoMirror = UniversityCode
-            end if
-        end if
-        isAllowedNonEditors = .true.
-
-        ! ACTION
-        if (numArgs>3) then
-            call getarg(4, ACTION)
-        else
-            ACTION = 'Select'
-        end if
-
-        ! YEAR when the current School Year started
-        if (numArgs>1) then
-            call getarg(2, dataSource)
-            currentYear = atoi(dataSource)
-        else ! get YYYYMM from currentDate
-            currentYear = atoi(currentDate(1:4))
-            iTmp = atoi(currentDate(5:6)) ! month
-            ! assume 1st sem=June-Oct, 2nd sem=Nov-March, summer=Apr-May
-            if (iTmp<=5) then ! it is before 1st sem; School Year started in previous year
-                currentYear = currentYear - 1
-            end if
-        end if
+        ! start YEAR for the current School Year
+        call getarg(2, dataSource)
+        currentYear = atoi(dataSource)
 
         ! current TERM
-        if (numArgs>2) then
-            call getarg(3, dataSource)
-        else ! get YYYYMM from currentDate
-            iTmp = atoi(currentDate(5:6)) ! month
-            ! assume 1st sem=June-Oct, 2nd sem=Nov-March, summer=Apr-May
-            select case (iTmp)
-                case (1:3)
-                    dataSource = '2'
-                case (4:5)
-                    dataSource = 'S'
-                case (6:10)
-                    dataSource = '1'
-                case (11:12)
-                    dataSource = '2'
-            end select
-        end if
-
+        call getarg(3, dataSource)
         select case (trim(dataSource))
             case ('1')
                 currentTerm = 1
@@ -185,30 +116,69 @@ contains
             call usage('Error: Invalid YEAR and/or TERM')
         end if
 
+        ! configure HEEDS_DIRECTORY, DOCUMENT_ROOT, SERVER_NAME, SERVER_PROTOCOL
+        call read_configuration(trim(UniversityCode)//dotXML, iTmp)
+
+        ! dirUNIV - location of files for target University
+        dirUNIV = trim(HEEDS_DIRECTORY)//DIRSEP//trim(UniversityCode)//DIRSEP
+        inquire(file=trim(dirUNIV), exist=pathExists)
+        if (.not. pathExists) call usage('Error: data directory '//trim(dirUNIV)//' does not exist')
+
+        ! data directory
+        dirDATA = trim(dirUNIV)//'dat'//DIRSEP
+        lenDirDATA = len_trim(dirDATA)
+        call make_directory( trim(dirData)//itoa(currentYear) )
+
+        ! backup directory
+        dirBACKUP = trim(dirUNIV)//'bak'//DIRSEP
+        call make_directory( trim(dirBACKUP)//itoa(currentYear) )
+
         ! date-related initializations
         call initialize_date_change()
 
-        ! compute relative years and terms (before and after current)
-        call initialize_past_future_years_terms ()
+        ! PHILIPPINE STANDARD GEOGRAPHIC CODE (PSGC)
+        call read_PSGC()
+        call log_comment (itoa(NumPSGC)//' in PSGC.XML')
 
-        ! reset basic data
-        call initialize_basic_data ()
+        ! Mother tongues
+        call read_TONGUES()
+        call log_comment (itoa(NumTongue)//' in TONGUES.XML')
 
-    end subroutine initializations
+        ! Teacher evaluation form
+        call read_EVALUATION_FORM()
+        call log_comment(itoa(NumEvalCriteria)//FSLASH//itoa(NumEvalCategories)// &
+            ' evaluation criteria/categories in EVALUATION.XML')
+
+    end subroutine get_arguments
 
 
-    subroutine initialize_basic_data ()
+    subroutine year_data_initialize ()
 
         integer :: iTmp
         character (len=MAX_LEN_FILE_PATH) :: dataSource
         logical :: pathExists
+
+        ! accounting
+        NumAccounts = 0
+        AccountCode = SPACE
+        AccountDescription = SPACE
+        AccountCode(0) = 'NOT FOUND'
+        AccountDescription(0) = '(Account code not found)'
+
+        ! fees
+        FeeAmount = 0.0
+        FeeDescription = SPACE
+
+        ! scholarships
+        ScholarshipCode = SPACE
+        ScholarshipDescription = SPACE
 
         ! the colleges
         NumColleges = 0
         call initialize_college (College(0))
         College(1:) = College(0)
 
-        ! the departments
+        ! the units
         call initialize_department (Department(0))
         Department(2:) = Department(0)
 
@@ -262,7 +232,7 @@ contains
         NumTeachers = 1
         NumAdditionalTeachers = 0
         ! the Guest account
-        Teacher(NumTeachers)%TeacherID = GUEST
+        Teacher(NumTeachers)%TeacherId = GUEST
         Teacher(NumTeachers)%Name = 'Guest Account'
         Teacher(NumTeachers)%DeptIdx = NumDepartments
         Teacher(NumTeachers)%Role = GUEST
@@ -277,15 +247,18 @@ contains
             StdRank(iTmp) = iTmp
         end do
 
-        ! term-specific data
-        call initialize_term_data()
-        isPeriodTwo = .false.
-        isPeriodOne = .false.
-        isPeriodThree = .false.
-        isPeriodFour = .false.
-        isProbabilistic = .true.
-        termBegin = currentTerm
-        termEnd = termBegin-1
+        ! classes
+        NumSections = 0
+        call initialize_section (Section(1,0))
+        Section(:,:) = Section(1,0)
+
+        ! blocks
+        NumBlocks = 0
+        call initialize_block(Block(1,0))
+        Block(:,:) = Block(1,0)
+
+        ! pre-enlisted, advised subjects of students
+        NumEnlistment = 0
 
         ! message of the day
         MOTD = SPACE
@@ -302,43 +275,16 @@ contains
             close(unitETC)
         end if
 
-        ! emergency message 
+        ! emergency message
         EMERGENCY = SPACE
 
-        ! disable Guest?
-        if (.not. isEnabledGuest) then
-            USERNAME = GUEST
-            iTmp = index_to_teacher(USERNAME)
-            call initialize_teacher(Teacher(iTmp))
-            Teacher(iTmp)%DeptIdx = 0
-        end if
-
-    end subroutine initialize_basic_data
+    end subroutine year_data_initialize
 
 
-    subroutine initialize_date_change()
+    subroutine initialize_past_future_years_terms (currentYear, currentTerm)
 
-        ! backup directory
-        dirBACKUP = trim(dirUNIV)//currentDate//DASH//trim(fileEXE)//'-backup'//DIRSEP
-
-        ! create year/term directories in dirBACKUP
-        call make_year_term_directory( dirBACKUP, currentYear )
-
-        ! initialize log for requests
-        fileREQ = trim(dirLOG)//currentDate//DASH//trim(fileEXE)//'-request.log'
-        call log_request(unitREQ, trim(fileREQ), &
-            '#-------', '#Begins '//currentDate//DASH//currentTime, '#-------', &
-            '#Executable is : '//trim(fileEXE)//SPACE//DASH//SPACE//'( '//PROGNAME//VERSION//')', &
-            '#Arguments are : '//trim(UniversityCode)//SPACE//itoa(currentYear)//trim(txtSemester(currentTerm)) )
-
-        ! open a 'scratch' HTML response file
-        open(unit=unitHTML, file=trim(dirLOG)//currentDate//DASH//trim(fileEXE)//'-scratch.html', &
-            form='formatted', status='unknown')
-
-    end subroutine initialize_date_change
-
-
-    subroutine initialize_past_future_years_terms ()
+        integer, intent(in) :: currentYear, currentTerm
+        integer :: iTmp
 
         select case (currentTerm)
 
@@ -349,8 +295,6 @@ contains
                 cTm2 = 2                 ! 2 terms ago (2nd)
                 cTm1Year = currentYear-1 ! year of previous term
                 cTm1 = 3                 ! 1 term ago (summer)
-                nextYear = currentYear   ! year of next term (the same year)
-                nextTerm = 2             ! next term (2nd)
 
             case (2)
                 cTm3Year = currentYear-1
@@ -359,8 +303,6 @@ contains
                 cTm2 = 3
                 cTm1Year = currentYear
                 cTm1 = 1
-                nextYear = currentYear
-                nextTerm = 3
 
             case (3)
                 cTm3Year = currentYear-1
@@ -369,46 +311,81 @@ contains
                 cTm2 = 1
                 cTm1Year = currentYear
                 cTm1 = 2
-                nextYear = currentYear+1
-                nextTerm = 1
 
         end select
 
-        ! directory for start of School Year
-        pathToYear = trim(dirDATA)//trim(itoa(currentYear))//DIRSEP
-
-        ! directory for year of next term
-        pathToNextYear = trim(dirDATA)//trim(itoa(nextYear))//DIRSEP
+        call set_directories_and_indexes(currentYear)
+        call make_directory( dirCOLLEGES )
+        call make_directory( dirDEPARTMENTS )
+        call make_directory( dirSUBJECTS )
+        call make_directory( dirCURRICULA )
+        call make_directory( dirROOMS )
+        call make_directory( dirTEACHERS )
+        call make_directory( dirSTUDENTS )
+        do iTmp=firstSemester, summerTerm
+            call make_directory( dirCLASSES(iTmp) )
+            call make_directory( dirBLOCKS(iTmp) )
+            call make_directory( dirEVALUATIONS(iTmp) )
+        end do
 
     end subroutine initialize_past_future_years_terms
 
 
-    subroutine initialize_term_data()
+    subroutine set_directories_and_indexes(year)
+        integer, intent(in) :: year
+        integer :: iTmp
 
-        ! classes
-        NumSections = 0
-        call initialize_section (Section(1,0))
-        Section(:,:) = Section(1,0)
+        ! directory for start of School Year
+        pathToYear = trim(dirDATA)//trim(itoa(year))//DIRSEP
 
-        ! blocks
-        NumBlocks = 0
-        call initialize_block(Block(1,0))
-        Block(:,:) = Block(1,0)
+        ! data directories
+        dirCOLLEGES      = trim(pathToYear)//'COLLEGES'//DIRSEP
+        dirDEPARTMENTS   = trim(pathToYear)//'DEPARTMENTS'//DIRSEP
+        dirSUBJECTS      = trim(pathToYear)//'SUBJECTS'//DIRSEP
+        dirCURRICULA     = trim(pathToYear)//'CURRICULA'//DIRSEP
+        dirROOMS         = trim(pathToYear)//'ROOMS'//DIRSEP
+        dirTEACHERS      = trim(pathToYear)//'TEACHERS'//DIRSEP
+        dirSTUDENTS      = trim(pathToYear)//'STUDENTS'//DIRSEP
 
-        ! initialize freshman quotas
-        NFintake = 0
+        do iTmp=firstSemester, summerTerm
+            dirCLASSES(iTmp)       = trim(pathToYear)//'CLASSES'//DIRSEP//trim(txtSemester(iTmp))//DIRSEP
+            indexCLASSES(iTmp)     = trim(dirCLASSES(iTmp))//'index'
 
-        ! pre-enlisted, advised subjects of students
-        NumEnlistment = 0
-        call initialize_pre_enlistment(Enlistment(1,0))
-        Enlistment(:,:) = Enlistment(1,0)
+            dirBLOCKS(iTmp)        = trim(pathToYear)//'BLOCKS'//DIRSEP//trim(txtSemester(iTmp))//DIRSEP
+            indexBLOCKS(iTmp)      = trim(dirBLOCKS(iTmp))//'index'
 
-        ! waivers
-        NumWaiverRecords = 0
-        call initialize_waiver(WaiverCOI(0))
-        WaiverCOI = WaiverCOI(0)
+            ! directory for teacher evaluation "forms"
+            dirEVALUATIONS(iTmp)   = trim(dirDATA)//'evaluations'//DIRSEP// &
+                trim(itoa(year))//DIRSEP//trim(txtSemester(iTmp))//DIRSEP
 
-    end subroutine initialize_term_data
+        end do
 
+    end subroutine set_directories_and_indexes
+
+
+    ! date-related initializations
+    subroutine initialize_date_change()
+        ! log directory
+
+        dirLOG = trim(dirUNIV)//'log-'//trim(itoa(currentYear))//DIRSEP
+        call make_directory( trim(dirLOG)//currentDate )
+
+        call log_comment( '-------', 'Begins '//currentDate//DASH//currentTime, '-------', &
+            'Executable is '//fileEXE )
+
+        ! initialize log for requests
+        !fileREQ = trim(dirLOG)//currentDate//DIRSEP//startDateTime//'-request.log'
+        fileREQ = trim(dirLOG)//currentDate//DIRSEP//currentTime(:6)//DASH//trim(ACTION)//'-request.log'
+        call log_request(unitREQ, trim(fileREQ), &
+            '#-------', '#Begins '//currentDate//DASH//currentTime, '#-------', &
+            '#Executable is : '//trim(fileEXE), &
+            '#Arguments are : '//trim(UniversityCode)//SPACE//itoa(currentYear)//trim(txtSemester(currentTerm)) )
+
+        ! open a 'scratch' HTML response file
+        !open(unit=unitHTML, file=trim(dirLOG)//currentDate//DIRSEP//startDateTime//'-scratch.html', &
+        open(unit=unitHTML, file=trim(dirLOG)//currentDate//DIRSEP//currentTime(:6)//DASH//trim(ACTION)//'-scratch.html', &
+            form='formatted', status='unknown')
+
+    end subroutine initialize_date_change
 
 end module INITIALIZE
